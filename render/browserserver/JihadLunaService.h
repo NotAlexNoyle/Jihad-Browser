@@ -69,6 +69,10 @@ void LunaServiceSetPrintFn(LunaPrintFn fn);
 // and says whether the page came over TLS. Set by the server before LunaServiceStart.
 typedef bool (*LunaCertificateFn)(std::string* json);
 void LunaServiceSetCertificateFn(LunaCertificateFn fn);
+// T-601 (cavekit-gre-widgets.md R1): a media key from the card — play, pause, playpause, stop, next, prev — for
+// the page the user is in; the card gets them from palm://com.palm.keys/media (a Bluetooth headset's buttons).
+typedef bool (*LunaMediaKeyFn)(const std::string& key);
+void LunaServiceSetMediaKeyFn(LunaMediaKeyFn fn);
 
 // Read webOS's own proxy setting (com.palm.connectionmanager/getNwProxiesConfig) once; the
 // answer, or a returnValue:false saying why there is none, is raised to the components as the

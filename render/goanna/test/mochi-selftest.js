@@ -529,6 +529,18 @@
 	};
 
 	scenarios.page = scenarios.settings;
+	// T-601: mediakey:pause-play — each key handed to the shell's own gotMediaKey 8 s after the launch, the next 6 s later
+	scenarios.mediakey = function(app, name, arg) {
+		var keys = String(arg || "pause-play").split("-"), i = 0;
+		function next() {
+			if (i >= keys.length) { log(name, "DONE"); return; }
+			var k = keys[i++];
+			app.gotMediaKey({key: k, state: "down"});
+			log(name, "key " + k + " handed to gotMediaKey");
+			window.setTimeout(next, 6000);
+		}
+		window.setTimeout(next, 8000);
+	};
 	function run() {
 		var p = null;
 		try { p = enyo.json.parse(window.PalmSystem.launchParams); } catch (e) { p = null; }

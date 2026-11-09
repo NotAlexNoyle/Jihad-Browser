@@ -124,6 +124,15 @@ enyo.kind({
 		},
 		// Find-in-page bar (overlay below the toolbar); forwards to findInPage.
 		{kind: "JihadFindBar", name: "findBar", onFind: "findRequested", onClose: "findClosed"},
+		// T-602 (from the Atlas app's 0.9.6): the screen lock while a video plays — the button at the view's top right;
+		// locked, the shield over the view takes every tap, a tap shows "Screen locked", a tap on that asks
+		// "Unlock controls?", a second tap unlocks. Gone 3 s after the video stops or when the card leaves the front.
+		{name: "lockShield", classes: "jihad-lock-shield", showing: false, ontap: "lockShieldTap", components: [
+			{name: "lockNotice", classes: "jihad-lock-notice", showing: false, ontap: "lockNoticeTap", allowHtml: false}
+		]},
+		{name: "lockButton", classes: "jihad-lock-button", showing: false, ontap: "lockButtonTap", components: [
+			{classes: "jihad-lock-shackle"}, {classes: "jihad-lock-body"}
+		]},
 		// Start page rendered as APP CHROME (not a size-limited WebView data: URL),
 		// so the logo is the crisp bundled asset — matches the Enyo variant. Shown
 		// over the (idle) WebView until the first navigation; hidden on loadStarted.
@@ -136,6 +145,22 @@ enyo.kind({
 			// Same three destinations as the Mojo and Enyo start pages, so all three shells
 			// open on the same page. Straight to openUrl — the path the address bar uses.
 			{name: "spLinks", classes: "jihad-sp-links"}
+		]},
+		// T-600 (2026-11-09, from the Atlas app's 0.9.6): the card's own page for a load that failed, over the view
+		// (the view is a plugin node: hiding it would tear the adapter instance down) — the cause in plain words, the
+		// address, Try Again, the Wi-Fi settings where the network is the cause. Shown by loadFailed, gone when a
+		// load ends without an error (loadStopped).
+		{name: "loadError", classes: "jihad-load-error", showing: false, components: [
+			{classes: "jihad-load-error-box", components: [
+				{content: "This page could not be loaded", classes: "jihad-load-error-title", allowHtml: false},
+				{name: "leMessage", classes: "jihad-load-error-message", allowHtml: false},
+				{name: "leHint", classes: "jihad-load-error-hint", allowHtml: false},
+				{name: "leAddress", classes: "jihad-load-error-address", allowHtml: false},
+				{classes: "jihad-load-error-buttons", components: [
+					{name: "leRetry", classes: "jihad-btn", content: "Try Again", ontap: "loadErrorRetry"},
+					{name: "leSettings", classes: "jihad-btn jihad-btn-alt", content: "Wi-Fi Settings", showing: false, ontap: "loadErrorSettings"}
+				]}
+			]}
 		]},
 		// The drop-down menus, one overlay rebuilt per menu (openMenuWith). The SAME menus in
 		// all three shells, laid out as Atlas and the Enyo shell lay them out (owner,
@@ -246,6 +271,7 @@ enyo.kind({
 		// clearCookies from a launch target would otherwise raise its toast before anything
 		// was listening.
 		this.subscribeNotifications();
+		this.subscribeMediaKeys();
 		// The lightweight theme ("persona") in force, once at start; changes come on the
 		// notification channel as category "theme".
 		enyo.jihad.own("getTheme", {}, enyo.bind(this, function(r) { this.applyTheme(r && r.theme ? r.theme : null); }));
@@ -416,6 +442,28 @@ enyo.kind({
 	//* Each variant owns `net.riverstonerelay.jihad-browser<variant>`, as it owns its MIME,
 	//* YAP socket, upstart job and state dir.
 	clearCookies: function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihadBrowserMochi/clearCookies', '{}'); },
+	//* T-601: a Bluetooth headset's media keys (palm://com.palm.keys/media), relayed to the page's media through the
+	//* daemon's mediaKey; pageFocused first so the daemon knows which card asks. Subscribed once at startup.
+	subscribeMediaKeys: function() {
+		if (typeof PalmServiceBridge === "undefined") { return; }
+		var self = this, bridge = new PalmServiceBridge();
+		this._mediaKeysBridge = bridge;   // referenced, or the native side is collected mid-subscription
+		bridge.onservicecallback = function(msg) {
+			var r = null;
+			try { r = JSON.parse(msg); } catch (e) { r = null; }
+			self.gotMediaKey(r);
+		};
+		bridge.call("palm://com.palm.keys/media/status", JSON.stringify({subscribe: true}));
+	},
+	gotMediaKey: function(r) {
+		if (!r || !r.key || (r.state && r.state !== "down")) { return; }
+		this.$.view.callBrowserAdapter("pageFocused", [true]);
+		var b = new PalmServiceBridge();
+		(this._mediaKeyCalls = this._mediaKeyCalls || []).push(b);   // referenced until it answers
+		if (this._mediaKeyCalls.length > 8) { this._mediaKeyCalls.shift(); }
+		b.call("palm://net.riverstonerelay.jihadBrowserMochi/mediaKey", JSON.stringify({key: String(r.key)}));
+		enyo.log("[T-601] media key " + r.key);
+	},
 	clearCache:   function() { new PalmServiceBridge().call('palm://net.riverstonerelay.jihadBrowserMochi/clearCache', '{}'); },
 
 	//* The daemon's NON-BLOCKING message channel (cavekit-gre-widgets.md R5). One subscription
@@ -449,6 +497,10 @@ enyo.kind({
 					this.applyTheme(t);
 					return;
 				}
+				// T-599: the page's media started or stopped: the display's timeout held off while it plays (see mediaPlaying)
+				if (resp.category === "media-playing") { this.mediaPlaying(resp.text === "1"); return; }
+				// T-602: a <video> plays (with sound or without): the screen lock's button, and the hold too
+				if (resp.category === "video-playing") { this.videoPlaying(resp.text === "1"); return; }
 				if (resp.category === "page-hold") { this.pageHold(resp.text); return; }
 				if (resp.category === "page-copied") { this.pageCopied(resp.text); return; }
 				// What the engine says about a copy or a cut is broadcast to every card;
@@ -605,10 +657,49 @@ enyo.kind({
 
 	// --- WebView (JihadWebView) callbacks -> chrome state -------------------
 	hideStartPage: function() { if (this.$.startPage && this.$.startPage.hide) this.$.startPage.hide(); },
-	//* What is on screen is now the engine's error page, not the site in the address bar.
-	loadFailed: function() {
+	//* What is on screen is an error now, not the site in the address bar: the panel over the view (T-600).
+	loadFailed: function(inSender, inEvent) {
 		this._loadFailed = true;
 		this.updateLock();
+		var code = inEvent && typeof inEvent.code === "number" ? inEvent.code : 0;
+		this._failedUrl = (inEvent && inEvent.url) || this.url;
+		this.showLoadError(code, this._failedUrl);
+	},
+	//* T-600: the words for the engine's status (an NS_ERROR_* code, negative as the adapter hands it over).
+	describeLoadError: function(inCode) {
+		var net = function(m, h) { return {message: m, hint: h, settings: "com.palm.app.wifi"}; };
+		switch (inCode >>> 0) {
+			case 0x804B001E: return net("The server's name could not be found.", "Check the address, or the network connection.");
+			case 0x804B000D: return net("The server refused the connection.", "The site may be down, or a port in the address is wrong.");
+			case 0x804B000E: return net("The server took too long to answer.", "Try again in a moment, or check the network connection.");
+			case 0x804B0014: case 0x804B0047: return net("The connection was interrupted.", "Try again; if it keeps happening, check the network connection.");
+			case 0x804B0010: return net("This device is offline.", "Turn Wi-Fi on, then try again.");
+			case 0x804B0048: return net("The proxy refused the connection.", "Check the proxy in the network settings.");
+			case 0x804B0012: return {message: "This kind of address is not understood.", hint: "Only web addresses (http, https) open here.", settings: null};
+			case 0x80520012: return {message: "The file does not exist.", hint: "", settings: null};
+			case 0x804B0013: return {message: "The address is not valid.", hint: "Check it for a typing mistake.", settings: null};
+		}
+		return {message: "The page could not be loaded.", hint: "Try again; if it keeps happening, check the network connection.", settings: "com.palm.app.wifi"};
+	},
+	showLoadError: function(inCode, inUrl) {
+		var d = this.describeLoadError(inCode);
+		this.$.leMessage.setContent(d.message);
+		this.$.leHint.setContent(d.hint);
+		this.$.leAddress.setContent(String(inUrl || ""));
+		this._leSettingsApp = d.settings;
+		this.$.leSettings.setShowing(!!d.settings);
+		this.$.leRetry.setContent("Try Again"); this._leRetrying = false;
+		this.$.loadError.show();
+	},
+	hideLoadError: function() { if (this.$.loadError.showing) { this.$.loadError.hide(); } },
+	loadErrorRetry: function() {
+		if (this._leRetrying) { return; }
+		this.$.leRetry.setContent("Trying\u2026"); this._leRetrying = true;
+		if (this._failedUrl) { this.openUrl(this._failedUrl); } else { this.reloadPage(); }
+	},
+	loadErrorSettings: function() {
+		if (!this._leSettingsApp || typeof PalmServiceBridge === "undefined") { return; }
+		new PalmServiceBridge().call("palm://com.palm.applicationManager/launch", JSON.stringify({id: this._leSettingsApp}));
 	},
 	loadStarted: function() {
 		this._loadFailed = false;
@@ -630,6 +721,7 @@ enyo.kind({
 		this.$.progress.setShowing(false);
 		this.$.progress.setProgress(0);
 		this.setStopVisible(false);
+		if (!this._loadFailed) { this.hideLoadError(); }   // T-600: a load that ended well takes the view back
 		// Record the visit in the Jihad history kind (BrowserApp.pageLoadStopped
 		// parity): drop any prior row for this URL, then insert the fresh one.
 		this.updateHistory(this._title, this.url);
@@ -1007,6 +1099,80 @@ enyo.kind({
 	//* within the last four seconds — which, a finger being in one place, is one card. (The
 	//* answer normally takes 0.1-0.5 s; once, on a card started seconds earlier, it was not
 	//* acted on at 2.5 s.)
+	//* T-599: media started (on) or stopped (off); a stop waits 3 s before the screen may sleep again. The card's
+	//* window property blockScreenTimeout (webOS 3, no privilege) is what holds the display.
+	mediaPlaying: function(inOn) {
+		this._mediaOn = !!inOn;
+		this.mediaStateChanged();
+	},
+	//* T-602: a video plays or stopped: the lock's button while one plays; gone 3 s after it stops.
+	videoPlaying: function(inOn) {
+		this._videoOn = !!inOn;
+		if (this._lockOffTimer) { clearTimeout(this._lockOffTimer); this._lockOffTimer = null; }
+		if (inOn) { this.$.lockButton.show(); }
+		else { this._lockOffTimer = setTimeout(enyo.bind(this, function() { this._lockOffTimer = null; this.dropScreenLock(); }), 3000); }
+		this.mediaStateChanged();
+	},
+	//* The hold follows sound or a playing video, while the card is in front.
+	mediaStateChanged: function() {
+		var on = this._mediaOn || this._videoOn;
+		if (this._mediaOffTimer) { clearTimeout(this._mediaOffTimer); this._mediaOffTimer = null; }
+		if (on) { if (this._cardInFront !== false) { this.setScreenHold(true); } }
+		else { this._mediaOffTimer = setTimeout(enyo.bind(this, function() { this._mediaOffTimer = null; if (!this._mediaOn && !this._videoOn) { this.setScreenHold(false); } }), 3000); }
+	},
+	//* The card's turns in front, from the Mojo bridge in index.html (sysmgr's stageActivated/Deactivated, show/hide).
+	jihadStageActivated: function() {
+		this._cardInFront = true;
+		if (this._mediaOn || this._videoOn) { this.setScreenHold(true); }
+	},
+	jihadStageDeactivated: function() {
+		this._cardInFront = false;
+		this.setScreenHold(false);
+		this.dropScreenLock();
+	},
+	// T-602: the screen lock (see the lockButton component)
+	dropScreenLock: function() {
+		this._locked = false;
+		this.$.lockShield.hide(); this.$.lockNotice.hide(); this.$.lockButton.hide();
+		this.$.lockButton.removeClass("jihad-lock-on");
+	},
+	lockButtonTap: function() {
+		if (this._locked) { return this.lockShieldTap(); }
+		this._locked = true;
+		this.$.lockButton.addClass("jihad-lock-on");
+		this.$.lockShield.show();
+		this.showLockNotice("Screen locked", "locked");
+		return true;
+	},
+	lockShieldTap: function() {
+		if (this._locked && this._noticeStage !== "ask") { this.showLockNotice("Screen locked", "locked"); }
+		return true;
+	},
+	lockNoticeTap: function() {
+		if (this._noticeStage === "locked") { this.showLockNotice("Unlock controls? Tap again", "ask"); }
+		else if (this._noticeStage === "ask") {
+			this._locked = false;
+			this.$.lockShield.hide(); this.$.lockNotice.hide();
+			this.$.lockButton.removeClass("jihad-lock-on");
+		}
+		return true;
+	},
+	showLockNotice: function(inText, inStage) {
+		this._noticeStage = inStage;
+		this.$.lockNotice.setContent(inText);
+		this.$.lockNotice.show();
+		if (this._noticeTimer) { clearTimeout(this._noticeTimer); }
+		this._noticeTimer = setTimeout(enyo.bind(this, function() { this._noticeTimer = null; this._noticeStage = null; this.$.lockNotice.hide(); }), 3000);
+	},
+	setScreenHold: function(inHold) {
+		var hold = !!inHold;
+		if (this._screenHeld === hold) { return; }
+		if (!window.PalmSystem || typeof window.PalmSystem.setWindowProperties !== "function") { return; }
+		this._screenHeld = hold;
+		// an object, as Enyo 1's enyo.windows.setWindowProperties hands it over (a JSON string is ignored)
+		try { window.PalmSystem.setWindowProperties({blockScreenTimeout: hold}); } catch (e) { enyo.log("[T-599] setWindowProperties failed: " + e); }
+		enyo.log("[T-599] screen hold " + (hold ? "on" : "off"));
+	},
 	pageHold: function(text) {
 		var at = this._pageHold, s = null, items = [];
 		this._pageHold = 0;

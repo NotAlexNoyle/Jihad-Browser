@@ -485,6 +485,12 @@ public:
   // Whether the last load ended in a network error (R3 failed-load). Fills the
   // failing nsresult code + URL when *failed is true.
   bool GetLoadError(bool* failed, int* code, std::string* url);
+  // T-601: a media key (play, pause, playpause, stop, next, prev) on the page's media: the playing element, or
+  // the one that played last, or the first with a source. True when an element took it.
+  bool MediaKey(const std::string& key);
+  // T-602: whether a <video> of the page is playing (not paused, not ended) — the card's screen lock shows for video
+  // alone, and a silent video holds the screen on too (T-599's audio poll hears only sound)
+  bool VideoPlaying();
   // Whether the main document was redirected during the last load (R4).
   bool DidRedirect() const;
   // If a content-initiated (link) navigation was seen, return its URL and clear

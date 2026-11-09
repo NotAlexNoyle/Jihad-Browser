@@ -117,6 +117,7 @@ public:
   bool printActivePage(const std::string& requestJson);
   // The certificate of the page the user is in, as JSON. False if it is not a TLS page.
   bool certificateForActivePage(std::string* json);
+  bool mediaKeyForActivePage(const std::string& key);   // T-601: a media key to the page the user is in
   // Whether the last tick had anything to do: a page that is busy (BrowserPageGoanna::isBusy) or
   // a command from a card since the tick before. main() uses it to choose the tick period.
   bool tickWasBusy() const { return mTickBusy; }

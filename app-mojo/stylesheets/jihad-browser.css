@@ -381,3 +381,17 @@ body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon[style*="menu-icon-bookmark.
 body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon[style*="menu-icon-share.png"]    { background-image: url(../images/dark/menu-icon-share.png) !important; }
 body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon[style*="menu-icon-find.png"]     { background-image: url(../images/dark/menu-icon-find.png) !important; }
 body.jihad-themed-ink .jihad-cmdmenu .palm-menu-icon[style*="menu-icon-history.png"]  { background-image: url(../images/dark/menu-icon-history.png) !important; }
+
+/* T-600: the failed address under the error's words */
+.jihad-error-address { font-size: 14px; color: #888; word-break: break-all; margin: 6px 0 16px; }
+
+/* T-602: the screen lock while a video plays (main-scene.html #jihad-lock-*) */
+.jihad-lock-button { position: fixed; top: 72px; right: 12px; width: 48px; height: 48px; border-radius: 24px; z-index: 46;
+	background: rgba(0, 0, 0, 0.55); opacity: 0.45; -webkit-transition: opacity 0.3s; }
+.jihad-lock-button.jihad-lock-on { opacity: 1; background: rgba(0, 0, 0, 0.75); }
+.jihad-lock-shackle { position: absolute; left: 16px; top: 9px; width: 10px; height: 10px; border: 3px solid #fff;
+	border-bottom: none; border-radius: 8px 8px 0 0; }
+.jihad-lock-body { position: absolute; left: 13px; top: 21px; width: 22px; height: 17px; border-radius: 3px; background: #fff; }
+.jihad-lock-shield { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 45; background: transparent; }
+.jihad-lock-notice { position: absolute; top: 78px; right: 72px; padding: 8px 14px; border-radius: 16px; color: #fff;
+	font-size: 16px; background: rgba(0, 0, 0, 0.7); }

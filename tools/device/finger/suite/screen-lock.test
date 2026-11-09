@@ -1,0 +1,28 @@
+id: screen-lock
+section: Media and sound
+item: The screen lock while a video plays (T-602, from the Atlas app): its button stands while the video plays; locked, a tap on the video does not reach it (the video plays on); a tap on the notice asks, a second unlocks, and a tap on the video pauses it again
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1
+kit: cavekit-gre-widgets.md R1
+wait rect v 20
+calibrate 'sel:#status'
+wait text status playing 15
+# the daemon looks for a playing video once a second and the card shows the button on its notice
+pause 2500
+shoot lock-button
+chrome lock-button
+pause 800
+shoot locked
+# a tap on the video while locked: the shield takes it (no clickAt), the video plays on
+dismiss 384 360
+wait text status playing 3
+dwell 2000
+expect text status playing
+chrome lock-notice
+pause 600
+shoot ask
+chrome lock-notice
+pause 600
+shoot unlocked
+tap v
+wait text status paused 5

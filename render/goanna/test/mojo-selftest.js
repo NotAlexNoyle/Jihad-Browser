@@ -45,6 +45,20 @@
 	};
 
 	function run(app, name) {
+		// T-601: mediakey:pause-play — each key handed to the scene's own gotMediaKey (the keys service's subscription
+		// calls it) 8 s after the launch, the next 6 s later; the daemon's "media key" lines are the evidence
+		if (name.indexOf("mediakey") === 0) {
+			var keys = (name.split(":")[1] || "pause-play").split("-"), ki = 0;
+			var nextKey = function () {
+				if (ki >= keys.length) { log(name, "DONE"); return; }
+				var k = keys[ki++];
+				app.gotMediaKey({key: k, state: "down"});
+				log(name, "key " + k + " handed to gotMediaKey");
+				setTimeout(nextKey, 6000);
+			};
+			setTimeout(nextKey, 8000);
+			return;
+		}
 		var spec = name.indexOf(":") > 0 ? name.slice(name.indexOf(":") + 1) : "";
 		var steps = spec ? spec.split(";") : [];
 		var sc = app.controller, win = sc.window, doc = sc.document;

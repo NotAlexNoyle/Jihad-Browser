@@ -243,6 +243,10 @@ pref("jihad.youtube.stopAutoplay", true);
 // per image). A lever: off until its measured effect on a long article is read and the owner says; off, the
 // attribute is ignored and every image loads with the page, as before.
 pref("jihad.images.lazy", false);
+// T-603 (from the Atlas app's "Autoplay media with sound"): false lets a page start media only muted until the user's
+// tap reaches it (and pauses one a script unmutes without a tap); true is upstream's behaviour. The default is the
+// owner's (asked 2026-11-09); upstream's until then. The Settings page's "Autoplay media with sound" row.
+pref("jihad.media.autoplayWithSound", true);
 // the browser's own path rules beside the lists (components/jihadContentBlocker.js): "host/path-prefix;…", refused on
 // the page's own host too; empty until a measured lever keeps one (cavekit-device-headroom.md R3)
 pref("jihad.blocking.extra", "");

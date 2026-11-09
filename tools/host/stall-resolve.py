@@ -6,6 +6,9 @@
 # function names and buckets: which part of the engine held the main thread.
 #
 #   python3 -I tools/host/stall-resolve.py <jihad-stall.txt> [--xul <unstripped libxul.so>] [--top N]
+#                                          [--from T --to T] [--merge]
+#   --from/--to: only the events that ended in that window (the timeline's wall-clock ms; the daemon writes "at t=")
+#   --merge: all the chosen events' samples as ONE profile (the main thread over a window, T-604) instead of one each
 #
 # Each "stall N: <ms> ms, <n> samples" block is resolved on its own. libxul offsets go through the
 # toolchain's addr2line against the UNSTRIPPED libxul of the same build
@@ -60,13 +63,24 @@ def main():
     path = args[0]; xul = XUL; top = 30
     if "--xul" in args: xul = args[args.index("--xul") + 1]
     if "--top" in args: top = int(args[args.index("--top") + 1])
+    t_from = int(args[args.index("--from") + 1]) if "--from" in args else None
+    t_to = int(args[args.index("--to") + 1]) if "--to" in args else None
+    merge = "--merge" in args
     stalls = []; cur = None
     for line in open(path, encoding="utf8", errors="replace"):
         line = line.strip()
-        m = re.match(r"stall (\d+): (\d+) ms, (\d+) samples", line)
-        if m: cur = {"n": int(m.group(1)), "ms": int(m.group(2)), "count": int(m.group(3)), "samples": []}; stalls.append(cur); continue
+        m = re.match(r"stall (\d+): (\d+) ms, (\d+) samples(?:, at t=(\d+))?", line)
+        if m:
+            t = int(m.group(4)) if m.group(4) else None
+            keep = not ((t_from is not None and (t is None or t < t_from)) or (t_to is not None and (t is None or t > t_to)))
+            cur = {"n": int(m.group(1)), "ms": int(m.group(2)), "count": int(m.group(3)), "samples": [], "t": t}
+            if keep: stalls.append(cur)
+            continue
         if cur is not None and "+0x" in line:
             mod, off = line.rsplit("+0x", 1); cur["samples"].append((mod, int(off, 16)))
+    if merge and stalls:
+        stalls = [{"n": 0, "ms": sum(st["ms"] for st in stalls), "count": sum(st["count"] for st in stalls),
+                   "samples": [x for st in stalls for x in st["samples"]], "t": None, "events": len(stalls)}]
     xul_offsets = set(off for st in stalls for mod, off in st["samples"] if mod.startswith("libxul"))
     names = resolve_xul(xul_offsets, xul, A2L)
     for st in stalls:
@@ -78,7 +92,8 @@ def main():
                 fn = names.get(off, "libxul+0x%x" % off); byfn[fn] += 1; bybk[bucket(fn)] += 1
             elif mod == "jit": byfn["<JIT code>"] += 1; bybk["JIT code (the page's compiled JavaScript)"] += 1
             else: byfn[mod] += 1; bybk["other module: " + mod] += 1
-        print("=== stall %d: %d ms, %d samples (10 ms each)" % (st["n"], st["ms"], n))
+        if "events" in st: print("=== %d events merged: %d ms, %d samples (10 ms each)" % (st["events"], st["ms"], n))
+        else: print("=== stall %d: %d ms, %d samples (10 ms each)" % (st["n"], st["ms"], n))
         print("--- by bucket:")
         for k, v in bybk.most_common(): print("  %5.1f%%  %s" % (100.0 * v / n, k))
         print("--- top %d functions:" % top)

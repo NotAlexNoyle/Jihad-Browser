@@ -10,6 +10,7 @@
 extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOverflow (T-499)
 #include "EngineCompat.h"
 #include "EngineHost.h"
+#include "DialogService.h"   // T-599: PostNotification (media-playing)
 #include "GoannaRenderPage.h"
 #include "BrowserOffscreenInfo.h"   // isis shmem header (from render/browserserver/Src)
 #include "JihadFrameWindow.h"       // T-517: the frame window trailer (render/browserserver/Src)
@@ -163,6 +164,11 @@ static void jihadRunAudioScript(const char* script) {
   }
 }
 
+// T-599 (cavekit-gre-widgets.md R1, from Atlas 0.9.6): whether a page's media plays, as the poll below sees it
+// (the pulse streams running), for the card — which holds the display's timeout off while it does. Written by the
+// poll thread, read and told from the main thread's tick (emitLoadAndLocation), once per change.
+static volatile int gJihadMediaPlaying = -1;   // -1 unknown, 0 silent, 1 playing
+
 static void* jihadAudioPollThread(void*) {
   const std::string& sd = jihad::RuntimeStateDir();
   if (sd.empty()) { return nullptr; }
@@ -174,6 +180,7 @@ static void* jihadAudioPollThread(void*) {
     usleep(200 * 1000);
     if (!jihad_pulse_active_streams) { continue; }
     int n = jihad_pulse_active_streams();
+    gJihadMediaPlaying = n > 0 ? 1 : 0;
     if (n > 0 && prev == 0) { jihadRunAudioScript(onp.c_str()); tick = 0; }
     else if (n == 0 && prev > 0) { jihadRunAudioScript(offp.c_str()); }
     else if (n > 0 && (++tick % 2) == 0) { jihadRunAudioScript(volp.c_str()); }  // ~400ms live track
@@ -3847,6 +3854,33 @@ void BrowserPageGoanna::emitLoadAndLocation() {
   // watcher's and the last card's (EngineHost.cpp).
   static const long sPurgeAfterLoadMs = getenv("JIHAD_PURGE_AFTER_LOAD_MS") ? atol(getenv("JIHAD_PURGE_AFTER_LOAD_MS")) : 0;
   if (mPurgeAtMs && jihadNowMs() >= mPurgeAtMs) { mPurgeAtMs = 0; jihad::JihadPurgeHeap("load idle (JIHAD_PURGE_AFTER_LOAD_MS)"); }
+  // T-599: the card learns when the page's media starts and stops ("media-playing" 1/0 on the notification channel,
+  // the door the print categories use); told once per change, by whichever page ticks first
+  {
+    static int sMediaTold = -1;
+    const int playing = gJihadMediaPlaying;
+    if (playing >= 0 && playing != sMediaTold) {
+      sMediaTold = playing;
+      jihad::PostNotification("media-playing", playing ? "1" : "0");
+      fprintf(stderr, "[jihad-bs] media %s: the card told (media-playing %d)\n", playing ? "playing" : "silent", playing);
+    }
+  }
+  // T-602: a playing <video> (sound or not), checked once a second on the main thread: "video-playing" 1/0 to the
+  // card, once per change — the screen lock's button shows for it, and a silent video holds the screen on too
+  if (mPage) {
+    static int64_t sVideoCheckMs = 0;
+    static int sVideoTold = -1;
+    const int64_t now = jihadNowMs();
+    if (now - sVideoCheckMs >= 1000) {
+      sVideoCheckMs = now;
+      const int v = mPage->VideoPlaying() ? 1 : 0;
+      if (v != sVideoTold) {
+        sVideoTold = v;
+        jihad::PostNotification("video-playing", v ? "1" : "0");
+        fprintf(stderr, "[jihad-bs] video %s: the card told (video-playing %d)\n", v ? "playing" : "stopped", v);
+      }
+    }
+  }
   if (mPage->LoadDone() && !mLoadWasDone) {
     // Normal completion — the one and only load-stopped boundary for this load.
     mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = false;

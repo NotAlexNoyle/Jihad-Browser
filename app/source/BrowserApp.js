@@ -36,6 +36,10 @@ enyo.kind({
 		{name: "systemPrefsService", kind: "SystemService"},
 		// This variant's own daemon service, for the calls that are not subscriptions (print).
 		{name: "ownService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/"},
+		// T-601: a Bluetooth headset's media keys (play, pause, playpause, stop, next, prev), relayed to the page's
+		// media through the daemon's mediaKey; subscribed once the card is up (subscribeMediaKeys).
+		{name: "mediaKeysService", kind: enyo.PalmService, service: "palm://com.palm.keys/media", method: "status", subscribe: true,
+			onSuccess: "gotMediaKey", onFailure: "mediaKeysFailed"},
 		{name: "browserPrefsService", kind: "DbService", dbKind: "net.riverstonerelay.jihad-browser.preferences:1", reCallWatches: true},
 		// NO com.palm.universalsearch services any more (2026-10-05). Upstream took the search
 		// engine list from the system's "Just Type" settings, WROTE the system-wide default
@@ -164,10 +168,27 @@ enyo.kind({
 		this.inherited(arguments);
 		this.fetchInitialPreferences();
 		this.subscribeNotifications();
+		this.subscribeMediaKeys();
 		this.log(enyo.json.stringify(enyo.windowParams));
 	},
 	//* Open the daemon's message subscription (cavekit-gre-widgets.md R5). Off device there is
 	//* no Luna bus at all, so this is skipped rather than left to fail asynchronously.
+	//* T-601: the media keys' subscription; a key's "down" goes to the page the user is in (pageFocused first, so the
+	//* daemon knows which of its cards asks). The service refuses on a device without the keys: then nothing.
+	subscribeMediaKeys: function() {
+		if (!window.PalmSystem) { return; }
+		this.$.mediaKeysService.call({subscribe: true});
+	},
+	gotMediaKey: function(inSender, inResponse) {
+		if (!inResponse || !inResponse.key || (inResponse.state && inResponse.state !== "down")) { return; }
+		if (!this.isBrowserShowing()) { return; }
+		this.$.browser.viewCall("pageFocused", [true]);
+		this.$.ownService.call({key: String(inResponse.key)}, {method: "mediaKey"});
+		enyo.log("[T-601] media key " + inResponse.key);
+	},
+	mediaKeysFailed: function(inSender, inResponse) {
+		enyo.log("[T-601] media keys not available: " + enyo.json.stringify(inResponse));
+	},
 	subscribeNotifications: function() {
 		if (!window.PalmSystem) { return; }
 		// Empty params on purpose. The component's own `subscribe: true` is what puts
@@ -271,6 +292,11 @@ enyo.kind({
 			this.setTheme(t);
 			return;
 		}
+		// T-599: the page's media started or stopped (the daemon's audio poll): the display's timeout is held off
+		// while it plays and this card is in front, as the video player app does for its own.
+		if (inResponse.category === "media-playing") { this.mediaPlaying(inResponse.text === "1"); return; }
+		// T-602: a <video> plays (with sound or without): the screen lock's button over the view, and the hold too
+		if (inResponse.category === "video-playing") { this.videoPlaying(inResponse.text === "1"); return; }
 		if (inResponse.category === "page-hold") { this.$.browser.pageHold(inResponse.text); return; }
 		if (inResponse.category === "page-copied") { this.$.browser.pageCopied(inResponse.text); return; }
 		// What the engine says about a copy or a cut is broadcast to every card; it is
@@ -364,11 +390,49 @@ enyo.kind({
 			this.$.browser.viewCall("activate");
 		}
 		this.refreshDownloads();
+		this._cardInFront = true;
+		if (this._mediaOn || this._videoOn) { this.setScreenHold(true); }
 	},
 	windowDeactivatedHandler: function() {
 		if (this.isBrowserShowing()) {
 			this.$.browser.viewCall("deactivate");
 		}
+		this._cardInFront = false;
+		this.setScreenHold(false);
+		this.$.browser.dropScreenLock();   // T-602: the lock does not outlive the card's turn in front
+	},
+	//* T-599: media started (on) or stopped (off). A stop holds for 3 s before the screen may sleep again, so a
+	//* seek, the next clip or a short pause does not let the timeout run (Atlas's UNLOCK_DELAY_MS).
+	mediaPlaying: function(inOn) {
+		this._mediaOn = !!inOn;
+		this.mediaStateChanged();
+	},
+	//* T-602: a video plays or stopped; the browser shows its screen lock's button while one plays.
+	videoPlaying: function(inOn) {
+		this._videoOn = !!inOn;
+		this.$.browser.setVideoPlaying(this._videoOn);
+		this.mediaStateChanged();
+	},
+	//* The hold follows sound (media-playing) or a playing video (video-playing), whichever is on.
+	mediaStateChanged: function() {
+		var on = this._mediaOn || this._videoOn;
+		if (this._mediaOffTimer) { clearTimeout(this._mediaOffTimer); this._mediaOffTimer = null; }
+		if (on) {
+			if (this._cardInFront !== false) { this.setScreenHold(true); }
+		} else {
+			this._mediaOffTimer = setTimeout(enyo.bind(this, function() { this._mediaOffTimer = null; if (!this._mediaOn && !this._videoOn) { this.setScreenHold(false); } }), 3000);
+		}
+	},
+	//* The card's window property blockScreenTimeout (webOS 3; no privilege): the display stays on while it is set.
+	setScreenHold: function(inHold) {
+		var hold = !!inHold;
+		if (this._screenHeld === hold) { return; }
+		if (!window.PalmSystem || typeof window.PalmSystem.setWindowProperties !== "function") { return; }
+		this._screenHeld = hold;
+		// an object, as Enyo's own enyo.windows.setWindowProperties hands it over (a JSON string is ignored: the first
+		// device run, 2026-11-09, dimmed and slept under a playing clip with the hold "on")
+		try { window.PalmSystem.setWindowProperties({blockScreenTimeout: hold}); } catch (e) { enyo.log("[T-599] setWindowProperties failed: " + e); }
+		enyo.log("[T-599] screen hold " + (hold ? "on" : "off"));
 	},
 	refreshPanes: function() {
 		this.inherited(arguments);

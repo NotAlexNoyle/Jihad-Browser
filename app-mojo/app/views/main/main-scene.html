@@ -44,8 +44,19 @@
 	<div id="jihad-error" class="jihad-error" style="display: none;">
 		<div class="jihad-error-title">Can't load this page</div>
 		<div id="jihad-error-message" class="jihad-error-message"></div>
+		<div id="jihad-error-address" class="jihad-error-address"></div>
 		<div x-mojo-element="Button" id="jihad-error-retry"
 			class="jihad-error-retry"></div>
+		<div x-mojo-element="Button" id="jihad-error-settings"
+			class="jihad-error-retry" style="display: none;"></div>
+	</div>
+
+	<!-- T-602: the screen lock while a video plays (main-assistant.js setupScreenLock) -->
+	<div id="jihad-lock-shield" class="jihad-lock-shield" style="display: none;">
+		<div id="jihad-lock-notice" class="jihad-lock-notice" style="display: none;"></div>
+	</div>
+	<div id="jihad-lock-button" class="jihad-lock-button" style="display: none;">
+		<div class="jihad-lock-shackle"></div><div class="jihad-lock-body"></div>
 	</div>
 
 	<!-- The render surface. Its NPAPI plugin type is swapped to this variant's own

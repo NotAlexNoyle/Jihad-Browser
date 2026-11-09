@@ -153,6 +153,10 @@ fl_chrome() {
     # the system's app menu (the app's name at the top left; measured 2026-11-05 on Mochi and Mojo, the same menu
     # in every shell): Find on Page, Settings, Print
     *:appmenu) echo 50 14;; *:appmenu-find) echo 70 57;; *:appmenu-settings) echo 51 105;; *:appmenu-print) echo 36 153;;
+    # T-602's screen lock while a video plays: the button at the view's top right and the notice beside it (placed by
+    # each shell's CSS, 2026-11-09; checked on the screen-lock script's shots)
+    enyo:lock-button|mochi:lock-button) echo 732 116;; mojo:lock-button) echo 732 124;;
+    enyo:lock-notice|mochi:lock-notice) echo 630 116;; mojo:lock-notice) echo 630 123;;
     # the address field's Cut / Copy / Paste popup (a second tap on the focused field; Mojo's field has none: one tap
     # selects, typing replaces)
     enyo:cutcopy-cut) echo 275 111;; enyo:cutcopy-copy) echo 342 111;; enyo:cutcopy-paste) echo 409 111;;

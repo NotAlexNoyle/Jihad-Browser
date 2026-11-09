@@ -1115,6 +1115,13 @@ bool JihadBrowserServer::certificateForActivePage(std::string* json) {
   return p && p->pageCertificate(json);
 }
 
+// T-601: a media key for the page the user is in (the card sent pageFocused(true) first), else the newest
+bool JihadBrowserServer::mediaKeyForActivePage(const std::string& key) {
+  jihad::BrowserPageGoanna* p = pageFor(mFocusProxy);
+  if (!p) p = pageFor(mLastProxy);
+  return p && p->mediaKey(key);
+}
+
 // A thumbnail of the page the user is in, written to `path` at that page's next paint. The
 // card sends pageFocused(true) immediately before asking, so this is its own page even with
 // several cards open; with no such card it falls back to the newest connection.

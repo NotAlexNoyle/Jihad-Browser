@@ -1,0 +1,128 @@
+# The -O2 variant of mozconfig.goanna-arm (T-556): the same build in its own objdir, optimize=-O2. Kept in step with the main
+# mozconfig by hand; generated 2026-11-09 from it.
+# Jihad Browser — cross mozconfig: libxul for the webOS-3 TouchPad.
+#
+# Target: ARMv7-A + NEON, SOFTFP/armel (verified on-device: loader ld-linux.so.3,
+# no armhf). Compiler: our crosstool-NG GCC 9.4 (glibc 2.23; runs on the device's
+# kernel 2.6.35). GTK/X/cairo/pango come from the Debian-Jessie armel sysroot
+# (glibc-2.19-era; its libs need <= glibc 2.19 symbols, satisfied at runtime by the
+# bundled glibc 2.23 — backward compatible). See build-goanna-arm.sh for mounts.
+#
+# Mounts inside the build container:
+#   /src/uxp  UXP source          /tc      crosstool-NG toolchain (arm-webos-linux-gnueabi)
+#   /sysroot  Jessie armel sysroot /out    object dir + artifacts     /cfg  build/desktop (patches)
+
+mk_add_options MOZ_OBJDIR=/out/obj-jihad-goanna-arm-O2
+mk_add_options MOZ_MAKE_FLAGS="-j8"
+
+ac_add_options --enable-application=xulrunner
+# Jihad headless: X/GTK-free libxul (device has no X server / gtk). Fonts via the
+# sysroot's freetype+fontconfig; the widget backend is widget/headless (PuppetWidget).
+ac_add_options --enable-default-toolkit=cairo-headless
+# (No --disable-npapi-gtk2 since RB_20261006: upstream offers GTK2 NPAPI to GTK toolkits only, so a
+# headless build has none and the option no longer exists for it.)
+ac_add_options --disable-printing
+
+# --- cross target + host ---
+ac_add_options --target=arm-webos-linux-gnueabi
+ac_add_options --host=x86_64-pc-linux-gnu
+ac_add_options --with-arch=armv7-a
+ac_add_options --with-fpu=neon
+ac_add_options --with-float-abi=softfp
+# Thumb-2 code (2026-10-12, with the move to RB_20261006): about a quarter smaller than ARM code,
+# so less of the TouchPad's memory and instruction cache goes to the engine — what Mozilla built its
+# ARMv7 Android releases with. ARM-mode code (the JIT's, the HP Flash plugin) interworks through the
+# EABI as before.
+ac_add_options --with-thumb=yes
+
+# Point X11 detection at the sysroot, NOT the host. Otherwise AC_PATH_X finds the
+# build container's X headers and adds -I/usr/include, which pulls the HOST glibc
+# headers (time.h -> bits/types/clock_t.h) over the cross toolchain's — fatal.
+ac_add_options --x-includes=/sysroot/usr/include
+ac_add_options --x-libraries=/sysroot/usr/lib/arm-linux-gnueabi
+
+# --- cross toolchain (crosstool-NG GCC 9.4 / glibc 2.23) ---
+CC="/tc/bin/arm-webos-linux-gnueabi-gcc"
+CXX="/tc/bin/arm-webos-linux-gnueabi-g++"
+AR="/tc/bin/arm-webos-linux-gnueabi-ar"
+RANLIB="/tc/bin/arm-webos-linux-gnueabi-ranlib"
+STRIP="/tc/bin/arm-webos-linux-gnueabi-strip"
+# host tools (native) for build-time programs (host xpcshell, nsinstall, ...)
+HOST_CC="gcc"
+HOST_CXX="g++"
+
+# ARM CPU flags + do not treat warnings as errors (GCC 9 vs this UXP rev).
+# -I the Jessie sysroot's top include dir for GTK/X/fontconfig headers. Safe: the
+# glibc (libc6-dev) headers were removed from this sysroot, so the toolchain's own
+# glibc 2.23 headers are used for libc; only the graphics/X headers live here.
+export CFLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=softfp -I/sysroot/usr/include -I/sysroot/usr/include/arm-linux-gnueabi -Wno-error=format-overflow -Wno-error=format"
+export CXXFLAGS="$CFLAGS"
+# Link jointly against the Jessie armel libs; -rpath-link resolves their transitive
+# NEEDED (libc etc.) at link time without pulling their glibc into the sysroot.
+export LDFLAGS="-L/sysroot/usr/lib/arm-linux-gnueabi -L/sysroot/lib/arm-linux-gnueabi -Wl,-rpath-link,/sysroot/usr/lib/arm-linux-gnueabi -Wl,-rpath-link,/sysroot/lib/arm-linux-gnueabi"
+
+# --- release-shaped, trimmed for the device ---
+# A release build (2026-10-12): without --enable-release the build is in "developer" mode, which on
+# GCC leaves out -ffunction-sections/-fdata-sections and the linker's --gc-sections (dead code was
+# kept in libxul) and identical-code folding. Gold is named explicitly because developer mode was
+# what forced it, and folding (--icf=safe) needs it.
+ac_add_options --enable-release
+ac_add_options --enable-gold
+ac_add_options --enable-optimize=-O2   # cavekit-lowpower-uxp.md R2 (T-556): the whole tree at -O2, measured against the -Os build (mozconfig.goanna-arm)
+ac_add_options --disable-debug
+ac_add_options --disable-warnings-as-errors
+ac_add_options --disable-tests
+ac_add_options --disable-updater
+ac_add_options --disable-crashreporter
+ac_add_options --disable-maintenance-service
+ac_add_options --disable-webrtc
+ac_add_options --disable-gamepad
+# jemalloc ON (T-493, the owner 2026-10-16: "Do the engine rebuild with jemalloc"). It had been off
+# since the first ARM config with no reason recorded ("the platform allocator"). Measured without
+# it: the daemon kept 150-230 MB resident with nothing open after a few heavy pages (the bundled
+# glibc 2.23 neither returns fragmented pages nor reports its heap — heap-allocated is
+# unavailable); the engine's memory-pressure reaction (jemalloc_free_dirty_pages) did nothing.
+# With it: the engine's allocator, its reporter, and the purge at the last card's close all work.
+# On Linux the allocator goes into the PROGRAM, not libxul (MOZ_GLUE_IN_PROGRAM): libxul.so leaves
+# malloc/free/jemalloc_stats undefined and takes them from the executable, so the daemon links
+# memory/mozjemalloc/jemalloc.o + memory/build/*.o with -rdynamic (build-daemon-arm.sh), and a
+# libxul from this config needs that daemon — the two ship together.
+ac_add_options --enable-jemalloc
+# Audio OUTPUT for <audio>/<video>. Enabled 2026-08-15; it was --disable-alsa, and the reason
+# given there ("headless render daemon: no audio output needed, offscreen render only") was
+# stale and wrong on its own terms — offscreen rendering concerns the VIDEO surface and says
+# nothing about sound, and this daemon is a browser engine expected to play media.
+#
+# What the flag actually controls: MOZ_ALSA is default-ON for Linux in old-configure.in:2904,
+# and --disable-alsa unset it, so media/libcubeb/src compiled only cubeb.o + cubeb_panner.o —
+# NO backend. cubeb_init's dispatch table was empty and AudioStream::Init returned
+# CUBEB_INITIALIZATION_ERR, i.e. every decoded sample went nowhere. Enabling it compiles
+# cubeb_alsa.c (media/libcubeb/src/moz.build gates it on MOZ_ALSA) and links libxul against
+# libasound. --enable-alsa is passed explicitly rather than just dropping --disable-alsa, so
+# the intent is readable and a future default change upstream cannot silently take it away.
+#
+# Requires alsa.pc + alsa/asoundlib.h + a linkable libasound.so in the sysroot: staged from
+# Debian-Jessie armel libasound2/libasound2-dev 1.0.28-1 (arm-sysroot/debs/), same mechanism
+# as the GTK/cairo/pango libs. Runtime library choice and its ABI reasoning:
+# context/impl/impl-audio-backend.md.
+ac_add_options --enable-alsa
+# PulseAudio: ENABLED 2026-08-15. The comment that used to sit here — "the ALSA default PCM
+# already routes into pulse anyway" — was DISPROVEN on device: an ALSA-created stream (ours AND
+# stock `aplay -D media`) lands on the pcm_output hardware sink and is MUTED to 0% by
+# module-palm-policy ("THE DEFAULT DEVICE WAS USED TO CREATE THIS STREAM - PLEASE CATEGORIZE USING
+# A VIRTUAL STREAM"). webOS powers the codec route only for a stream CREATED on a virtual sink
+# (pmedia), which the ALSA pulse plugin cannot target. cubeb_pulse CAN: it calls
+# pa_stream_connect_playback with an explicit sink name. So the engine needs the pulse backend
+# with the sink set to "pmedia" (patch 0030 + JIHAD_PULSE_SINK). cubeb_pulse dlopens libpulse.so.0
+# at runtime (no link dep) — the device's own 0.9.22 libpulse has all 62 symbols cubeb needs
+# (verified). Headers are pulse 0.9.22 staged in the sysroot to match the device ABI, NOT Jessie's
+# 5.0. Full analysis: context/impl/impl-audio-backend.md §"FULLY RESOLVED 2026-08-15".
+ac_add_options --enable-pulseaudio
+# No dbus in the sysroot / on the device; necko-wifi needs dbus on Linux.
+ac_add_options --disable-dbus
+ac_add_options --disable-necko-wifi
+
+# A configure change (e.g. adding UXP_APPCOMPAT_GUID) updates the CLOBBER file, and without this
+# mach REFUSES to build and tells you to clobber by hand. Left off, that surfaced as a build
+# that looked like it ran and produced a stale libxul.
+mk_add_options AUTOCLOBBER=1

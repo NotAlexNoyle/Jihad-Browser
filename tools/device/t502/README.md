@@ -129,6 +129,9 @@ pass's filter at the same scale; the census line ends with "N leaves by the scal
 after a load completes; the engine's `JIHAD_JS_HELPER_THREADS`, `JIHAD_JS_ION_THREADS`, `JIHAD_JS_PARSE_THREADS`
 and `JIHAD_JS_HELPER_NICE` (T-556) size and place the JS helper threads — the low-power kit's levers, each measured by
 `tools/device/lowpower-bench.sh LEVER=<name> EXTRA_ENV="<words>"` against its baseline rows, unset = upstream's.
+`gpu-spike-start.sh`'s word `XULDIR=<device dir>` puts another `libxul.so` ahead of the bundle's for one run (the
+loader's `--library-path`; the daemon links libxul by name): the -O2 build of T-556 lives in `deviceroot/hl-o2/` and is
+read against the bundle's by `lowpower-bench.sh LEVER=O2 EXTRA_ENV=XULDIR=… LEVER_B=baseline` (alternating run by run).
 The card's self-test hook (`render/goanna/test/enyo-selftest.js`) scripts a double tap with
 `t<x>,<y>` (the adapter's smartZoom) beside the pinch `g<scale>,<x>,<y>`.
 `tools/device/gpu-bench.c` sections 11-15 (`BENCH_ONLY=<n>`): back-to-back tile uploads, which

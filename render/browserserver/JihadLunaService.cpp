@@ -447,6 +447,23 @@ bool onPrintPage(LSHandle* sh, LSMessage* msg, void*) {
 //        "expiredate":…,"serialNumber":…,"sha256":…,"connection":{…},
 //        "broken":false,"overridden":false,"untrusted":false,"mismatch":false,"badTime":false}
 //   <-  {"returnValue":true,"secure":false}          (not a TLS page)
+// mediaKey — T-601: {"key":"play"|"pause"|"playpause"|"stop"|"next"|"prev"} from this variant's own card (the
+// Bluetooth headset's buttons, palm://com.palm.keys/media), for the media of the page the user is in.
+jihad::LunaMediaKeyFn gMediaKeyFn = nullptr;
+bool onMediaKey(LSHandle* sh, LSMessage* msg, void*) {
+  const bool allowed = callerIsOwnCard(msg);
+  const char* pl = (allowed && gApi.MessageGetPayload) ? gApi.MessageGetPayload(msg) : nullptr;
+  std::string key;
+  if (pl) {
+    const char* k = strstr(pl, "\"key\"");
+    if (k) { k = strchr(k + 5, '"'); if (k) { const char* e = strchr(k + 1, '"'); if (e) key.assign(k + 1, e - k - 1); } }
+  }
+  const bool ok = allowed && !key.empty() && gMediaKeyFn && gMediaKeyFn(key);
+  printf("[jihad-bs] luna: mediaKey %s (%s)\n", key.c_str(), ok ? "done" : (allowed ? "no page or no media" : "REFUSED: caller is not this variant's card"));
+  reply(sh, msg, ok);
+  return true;
+}
+
 jihad::LunaCertificateFn gCertificateFn = nullptr;
 bool onPageCertificate(LSHandle* sh, LSMessage* msg, void*) {
   const bool allowed = callerIsOwnCard(msg);
@@ -566,6 +583,7 @@ LSMethod gMethodsPublic[] = {
   { "getTheme",       onGetTheme,       0 },
   { "notifications",  onNotifications,  0 },
   { "pageCertificate", onPageCertificate, 0 },
+  { "mediaKey",       onMediaKey,       0 },   // T-601
   { "printPage",      onPrintPage,      0 },
   { "saveThumbnail",  onSaveThumbnail,  0 },
   { 0, 0, 0 },
@@ -708,7 +726,7 @@ static bool startOnce(const std::string& serviceName, GMainLoop* loop, bool verb
     if (gApi.SubscriptionAdd && gApi.SubscriptionReply) SetNotificationSink(&gNotifier);
     printf("[jihad-bs] luna: serving palm://%s/ — public{clearCache,clearCookies,notifications,"
            "getFlash,enableFlash,disableFlash,saveThumbnail,deleteThumbnail,clearThumbnails,"
-           "findPrinters,printPage,pageCertificate,getTheme} "
+           "findPrinters,printPage,pageCertificate,mediaKey,getTheme} "
            "private{clearCache,clearCookies,getChromePrefs,getFlash,getTheme,notifications} (toast channel %s)\n",
            serviceName.c_str(),
            (gApi.SubscriptionAdd && gApi.SubscriptionReply) ? "ON" : "OFF");
@@ -802,6 +820,7 @@ void LunaServiceSetOwnAppId(const std::string& appId) { gOwnAppId = appId; }
 void LunaServiceSetThumbnailFn(LunaThumbnailFn fn) { gThumbnailFn = fn; }
 void LunaServiceSetPrintFn(LunaPrintFn fn) { gPrintFn = fn; }
 void LunaServiceSetCertificateFn(LunaCertificateFn fn) { gCertificateFn = fn; }
+void LunaServiceSetMediaKeyFn(LunaMediaKeyFn fn) { gMediaKeyFn = fn; }
 
 // ── webOS's proxy setting (cavekit-proxies-certs.md R1) ──────────────────────────────────────
 // One read of com.palm.connectionmanager/getNwProxiesConfig on the private bus, answered to

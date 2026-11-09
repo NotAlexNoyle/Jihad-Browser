@@ -64,6 +64,17 @@ enyo.kind({
 		// with (its pageCertificate method answers this variant's own card only).
 		{name: "certService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/",
 			method: "pageCertificate", onSuccess: "gotPageCertificate", onFailure: "gotPageCertificate"},
+		// T-600: the card's own page for a failed load, over the view (LoadErrorView.js)
+		{name: "loadError", kind: "LoadErrorView", onRetry: "loadErrorRetry", onOpenSettings: "loadErrorSettings"},
+		// T-602 (from the Atlas app's 0.9.6 `6aa556d`): the screen lock while a video plays — a button at the view's top
+		// right; locked, a shield over the view takes every tap, a tap shows "Screen locked", a tap on that asks
+		// "Unlock controls?", a second tap unlocks. Gone 3 s after the video stops or when the card leaves the front.
+		{name: "lockShield", className: "jihad-lock-shield", showing: false, onclick: "lockShieldClick", components: [
+			{name: "lockNotice", className: "jihad-lock-notice", showing: false, onclick: "lockNoticeClick"}
+		]},
+		{name: "lockButton", className: "jihad-lock-button", showing: false, onclick: "lockButtonClick", components: [
+			{className: "jihad-lock-shackle"}, {className: "jihad-lock-body"}
+		]},
 		{name: "view", kind: "JihadWebView", flex: 1, height: "100%",
 			onDownloadStart: "engineDownloadStart",
 			onDownloadProgress: "engineDownloadProgress",
@@ -677,6 +688,73 @@ enyo.kind({
 	},
 	loadStopped: function() {
 		this.doPageLoadStopped(this.url);
+		// T-600: a load that ended without an error reported took the page view back: the error panel leaves
+		if (!this.isErrorLoadFailed && this.$.loadError.showing) { this.$.loadError.hide(); }
+	},
+	//* T-600: the panel's Try Again — the load that failed, again; the panel stays until the result is known.
+	loadErrorRetry: function() {
+		this.reloadClick();
+	},
+	loadErrorSettings: function(inSender, inAppId) {
+		this.$.launchApplicationService.call({id: inAppId});
+	},
+	//* T-602: a video started or stopped (BrowserApp.videoPlaying). The button shows while one plays; 3 s after it
+	//* stops (the next episode, a seek) the lock and the button go.
+	setVideoPlaying: function(inOn) {
+		if (this._lockOffTimer) { clearTimeout(this._lockOffTimer); this._lockOffTimer = null; }
+		if (inOn) {
+			this.placeLockParts();
+			this.$.lockButton.show();
+		} else {
+			this._lockOffTimer = setTimeout(enyo.bind(this, function() { this._lockOffTimer = null; this.dropScreenLock(); }), 3000);
+		}
+	},
+	dropScreenLock: function() {
+		this._locked = false;
+		this.$.lockShield.hide(); this.$.lockNotice.hide(); this.$.lockButton.hide();
+		this.$.lockButton.removeClass("jihad-lock-on");
+	},
+	placeLockParts: function() {
+		var b = this.$.view.hasNode() ? this.$.view.getBounds() : null;
+		if (!b) { return; }
+		this.$.lockButton.applyStyle("top", (b.top + 12) + "px");
+		this.$.lockShield.applyStyle("top", b.top + "px");
+		this.$.lockShield.applyStyle("height", b.height + "px");
+	},
+	lockButtonClick: function(inSender, inEvent) {
+		if (this._locked) { return this.lockShieldClick(inSender, inEvent); }
+		this._locked = true;
+		this.placeLockParts();
+		this.$.lockButton.addClass("jihad-lock-on");
+		this.$.lockShield.show();
+		this.showLockNotice($L("Screen locked"), "locked");
+		return true;
+	},
+	lockShieldClick: function(inSender, inEvent) {
+		if (!this._locked) { return true; }
+		if (this._noticeStage !== "ask") { this.showLockNotice($L("Screen locked"), "locked"); }
+		return true;
+	},
+	lockNoticeClick: function(inSender, inEvent) {
+		if (this._noticeStage === "locked") { this.showLockNotice($L("Unlock controls? Tap again"), "ask"); }
+		else if (this._noticeStage === "ask") {
+			this._locked = false;
+			this.$.lockShield.hide(); this.$.lockNotice.hide();
+			this.$.lockButton.removeClass("jihad-lock-on");
+		}
+		return true;
+	},
+	showLockNotice: function(inText, inStage) {
+		this._noticeStage = inStage;
+		this.$.lockNotice.setContent(inText);
+		this.$.lockNotice.show();
+		if (this._noticeTimer) { clearTimeout(this._noticeTimer); }
+		this._noticeTimer = setTimeout(enyo.bind(this, function() { this._noticeTimer = null; this._noticeStage = null; this.$.lockNotice.hide(); }), 3000);
+	},
+	//* T-600: the error panel over the view, sized to it.
+	showLoadError: function(inCode, inUrl) {
+		var b = this.$.view.hasNode() ? this.$.view.getBounds() : null;
+		this.$.loadError.setError(inCode, inUrl, b);
 	},
 	loadCompleted: function() {
 		// empty
@@ -693,28 +771,15 @@ enyo.kind({
 			this.$.actionbar.setLoadFailed(true);
 		}
 		
-		switch(inErrorCode){
-			case this.WebKitErrors.ERR_SYS_FILE_DOESNT_EXIST:
-				this.openDialog($L("Error"), $L('File does not exist.'));
-				break;
-			case this.WebKitErrors.ERR_CURL_COULDNT_RESOLVE_HOST:
-				this.isErrorLoadFailed = true;
-				this.failedLoadUrl = this.url;
-				this.openDialog($L("Error"), $L('Unable to resolve host.'));
-				break;
-			case this.WebKitErrors.ERR_WK_NOINTERNET:
-				this.isErrorLoadFailed = true;
-				this.failedLoadUrl = this.url;
-				this.openDialog($L("Error"), $L('No Internet Connection.'));
-				break;
-			case this.WebKitErrors.ERR_WK_FLOADER_CANCELLED:
-				break;
-			default:
-				this.openDialog($L("Error"), $L("Unable to Load Page"));
-				this.log("Unknown Handled Error: " + inMsg);
-				break;
-				
-			}
+		// T-600 (2026-11-09): in place of isis's modal dialog over whatever was on screen, the card's own panel takes
+		// the page view's place with the cause in plain words and Try Again (LoadErrorView.js). A cancelled load
+		// is not an error. The failed address is kept so Try Again loads it, not what the view shows.
+		if (inErrorCode !== this.WebKitErrors.ERR_WK_FLOADER_CANCELLED) {
+			this.isErrorLoadFailed = true;
+			this.failedLoadUrl = this.url;
+			this.showLoadError(inErrorCode, this.url);
+			this.log("load failed: " + inErrorCode + " " + inMsg);
+		}
 		this.clearProgress();
 	},
 	createPageImages: function() {

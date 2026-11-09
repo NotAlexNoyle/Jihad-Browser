@@ -20,7 +20,11 @@ STAGE=${1:-all}
 # $2: parallel jobs for mach build (default: the mozconfig's -j8). Two engine builds at once on a 32 GB host
 # with ZFS's cache counted as used had earlyoom kill cc1plus at 1.5 GB each (2026-11-03): run one, fewer jobs.
 JOBS=${2:+-j$2}
-export MOZCONFIG=/armcfg/mozconfig.goanna-arm
+# $3: another mozconfig in build/webos-oe (default mozconfig.goanna-arm): a build variant in an objdir of its own —
+# cavekit-lowpower-uxp.md R2's -O2 against -Os (mozconfig.goanna-arm-O2, T-556) — without touching the main one.
+export MOZCONFIG=/armcfg/${3:-mozconfig.goanna-arm}
+OBJDIR=$(sed -n 's/^mk_add_options MOZ_OBJDIR=//p' "$MOZCONFIG" | head -1)
+OBJDIR=${OBJDIR:-/out/obj-jihad-goanna-arm}
 
 # --- cross environment ---
 export PATH=/tc/bin:$PATH
@@ -67,7 +71,7 @@ esac
 # Believe the filesystem, not the exit status: for a stage that produces libxul, assert the artifact
 # exists AND is newer than the newest applied patch, so a silently-skipped rebuild cannot pass.
 if [ "$STAGE" = build ] || [ "$STAGE" = all ]; then
-  XUL=/out/obj-jihad-goanna-arm/dist/bin/libxul.so
+  XUL=$OBJDIR/dist/bin/libxul.so
   [ -e "$XUL" ] || { echo "ERROR: build reported success but $XUL does not exist" >&2; exit 1; }
   if [ -d /cfg/patches ]; then
     # Only patches that touch COMPILED sources can move libxul's mtime. A patch that changes
@@ -98,7 +102,7 @@ if [ "$STAGE" = build ] || [ "$STAGE" = all ]; then
       # 27 of 29 patches have no JS, so this fired on EVERY run until 2026-08-15.
       { grep -E '^\+\+\+ b/.*\.(js|jsm)$' "$p" || true; } | sed 's|^+++ b/||' | while read -r f; do
         base=$(basename "$f")
-        found=$(find /out/obj-jihad-goanna-arm/dist/bin -name "$base" 2>/dev/null | head -1)
+        found=$(find "$OBJDIR"/dist/bin -name "$base" 2>/dev/null | head -1)
         if [ -n "$found" ] && [ "/src/uxp/$f" -nt "$found" ]; then
           echo "ERROR: $found is OLDER than /src/uxp/$f — patched JS did not reach the dist" >&2
           exit 1

@@ -83,6 +83,18 @@ Enyo card seen by eye). **The host's novacomd is still the 0.4 build** (`/opt/no
 2026-10-15): 0.4.1's Linux code is 0.4's (`WINDOWS-PORT-LINUX-REGRESSION.md`: the libusb-1.0 backend is Windows-only), so the
 bench stands; the swap and the `/opt/PalmSDK` refresh are the two root commands handed to the owner (T-550's row).
 
+**2026-11-09, late morning (after the usage-limit reset):** Tier 96 BUILT in all three shells and the daemon, waiting
+for the device: T-599 (the screen held on while media plays: the daemon's `media-playing` and `video-playing` notices,
+each shell's `blockScreenTimeout`), T-600 (the card's own page for a failed load), T-601 (Bluetooth media keys through
+the daemon's new `mediaKey` method), T-602 (the screen lock over a playing video; Mochi gained stage hooks), T-603 (the
+engine's `jihad.media.autoplayWithSound`, a Settings row; built ON = today's behaviour, the default is the owner's).
+Tests written: `tools/device/finger/screen-hold-test.sh` (turns the display's onWhenConnected off for its run: the card
+dev loop sets it on), `tools/device/finger/load-error-test.sh`, `suite/screen-lock.test` (its chrome positions are
+estimates: check its shots), `tools/device/rest-profile.sh` (T-604: the stall sampler with timestamps over the rest
+window, `stall-resolve.py --from --to --merge`). The scaler's sixth build (NEON per pixel) drew at 211 us a row, no
+better; the seventh (two passes: a NEON vertical blend, then a packed-word horizontal lerp) was in its rounds. The -O2
+engine (T-556) builds in its own objdir (`mozconfig.goanna-arm-O2`, `build-goanna-arm.sh all 4 mozconfig.goanna-arm-O2`).
+
 **Where the day stopped (2026-11-09, ~10:00, the session's usage limit):** two jobs were still running — the T-505
 scaler's SIXTH build (the bilinear sample in NEON) on the device in `docs/rounds/t505-2026-11-09/rounds-scaler.sh`
 (verify first, then 3 interleaved control/scaler rounds; its log `scratchpad/scaler-rounds6.log` is gone with the

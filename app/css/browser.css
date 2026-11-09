@@ -473,3 +473,22 @@
 .jihad-print-row { padding: 8px 10px; }
 .jihad-print-name { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jihad-print-sub { font-size: 13px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* T-600: the card's own page for a failed load (LoadErrorView.js) */
+.jihad-load-error-box { max-width: 560px; margin: 48px auto; padding: 0 24px; color: #333; }
+.jihad-load-error-title { font-size: 26px; font-weight: bold; margin-bottom: 18px; }
+.jihad-load-error-message { font-size: 18px; margin-bottom: 8px; }
+.jihad-load-error-hint { font-size: 16px; color: #666; margin-bottom: 14px; }
+.jihad-load-error-address { font-size: 14px; color: #888; word-break: break-all; margin-bottom: 22px; }
+.jihad-load-error-buttons .enyo-button { min-width: 160px; margin-right: 12px; }
+
+/* T-602: the screen lock while a video plays (Browser.js lockButton, lockShield) */
+.jihad-lock-button { position: absolute; right: 12px; width: 48px; height: 48px; border-radius: 24px; z-index: 46;
+	background: rgba(0, 0, 0, 0.55); opacity: 0.45; -webkit-transition: opacity 0.3s; }
+.jihad-lock-button.jihad-lock-on { opacity: 1; background: rgba(0, 0, 0, 0.75); }
+.jihad-lock-shackle { position: absolute; left: 16px; top: 9px; width: 10px; height: 10px; border: 3px solid #fff;
+	border-bottom: none; border-radius: 8px 8px 0 0; }
+.jihad-lock-body { position: absolute; left: 13px; top: 21px; width: 22px; height: 17px; border-radius: 3px; background: #fff; }
+.jihad-lock-shield { position: absolute; left: 0; right: 0; z-index: 45; background: transparent; }
+.jihad-lock-notice { position: absolute; top: 18px; right: 72px; padding: 8px 14px; border-radius: 16px; color: #fff;
+	font-size: 16px; background: rgba(0, 0, 0, 0.7); }

@@ -97,6 +97,7 @@
 #include "nsISecureBrowserUI.h"       // the loaded page's certificate (the address-bar padlock)
 #include "nsISSLStatus.h"
 #include "nsIDOMNodeList.h"          // JihadTypingSelfTest: enumerate <input> elements
+#include "nsIDOMHTMLMediaElement.h"  // T-601: a media key on the page's media (the external interface; libxul's HTMLMediaElement.h is internal)
 #include "nsIDOMWindow.h"            // content window -> document (GetTitle)
 #include "nsIDOMHTMLIFrameElement.h" // a tapped frame's document (jihadIsInsideFrameOf)
 #include "nsIDOMHTMLFrameElement.h"
@@ -2480,6 +2481,7 @@ bool GoannaRenderPage::LoadUrl(const char* url, const char* referrer, uint32_t r
 #include <signal.h>
 #include <pthread.h>
 #include <ucontext.h>
+#include <sys/time.h>
 #include <dlfcn.h>
 #include <atomic>
 #include <algorithm>
@@ -2548,7 +2550,9 @@ static void JihadStallEventEnd() {
   struct Mod { const char* name; uintptr_t base; int count; };
   std::vector<Mod> mods;
   FILE* f = fopen("/tmp/jihad-stall.txt", "a");
-  if (f) fprintf(f, "stall %d: %ld ms, %d samples\n", gStallCount, ms, n);
+  // T-604: the event's end on the timeline's clock (wall-clock ms), so a window (the page at rest) can be read alone
+  struct timeval tvw; gettimeofday(&tvw, nullptr);
+  if (f) fprintf(f, "stall %d: %ld ms, %d samples, at t=%lld\n", gStallCount, ms, n, (long long)tvw.tv_sec * 1000 + tvw.tv_usec / 1000);
   int jit = 0;
   for (int i = 0; i < n; i++) {
     Dl_info di; memset(&di, 0, sizeof(di));
@@ -2964,6 +2968,70 @@ bool GoannaRenderPage::AcceptCurrentCert(bool aPermanent) {
           mChrome->mCertHost.get(), mChrome->mCertPort,
           aPermanent ? "permanent" : "session", (unsigned)rv);
   return NS_SUCCEEDED(rv);
+}
+
+// T-601 (cavekit-gre-widgets.md R1, from the Atlas app's media session): a Bluetooth headset's media key, from the
+// card by the daemon's own service, on the page's <video> and <audio>: the one playing (pause, playpause, stop,
+// next, prev act on it), else the one that played last or the first with a source (play, playpause start it);
+// next and prev move 10 s where a page has no playlist. Chrome's own media (the controls' sounds) is not here.
+bool GoannaRenderPage::MediaKey(const std::string& key) {
+  if (!mChrome) return false;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return false;
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return false;
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return false;
+  nsCOMPtr<nsIDOMNodeList> list;
+  if (NS_FAILED(doc->QuerySelectorAll(NS_LITERAL_STRING("video, audio"), getter_AddRefs(list))) || !list) return false;
+  uint32_t n = 0; list->GetLength(&n);
+  nsCOMPtr<nsIDOMHTMLMediaElement> playing, played, first;   // played: paused with a position, the one that played last
+  for (uint32_t i = 0; i < n; i++) {
+    nsCOMPtr<nsIDOMNode> node; list->Item(i, getter_AddRefs(node));
+    nsCOMPtr<nsIDOMHTMLMediaElement> m = do_QueryInterface(node);
+    if (!m) continue;
+    if (!first) first = m;
+    bool paused = true; m->GetPaused(&paused);
+    double t = 0; m->GetCurrentTime(&t);
+    if (!paused) { if (!playing) playing = m; }
+    else if (t > 0 && !played) { played = m; }
+  }
+  nsCOMPtr<nsIDOMHTMLMediaElement> m = playing ? playing : (played ? played : first);
+  if (!m) return false;
+  bool paused = true; m->GetPaused(&paused);
+  double t = 0; m->GetCurrentTime(&t);
+  nsresult rv = NS_OK;
+  if (key == "play") { if (paused) rv = m->Play(); }
+  else if (key == "pause") { if (!paused) rv = m->Pause(); }
+  else if (key == "playpause" || key == "play_pause" || key == "toggle") { rv = paused ? m->Play() : m->Pause(); }
+  else if (key == "stop") { if (!paused) rv = m->Pause(); if (NS_SUCCEEDED(rv)) rv = m->SetCurrentTime(0); }
+  else if (key == "next" || key == "forward") { rv = m->SetCurrentTime(t + 10); }
+  else if (key == "prev" || key == "previous" || key == "rewind") { rv = m->SetCurrentTime(std::max(0.0, t - 10)); }
+  else { return false; }
+  fprintf(stderr, "[jihad-bs] media key %s -> %s (%u elements, %s)\n", key.c_str(), NS_SUCCEEDED(rv) ? "ok" : "failed", n,
+          playing ? "the playing one" : played ? "the one that played last" : "the first");
+  return NS_SUCCEEDED(rv);
+}
+
+bool GoannaRenderPage::VideoPlaying() {
+  if (!mChrome) return false;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return false;
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return false;
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return false;
+  nsCOMPtr<nsIDOMNodeList> list;
+  if (NS_FAILED(doc->QuerySelectorAll(NS_LITERAL_STRING("video"), getter_AddRefs(list))) || !list) return false;
+  uint32_t n = 0; list->GetLength(&n);
+  for (uint32_t i = 0; i < n; i++) {
+    nsCOMPtr<nsIDOMNode> node; list->Item(i, getter_AddRefs(node));
+    nsCOMPtr<nsIDOMHTMLMediaElement> m = do_QueryInterface(node);
+    if (!m) continue;
+    bool paused = true, ended = false; m->GetPaused(&paused); m->GetEnded(&ended);
+    if (!paused && !ended) return true;
+  }
+  return false;
 }
 
 bool GoannaRenderPage::GetLoadError(bool* failed, int* code, std::string* url) {

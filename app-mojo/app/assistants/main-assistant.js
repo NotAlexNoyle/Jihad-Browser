@@ -60,6 +60,7 @@ MainAssistant.prototype.WEB_VIEW_ID = "jihad-web";
 MainAssistant.prototype.ADDRESS_ID = "jihad-address";
 MainAssistant.prototype.PROGRESS_ID = "jihad-progress";
 MainAssistant.prototype.RETRY_ID = "jihad-error-retry";
+MainAssistant.prototype.SETTINGS_ID = "jihad-error-settings";   // T-600: the Wi-Fi settings button of the error panel
 
 // Engine error codes worth naming, copied from the Enyo-1.0 shell's WebKitErrors
 // table (../../../app/source/Browser.js). UI text only — no contract surface.
@@ -146,6 +147,8 @@ MainAssistant.prototype.setupChrome = function () {
 
 	this.retryModel = {buttonLabel: $L("Try Again"), buttonClass: "affirmative", disabled: false};
 	this.controller.setupWidget(this.RETRY_ID, {type: Mojo.Widget.defaultButton}, this.retryModel);
+	this.settingsModel = {label: $L("Wi-Fi Settings"), disabled: false};
+	this.controller.setupWidget(this.SETTINGS_ID, {type: Mojo.Widget.defaultButton}, this.settingsModel);
 };
 
 // App menu (swipe down from the app name): a single "Settings" entry that opens
@@ -338,6 +341,8 @@ MainAssistant.prototype.listen = function () {
 	Mojo.Event.listen(this.controller.get(this.ADDRESS_ID), Mojo.Event.propertyChange,
 		this.handleAddressSubmit);
 	Mojo.Event.listen(this.controller.get(this.RETRY_ID), Mojo.Event.tap, this.handleRetry);
+	this.handleErrorSettings = this.handleErrorSettings.bind(this);
+	Mojo.Event.listen(this.controller.get(this.SETTINGS_ID), Mojo.Event.tap, this.handleErrorSettings);
 	var rb = this.controller.get("jihad-reload");
 	if (rb) {
 		Mojo.Event.listen(rb, Mojo.Event.tap, this.handleReloadTap);
@@ -350,6 +355,10 @@ MainAssistant.prototype.listen = function () {
 //* `result` is what a scene we pushed handed back when it popped — the history
 //* scene returns {url} for the entry the user tapped.
 MainAssistant.prototype.activate = function (result) {
+	this.cardInFront = true;
+	this.subscribeMediaKeys();
+	this.setupScreenLock();
+	if (this.mediaOn || this.videoOn) { this.setScreenHold(true); }
 	this.adoptViewportModel();
 	if (result && result.url) {
 		this.openUrl(result.url);
@@ -361,7 +370,127 @@ MainAssistant.prototype.activate = function (result) {
 	}
 };
 
-MainAssistant.prototype.deactivate = function () {};
+MainAssistant.prototype.deactivate = function () {
+	this.cardInFront = false;
+	this.setScreenHold(false);
+	this.dropScreenLock();
+};
+
+//* T-601: a Bluetooth headset's media keys (palm://com.palm.keys/media), relayed to the page's media through this
+//* variant's daemon (mediaKey); pageFocused first so the daemon knows which card asks. Subscribed once.
+MainAssistant.prototype.subscribeMediaKeys = function () {
+	if (this.mediaKeysRequest) { return; }
+	this.mediaKeysRequest = new Mojo.Service.Request("palm://com.palm.keys/media", {
+		method: "status", parameters: {subscribe: true},
+		onSuccess: this.gotMediaKey.bind(this),
+		onFailure: function (r) { Mojo.Log.info("[T-601] media keys not available: %j", r); }
+	});
+};
+
+MainAssistant.prototype.gotMediaKey = function (r) {
+	if (!r || !r.key || (r.state && r.state !== "down")) { return; }
+	this.callBrowserAdapter("pageFocused", [true]);
+	this.controller.serviceRequest("palm://net.riverstonerelay.jihadBrowserMojo", {method: "mediaKey", parameters: {key: String(r.key)}});
+	Mojo.Log.info("[T-601] media key %s", r.key);
+};
+
+MainAssistant.prototype.mediaPlaying = function (on) {
+	this.mediaOn = !!on;
+	this.mediaStateChanged();
+};
+
+//* T-602: a video plays or stopped: the lock's button while one plays, gone 3 s after it stops.
+MainAssistant.prototype.videoPlaying = function (on) {
+	this.videoOn = !!on;
+	if (this.lockOffTimer) { clearTimeout(this.lockOffTimer); this.lockOffTimer = null; }
+	if (on) { this.lockPart("jihad-lock-button", true); }
+	else { this.lockOffTimer = setTimeout(function () { this.lockOffTimer = null; this.dropScreenLock(); }.bind(this), 3000); }
+	this.mediaStateChanged();
+};
+
+//* The hold follows sound or a playing video, while the card is in front.
+MainAssistant.prototype.mediaStateChanged = function () {
+	var on = this.mediaOn || this.videoOn;
+	if (this.mediaOffTimer) { clearTimeout(this.mediaOffTimer); this.mediaOffTimer = null; }
+	if (on) {
+		if (this.cardInFront !== false) { this.setScreenHold(true); }
+	} else {
+		this.mediaOffTimer = setTimeout(function () { this.mediaOffTimer = null; if (!this.mediaOn && !this.videoOn) { this.setScreenHold(false); } }.bind(this), 3000);
+	}
+};
+
+// --- T-602: the screen lock while a video plays (main-scene.html #jihad-lock-*), from the Atlas app's 0.9.6 ---
+// The button at the top right of the page; locked, the shield over the page takes every tap, a tap shows "Screen
+// locked", a tap on that asks "Unlock controls?", a second tap unlocks.
+MainAssistant.prototype.lockPart = function (id, show) {
+	var el = this.controller.get(id);
+	if (el) { el.style.display = show ? "" : "none"; }
+	return el;
+};
+
+MainAssistant.prototype.setupScreenLock = function () {
+	if (this.lockSetUp) { return; }
+	this.lockSetUp = true;
+	var b = this.controller.get("jihad-lock-button"), sh = this.controller.get("jihad-lock-shield"), n = this.controller.get("jihad-lock-notice");
+	this.lockButtonTap = this.lockButtonTap.bind(this);
+	this.lockShieldTap = this.lockShieldTap.bind(this);
+	this.lockNoticeTap = this.lockNoticeTap.bind(this);
+	if (b) { Mojo.Event.listen(b, Mojo.Event.tap, this.lockButtonTap); }
+	if (sh) { Mojo.Event.listen(sh, Mojo.Event.tap, this.lockShieldTap); }
+	if (n) { Mojo.Event.listen(n, Mojo.Event.tap, this.lockNoticeTap); }
+};
+
+MainAssistant.prototype.dropScreenLock = function () {
+	this.locked = false;
+	this.lockPart("jihad-lock-shield", false); this.lockPart("jihad-lock-notice", false);
+	var b = this.lockPart("jihad-lock-button", false);
+	if (b) { b.removeClassName("jihad-lock-on"); }
+};
+
+MainAssistant.prototype.lockButtonTap = function (event) {
+	if (event) { event.stop(); }
+	if (this.locked) { this.lockShieldTap(); return; }
+	this.locked = true;
+	var b = this.controller.get("jihad-lock-button");
+	if (b) { b.addClassName("jihad-lock-on"); }
+	this.lockPart("jihad-lock-shield", true);
+	this.showLockNotice($L("Screen locked"), "locked");
+};
+
+MainAssistant.prototype.lockShieldTap = function (event) {
+	if (event && event.stop) { event.stop(); }
+	if (this.locked && this.noticeStage !== "ask") { this.showLockNotice($L("Screen locked"), "locked"); }
+};
+
+MainAssistant.prototype.lockNoticeTap = function (event) {
+	if (event && event.stop) { event.stop(); }
+	if (this.noticeStage === "locked") {
+		this.showLockNotice($L("Unlock controls? Tap again"), "ask");
+	} else if (this.noticeStage === "ask") {
+		this.locked = false;
+		this.lockPart("jihad-lock-shield", false); this.lockPart("jihad-lock-notice", false);
+		var b = this.controller.get("jihad-lock-button");
+		if (b) { b.removeClassName("jihad-lock-on"); }
+	}
+};
+
+MainAssistant.prototype.showLockNotice = function (text, stage) {
+	this.noticeStage = stage;
+	this.setText("jihad-lock-notice", text);
+	this.lockPart("jihad-lock-notice", true);
+	if (this.noticeTimer) { clearTimeout(this.noticeTimer); }
+	this.noticeTimer = setTimeout(function () { this.noticeTimer = null; this.noticeStage = null; this.lockPart("jihad-lock-notice", false); }.bind(this), 3000);
+};
+
+MainAssistant.prototype.setScreenHold = function (hold) {
+	hold = !!hold;
+	if (this.screenHeld === hold) { return; }
+	var sc = this.controller && this.controller.stageController;
+	if (!sc || typeof sc.setWindowProperties !== "function") { return; }
+	this.screenHeld = hold;
+	try { sc.setWindowProperties({blockScreenTimeout: hold}); } catch (e) { Mojo.Log.error("[T-599] setWindowProperties failed: " + e); }
+	Mojo.Log.warn("[T-599] screen hold " + (hold ? "on" : "off"));   // warn: info lines do not reach the syslog
+};
 
 // --- the WebView as a screen-sized view (2026-10-07) ----------------------------------------
 // Mojo.Widget.WebView was written for an adapter that is PAGE-sized: it sizes the plugin node
@@ -807,6 +936,17 @@ MainAssistant.prototype.handleNotification = function (response) {
 	}
 	// The settings page asking this card to clear the history list it keeps (this shell has
 	// no bookmarks). The request and the sentence to show arrive together.
+	// T-599: the page's media started or stopped: the stage's blockScreenTimeout held while it plays, released 3 s
+	// after it stops (a seek or the next clip is not a stop) or when the card leaves the front.
+	if (response.category === "media-playing") {
+		this.mediaPlaying(response.text === "1");
+		return;
+	}
+	// T-602: a <video> plays (with sound or without): the screen lock's button, and the hold too
+	if (response.category === "video-playing") {
+		this.videoPlaying(response.text === "1");
+		return;
+	}
 	if (response.category === "chrome-clear-history") {
 		JihadHistory.clear();
 	}
@@ -1265,6 +1405,7 @@ MainAssistant.prototype.cleanup = function () {
 	Mojo.Event.stopListening(this.controller.get(this.ADDRESS_ID), Mojo.Event.propertyChange,
 		this.handleAddressSubmit);
 	Mojo.Event.stopListening(this.controller.get(this.RETRY_ID), Mojo.Event.tap, this.handleRetry);
+	Mojo.Event.stopListening(this.controller.get(this.SETTINGS_ID), Mojo.Event.tap, this.handleErrorSettings);
 	var rbc = this.controller.get("jihad-reload");
 	if (rbc) {
 		Mojo.Event.stopListening(rbc, Mojo.Event.tap, this.handleReloadTap);
@@ -1940,6 +2081,11 @@ MainAssistant.prototype.showError = function (code, message) {
 	var text = this.errorText(code, message);
 	var panel = this.controller.get("jihad-error");
 	this.setText("jihad-error-message", text);
+	this.lastErrorCode = code;
+	// T-600: the failed address under the words, and the Wi-Fi settings where the network is the cause
+	this.setText("jihad-error-address", this.failedUrl || this.url || "");
+	var sb = this.controller.get(this.SETTINGS_ID);
+	if (sb) { sb.style.display = this.errorSettingsApp(code) ? "" : "none"; }
 	if (panel) {
 		panel.show();
 	}
@@ -1964,7 +2110,36 @@ MainAssistant.prototype.errorText = function (code, message) {
 		return $L("No Internet connection.");
 	case this.ERRORS.ERR_CURL_SSL_CACERT:
 		return $L("The site's security certificate could not be verified.");
-	default:
-		return message || $L("Unable to load page.");
 	}
+	// T-600 (2026-11-09): the daemon reports the engine's own status (an NS_ERROR_* code, negative as the adapter
+	// hands it over) — the network failures in plain words, with what to do; the Wi-Fi settings button shows for
+	// the ones the network explains (errorSettingsApp).
+	switch (code >>> 0) {
+	case 0x804B001E: return $L("The server's name could not be found. Check the address, or the network connection.");
+	case 0x804B000D: return $L("The server refused the connection. The site may be down, or a port in the address is wrong.");
+	case 0x804B000E: return $L("The server took too long to answer. Try again in a moment, or check the network connection.");
+	case 0x804B0014: case 0x804B0047: return $L("The connection was interrupted. Try again; if it keeps happening, check the network connection.");
+	case 0x804B0010: return $L("This device is offline. Turn Wi-Fi on, then try again.");
+	case 0x804B0048: return $L("The proxy refused the connection. Check the proxy in the network settings.");
+	case 0x804B0012: return $L("This kind of address is not understood. Only web addresses (http, https) open here.");
+	case 0x80520012: return $L("The file does not exist.");
+	case 0x804B0013: return $L("The address is not valid. Check it for a typing mistake.");
+	}
+	return message || $L("Unable to load page. Try again; if it keeps happening, check the network connection.");
+};
+
+//* T-600: the system app that fixes a failure's cause, or null — the Wi-Fi app for the network's.
+MainAssistant.prototype.errorSettingsApp = function (code) {
+	switch (code >>> 0) {
+	case 0x804B001E: case 0x804B000D: case 0x804B000E: case 0x804B0014: case 0x804B0047: case 0x804B0010: case 0x804B0048:
+		return "com.palm.app.wifi";
+	}
+	if (code === this.ERRORS.ERR_WK_NOINTERNET || code === this.ERRORS.ERR_CURL_COULDNT_RESOLVE_HOST) { return "com.palm.app.wifi"; }
+	return null;
+};
+
+MainAssistant.prototype.handleErrorSettings = function () {
+	var app = this.errorSettingsApp(this.lastErrorCode);
+	if (!app) { return; }
+	new Mojo.Service.Request("palm://com.palm.applicationManager", {method: "launch", parameters: {id: app}});
 };

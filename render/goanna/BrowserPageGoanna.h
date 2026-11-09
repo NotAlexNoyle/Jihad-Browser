@@ -273,6 +273,7 @@ public:
   bool notifyChrome(const char* topic, const std::string& data) { return mPage && mPage->NotifyChrome(topic, data.c_str()); }
   // The loaded page's certificate and connection, as JSON for the card (the padlock).
   bool pageCertificate(std::string* json) { return mPage && mPage->GetPageCertInfoJson(json); }
+  bool mediaKey(const std::string& key) { return mPage && mPage->MediaKey(key); }   // T-601
   // YAP: hitTest — resolve what sits at CONTENT (x,y) into the isis HitTest.schema JSON.
   // The adapter GATES the long-press on this round-trip; see GoannaRenderPage::HitTestAt.
   void hitTest(int x, int y, std::string* json);

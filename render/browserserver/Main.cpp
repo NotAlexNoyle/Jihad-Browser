@@ -457,6 +457,9 @@ int main(int argc, char** argv) {
   jihad::LunaServiceSetCertificateFn([](std::string* json) -> bool {
     return sThumbServer && sThumbServer->certificateForActivePage(json);
   });
+  jihad::LunaServiceSetMediaKeyFn([](const std::string& key) -> bool {   // T-601
+    return sThumbServer && sThumbServer->mediaKeyForActivePage(key);
+  });
   // webOS's proxy setting is read on this connection; a component asks for it again through
   // DialogService (cavekit-proxies-certs.md R1).
   jihad::SetWebosProxyReader(&jihad::LunaServiceReadWebosProxy);

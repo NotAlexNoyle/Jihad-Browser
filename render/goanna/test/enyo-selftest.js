@@ -408,6 +408,21 @@
 		later(20000, function() { size("portrait again"); log(name, "DONE"); });
 	};
 	scenarios.page = scenarios.settings;
+	// T-601: the Bluetooth media keys' path from the card on: a key "down" handed to the shell's own handler
+	// (BrowserApp.gotMediaKey, the one the keys service's subscription calls) 8 s after the launch, the next key 6 s
+	// later. The daemon's "media key <k> -> ok" lines and the page's own status are the evidence.
+	//   mediakey:pause-play   pause, then play (keys joined by "-")
+	scenarios.mediakey = function(app, name, arg) {
+		var keys = String(arg || "pause-play").split("-"), i = 0;
+		function next() {
+			if (i >= keys.length) { log(name, "DONE"); return; }
+			var k = keys[i++];
+			app.gotMediaKey(null, {key: k, state: "down"});
+			log(name, "key " + k + " handed to gotMediaKey");
+			later(6000, next);
+		}
+		later(8000, next);
+	};
 	function run() {
 		var p = enyo.windowParams || null;
 		if (!p || !p.jihadTest) { try { p = enyo.json.parse(window.PalmSystem.launchParams); } catch (e) { p = null; } }

@@ -1,24 +1,31 @@
 id: flash-input-lock
 section: Flash
-item: The gesture lock is engaged and released by the finger: engaged, a drag moves the movie and not the page; released or outside the movie, the page pans
+item: The gesture lock is engaged by the first tap on a movie (no keyboard with it) and released by a tap outside: engaged, a drag moves the movie and not the page; a double tap on the engaged movie raises the keyboard; released or outside the movie, the page pans
 shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1
 kit: cavekit-flash.md R5
 wait text ready stage= 30
-drag 240 340 240 240 600
+drag 650 700 650 600 600
 wait settled 5
 expect card-scroll-min 30
 expect number n-move 0 0
 card-to 0
 wait settled 5
-dtap 240 272
-expect keyboard up
-pause 2500
+flash-tap m 400 300 showAll 200 150
+expect number n-down 1 1
+expect number n-up 1 1
+expect keyboard down
+pause 800
 drag 240 340 240 240 600
 wait settled 5
 expect card-scroll 0 10
 expect number n-move 5 400
+dtap 240 272
+expect keyboard up
+pause 2500
+tap-at 650 500
+expect keyboard down
+pause 800
 drag 650 700 650 600 600
 wait settled 5
-expect keyboard down
 expect card-scroll-min 30

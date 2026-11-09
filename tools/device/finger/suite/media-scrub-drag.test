@@ -1,0 +1,22 @@
+id: media-scrub-drag
+section: Media and sound
+item: The video's sliders by finger: a drag on the volume slider changes the volume and a drag of the scrubber's thumb seeks (the page reads them back); a slider is XUL scale content inside the video's anonymous controls, which the adapter's interactive-rect answer does not name, so the drag pans instead (T-598)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1
+kit: cavekit-gre-widgets.md R1
+known: T-598 never
+wait rect v 20
+calibrate 'sel:#status'
+wait text status playing 15
+tap v
+wait text status 'paused' 5
+wait rect 'anon:#v|controlBar' 5
+wait rect 'anon:#v|volumeControl' 5
+measure 'anon:#v|volumeControl'
+measure 'anon:#v|scrubber'
+drag-off 'anon:#v|volumeControl' 28 12 4 12 800
+wait text vol 'volume=0.' 5
+drag-off 'anon:#v|scrubber' 20 10 300 10 1000
+wait settled 4
+wait text seek 28 4
+shoot seek

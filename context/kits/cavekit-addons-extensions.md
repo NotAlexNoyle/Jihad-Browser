@@ -194,18 +194,20 @@ for it to appear.
       bundle no longer carries libasound (Changelog). Methodology: assert the card is connected before
       believing a count; parse a generated asset back before believing a negative from it; `strace -f` the
       daemon, not the container. The reverse-engineering notes are in this kit's history archive.)*
-- [~] **Keyboard input reaches a focused plugin and does not simultaneously drive the card chrome.** *(2026-10-01, CE: the control plugin runs on the device, `NPP_New ok windowless=1`, a tap at its own 100,75, `key 65` as `NPP_HandleEvent key … raw=65`, its block where the page puts it at zoom 1 and 0.78; the spotlight commands answer `SUPPRESSED`. The chrome half needs a real double tap on the plugin.)*
+- [x] **Keyboard input reaches a focused plugin and does not simultaneously drive the card chrome.** *(2026-10-01, CE: the control plugin runs on the device, `NPP_New ok windowless=1`, a tap at its own 100,75, `key 65` as `NPP_HandleEvent key … raw=65`, its block where the page puts it at zoom 1 and 0.78; the spotlight commands answer `SUPPRESSED`. 2026-11-08: the chrome half measured by the emulated finger and the kernel keyboard, `suite/keyboard-arbitration.test` and `suite/flash-input-kernel.test` (cavekit-flash.md R5, cavekit-input-bridging.md R7), passing on the three shells: the movie engaged by its first tap takes the key and the address bar's pixels do not change; released, the address field takes the next key.)*
       A Flash game focuses no HTML editor, so the editor-focus test the adapter used cannot describe
       it. *(Moved to cavekit-flash.md R5 on 2026-11-05; its kernel-keyboard criterion, `suite/flash-input-kernel.test`,
       is the closer. State at the move: keys reach the plugin at the right codes (2026-08-10:
       `make-key-swf.py`'s AVM1 movie turns green → red on `key 65`, `palm key 0x8 raw=65 handled=1`). The
       adapter's `handleKeyDown`/`handleKeyUp` are gated on `mPageFocused` (from Atlas BrowserAdapter
-      `ce199bc`, Apache-2.0, credited in NOTICE) and on `mFlashGestureLock`. Only a DOUBLE tap inside a
-      plugin rect (`handlePenDoubleClick`) or `js_smartZoom` sets the latch, and only a LunaSysMgr-dispatched
+      `ce199bc`, Apache-2.0, credited in NOTICE) and on `mFlashGestureLock`. The first pen down inside a
+      plugin rect sets the latch (`handlePenDown`, T-289, 2026-11-08; until then only a double tap,
+      `handlePenDoubleClick` or `js_smartZoom`, did), and only a LunaSysMgr-dispatched
       event can set it or reach `handleKeyDown`; the daemon's `key` inject bypasses the adapter. The
       TouchPad has no keyboard: a uinput keyboard (`render/goanna/test/uinput_kbd.c`) was read by hidd and
       never dispatched (2026-08-10); CE's kernel keyboard (cavekit-input-bridging.md R2a) now exists. The
-      observable is the address bar, not `pageYOffset`, which the latch's double tap moves by smart zoom.
+      observable is the address bar, not `pageYOffset`; `suite/keyboard-arbitration.test` measures it with the
+      kernel keyboard, passing on the three shells since 2026-11-08.
       T-107's test page (`jihad-keyarb.html`, `build/webos-oe/stage-test-pages.sh`) and procedure are in
       this kit's history archive.)*
 

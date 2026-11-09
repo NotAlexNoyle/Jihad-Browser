@@ -196,12 +196,18 @@ with `--self`.
 Since T-565 the suite is every reachable item of the finger list. More of the form: `item:` and `section:` (the entry in
 `docs/FINGER-TESTS.md`, which `finger-list.py --write` regenerates from the suite and its last report; the hand-run record
 is `docs/FINGER-TESTS-2026-10.md`), `fixture: NAME` (`suite/fixtures/NAME.sh up|down SHELL` around the daemon: `pads`, twelve
-sideloaded test extensions; `persona-file`, a Persona in the downloads folder; `auth-proxy`, the login proxy on the host),
+sideloaded test extensions; `xpi`, the test extension served for an install by the page and removed from the profile after;
+`persona-file`, a Persona in the downloads folder; `auth-proxy`, the login proxy on the host; `kernel-kbd`, the emulated
+hardware keyboard),
 `needs: internet` (run with `--with internet`), `tool:` and `skip:` with their reason, and `known: T-NNN WORD` (failures all
-holding WORD are that open defect's: the verdict reads `known`, not `fail`). Marks: `wait gone SEL`, `url PART`, `pref T NAME
-TEXT`, `differs REGION SAMPLE` (a menu that came up during a hold), `changed REGION`, `text SEL TEXT`. Gestures: `hold-on SEL`,
+holding WORD are that open defect's: the verdict reads `known`, not `fail`). `touch SEL` taps an element's centre and awaits no clickAt (a control the daemon reports as interactive takes the pen pair itself; the wait after it is its mark). A step for ONE shell carries its name:
+`mojo: wait content 10,90,400,300 5` runs on Mojo only (its Downloads panel lies full-width at the left where the
+Enyo and Mochi panels stand at the right); the lint reads every such line. Marks: `wait gone SEL`, `url PART`, `pref T NAME
+TEXT`, `differs REGION SAMPLE` (a menu that came up during a hold), `changed REGION`, `text SEL TEXT`; `expect file GLOB TEXT` (the newest
+file the glob names on the device holds the text: a download's bytes over USB). Gestures: `hold-on SEL`,
 `dismiss X Y` (a tap that closes a menu reaches no page, so no clickAt is awaited), `tap-off SEL DX DY` (inside a frame the
-rect cannot see), `drag-slow`, `drag-jitter`, `drag-paused`, `type-keys TEXT` and `key-hold kb-backspace` (the system keyboard
+rect cannot see), `drag-off SEL DX0 DY0 DX1 DY1 [MS]` (a drag between two offsets from an element's top left: a slider's
+thumb, the scrubber), `drag-slow`, `drag-jitter`, `drag-paused`, `type-keys TEXT` and `key-hold kb-backspace` (the system keyboard
 by finger; `fl_kb_key` is its map), `daemon-restart URL` (stopped as upstart stops it, for a persistence check), `stream-start`
 and `stream-stop` with `expect stream stale|uniform|still|lag-max|error-max VALUE` read on the host, and `dwell MS` between a
 check and the same check (does it still hold?). `pause MS` is the human's delay before a gesture only: the lint refuses it as a

@@ -538,8 +538,12 @@ private:
     Point mLastPointSentToFlash;
     bool mMouseInFlashRect;
     bool mFlashGestureLock;
-    GSource *m_lockKeyboardTimer;   // T-575: the keyboard comes up a moment after the double tap
+    GSource *m_lockKeyboardTimer;   // T-575: the keyboard comes up a moment after the double tap that asks for it (T-289)
+    bool m_penDownLive;             // between a pen down and its pen up (T-289: the latch's notice to the card waits for the up)
+    bool m_lockNotifyPending;       // the card has not yet heard that the latch engaged during this touch
+    void notifyFlashGestureLock(bool enabled);
     static gboolean lockKeyboardTimeoutCb(gpointer data);
+    void startLockKeyboardTimer();
     typedef std::map<uintptr_t, BrowserRect> RectMap;
     typedef std::pair<uintptr_t, BrowserRect> RectMapItem;
     RectMap mFlashRects;

@@ -69,6 +69,10 @@ enyo.kind({
 				onPageTitleChanged: "pageTitleChanged",
 				onPageLoadStopped: "pageLoadStopped",
 				onFileLoad: "handleResource",
+				onEngineDownloadStart: "engineDownloadStart",
+				onEngineDownloadProgress: "engineDownloadProgress",
+				onEngineDownloadFinished: "engineDownloadFinished",
+				onEngineDownloadError: "engineDownloadError",
 				onAddBookmark: "addBookmark",
 				onAddToLauncher: "showAddtoLauncherDialog",
 				onShareLink: "shareClick",
@@ -153,6 +157,7 @@ enyo.kind({
 	constructor: function() {
 		this.inherited(arguments);
 		this.downloads = [];
+		this.engineDownloads = this.loadEngineDownloads();
 		this.preferences = {};
 	},
 	create: function() {
@@ -388,7 +393,88 @@ enyo.kind({
 		this.gotoView("startPage");
 	},
 	downloadListShown: function(inSender) {
-		this.$.downloads.setDownloads(this.downloads);
+		this.$.downloads.setDownloads(this.allDownloads());
+	},
+	// --- the engine's own downloads (JihadWebView.js; the Mochi shell's JihadBrowser.js is the model) ---
+	// A record is shaped like the download manager's so DownloadList.js renders it unchanged:
+	// destPath + destFile (what Open launches), amountReceived/amountTotal (the progress bar),
+	// completed with completionStatusCode 200, aborted on an error. `engine: true` marks it; it has
+	// no ticket, so the list's Cancel does nothing to it (the adapter has no command for that).
+	ENGINE_DOWNLOADS_KEY: "jihad.engineDownloads",
+	ENGINE_DOWNLOADS_MAX: 50,
+	allDownloads: function() {
+		return this.engineDownloads.concat(this.downloads);
+	},
+	loadEngineDownloads: function() {
+		var list = null;
+		try {
+			list = window.localStorage ? enyo.json.parse(window.localStorage.getItem(this.ENGINE_DOWNLOADS_KEY) || "[]") : [];
+		} catch (e) { list = null; }
+		if (!list || !list.length) { return []; }
+		// A transfer that was running when the card last closed did not finish under it.
+		for (var i = 0; i < list.length; i++) {
+			if (!list[i].completed && !list[i].aborted) { list[i].aborted = true; list[i].error = "interrupted"; }
+		}
+		return list;
+	},
+	saveEngineDownloads: function() {
+		try {
+			if (window.localStorage) {
+				window.localStorage.setItem(this.ENGINE_DOWNLOADS_KEY,
+					enyo.json.stringify(this.engineDownloads.slice(0, this.ENGINE_DOWNLOADS_MAX)));
+			}
+		} catch (e) { /* a full store must not break a download */ }
+	},
+	engineDownloadFor: function(inUrl, inCreate) {
+		for (var i = 0; i < this.engineDownloads.length; i++) {
+			var d = this.engineDownloads[i];
+			if (d.url === inUrl && !d.completed && !d.aborted) { return d; }
+		}
+		if (!inCreate) { return null; }
+		var rec = {engine: true, url: inUrl, target: inUrl, mimetype: "", destPath: "", destFile: inUrl.replace(/[?#].*$/, "").replace(/^.*\//, "") || "download",
+			amountReceived: 0, amountTotal: 0, completed: false, aborted: false, date: (new Date()).getTime()};
+		this.engineDownloads.unshift(rec);
+		return rec;
+	},
+	refreshEngineDownloads: function(inAlways) {
+		if (inAlways || this.$.downloads.showing) { this.$.downloads.setDownloads(this.allDownloads()); }
+	},
+	engineDownloadStart: function(inSender, inUrl) {
+		if (!inUrl) { return; }
+		var rec = this.engineDownloadFor(inUrl, true);
+		rec.aborted = false; rec.error = ""; rec.amountReceived = 0;
+		this.saveEngineDownloads();
+		this.refreshEngineDownloads(true);
+	},
+	engineDownloadProgress: function(inSender, inUrl, inReceived, inTotal) {
+		var rec = inUrl && this.engineDownloadFor(inUrl, true);
+		if (!rec) { return; }
+		rec.amountReceived = inReceived || 0;
+		rec.amountTotal = inTotal || 0;
+		this.refreshEngineDownloads(false);
+	},
+	engineDownloadFinished: function(inSender, inUrl, inMimeType, inPath) {
+		var rec = inUrl && this.engineDownloadFor(inUrl, true);
+		if (!rec) { return; }
+		var path = inPath || "";
+		var slash = path.lastIndexOf("/");
+		rec.completed = true; rec.aborted = false; rec.completionStatusCode = 200;
+		rec.mimetype = inMimeType || "";
+		rec.destPath = slash >= 0 ? path.substring(0, slash + 1) : "";
+		rec.destFile = slash >= 0 ? path.substring(slash + 1) : (path || rec.destFile);
+		if (rec.amountTotal) { rec.amountReceived = rec.amountTotal; }
+		this.saveEngineDownloads();
+		this.refreshEngineDownloads(true);
+		if (!this.$.downloads.showing) {
+			enyo.windows.addBannerMessage(rec.destFile.replace(/%20/g, " ") + " " + $L("finished downloading"), enyo.json.stringify({toasterOpen: "downloads"}));
+		}
+	},
+	engineDownloadError: function(inSender, inUrl, inMessage) {
+		var rec = inUrl && this.engineDownloadFor(inUrl, true);
+		if (!rec) { return; }
+		rec.aborted = true; rec.error = inMessage || "";
+		this.saveEngineDownloads();
+		this.refreshEngineDownloads(true);
 	},
 	//* Settings live in ONE place now (cavekit-preferences-ui.md R5): the engine's own
 	//* about:preferences. Opened through the ordinary navigation path — the same setUrl a
@@ -582,18 +668,24 @@ enyo.kind({
 		this.$.toaster.open();
 	},
 	openDownloadedFile: function(inSender, inIndex) {
-		var d = this.downloads[inIndex];
+		var d = this.allDownloads()[inIndex];
 		if (d.completed && !d.aborted && !d.interrupted) {
 			this.$.launchApplicationService.call({target: d.destPath + d.destFile});
 		}
 	},
 	cancelDownload: function(inSender, inIndex) {
-		var d = this.downloads[inIndex];
+		var d = this.allDownloads()[inIndex];
+		if (!d || !d.ticket) { return; }   // an engine download has no cancel
 		this.$.cancelDownloadService.call({ticket: d.ticket});
 	},
 	retryDownload: function(inSender, inIndex) {
-		var u = this.downloads[inIndex].url;
-		this.downloads[inIndex] = {url: u};
+		var all = this.allDownloads();
+		var d = all[inIndex];
+		if (!d) { return; }
+		if (d.engine) { this.setUrl(d.url); return; }   // the engine fetches it again as a page load
+		var u = d.url;
+		var k = inIndex - this.engineDownloads.length;
+		this.downloads[k] = {url: u};
 		this.$.downloadService.call({target: u});
 	},
 	deleteDownload: function(inSender, inIndex) {
@@ -609,7 +701,13 @@ enyo.kind({
 			}
 		}
 		this.downloads = newDownloads;
-		this.$.downloads.setDownloads(this.downloads);
+		var keep = [];
+		for (var j = 0; j < this.engineDownloads.length; j++) {
+			if (!this.engineDownloads[j].completed && !this.engineDownloads[j].aborted) { keep.push(this.engineDownloads[j]); }
+		}
+		this.engineDownloads = keep;
+		this.saveEngineDownloads();
+		this.$.downloads.setDownloads(this.allDownloads());
 		this.$.clearDownloadsService.call({owner: enyo.fetchAppId()});
 	},
 	findDownload: function(inObj, inSkipUrl) {
@@ -638,7 +736,7 @@ enyo.kind({
 				}
 			}
 			if (this.$.downloads.showing) {
-				this.$.downloads.setDownloads(this.downloads);
+				this.$.downloads.setDownloads(this.allDownloads());
 			}
 		}
 	},
@@ -657,7 +755,7 @@ enyo.kind({
 			}
 		}
 		if (this.isDownloadListShowing()) {
-			this.$.downloads.setDownloads(this.downloads);
+			this.$.downloads.setDownloads(this.allDownloads());
 		}
 	},
 	insertIntoDownloads: function(inObj, inStartIndex) {

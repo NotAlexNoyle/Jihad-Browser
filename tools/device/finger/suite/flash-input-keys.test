@@ -1,10 +1,13 @@
 id: flash-input-keys
 section: Flash
-item: The system keyboard comes up over a movie on a double tap, with no editor focused; letters, digits, space and its arrow joystick arrive as the right key codes, the page does not move, and a tap outside drops it
+item: The system keyboard comes up over an engaged movie on a double tap (the first tap engaged it, with no keyboard), with no editor focused; letters, digits, space and its arrow joystick arrive as the right key codes, the page does not move, and a tap outside drops it
 shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2
 kit: cavekit-flash.md R5
 wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect keyboard down
+pause 800
 dtap 240 272
 expect keyboard up
 pause 1500

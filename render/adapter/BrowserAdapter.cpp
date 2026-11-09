@@ -555,6 +555,8 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , mMouseInFlashRect(false)
     , mFlashGestureLock(false)
     , m_lockKeyboardTimer(NULL)
+    , m_penDownLive(false)
+    , m_lockNotifyPending(false)
     , mMouseInInteractiveRect(false)
     , m_spotlightHandle(0)
     , m_ft(0)
@@ -1664,6 +1666,17 @@ bool BrowserAdapter::handlePenDown(NpPalmPenEvent *event)
 
     detectScrollableLayerUnderMouseDown(m_penDownDoc, Point(eventPt.x / mZoomLevel, eventPt.y / mZoomLevel));
 
+    // Jihad (T-289, the owner's word of 2026-11-08): the FIRST touch inside a movie engages it. The
+    // latch used to wait for a double tap (handlePenDoubleClick, the card's smartZoom), which left
+    // a game's first tap and every drag that began on the movie to the page's pan and zoom. Now
+    // the pen down inside a plugin rect sets the latch, so this very touch — and its drag — goes
+    // to the movie; the page pans from a finger that starts outside a movie, and a touch outside
+    // releases the latch (below, as before). The keyboard no longer comes with the latch: a
+    // double tap on the engaged movie asks for it (handlePenDoubleClick, js_smartZoom).
+    m_penDownLive = true;
+    if (containsFlashPoint && !mFlashGestureLock) {
+        updateFlashGestureLockStatus(true);
+    }
     if (mFlashGestureLock) {
         passToFlash = containsFlashPoint;
     }
@@ -1743,6 +1756,16 @@ bool BrowserAdapter::handlePenUp(NpPalmPenEvent *event)
     updateMouseInFlashStatus(false);
     updateMouseInInteractiveStatus(false);
 
+    // T-289: the latch engaged on this touch's pen down; the card hears of it now that the finger is
+    // up. The Enyo framework's WebView answers the notice with a MODAL popup ("Tap outside or pinch
+    // when finished", BasicWebView.showFlashLockedMessage) whose scrim took the pen up of the very tap
+    // that engaged the movie (finger suite 2026-11-08: Enyo read n-up 0 where Mochi and Mojo read 1).
+    m_penDownLive = false;
+    if (m_lockNotifyPending) {
+        m_lockNotifyPending = false;
+        if (mFlashGestureLock) notifyFlashGestureLock(true);
+    }
+
     return true;
 }
 
@@ -1807,10 +1830,15 @@ bool BrowserAdapter::handlePenClick(NpPalmPenEvent *event)
 
     if (m_didDrag || m_sentToBS || m_didHold) {
         // squelch the click after drag, hold, or sent to browserserver
+        // T-289: a tap whose pen pair went to an ENGAGED movie is left unconsumed (no click timer
+        // either, the movie had its press and release): a consumed click is the end of the host's
+        // tap sequence, and the double click that asks for the keyboard (handlePenDoubleClick)
+        // never came — on no shell, finger suite 2026-11-08 — while this returned true for it.
+        bool toMovie = m_sentToBS && !m_didDrag && !m_didHold && mFlashGestureLock && flashRectContainsPoint(penDocPt);
         m_didDrag = false;
         m_sentToBS = false;
         m_didHold = false;
-        return true;
+        return !toMovie;
     }
 
     // use timer to squelch this click if a double click is coming
@@ -1838,12 +1866,19 @@ bool BrowserAdapter::handlePenDoubleClick(NpPalmPenEvent *event)
         if (!inFlashRect) {
             updateFlashGestureLockStatus(false);
         } else {
-            // ignore; taps will be sent through with handle* methods
+            // Jihad (T-289): the taps themselves went to the movie through handlePenDown/Up (the
+            // first of them engaged it); the double tap on an engaged movie is the user's ask for
+            // the keyboard — a text field in the movie, a game's keys — which no NPAPI signal gives.
+            // The daemon hears of it through the smart-zoom request (its focusPlugin moves the movie
+            // out from under the keyboard, T-575, and it answers no zoom for a point in a movie);
+            // sent whatever the meta viewport says, which prvSmartZoom would not.
+            startLockKeyboardTimer();
+            asyncCmdZoomSmartCalculateRequest(penDocPt.x, penDocPt.y);
             return true;
         }
     }
     else if (inFlashRect) {
-        updateFlashGestureLockStatus(true);
+        updateFlashGestureLockStatus(true);   // unreachable since T-289 (the first pen down engaged it); kept for the card's smartZoom path's shape
     }
 
     prvSmartZoom(penDocPt);
@@ -1867,7 +1902,7 @@ bool BrowserAdapter::handlePenDoubleClick(NpPalmPenEvent *event)
 //   mFlashGestureLock — Jihad addition for R7. A Flash GAME focuses no HTML editor, so
 //   bEditorFocused is false throughout and every arrow key / WASD press leaked to the chrome
 //   while the game was being played. This latch is exactly the right signal: it is set when a
-//   tap lands inside a plugin rect and cleared by a tap outside one, i.e. it already means
+//   touch lands inside a plugin rect (the first one, since T-289) and cleared by a touch outside one, i.e. it already means
 //   "the user has engaged the plugin", and it is the same latch that decides whether a DRAG
 //   goes to the plugin instead of panning the card.
 bool BrowserAdapter::handleKeyDown(NpPalmKeyEvent *event)
@@ -3452,7 +3487,10 @@ const char* BrowserAdapter::js_smartZoom(AdapterBase *adapter, const NPVariant *
         if (!inFlashRect) {
             a->updateFlashGestureLockStatus(false);
         } else {
-            /* ignore; taps will be sent through with handle* methods */
+            /* the taps went to the movie; the double tap on an engaged movie asks for the keyboard (T-289),
+               and the daemon moves the movie out from under it on the smart-zoom request (T-575) */
+            a->startLockKeyboardTimer();
+            a->asyncCmdZoomSmartCalculateRequest(docPt.x, docPt.y);
             return NULL;
         }
     } else if (inFlashRect) {
@@ -6014,6 +6052,21 @@ void BrowserAdapter::updateMouseInInteractiveStatus(bool inInteractiveRect)
     }
 }
 
+// T-289: the keyboard for an engaged movie, a moment after the double tap that asked for it
+void BrowserAdapter::startLockKeyboardTimer()
+{
+    if (m_lockKeyboardTimer) {
+        g_source_destroy(m_lockKeyboardTimer);
+        g_source_unref(m_lockKeyboardTimer);
+        m_lockKeyboardTimer = NULL;
+    }
+    if (!mFlashGestureLock) return;
+    g_message("jihad: keyboard asked for the engaged movie (double tap)");
+    m_lockKeyboardTimer = g_timeout_source_new(350);
+    g_source_set_callback(m_lockKeyboardTimer, lockKeyboardTimeoutCb, this, NULL);
+    g_source_attach(m_lockKeyboardTimer, g_main_loop_get_context(mMainLoop));
+}
+
 gboolean BrowserAdapter::lockKeyboardTimeoutCb(gpointer arg)
 {
     BrowserAdapter* a = (BrowserAdapter*)arg;
@@ -6029,6 +6082,13 @@ gboolean BrowserAdapter::lockKeyboardTimeoutCb(gpointer arg)
         a->InvokeEventListener(gEditorFocusedHandler, kb, G_N_ELEMENTS(kb), 0);
     }
     return FALSE;
+}
+
+void BrowserAdapter::notifyFlashGestureLock(bool enabled)
+{
+    NPVariant arg;
+    BOOLEAN_TO_NPVARIANT(enabled, arg);
+    InvokeEventListener(gFlashGestureLockHandler, &arg, 1, 0);
 }
 
 void BrowserAdapter::updateFlashGestureLockStatus(bool gestureLockEnabled)
@@ -6055,20 +6115,19 @@ void BrowserAdapter::updateFlashGestureLockStatus(bool gestureLockEnabled)
         // the same handler an HTML field uses; releasing the latch (a tap outside the plugin)
         // lowers it again unless an HTML editor still has focus.
         //
-        // T-575: not in the double tap itself. The keyboard resizes the card while the second touch is
-        // still down, and now and then its touch-end is lost: the system then takes the finger as still
+        // T-575: not in the gesture itself. The keyboard resizes the card while the touch is still
+        // down, and now and then its touch-end is lost: the system then takes the finger as still
         // on the card and no touch reaches it any more (two runs in five, no pen down after the lock).
-        // A moment after the gesture, and only if the lock still stands.
+        // A moment after the gesture, and only if the lock still stands (startLockKeyboardTimer).
+        // T-289 (2026-11-08): engaging no longer asks for the keyboard — the first tap engages now,
+        // and a tap on a movie is not a wish to type; the double tap on the engaged movie is.
+        // Releasing still lowers it.
         if (m_lockKeyboardTimer) {
             g_source_destroy(m_lockKeyboardTimer);
             g_source_unref(m_lockKeyboardTimer);
             m_lockKeyboardTimer = NULL;
         }
-        if (gestureLockEnabled) {
-            m_lockKeyboardTimer = g_timeout_source_new(350);
-            g_source_set_callback(m_lockKeyboardTimer, lockKeyboardTimeoutCb, this, NULL);
-            g_source_attach(m_lockKeyboardTimer, g_main_loop_get_context(mMainLoop));
-        } else {
+        if (!gestureLockEnabled) {
             NPVariant kb[3];
             BOOLEAN_TO_NPVARIANT(bEditorFocused, kb[0]);
             INT32_TO_NPVARIANT(0, kb[1]);
@@ -6083,11 +6142,15 @@ void BrowserAdapter::updateFlashGestureLockStatus(bool gestureLockEnabled)
             mLastPointSentToFlash = Point(-1, -1);
         }
 
-        // let BA know of change
+        // let BA know of change — after the pen up when the latch engaged on a pen down (T-289, see
+        // handlePenUp); a release is told at once, and cancels a notice still waiting.
         TRACEF("Updating flashGestureLock status to : %d\n", gestureLockEnabled);
-        NPVariant arg;
-        BOOLEAN_TO_NPVARIANT(gestureLockEnabled, arg);
-        InvokeEventListener(gFlashGestureLockHandler, &arg, 1, 0);
+        if (gestureLockEnabled && m_penDownLive) {
+            m_lockNotifyPending = true;
+        } else {
+            m_lockNotifyPending = false;
+            notifyFlashGestureLock(gestureLockEnabled);
+        }
     }
 }
 

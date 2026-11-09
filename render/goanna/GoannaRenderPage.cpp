@@ -93,7 +93,6 @@
 #include "nsIDOMHTMLDocument.h"      // body: the viewport scroller of a quirks-mode document (ScrollTo)
 #include "nsIDOMDocumentXBL.h"       // reach XBL anonymous content (chrome UI controls)
 #include "inIDOMUtils.h"             // getChildrenForNode(anon): the NAC walk nsIDOMDocumentXBL cannot do
-#include "inIDOMUtils.h"             // getChildrenForNode(anon): the NAC walk nsIDOMDocumentXBL cannot do
 #include "nsISSLStatusProvider.h"    // pull the server cert off a failed TLS channel
 #include "nsISecureBrowserUI.h"       // the loaded page's certificate (the address-bar padlock)
 #include "nsISSLStatus.h"
@@ -1072,6 +1071,38 @@ int DebugCookieCount() {
   return n;
 }
 
+// The first element at or under `node` (native anonymous content and XBL-flattened children
+// included, depth-first, eight levels) whose anonid or one of whose class tokens equals `want`.
+static already_AddRefed<nsIDOMElement> FindAnonPart(inIDOMUtils* du, nsIDOMNode* node, const nsAString& want, int depth) {
+  if (!du || !node || depth > 8) return nullptr;
+  nsCOMPtr<nsIDOMNodeList> kids;
+  du->GetChildrenForNode(node, true, getter_AddRefs(kids));
+  uint32_t n = 0; if (kids) kids->GetLength(&n);
+  for (uint32_t i = 0; i < n; ++i) {
+    nsCOMPtr<nsIDOMNode> kid; kids->Item(i, getter_AddRefs(kid));
+    nsCOMPtr<nsIDOMElement> kel = do_QueryInterface(kid);
+    if (!kel) continue;
+    nsAutoString v;
+    kel->GetAttribute(NS_LITERAL_STRING("anonid"), v);
+    if (v.Equals(want)) return kel.forget();
+    kel->GetAttribute(NS_LITERAL_STRING("class"), v);
+    if (!v.IsEmpty()) {
+      nsString cls(v);
+      const char16_t* p = cls.get(); uint32_t len = cls.Length(), a = 0;
+      while (a < len) {
+        while (a < len && (p[a] == ' ' || p[a] == '\t' || p[a] == '\n')) ++a;
+        uint32_t b = a;
+        while (b < len && !(p[b] == ' ' || p[b] == '\t' || p[b] == '\n')) ++b;
+        if (b > a && Substring(cls, a, b - a).Equals(want)) return kel.forget();
+        a = b;
+      }
+    }
+    nsCOMPtr<nsIDOMElement> found = FindAnonPart(du, kid, want, depth + 1);
+    if (found) return found.forget();
+  }
+  return nullptr;
+}
+
 std::string DebugElementRect(const char* elementId) {
   GoannaRenderPage* page = sDebugLastPage;
   if (!page || !elementId) return std::string();
@@ -1104,13 +1135,31 @@ std::string DebugElementRect(const char* elementId) {
     const char* bar = strchr(rest, '|');
     if (!bar) return std::string("(anon: needs <css>|<anonid>)");
     nsCOMPtr<nsIDOMElement> host;
-    doc->QuerySelector(NS_ConvertUTF8toUTF16(std::string(rest, bar - rest).c_str()),
-                       getter_AddRefs(host));
+    std::string hostSel(rest, bar - rest);
+    doc->QuerySelector(NS_ConvertUTF8toUTF16(hostSel.c_str()), getter_AddRefs(host));
+    // a bare id as the host (media-controls.test wrote `anon:v|controlBar`, and `v` as a selector
+    // is a <v> tag: 102 "(no host)" answers in a round before anyone read them, 2026-11-08)
+    if (!host) doc->GetElementById(NS_ConvertUTF8toUTF16(hostSel.c_str()), getter_AddRefs(host));
     if (!host) return std::string("(no host)");
     nsCOMPtr<nsIDOMDocumentXBL> xbl = do_QueryInterface(doc);
     if (!xbl) return std::string("(no xbl)");
-    xbl->GetAnonymousElementByAttribute(host, NS_LITERAL_STRING("anonid"),
-                                        NS_ConvertUTF8toUTF16(bar + 1), getter_AddRefs(el));
+    NS_ConvertUTF8toUTF16 want(bar + 1);
+    xbl->GetAnonymousElementByAttribute(host, NS_LITERAL_STRING("anonid"), want, getter_AddRefs(el));
+    // Not an XBL part of the host itself: walk EVERYTHING under it that a selector cannot reach —
+    // native anonymous content and the flattened children of bindings on it — through
+    // inIDOMUtils::getChildrenForNode(node, true) (the walk DebugAnonNodes uses), and take the first
+    // element whose anonid OR class token is the name. A <video controls>'s bar is the second kind:
+    // nsVideoFrame makes a <videocontrols> as native anonymous content, the binding attaches to that,
+    // and this UXP's videocontrols.xml names its parts by CLASS (controlBar, muteButton, scrubber,
+    // volumeControl; the only anonids are the error labels and volumeForeground). The former walk
+    // here asked GetAnonymousNodes(<video>) for the levels below — null by construction (see above),
+    // so media-controls.test read "no element" for a bar that stood (2026-11-08).
+    if (!el) {
+      nsCOMPtr<inIDOMUtils> du = do_GetService(IN_DOMUTILS_CONTRACTID);
+      if (!du) return std::string("(no inIDOMUtils)");
+      nsCOMPtr<nsIDOMNode> hostNode = do_QueryInterface(host);
+      el = FindAnonPart(du, hostNode, want, 0);
+    }
   } else if (strncmp(elementId, "sel:", 4) == 0) {
     doc->QuerySelector(NS_ConvertUTF8toUTF16(elementId + 4), getter_AddRefs(el));
   } else {
@@ -3930,6 +3979,12 @@ void GoannaRenderPage::ClickAt(int x, int y, int numClicks) {
     // offscreen PuppetWidget discards it (T-067 — see the block comment above). These go through
     // the presShell instead, which is what makes a tap actually reach the document.
     (void)ret;
+    // T-285: a pointer ARRIVES before it presses. The move (no button) is what a page's hover state
+    // and mouseover handlers are made of, and a finger gives neither: UXP's own video controls bring
+    // their bar back on the pointer's move over the picture (videocontrols.xml onMouseMove), so a tap
+    // on a playing video paused it and no bar ever showed (measured 2026-11-08, hidden on all three
+    // shells). The raw pen pair has had this hover since T-576; the clickAt path gets it here.
+    engine_calls::MouseEventToWindow(u, NS_LITERAL_STRING("mousemove"), (float)x, (float)y, 0, 0, 0, /*buttons*/0);
     engine_calls::MouseEventToWindow(u, down, (float)x, (float)y, 0, numClicks, 0, /*buttons*/1);
     fprintf(stderr, "[jihad-bs] mouseSend : down ok, up\n");
     engine_calls::MouseEventToWindow(u, up,   (float)x, (float)y, 0, numClicks, 0, /*buttons*/0);

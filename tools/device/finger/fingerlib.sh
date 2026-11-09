@@ -139,6 +139,9 @@ fl_chrome() {
     mojo:address) echo 385 51;; mojo:reload) echo 740 51;; mojo:back) echo 222 983;; mojo:forward) echo 276 983;;
     mojo:home) echo 330 983;; mojo:newcard) echo 384 983;; mojo:history) echo 438 983;; mojo:share) echo 492 983;;
     mojo:search) echo 546 983;;
+    # Downloads from the history button: Enyo's toaster has it as the third tab icon, Mochi's and Mojo's button opens a
+    # three-row menu (Bookmarks, History, Downloads) at the top right / above the bottom bar (measured 2026-11-08)
+    enyo:downloads-tab) echo 708 55;; mochi:downloads-tab) echo 650 206;; mojo:downloads-tab) echo 552 979;;
     # the card's dialog (a page's confirm/alert/prompt; measured 2026-11-05 on jihad-dialogs.html): Enyo a centred
     # popup, Mochi a box under the toolbar, Mojo a sheet at the bottom
     # Enyo's popup is centred and as tall as its text: its buttons counted from its last light row (fl_dialog_last)
@@ -205,6 +208,14 @@ fl_ask() { fl_mark; fl_inject "$1"; fl_wait "$2" ${3:-5}; }
 # --- the oracles ------------------------------------------------------------------------------------------------
 # "docX docY W H cardX cardY sX sY cX cY": the element's document rect (its viewport rect plus the engine's scroll),
 # the card's scroll, the engine's scroll, the centre (document px). Nothing (1) when there is no such element.
+fl_drag_off() { # SEL DX0 DY0 DX1 DY1 [MS]: a drag between two offsets in document px from the element's top left (a slider's thumb)
+  local r p0 p1
+  fl_bring "$1" || { echo "  drag: no element $1"; return 1; }
+  r=$(fl_screen_rect "$1") || return 1; set -- "$1" "$2" "$3" "$4" "$5" "${6:-600}" $r
+  p0=$(awk -v x=$7 -v y=$8 -v dx=$2 -v dy=$3 -v z=$(fl_zoom) 'BEGIN { printf "%d %d", x + dx * z + 0.5, y + dy * z + 0.5 }')
+  p1=$(awk -v x=$7 -v y=$8 -v dx=$4 -v dy=$5 -v z=$(fl_zoom) 'BEGIN { printf "%d %d", x + dx * z + 0.5, y + dy * z + 0.5 }')
+  echo "  drag on $1 from $p0 to $p1 ($6 ms)"; /tmp/finger drag $p0 $p1 $6; FL_HDR=1; fl_wait_settled 6
+}
 fl_rect() {
   local l r
   l=$(fl_ask "rect $1" 'inject rect ' 5) || return 1
@@ -364,6 +375,13 @@ fl_tap_off() { # SEL DX DY: a tap at an offset in document px from the element's
   r=$(fl_screen_rect "$1") || return 1; set -- "$1" "$2" "$3" $r
   p=$(awk -v x=$4 -v y=$5 -v dx=$2 -v dy=$3 -v z=$(fl_zoom) 'BEGIN { printf "%d %d\n", x + dx * z + 0.5, y + dy * z + 0.5 }'); fl_tap_at $p
 }
+# a tap on an element's centre with NO clickAt awaited: a control the daemon reports as interactive (a button in a
+# video's bar) takes the pen pair itself and the adapter sends no clickAt for it; the caller's wait is the mark
+fl_touch() { # SEL
+  local p
+  fl_bring "$1" || { echo "  touch: no element $1"; return 1; }
+  p=$(fl_screen "$1") || return 1; fl_mark; /tmp/finger tap $p; echo "  touch $1 at $p"
+}
 fl_tap() { # SEL
   local p
   fl_bring "$1" || { echo "  tap: no element $1"; FL_HIT=""; return 1; }
@@ -491,6 +509,12 @@ fl_check_flash_reacted() { # NAME REGION SECONDS yes|no: reads showing what the 
   a=$(echo "$l" | sed -n 's/.* new \([0-9]*\) of .*/\1/p'); b=$(echo "$l" | sed -n 's/.* new [0-9]* of \([0-9]*\).*/\1/p')
   if [ "${b:-0}" -gt 0 ] && [ $((${a:-0} * 2)) -ge ${b:-0} ]; then v=yes; else v=no; fi
   [ "$v" = "$4" ] && fl_check ok "$1" "reacted: $v ($l)" || fl_check FAIL "$1" "reacted: $v, wanted $4 ($l)"
+}
+fl_check_file() { # NAME GLOB TEXT: the newest file the glob names on the device holds the text (a download's bytes over USB)
+  local f
+  f=$(ls -t $2 2>/dev/null | head -1)
+  [ -n "$f" ] || { fl_check FAIL "$1" "no file $2 on the device"; return 1; }
+  if grep -q -- "$3" "$f" 2>/dev/null; then fl_check ok "$1" "$f ($(wc -c < "$f") bytes) holds [$3]"; else fl_check FAIL "$1" "$f lacks [$3]"; fi
 }
 fl_check_number() { # NAME SEL MIN MAX: the number an element holds, within the bounds
   local v
@@ -719,6 +743,8 @@ fl_check_visible() { # NAME SEL: the element's screen rect inside what a finger 
   local r lim
   r=$(fl_screen_rect "$2") || { fl_check FAIL "$1" "no element $2"; return 1; }
   set -- "$1" "$2" $r; if [ "$(fl_kb)" = 1 ]; then lim=600; else lim=1024; fi
+  # an element with no size is not on the screen (a hidden control bar read as visible at 0,82-0,82, 2026-11-08)
+  [ $5 -gt $3 ] && [ $6 -gt $4 ] || { fl_check FAIL "$1" "$2 has no size on the screen ($3,$4-$5,$6)"; return 1; }
   if [ $4 -ge $FL_TOP ] && [ $6 -le $lim ]; then fl_check ok "$1" "$2 on the screen at $3,$4-$5,$6 (the reach ends at $lim, keyboard $(fl_kb))"; else fl_check FAIL "$1" "$2 on the screen at $3,$4-$5,$6 is not within $FL_TOP..$lim (keyboard $(fl_kb))"; fi
 }
 fl_check_zoom() { # NAME Z TOL

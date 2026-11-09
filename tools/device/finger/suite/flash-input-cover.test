@@ -1,10 +1,13 @@
 id: flash-input-cover
 section: Flash
-item: With the keyboard up a movie it would cover moves so that its play area stays on the screen, and stage coordinates still land right
+item: With the keyboard up (a double tap on the engaged movie) a movie it would cover moves so that its play area stays on the screen, and stage coordinates still land right
 shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&layout=low
 kit: cavekit-flash.md R5
 wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect keyboard down
+pause 800
 dtap 240 682
 expect keyboard up
 wait line "the movie moved" 8

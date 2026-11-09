@@ -1,6 +1,6 @@
 id: appmenu-print
 section: Chrome, menus and dialogs
-item: The app menu's Print: the card asks the daemon for printers and shows its dialog
+item: The app menu's Print: the card asks the daemon for printers and shows its dialog; the daemon's own discovery answers with the owner's network printer (its address in the log) and the dialog lists it — no page is printed by the round
 shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-card-events.html
 kit: cavekit-ui-shell.md R7
@@ -13,4 +13,6 @@ wait still 0,30,300,180 3
 chrome appmenu-print
 wait line 'luna: findPrinters' 10
 wait differs 0,200,756,960 page 5
+wait log 'print: mdns: .* -> [0-9.]*:[0-9]*' 25
+wait still 0,200,756,960 4
 shoot print-dialog

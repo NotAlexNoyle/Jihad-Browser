@@ -1,5 +1,25 @@
 id: keyboard-arbitration
-section: Not testable at all
-item: Keyboard arbitration on the card side
+section: Keyboard and text
+item: Keyboard arbitration on the card side (the 2026-08-15 procedure, with the emulated hardware keyboard): a movie engaged by its first tap takes a hardware key and the address field's pixels do not change; released, a tap on the address field takes the next key (its pixels change)
 shells: enyo mochi mojo
-skip: hardware-blocked (no physical keyboard exists)
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1
+kit: cavekit-input-bridging.md R7
+fixture: kernel-kbd
+wait text ready stage= 30
+sample bar 150,30,620,78
+flash-tap m 400 300 showAll 200 150
+expect number n-down 1 1
+pause 800
+kernel-key 30
+wait text keydown "keydown 65 97" 5
+expect region-equal 150,30,620,78 bar
+tap-at 650 800
+pause 800
+chrome address
+expect keyboard up
+pause 1000
+kernel-key 30
+wait settled 4
+expect region-changed 150,30,620,78 bar
+chrome kb-hide
+expect keyboard down

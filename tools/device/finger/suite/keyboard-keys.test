@@ -1,0 +1,41 @@
+id: keyboard-keys
+section: Keyboard and text
+item: A hardware keyboard's non-printing keys reach the page (the echo page's readout): Enter fires change, Left and Backspace, Home and Delete edit at the caret, Tab moves the focus from a field to the next, Up and Down move between a textarea's lines (Tab inside a textarea inserts a tab there instead of moving on: a finding, not this script's check)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-input-echo.html
+kit: cavekit-input-bridging.md R2
+fixture: kernel-kbd
+wait rect plain 20
+calibrate 'sel:#plain'
+tap plain
+expect keyboard up
+pause 1500
+kernel-key 30
+kernel-key 48
+wait text echo 'plain n=2 c=0 last=[ab] value=[ab]' 5
+kernel-key 28
+wait text echo 'plain n=2 c=1' 5
+kernel-key 105
+kernel-key 14
+wait text echo 'plain n=3 c=1 last=[b] value=[b]' 5
+kernel-key 106
+kernel-key 30
+kernel-key 102
+kernel-key 111
+wait text echo 'plain n=5 c=1 last=[a] value=[a]' 5
+kernel-key 15
+wait text echo 'focus=area' 5
+kernel-key 30
+kernel-key 28
+kernel-key 48
+kernel-key 28
+kernel-key 46
+wait text echo 'area n=5' 5
+kernel-key 103
+kernel-key 103
+kernel-key 111
+wait text echo 'area n=6' 5
+kernel-key 108
+kernel-key 14
+kernel-key 14
+wait text echo 'area n=8 c=0 last=[ab] value=[ab]' 5

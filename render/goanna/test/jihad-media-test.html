@@ -9,14 +9,18 @@
 <style>body { margin: 0; background: #fff; } video, audio { display: block; width: 640px; height: 360px; margin: 20px; }</style></head>
 <body>
 <p id="status">loading</p>
+<p id="vol">volume=? muted=?</p><p id="seek">-1</p>
 <script>
   var q = {}; location.search.slice(1).split("&").forEach(function (kv) { var p = kv.split("="); if (p[0]) q[p[0]] = decodeURIComponent(p[1] || ""); });
   var el = document.createElement(q.audio ? "audio" : "video");
   el.id = "v"; el.controls = true; el.muted = !q.audio; el.preload = "auto";
   el.src = q.src || "clip10v.webm";
+  // ?wide=1: the picture as wide as the screen allows, so videocontrols' bar keeps every control (at 480 px it
+  // hides the volume slider; media-controls.test)
+  if (q.wide) { el.style.width = "728px"; el.style.height = "546px"; }
   document.body.appendChild(el);
-  var status = document.getElementById("status");
-  function say(s) { status.textContent = s; document.title = s; }
+  var statusEl = document.getElementById("status");   // not `status`: that is window.status, a string
+  function say(s) { statusEl.textContent = s; document.title = s; }
   var sawPause = false;
   el.addEventListener("loadedmetadata", function () { say("meta " + (el.videoWidth || 0) + "x" + (el.videoHeight || 0)); });
   el.addEventListener("timeupdate", function () { if (el.currentTime > 0.5 && !sawPause && document.title.indexOf("playing") < 0 && document.title.indexOf("paused") < 0) say("playing"); });
@@ -27,6 +31,10 @@
     say("ended t=" + el.currentTime.toFixed(1) + " dur=" + el.duration.toFixed(1) + " decoded=" + decoded);
   });
   el.addEventListener("error", function () { say("error " + (el.error ? el.error.code : "?")); });
+  // the control bar's own readouts (media-controls.test): #vol follows volumechange, #seek is the last seek's second
+  function vol() { document.getElementById("vol").textContent = "volume=" + el.volume.toFixed(2) + " muted=" + el.muted; }
+  el.addEventListener("volumechange", vol); el.addEventListener("loadedmetadata", vol);
+  el.addEventListener("seeked", function () { document.getElementById("seek").textContent = Math.round(el.currentTime); });
   var p = el.play(); if (p && p.catch) p.catch(function (e) { say("play refused " + e.name); });
 </script>
 </body></html>

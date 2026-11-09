@@ -59,6 +59,46 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 (daemon-only pushes: the daemon, the components, goanna.js; **the .ipks are not rebuilt**), `stopAutoplay` back at its
 default on Enyo, no hand daemon, the USB alert closed after each drop.
 
+**The owner's afternoon (2026-11-08), the standing rule from here on:** "instead of asking me about order do things in
+chronological order with the purpose of covering all potential bases for issues and enhancements" — the build site's
+open rows oldest first, nothing skipped, no "which first" questions; what remains for the owner (defaults, permissions,
+facts only they have) goes through the interactive dialog, batched. Answered that way the same day: a **stock 3.0.5
+TouchPad is coming** (the stock-only criteria stay open until it is on novacom; then their rows run); the Flash R4
+Persona round on Ruffle-forcing sites **may run**; `jihad.youtube.stopAutoplay` ships **ON**; the light sensor's fix is
+the `enableALS` pref (below); Tier 53's T-289 — **a single tap is to engage a Flash movie**, not the double tap (a rework
+of the adapter's latch, in its turn); T-291 signed off on the suite's evidence; T-310 — the owner's Epson prints
+(2026-10-05's evidence; the Print dialog's list by finger joins the suite, no paper per round); T-414 done by the
+owner. The queue, chronological: Tier 53's "human at the device" rows (2026-10-01) re-read against the finger suite
+and the gaps scripted (download-list, xpi-confirm, media-controls, keyboard-keys, keyboard-arbitration), T-505, Tier
+91 (T-545…T-560), T-567, Tier 93 (T-576…T-583, with T-574's Persona round), Tier 94 (T-592, T-594).
+
+**Tier 53 taken by the emulated finger (2026-11-08, evening; the owner's order: chronological, every base).** The
+2026-10-01 human-residue rows are closed on the suite's evidence (build-site Tier 53 has a Status column now; T-310, T-317,
+T-414 closed too; hearing, a real pinch and a physical turn folded into T-566). What it built: `suite/download-list`,
+`xpi-confirm`, `keyboard-keys`, `media-controls`, the `touch SEL` and `measure SEL` verbs, `expect file`, a per-shell step
+prefix (`mojo: wait content …`). What it changed: **T-289, the owner's "single tap should engage"** — the first pen down in a
+movie sets the latch (`handlePenDown`), the keyboard comes with a double tap on the engaged movie (`startLockKeyboardTimer`,
+350 ms), the engaging tap is left unconsumed by `handlePenClick` (a consumed click ends the host's tap sequence and the
+double click never comes), the latch's notice to the card waits for the pen up and the Enyo shell's hint is `enyo.jihadToast`
+(the framework's modal popup took the engaging tap's release, the non-modal one ate the drag's moves), the double tap's
+smart-zoom request still goes out so the daemon's `focusPlugin` moves the movie from under the keyboard — but the daemon
+answers no zoom for a point in a movie (`smartZoomRequest`), and the content-scroll window is 12 s (Enyo's keyboard is
+late). Enyo's Downloads tab listed nothing: enyo.WebView is a wrapper and its inner BasicWebView is the plugin's listener
+(`app/source/JihadWebView.js` binds the four download callbacks onto it; the engine-download list in `BrowserApp.js`).
+The daemon's `anon:<host>|<name>` lookup walks native anonymous content and matches a class token too (`FindAnonPart`;
+a `<video>`'s bar is NAC under a `<videocontrols>` the XBL accessors never reach), and a bare id is accepted as the host.
+`clickAt` sends the pointer's move before its press (hover, mouseover: videocontrols' bar comes back on it). The engine's
+`videocontrols.xml` (third_party/uxp, a submodule commit) shows the bar on pause and keeps it while paused. **The dev-loop
+trap of the day:** a chrome file pushed under a RUNNING daemon is undone — the engine writes its startup cache (the
+compiled binding) back at exit; `stop jihad jihad-mochi jihad-mojo`, clear `<app>/cache/startupCache*`, `start` (T-597) — and `push-engine-update.sh`, `--daemon-only` included, re-lays the
+engine's loose chrome bindings from the BUNDLE, so rebuild the bundle before the next daemon push or the hand-pushed
+file is gone again (it was).
+Kits reworded to the first-tap model: cavekit-flash.md R5, cavekit-addons-extensions.md R7, cavekit-input-bridging.md R7
+(three criteria closed). Open from the pass: T-596 (Mojo lists a download one run late), T-597, T-598 (volume and scrubber
+drags by finger); T-285 closed 2026-11-09 (media-controls passes on the three shells; the slider drags are T-598, `media-scrub-drag.test` reads `known`). The device runs the new adapters (push-adapter.sh), daemon and binding; the
+bundle is rebuilt; **the three .ipks are not** (build-variant-ipk.sh when a package is wanted). `novacom run
+file://bin/sh -- -c 'a b'` splits on spaces: feed the script on stdin.
+
 **The stall, named.** Two stresses (the watch page playing in Enyo, Learn to Fly 3 in Mochi) dropped the USB link for
 156 and 80 s. The first showed, from the syslog's own gap, that the WHOLE user space got no CPU for 3 minutes while the
 kernel ran: syslogd, powerlog, novacomd at nice -4 — so CPU priority between the browser and the UI was never it (the

@@ -66,11 +66,11 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 DEVSH = os.path.join(ROOT, "build", "webos-oe", "dev-sh.sh")
 REFS = os.path.join(os.environ.get("JIHAD_FLASH_CACHE", os.path.expanduser("~/.cache/jihad-flash")), "refs")   # a movie's screens (cavekit-flash R2)
 SHELLS = ["enyo", "mochi", "mojo"]
-GESTURES = {"kernel-key", "flash-tap", "plugin-signal", "tap", "tap-off", "dismiss", "tap-at", "chrome", "drag", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
-UNMARKED = {"kernel-key", "chrome", "dismiss", "hold", "hold-on", "dtap", "pinch", "type-keys", "key-hold"}       # no mark of their own: a wait must follow before an expect
+GESTURES = {"kernel-key", "flash-tap", "plugin-signal", "tap", "tap-off", "touch", "dismiss", "tap-at", "chrome", "drag", "drag-off", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
+UNMARKED = {"kernel-key", "chrome", "dismiss", "touch", "hold", "hold-on", "dtap", "pinch", "type-keys", "key-hold"}       # no mark of their own: a wait must follow before an expect
 WAITING_EXPECTS = {"lock", "keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
 CHECKS = {"scroll": "fl_check_scroll", "card-scroll": "fl_check_card_scroll", "card-scroll-min": "fl_check_card_scroll_min", "zoom": "fl_check_zoom",
-          "zoom-min": "fl_check_zoom_min", "visible": "fl_check_visible", "stream": None, "hit": "fl_check_hit",
+          "zoom-min": "fl_check_zoom_min", "visible": "fl_check_visible", "stream": None, "hit": "fl_check_hit", "file": "fl_check_file",
           "element-at": "fl_check_element_at", "text": "fl_check_text", "text-has": "fl_check_text_has", "url": "fl_check_url", "probe-has": "fl_check_probe_has",
           "dialog": "fl_check_dialog", "keyboard": "fl_check_keyboard", "content": "fl_check_content",
           "region-equal": "fl_check_region_equal", "region-changed": "fl_check_region_changed", "top": "fl_check_top",
@@ -96,12 +96,12 @@ def split_args(rest):
         else: cur += c
     if cur: out.append(cur)
     return out
-ARITY = {"calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1),
-         "hold-on": (1, 2), "key-hold": (1, 2), "drag": (4, 5), "drag-slow": (4, 4), "drag-jitter": (4, 5), "drag-paused": (4, 6), "flick": (4, 5), "pinch": (4, 5), "hold": (2, 3), "dtap": (2, 4),
+ARITY = {"calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1), "measure": (1, 1),
+         "hold-on": (1, 2), "touch": (1, 1), "key-hold": (1, 2), "drag": (4, 5), "drag-off": (5, 6), "drag-slow": (4, 4), "drag-jitter": (4, 5), "drag-paused": (4, 6), "flick": (4, 5), "pinch": (4, 5), "hold": (2, 3), "dtap": (2, 4),
          "key": (1, 1), "launch": (1, 2), "pause": (1, 1), "daemon-restart": (1, 1), "stream-start": (0, 9), "stream-stop": (0, 0),
          "header-away": (0, 0), "kernel-key": (1, 1), "flash-tap": (6, 6), "flash-control": (2, 2), "plugin-signal": (1, 1), "sig-save": (2, 2), "probe": (2, 2)}
 EXPECT_ARITY = {"above-keyboard": (1, 1), "press-rate": (1, 1), "number": (3, 3), "flash-el": (4, 4), "lock": (1, 2), "flash-behind": (3, 3), "flash-rate-report": (2, 2), "flash-at": (2, 3), "flash-drawn": (2, 2), "flash-rate": (4, 4), "flash-reacted": (3, 3), "plugin": (0, 2), "audio": (1, 2), "screen": (3, 4), "scroll": (3, 3), "card-scroll": (2, 2), "card-scroll-min": (1, 1), "zoom": (2, 2), "zoom-min": (1, 1), "visible": (1, 1), "stream": (2, 2),
-                "hit": (1, 1), "element-at": (3, 3), "text": (2, 2), "text-has": (2, 2),
+                "hit": (1, 1), "file": (2, 2), "element-at": (3, 3), "text": (2, 2), "text-has": (2, 2),
                 "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2), "probe-has": (1, 1)}
 
 def parse(path):
@@ -117,15 +117,19 @@ def parse(path):
             elif k in ("prefs", "needs", "fixture"): t[k] = v.split()
             else: t[k] = v
             continue
+        # `mojo: wait content 10,90,400,300 5`: a step for ONE shell (a panel that lies elsewhere there)
+        m = re.match(r"^(enyo|mochi|mojo):\s+(.+)$", line)
+        sh = None
+        if m: sh, line = m.group(1), m.group(2).strip()
         verb, rest = (line.split(None, 1) + [""])[:2]
-        t["steps"].append((n, verb, rest))
+        t["steps"].append((n, verb, rest, sh))
     return t
 
 def lint(tests):
     errs = []
     for t in tests:
         pending = None       # an unmarked gesture waiting for a wait
-        for n, verb, rest in t["steps"]:
+        for n, verb, rest, _sh in t["steps"]:
             a = split_args(rest)
             if verb in ("sleep", "usleep"):
                 errs.append(f"{t['id']}:{n}: `{verb}` is not a verb of the form (wait on a mark)")
@@ -139,12 +143,12 @@ def lint(tests):
             elif verb == "pause":
                 # the slow human's own delay (a dialog answered late, a hand resting): never a guard — what follows must
                 # be a gesture, not a check
-                nxt = [v for m2, v, _ in t["steps"] if m2 > n]
+                nxt = [v for m2, v, _, _ in t["steps"] if m2 > n]
                 if not a or not a[0].isdigit() or int(a[0]) > 30000: errs.append(f"{t['id']}:{n}: pause takes milliseconds up to 30000")
                 if nxt and nxt[0] not in GESTURES and nxt[0] not in ("stream-stop", "shoot"): errs.append(f"{t['id']}:{n}: a pause is the human's delay before a gesture, never a guard before `{nxt[0]}`")
             elif verb == "dwell":
                 # a persistence check: what held just before still holds after MS — a check on each side, so it guards nothing
-                steps = t["steps"]; i = [m2 for m2, _, _ in steps].index(n)
+                steps = t["steps"]; i = [m2 for m2, _, _, _ in steps].index(n)
                 prev = steps[i - 1][1] if i > 0 else ""; nxt = steps[i + 1][1] if i + 1 < len(steps) else ""
                 if prev not in ("expect", "wait") or nxt != "expect": errs.append(f"{t['id']}:{n}: dwell stands between a check and the same check (does it still hold?), not `{prev}` and `{nxt}`")
             elif verb in ("stream-start", "stream-stop"):
@@ -157,7 +161,7 @@ def lint(tests):
                     errs.append(f"{t['id']}:{n}: expect needs a check: {', '.join(sorted(CHECKS))}")
                 elif pending and a[0] not in WAITING_EXPECTS:
                     errs.append(f"{t['id']}:{n}: `expect {a[0]}` after `{pending[1]}` (line {pending[0]}) with no wait between: name the mark")
-            elif verb in ("sample", "shoot", "flash-control", "sig-save", "header-away"):
+            elif verb in ("sample", "shoot", "measure", "flash-control", "sig-save", "header-away"):
                 pass
             else:
                 errs.append(f"{t['id']}:{n}: unknown verb `{verb}`")
@@ -168,13 +172,14 @@ def lint(tests):
                 na = len(a) - (1 if verb == "expect" else 0)
                 if na < lo_hi[0] or na > lo_hi[1]:
                     errs.append(f"{t['id']}:{n}: `{verb}{' ' + a[0] if verb == 'expect' else ''}` takes {lo_hi[0]}{'-' + str(lo_hi[1]) if lo_hi[1] != lo_hi[0] else ''} argument(s), got {na} — quote a selector with spaces")
-        if not (t["person"] or t["tool"] or t["skip"]) and not any(v == "expect" or (v == "wait") for _, v, _ in t["steps"]):
+        if not (t["person"] or t["tool"] or t["skip"]) and not any(v == "expect" or (v == "wait") for _, v, _, _ in t["steps"]):
             errs.append(f"{t['id']}: no expect and no wait: nothing is checked")
     return errs
 
-def compile_steps(t):
+def compile_steps(t, shell=None):
     out = []
-    for n, verb, rest in t["steps"]:
+    for n, verb, rest, sh in t["steps"]:
+        if sh and sh != shell: continue
         a = split_args(rest); q = [sh_quote(x) for x in a]; name = f"{n}-{verb}"
         m = [x.replace('"', "'").replace('$', '').replace('`', '') for x in a]   # a's words safe inside a "…" message
         if verb == "launch":
@@ -213,10 +218,12 @@ def compile_steps(t):
         elif verb == "tap": out.append(f"fl_tap {q[0]} || fl_check FAIL \"{name}\" \"the tap on {m[0]} reached no clickAt\"")
         elif verb == "dismiss": out.append(f"fl_mark; /tmp/finger tap {q[0]} {q[1]}; echo \"  a tap to dismiss at {a[0]},{a[1]}\"")
         elif verb == "tap-off": out.append(f"fl_tap_off {' '.join(q)} || fl_check FAIL \"{name}\" \"the tap in {m[0]} reached no clickAt\"")
+        elif verb == "touch": out.append(f"fl_touch {q[0]} || fl_check FAIL \"{name}\" \"no element {m[0]} to touch\"")
         elif verb == "dwell": out.append(f"usleep {int(a[0]) * 1000}; echo \"  dwell {a[0]} ms (does it still hold?)\"")
         elif verb == "tap-at": out.append(f"fl_tap_at {q[0]} {q[1]} || fl_check FAIL \"{name}\" \"the tap at {a[0]},{a[1]} reached no clickAt\"")
         elif verb == "chrome": out.append(f"fl_chrome_tap {q[0]} || fl_check FAIL \"{name}\" \"no chrome entry {a[0]}\"")
         elif verb == "drag": out.append(f"fl_drag {' '.join(q)}")
+        elif verb == "drag-off": out.append(f"fl_drag_off {' '.join(q)} || fl_check FAIL \"{name}\" \"no element {m[0]} to drag on\"")
         elif verb == "drag-slow": out.append(f"fl_drag_slow {' '.join(q)}")
         elif verb == "drag-jitter": out.append(f"fl_drag_jitter {' '.join(q)}")
         elif verb == "drag-paused": out.append(f"fl_drag_paused {' '.join(q)}")
@@ -252,6 +259,7 @@ def compile_steps(t):
             else: out.append(f"{CHECKS[a[0]]} \"{n}-{a[0]}\" {' '.join(q[1:])}")
         elif verb == "sample": out.append(f"fl_sample {' '.join(q)}")
         elif verb == "shoot": out.append(f"fl_keep {q[0]}")
+        elif verb == "measure": out.append(f"echo \"  measure {m[0]}: $(fl_rect {q[0]} 2>/dev/null || echo none) (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)\"")
         elif verb == "probe":        # a different text each time (a comment with the line): an unchanged pref fires nothing
             b = base64.b64encode((a[1] + "\n//" + str(n)).encode()).decode()
             out.append(f'fl_probe {q[0]} {b} || fl_check FAIL "{name}" "no answer to the probe {m[0]} within 30 s"')
@@ -340,7 +348,7 @@ def main():
             if "FATAL" in out or not start_line:
                 rec["verdict"] = "fail"; rec["note"] = "the daemon did not start: " + out.strip().splitlines()[-1][:160]
             else:
-                body = "chmod +x /tmp/fbstream /tmp/finger 2>/dev/null\n" + lib + f"fl_init {shell}\n" + compile_steps(t) + "fl_summary\n"
+                body = "chmod +x /tmp/fbstream /tmp/finger 2>/dev/null\n" + lib + f"fl_init {shell}\n" + compile_steps(t, shell) + "fl_summary\n"
                 bound = min(900, 90 + 25 * len(t["steps"]))
                 rc, out = devsh(body, [shell], bound, tmp)
                 for l in out.splitlines():
@@ -353,7 +361,7 @@ def main():
                         jpg = os.path.join(round_dir, "kept", f"{shell}-{t['id']}-{os.path.basename(m.group(1)).replace('.last.raw', '')}.jpg")
                         if raw_to_jpg(raw, jpg): rec["kept"].append(os.path.relpath(jpg, round_dir))
                         os.unlink(raw)
-                if any(v == "stream-stop" for _, v, _ in t["steps"]):   # the stream pulled and read (R6: the numbers in the report)
+                if any(v == "stream-stop" for _, v, _, _ in t["steps"]):   # the stream pulled and read (R6: the numbers in the report)
                     for ext in ("fbs", "fin"):
                         with open(os.path.join(tmp, "stream." + ext), "wb") as fh: subprocess.run(["novacom", "get", "file:///media/internal/jihad-finger/stream." + ext], stdout=fh)
                     if os.path.getsize(os.path.join(tmp, "stream.fbs")) > 100:
@@ -365,7 +373,7 @@ def main():
                         # `expect stream KEY VALUE` lines are checked here from the stream tool's reading: stale / uniform (bands, at
                         # most VALUE), still (rows moved, at most VALUE), lag-max / error-max (ms / px, at most VALUE)
                         text = r2.stdout
-                        for n2, v2, rest2 in t["steps"]:
+                        for n2, v2, rest2, _sh in t["steps"]:
                             a2 = split_args(rest2)
                             if v2 != "expect" or not a2 or a2[0] != "stream" or len(a2) < 3: continue
                             key, want = a2[1], a2[2]

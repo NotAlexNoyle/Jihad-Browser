@@ -33,6 +33,12 @@ enyo.kind({
 		onOpenBookmarks: "",
 		onPrint: "",
 		onUrlRedirected: "",
+		//* The engine's own downloads (JihadWebView.js): (inUrl), (inUrl, inReceived, inTotal),
+		//* (inUrl, inMimeType, inPath), (inUrl, inMessage)
+		onEngineDownloadStart: "",
+		onEngineDownloadProgress: "",
+		onEngineDownloadFinished: "",
+		onEngineDownloadError: "",
 		// called when user wants to leave the browser
 		onClose: ""
 	},
@@ -58,7 +64,11 @@ enyo.kind({
 		// with (its pageCertificate method answers this variant's own card only).
 		{name: "certService", kind: enyo.PalmService, service: "palm://net.riverstonerelay.jihadBrowser/",
 			method: "pageCertificate", onSuccess: "gotPageCertificate", onFailure: "gotPageCertificate"},
-		{name: "view", kind: "WebView", flex: 1, height: "100%",
+		{name: "view", kind: "JihadWebView", flex: 1, height: "100%",
+			onDownloadStart: "engineDownloadStart",
+			onDownloadProgress: "engineDownloadProgress",
+			onDownloadFinished: "engineDownloadFinished",
+			onDownloadError: "engineDownloadError",
 			onMousehold: "openContextMenu",
 			onPageTitleChanged: "pageTitleChanged",
 			onUrlRedirected: "doUrlRedirected",
@@ -640,6 +650,11 @@ enyo.kind({
 		this.$.view.callBrowserAdapter("stopLoad");
 		this.$.actionbar.setProgress(0);
 	},
+	// The engine's own downloads, passed up to the app (BrowserApp.js keeps the list).
+	engineDownloadStart: function(inSender, inUrl) { this.doEngineDownloadStart(inUrl); },
+	engineDownloadProgress: function(inSender, inUrl, inReceived, inTotal) { this.doEngineDownloadProgress(inUrl, inReceived, inTotal); },
+	engineDownloadFinished: function(inSender, inUrl, inMimeType, inPath) { this.doEngineDownloadFinished(inUrl, inMimeType, inPath); },
+	engineDownloadError: function(inSender, inUrl, inMessage) { this.doEngineDownloadError(inUrl, inMessage); },
 	loadStarted: function() {
 	   this._lastProgress = 0;
 	   if (this._timeoutHandle != null) {

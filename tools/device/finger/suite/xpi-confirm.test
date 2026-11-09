@@ -1,0 +1,21 @@
+id: xpi-confirm
+section: Personas and add-ons
+item: Install an extension by finger: the page's InstallTrigger button raises the card's install prompt, OK by tap installs it (the page's callback reads status 0) and about:addons lists it
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-xpi-trigger.html
+kit: cavekit-addons-extensions.md R3
+fixture: xpi
+wait rect effect 20
+calibrate 'sel:p'
+tap effect
+expect dialog present 10
+shoot xpi-prompt
+chrome dialog-ok
+expect dialog answered 8
+wait text r 'callback status=0' 30
+launch about:addons 40
+wait rect 'sel:#category-extension' 40
+tap 'sel:#category-extension'
+wait rect 'sel:#category-extension[selected="true"]' 8
+shoot extensions-pane
+wait rect 'sel:richlistitem[value="jihad-effect@riverstonerelay.net"]' 30

@@ -2936,6 +2936,9 @@ void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
     int64_t due = it->second + kKeyHoldMs;
     mKeyDownMs.erase(it);
     if (jihadNowMs() < due) { mHeldKeyUps.push_back({key, modifiers, chr, due}); return; }
+  } else if (mPage) {
+    // a release that is NOT held, and why (a Mojo run read a 2 ms hold on a typed letter, 2026-11-08)
+    fprintf(stderr, "[jihad-bs] keyup %d not held: %s\n", key, it == mKeyDownMs.end() ? "no press recorded" : "a field is focused");
   }
   if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers, kGreKeys); mNeedsPaint = true; }
 }
@@ -3107,8 +3110,14 @@ void BrowserPageGoanna::smartZoomRequest(int x, int y) {
       char extra[64];
       snprintf(extra, sizeof extra, "\"x\":%d,\"y\":%d", vx, vy);
       runPageCommand("focusPlugin", extra);
-      mContentScrollUntilMs = jihadNowMs() + 6000;
-      break;
+      // 12 s, not 6: the Enyo card's keyboard and resize come later than the others' and its move
+      // fell past the window once (cover script, 2026-11-08), read as the adapter's echo and lost
+      mContentScrollUntilMs = jihadNowMs() + 12000;
+      // T-289: the movie was engaged by its first tap; this double tap asks for the keyboard, not a
+      // zoom. No answer (as at the fit, T-524): a block answered here zoomed the page under the
+      // finger and the stage no longer landed where the finger did.
+      fprintf(stderr, "[jihad-bs] smartZoom at %d,%d: in a movie -> focusPlugin, no zoom\n", x, y);
+      return;
     }
   }
   int l = 0, t = 0, r = 0, b = 0;

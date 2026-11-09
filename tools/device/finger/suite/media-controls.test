@@ -1,0 +1,28 @@
+id: media-controls
+section: Media and sound
+item: The video's control bar by finger: a tap on the video pauses it and the bar stands (and keeps standing while paused); the mute button toggles muted twice (the page reads it back); the slider drags are media-scrub-drag
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1
+kit: cavekit-gre-widgets.md R1
+wait rect v 20
+calibrate 'sel:#status'
+wait text status playing 15
+tap v
+wait text status 'paused' 5
+measure 'anon:#v|controlBar'
+measure 'anon:#v|muteButton'
+measure 'anon:#v|scrubber'
+measure 'anon:#v|volumeControl'
+wait rect 'anon:#v|controlBar' 5
+wait rect 'anon:#v|muteButton' 5
+shoot controls
+touch 'anon:#v|muteButton'
+wait text vol 'muted=false' 5
+touch 'anon:#v|muteButton'
+wait text vol 'muted=true' 5
+touch 'anon:#v|muteButton'
+wait text vol 'muted=false' 5
+shoot bar
+expect visible 'anon:#v|controlBar'
+dwell 3000
+expect visible 'anon:#v|controlBar'

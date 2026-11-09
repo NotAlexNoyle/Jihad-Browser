@@ -1,13 +1,10 @@
 id: flash-input-hold
 section: Flash
-item: With the gesture lock on, a hold keeps the button down for its whole length and a drag sends moves along its path
+item: A hold on a movie engages it (the first touch) and keeps the button down for its whole length; a drag sends moves along its path
 shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2
 kit: cavekit-flash.md R5
 wait text ready stage= 30
-dtap 240 272
-expect keyboard up
-pause 2500
 hold 240 272 2000
 wait text up up 5
 expect number heldms 1500 3200

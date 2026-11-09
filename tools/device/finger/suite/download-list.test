@@ -1,0 +1,27 @@
+id: download-list
+section: Media and sound
+item: A finished download stands in the card's downloads panel (the history button's panel, its Downloads tab, by finger) and its bytes are on the device under /media/internal/downloads
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
+kit: cavekit-device-build.md R4
+calibrate 'sel:#content p'
+inject url data:application/octet-stream;base64,SGVsbG8gZnJvbSBKaWhhZAo=
+wait line 'jihad-dl.*finished' 30
+expect file '/media/internal/downloads/jihad-download*' 'Hello from Jihad'
+sample page 0,100,756,960
+wait differs 0,100,756,960 page 8
+chrome dialog-ok
+wait still 0,100,756,960 5
+sample page2 0,100,756,960
+chrome history
+wait differs 0,100,756,960 page2 5
+wait still 0,100,756,960 4
+shoot panel
+sample list 450,80,768,400
+chrome downloads-tab
+wait differs 450,80,768,400 list 5
+wait still 450,80,768,400 4
+enyo: wait content 460,90,760,300 5
+mochi: wait content 460,90,760,300 5
+mojo: wait content 10,90,400,300 5
+shoot downloads

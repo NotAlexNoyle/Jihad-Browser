@@ -172,6 +172,14 @@ Structural correctness — kinds, the frozen adapter method set, `node --check`,
 `build-mochi-ipk.sh` end-to-end build — is verified, and remains the right gate for this document.
 Per-criterion status lives in `context/kits/cavekit-mochi-ui.md`, not here.
 
+**Signed off, 2026-11-08 (T-291).** The owner closed the [human-review] criterion on the suite's evidence rather than a
+reading: every row above that a finger can reach has a script in `tools/device/finger/suite/` whose last full round
+passed on the Mochi shell (`docs/rounds/finger-2026-11-05/t565/finger-report.md`, 2026-11-06: the chrome's buttons,
+the history and share panels, the card's dialogs and pickers, the address field and the keyboard, Settings, the
+add-ons pages, Personas, the long-press sheets, Find, Print's dialog, downloads), the rest by the card self-test
+(`build/webos-oe/card-selftest.sh mochi`). The owner keeps the right to reopen any row; `docs/FINGER-TESTS.md` is the
+current list of what each round checks.
+
 **2026-10-05.** Print was built and exercised on the device the same way (`context/impl/evidence-2026-10-05/`, `build/webos-oe/card-selftest.sh mochi run print[:address]`), against the owner's real printers for discovery and against a test sink for the sheets. Share Image and Set as Wallpaper were also run through the long-press sheet's own row handler on the device: the wallpaper was set (and put back), and Share Image fetched the picture and opened Email.
 
 **Owner review, 2026-10-02.** The owner reviewed the omissions and simplifications this document listed on 2026-10-01 and accepted none of them; all but Print have since been built and exercised on the device (`context/impl/evidence-2026-10-02/`, driven by `build/webos-oe/mochi-selftest.sh`). What that evidence does not cover is a finger reaching each control — those steps are on the human checklist.

@@ -21,19 +21,23 @@ Nothing else: UXP has no HSTS preload list, no static key pins and no enterprise
 ## The audit
 
 ```
-tools/host/audit-roots.py --fetch /tmp/roots          # downloads UXP release's certdata and the CCADB report
+tools/host/audit-roots.py --fetch /tmp/roots          # UXP release's certdata (git), the CCADB report, NSS's newest tag
 tools/host/audit-roots.py --reference R --removed CSV  # or from files
 ```
 It lists the engine's roots and says which are on Mozilla's removed report (by SHA-256), which the reference has
 and the engine lacks, and where the server-auth trust differs; it names CAs with an incident history as a
-tripwire to read; and it checks the platform import's list carries every removed root. Exit 0 means nothing to
+tripwire to read; and it checks the platform import's list carries every removed root. A removal the report
+lists for an NSS release not out yet (NSS's newest RTM tag, asked with `--fetch`) is printed as scheduled, not
+a finding: Mozilla still ships that root, and so does UXP (Buypass Class 2 and 3, NSS 3.134, on 2026-11-09).
+Exit 0 means nothing to
 do. Keep each run under `docs/rounds/certs-<date>/` with the report's CSV.
 
 ## Rolling the roots forward
 
-1. `curl -L -o certdata.txt https://repo.palemoon.org/MoonchildProductions/UXP/raw/branch/release/security/nss/lib/ckfw/builtins/certdata.txt`
-   and note the branch's last commit for the file
-   (`…/api/v1/repos/MoonchildProductions/UXP/commits?path=security/nss/lib/ckfw/builtins/certdata.txt&sha=release&limit=1`).
+1. `git -C third_party/uxp fetch https://repo.palemoon.org/MoonchildProductions/UXP.git release`, then
+   `git -C third_party/uxp show FETCH_HEAD:security/nss/lib/ckfw/builtins/certdata.txt > certdata.txt` and note
+   `git -C third_party/uxp log -1 --format='%h %cs' FETCH_HEAD -- security/nss/lib/ckfw/builtins/certdata.txt`.
+   (Since 2026-11 the forge answers the raw file's address with a sign-in page, so curl gets HTML.)
 2. Copy it over the engine's, commit on the fork branch (`third_party/uxp`, `jihad/uxp-<UXP_TAG>`), then
    `build/engine/patch-queue.sh --add <commit>` and `build/engine/update-engine.sh --pins`.
 3. Set `ROOTS_SHA256`, `ROOTS_SOURCE`, `ROOTS_DATE` in `engine-version.env`; `check-engine-pins.sh` must agree.

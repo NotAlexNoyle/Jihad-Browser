@@ -61,6 +61,34 @@ def fetch(url, path):
     if os.path.getsize(path) < 1000:
         sys.exit("fetch failed: " + url)
 
+def nss_latest(fetch_dir):
+    # the newest NSS release (its RTM tag on NSS's GitHub mirror); None offline (then every listed removal counts)
+    try:
+        out = subprocess.run(["git", "ls-remote", "--tags", "https://github.com/nss-dev/nss"], capture_output=True,
+                             text=True, timeout=90).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    vs = [tuple(int(x) for x in m.split("_")) for m in re.findall(r"refs/tags/NSS_(\d+(?:_\d+)*)_RTM$", out, re.M)]
+    return max(vs) if vs else None
+
+UXP_GIT = "https://repo.palemoon.org/MoonchildProductions/UXP.git"
+CERTDATA_IN_TREE = "security/nss/lib/ckfw/builtins/certdata.txt"
+
+def fetch_reference(path):
+    # UXP release's certdata.txt through git: since 2026-11 the forge answers the raw address with a sign-in page
+    # (HTML, which this tool once read as "0 certificates"), so the file comes from the branch itself; the fetch
+    # only writes the engine checkout's FETCH_HEAD
+    uxp = os.path.join(REPO, "third_party/uxp")
+    subprocess.run(["git", "-C", uxp, "fetch", "-q", UXP_GIT, "release"], check=True, timeout=300)
+    data = subprocess.run(["git", "-C", uxp, "show", "FETCH_HEAD:" + CERTDATA_IN_TREE], check=True,
+                          capture_output=True).stdout
+    if b"BEGINDATA" not in data:
+        sys.exit("UXP release's certdata.txt is not a certificate list")
+    open(path, "wb").write(data)
+    head = subprocess.run(["git", "-C", uxp, "rev-parse", "--short", "FETCH_HEAD"], capture_output=True,
+                          text=True).stdout.strip()
+    print("reference: UXP release at %s (git)" % head)
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--certdata", default=CERTDATA)
@@ -73,7 +101,7 @@ def main():
         os.makedirs(a.fetch, exist_ok=True)
         a.reference = a.reference or os.path.join(a.fetch, "uxp-release-certdata.txt")
         a.removed = a.removed or os.path.join(a.fetch, "removed-ca-report.csv")
-        fetch(REFERENCE_URL, a.reference); fetch(REMOVED_URL, a.removed)
+        fetch_reference(a.reference); fetch(REMOVED_URL, a.removed)
     bad = 0
     ours, ot = parse(a.certdata)
     tls = sum(1 for v in ot.values() if v == TRUSTED)
@@ -86,12 +114,26 @@ def main():
         rem = removed_rows(a.removed)
         gone = [(ours[f], rem[f]) for f in ours if f in rem]
         print("removed report: %s (%d rows)" % (os.path.relpath(a.removed, REPO) if a.removed.startswith(REPO) else a.removed, len(rem)))
+        # the report also lists removals Mozilla has SCHEDULED (an NSS release not out yet, e.g. Buypass for 3.134 on
+        # 2026-11-09 with 3.133 the newest): Mozilla still ships those roots, and so does UXP; they are a note until
+        # NSS ships the removal, not a finding (R2: Jihad's roots are what Mozilla ships today)
+        latest = nss_latest(a.fetch)
+        if latest:
+            def ver(v):
+                try: return tuple(int(x) for x in str(v).strip().split("."))
+                except ValueError: return None
+            sched = [(l, r) for l, r in gone if ver(r.get("NSS Release When Removed", "")) and ver(r["NSS Release When Removed"]) > latest]
+            if sched:
+                print("  scheduled, not yet removed (newest NSS release %s) (%d):" % (".".join(map(str, latest)), len(sched)))
+                for l, r in sorted(sched):
+                    print("    ~ %s | NSS %s / Firefox %s" % (l, r.get("NSS Release When Removed", "?"), r.get("Firefox Release When Removed", "?")))
+            gone = [g for g in gone if g not in sched]
         if gone:
             print("  REMOVED BY MOZILLA BUT SHIPPED (%d):" % len(gone)); bad += 1
             for l, r in sorted(gone):
                 print("    ! %s | NSS %s / Firefox %s | %s" % (l, r.get("NSS Release When Removed", "?"), r.get("Firefox Release When Removed", "?"), (r.get("Reason for Removal") or r.get("Comments") or "")[:80].replace("\n", " ")))
         else:
-            print("  none of the engine's roots is on it")
+            print("  no engine root is one Mozilla has removed")
         if a.lists and os.path.exists(a.lists):
             # make-cert-lists.py's shape: {"mozillaRemoved": {"source", "fetched", "count", "sha256": [hex, …]}, …}
             lst = json.load(open(a.lists))

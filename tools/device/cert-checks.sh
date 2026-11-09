@@ -8,7 +8,8 @@
 # Enyo job is put back after (t502/enyo-restore-job.sh). A page that raises a dialog waits the daemon's 60 s
 # default when nothing answers it, so the list is short. Expected: tls-v1-0 refused (the TLS 1.2 floor),
 # tls-v1-2, sha256 and Wikipedia loaded with certErr=0, expired / wrong.host / self-signed / untrusted-root
-# failed with a certificate error (certErr=1 or an ssl-confirm), revoked an alert, never a silent load.
+# failed with a certificate error (certErr=1 or an ssl-confirm), never a silent load; revoked.badssl.com LOADS (its CA
+# revokes by CRL only and UXP fetches no CRLs: cavekit-certificate-trust.md R4, recorded out of scope).
 set -u
 R=/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser; cd $R; . build/webos-oe/host-path.sh
 OUT=${1:-/dev/stdout}

@@ -92,9 +92,15 @@ roots_check() {
   if [ -n "${ROOTS_SHA256:-}" ] && [ "$have" != "$ROOTS_SHA256" ]; then
     echo "update-engine: WARNING the shipped certdata.txt ($have) is not the pinned roots ($ROOTS_SHA256, UXP release $ROOTS_DATE)"
   fi
-  url="https://repo.palemoon.org/MoonchildProductions/UXP/raw/branch/release/security/nss/lib/ckfw/builtins/certdata.txt"
-  rel=$(curl -fsSL --max-time 30 "$url" 2>/dev/null | sha256sum | cut -c1-64)
-  if [ -z "$rel" ] || [ "$rel" = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
+  # through git: since 2026-11 the forge answers the raw file's address with a sign-in page, whose hash once raised
+  # a false "the release branch rolled" (only the checkout's FETCH_HEAD is written)
+  url="https://repo.palemoon.org/MoonchildProductions/UXP.git"
+  rel=""
+  if timeout 300 git -C "$UXP" fetch -q "$url" release 2>/dev/null &&
+     git -C "$UXP" show "FETCH_HEAD:security/nss/lib/ckfw/builtins/certdata.txt" 2>/dev/null | grep -q BEGINDATA; then
+    rel=$(git -C "$UXP" show "FETCH_HEAD:security/nss/lib/ckfw/builtins/certdata.txt" | sha256sum | cut -c1-64)
+  fi
+  if [ -z "$rel" ]; then
     echo "update-engine: could not fetch UXP release's certdata.txt to compare the roots (offline?) — run tools/host/audit-roots.py --fetch later"
   elif [ "$rel" != "$have" ]; then
     echo "update-engine: WARNING UXP release's certdata.txt ($rel) differs from the shipped roots — the release branch rolled; see docs/CERTIFICATE-TRUST.md"

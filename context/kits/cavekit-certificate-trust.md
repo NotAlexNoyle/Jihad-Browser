@@ -1,6 +1,6 @@
 ---
 created: "2026-10-25"
-last_edited: "2026-10-25"
+last_edited: "2026-11-09"
 ---
 
 # Certificate trust — the roots Jihad trusts, audited and kept current
@@ -151,6 +151,13 @@ cavekit-proxies-certs.md R4, R6 — the platform import and the CA-file question
 patch queue and the pins. cavekit-device-build.md — the bundle and TLS 1.3.
 
 ## Changelog
+- 2026-11-09: the R5 refresh run (`docs/rounds/certs-2026-11-09/audit.txt`, RESULT OK). UXP release is still at the
+  base (6b18be9), its roots identical to the shipped ones. The forge now answers the raw file's address with a
+  sign-in page, which had raised a false "the release branch rolled" in `update-engine.sh --pins`: the release's
+  file is now read through git in both tools. The report grew to 108 rows: Buypass Class 2 and 3 are listed for
+  NSS 3.134 (Firefox 162), not released (newest NSS 3.133), so Mozilla and UXP still ship them; the audit prints
+  such rows as scheduled, not a finding. The platform import's list rebuilt from it (108 of 108; it skips the two
+  now). The daemon's start line will count those 2 built-ins as on the report until NSS ships the removal.
 - 2026-10-25: created from the owner's direction; the baseline measured (24 removed roots shipped, 19 missing,
   17 trust differences; UXP release = Mozilla central).
 - 2026-10-25 (later): R1–R5 done — the roll to UXP release 037cc5f6 (patch 0060), the device checks; R6 (TLS floor

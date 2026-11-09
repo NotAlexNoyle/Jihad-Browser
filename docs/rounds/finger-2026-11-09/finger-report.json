@@ -1,0 +1,132 @@
+{
+ "date": "2026-11-09T12:36:29",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "autoplay-sound",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "Autoplay media with sound off (T-603, the Settings row; from the Atlas app): a page's own play() of a clip with its sound is refused, and a tap on the video starts it",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-rect v",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 102 landed on document y 25)",
+    "WAIT ok 10-text status = [play refused NotAllowedError]",
+    "WAIT ok 13-text status = [playing]"
+   ],
+   "kept": [
+    "kept/enyo-autoplay-sound-refused_.jpg"
+   ],
+   "seconds": 74,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +10 s, 8 content frames at +10 s; the GPU path, frames off the main threa",
+   "restore": "enyo: (1480578/341719962) jihad (start) running, process 11545; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "autoplay-unmute",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "Autoplay media with sound off (T-603): a muted clip plays by itself, and the page unmuting it with no tap gets it paused",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-rect v",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 102 landed on document y 25)",
+    "WAIT ok 10-text status = [playing]",
+    "WAIT ok 11-text status = [paused t=29.8]"
+   ],
+   "kept": [
+    "kept/enyo-autoplay-unmute-paused-on-unmute_.jpg"
+   ],
+   "seconds": 72,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&unmute=30000: connected at +2 s, load done at +9 s, 11 content frames at +9 s; the GPU path, frames off the main t",
+   "restore": "enyo: (1480650/212229430) jihad (start) running, process 15032; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "screen-lock",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "The screen lock while a video plays (T-602, from the Atlas app): its button stands while the video plays; locked, a tap on the video does not reach it (the video plays on); a tap on the notice asks, a second unlocks, and a tap on the video pauses it again",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-rect v",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 102 landed on document y 25)",
+    "WAIT ok 9-text status = [playing]",
+    "WAIT ok 18-text status = [playing]",
+    "CHECK ok 20-text: status = [playing]",
+    "WAIT ok 32-text status = [paused t=19.6]"
+   ],
+   "kept": [
+    "kept/enyo-screen-lock-lock-button_.jpg",
+    "kept/enyo-screen-lock-locked_.jpg",
+    "kept/enyo-screen-lock-ask_.jpg",
+    "kept/enyo-screen-lock-unlocked_.jpg"
+   ],
+   "seconds": 74,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1: connected at +2 s, load done at +9 s, 11 content frames at +9 s; the GPU path, frames off the main thread (the ex",
+   "restore": "enyo: (1480724/293271934) jihad (start) running, process 18722; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "screen-lock",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "The screen lock while a video plays (T-602, from the Atlas app): its button stands while the video plays; locked, a tap on the video does not reach it (the video plays on); a tap on the notice asks, a second unlocks, and a tap on the video pauses it again",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-rect v",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 98 landed on document y 25)",
+    "WAIT ok 9-text status = [playing]",
+    "WAIT ok 18-text status = [playing]",
+    "CHECK ok 20-text: status = [playing]",
+    "WAIT ok 32-text status = [paused t=20.0]"
+   ],
+   "kept": [
+    "kept/mochi-screen-lock-lock-button_.jpg",
+    "kept/mochi-screen-lock-locked_.jpg",
+    "kept/mochi-screen-lock-ask_.jpg",
+    "kept/mochi-screen-lock-unlocked_.jpg"
+   ],
+   "seconds": 73,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1: connected at +2 s, load done at +12 s, 16 content frames at +12 s; the GPU path, frames off the main thread (the",
+   "restore": "mochi: (1480797/746348809) jihad-mochi (start) running, process 22313; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "screen-lock",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "The screen lock while a video plays (T-602, from the Atlas app): its button stands while the video plays; locked, a tap on the video does not reach it (the video plays on); a tap on the notice asks, a second unlocks, and a tap on the video pauses it again",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-rect v",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 93 landed on document y 25)",
+    "WAIT ok 9-text status = [playing]",
+    "WAIT ok 18-text status = [playing]",
+    "CHECK ok 20-text: status = [playing]",
+    "WAIT ok 32-text status = [paused t=28.8]"
+   ],
+   "kept": [
+    "kept/mojo-screen-lock-lock-button_.jpg",
+    "kept/mojo-screen-lock-locked_.jpg",
+    "kept/mojo-screen-lock-ask_.jpg",
+    "kept/mojo-screen-lock-unlocked_.jpg"
+   ],
+   "seconds": 84,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1: connected at +1 s, load done at +10 s, 18 content frames at +10 s; the GPU path, frames off the main thread (the ",
+   "restore": "mojo: (1480881/760515905) jihad-mojo (start) running, process 26171; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (1480881/921574124) jihad (start) running, process 18722\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (1480894/364841975) jihad-mochi (start) running, process 22313\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (1480911/470901823) jihad-mojo (start) running, process 26171\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok media-scratch: none\nDEVICE ok overall: 4% of /tmp used",
+ "seconds": 421
+}

@@ -5342,10 +5342,12 @@ void GoannaRenderPage::SetGpuOverscan(int rows, double zoom) {
 
 int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out) {
   if (!mWidget || !ComposeAsync()) return -1;
-  int o[54] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1};   // T-511: o[10] stays -1 from an engine that reports rows only
+  int o[55] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1};   // T-511: o[10] stays -1 from an engine that reports rows only
+  o[54] = -1;   // T-605: stays -1 from an engine that does not stamp its jobs with the tree
   int scrollOnly = 0;
-  // T-505 (E2): 49 ints from an engine with the parts pass, 54 with each rect's signature (it writes no more than asked)
-  const int nOut = PartsReady() ? 54 : 29;
+  // T-505 (E2): 49 ints from an engine with the parts pass, 54 with each rect's signature, 55 with the job's tree
+  // (it writes no more than asked)
+  const int nOut = PartsReady() ? 55 : 29;
   const int r = jihad_offscreen_compose_poll2 ? jihad_offscreen_compose_poll2(mWidget, token, o, nOut, &scrollOnly)   // T-544
                                               : jihad_offscreen_compose_poll(mWidget, token, o, &scrollOnly);
   if (r == 0) return -2;   // pending
@@ -5367,6 +5369,7 @@ int GoannaRenderPage::ComposePoll(uint32_t token, unsigned char* dst, ComposeRes
     out->frameY = o[8]; out->frameYValid = o[9] != 0;
     out->nStuck = (o[12] > 0 && o[12] <= 4) ? o[12] : 0;   // T-544
     out->partsGen = (uint32_t)o[29]; out->partsGenKnown = nOut >= 30;   // T-505
+    out->treeSeqKnown = nOut >= 55 && o[54] != -1; out->treeSeq = (uint32_t)o[54];   // T-605
     if (nOut >= 49) {   // (E2)
       out->partsBytes = o[30]; out->partsFlags = o[31]; out->holdKnown = true;
       out->nHold = (o[32] > 0 && o[32] <= 4) ? o[32] : 0;

@@ -85,14 +85,16 @@ elif mode == 'load':
         if 'load done uri=' in line: seen = True; continue
         m = re.search(r'\[jihad-tl\] t=(\d+) ', line)
         if seen and m: tl_after_done = int(m.group(1)); break
-    if t0 is None or tl_after_done is None: print('NA NA NA NA NA NA NA NA'); sys.exit()
+    if t0 is None or tl_after_done is None: print('NA NA NA NA NA NA NA NA NA NA'); sys.exit()
     mains = [(t, int(re.search(r'(\d+) ms$', r).group(1))) for t, r in ev if r.startswith('main ') and t >= t0]
     def stats(lo, hi):
         w = [ms for t, ms in mains if lo <= t < hi]
         return [len(w), sum(1 for ms in w if ms >= 100), max(w) if w else 0, sum(w)]
     load = stats(t0, tl_after_done + 10000)          # the load and its first 10 s
     rest = stats(tl_after_done + 10000, tl_after_done + 40000)   # the 30 s at rest after
-    print(tl_after_done - t0, *load, rest[0], rest[3], rest[2])
+    # the layer paints alone over the load and its 10 s (T-559's content backend lever reads on these)
+    paints = [int(re.search(r'(\d+) ms$', r).group(1)) for t, r in ev if r.startswith('main layer paint') and t0 <= t < tl_after_done + 10000]
+    print(tl_after_done - t0, *load, rest[0], rest[3], rest[2], sum(paints), len(paints))
 elif mode == 'pipe':
     # the paint pipeline's rate over the pan: the "(N fps)" of its 2 s windows after the pan mark line, median
     rates = []; on = False
@@ -167,6 +169,8 @@ for r in $(seq 1 "$RUNS"); do
 	else
 		LEVER=$LEVER_A; ENV=$ENV_A
 	fi
+	# each side's logs under its own name (the lever's, made safe for a file name), or the second overwrites the first
+	LV=$(printf '%s' "$LEVER" | tr -c 'A-Za-z0-9.-' '_' | cut -c1-48)
 	case " $ONLY " in *" wiki "*)
 	say "run $r: wiki"
 	spike "$WIKI"
@@ -175,17 +179,17 @@ for r in $(seq 1 "$RUNS"); do
 	sleep 30
 	mem2=$(dev "$SCR/mem.sh" 20 | tail -n 1)
 	dev "$SCR/pan.sh" 40 | tail -n 1 >/dev/null
-	collect "$D/lp-r$r-wiki.log"
-	load=$(tl load "$D/lp-r$r-wiki.log")
-	rate=$(panrate "$D/lp-r$r-wiki.log"); pipe=$(tl pipe "$D/lp-r$r-wiki.log")
-	row "$r" wiki "load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_fps" $load $mem1 $mem2 $rate $pipe
+	collect "$D/lp-r$r-$LV-wiki.log"
+	load=$(tl load "$D/lp-r$r-$LV-wiki.log")
+	rate=$(panrate "$D/lp-r$r-$LV-wiki.log"); pipe=$(tl pipe "$D/lp-r$r-$LV-wiki.log")
+	row "$r" wiki "load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_fps" $load $mem1 $mem2 $rate $pipe
 	stopspike
 	;; esac
 	case " $ONLY " in *" jsbench "*)
 	say "run $r: jsbench"
 	spike "http://$HOST/jihad-jsbench.html"
 	res=$(dev "$SCR/title.sh" 170 | tail -n 1)
-	collect "$D/lp-r$r-jsbench.log"
+	collect "$D/lp-r$r-$LV-jsbench.log"
 	nums=$(echo "$res" | grep -oE '[0-9]+ ms' | awk '{printf "%s ", $1}')
 	row "$r" jsbench "loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms" ${nums:-NA NA NA NA NA}
 	stopspike
@@ -195,8 +199,8 @@ for r in $(seq 1 "$RUNS"); do
 	spike "http://$HOST/jihad-long-static.html"
 	dev "$SCR/idle.sh" 140 | tail -n 1 >/dev/null
 	dev "$SCR/pan.sh" 40 | tail -n 1 >/dev/null
-	collect "$D/lp-r$r-long.log"
-	rate=$(panrate "$D/lp-r$r-long.log"); pipe=$(tl pipe "$D/lp-r$r-long.log")
+	collect "$D/lp-r$r-$LV-long.log"
+	rate=$(panrate "$D/lp-r$r-$LV-long.log"); pipe=$(tl pipe "$D/lp-r$r-$LV-long.log")
 	row "$r" long "pan_frames pan_ms pan_fps pipe_fps" $rate $pipe
 	stopspike
 	;; esac
@@ -204,10 +208,10 @@ for r in $(seq 1 "$RUNS"); do
 	say "run $r: daemon start, cold then warm"
 	dev "$SCR/drop.sh" 30 | tail -n 1 >/dev/null
 	spike "http://$HOST/jihad-colors.html"
-	collect "$D/lp-r$r-start-cold.log"; cold=$(tl start "$D/lp-r$r-start-cold.log")
+	collect "$D/lp-r$r-$LV-start-cold.log"; cold=$(tl start "$D/lp-r$r-$LV-start-cold.log")
 	stopspike
 	spike "http://$HOST/jihad-colors.html"
-	collect "$D/lp-r$r-start-warm.log"; warm=$(tl start "$D/lp-r$r-start-warm.log")
+	collect "$D/lp-r$r-$LV-start-warm.log"; warm=$(tl start "$D/lp-r$r-$LV-start-warm.log")
 	stopspike
 	row "$r" start "cold_up_ms cold_card_ms warm_up_ms warm_card_ms" $cold $warm
 	;; esac

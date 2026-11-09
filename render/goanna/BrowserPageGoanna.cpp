@@ -5973,6 +5973,15 @@ bool BrowserPageGoanna::xStart(int64_t now, double Z, const XWant& want, int64_t
   return true;
 }
 
+// T-605: a verify pair whose reference was composed on a newer layer tree than the frame (a content transaction
+// came between them) compares two different pages: logged and counted, not compared
+void BrowserPageGoanna::verifyNotComparable(const char* lane, int slot, int y, uint32_t frameSeq, uint32_t refSeq) {
+  static unsigned sSkipped = 0;
+  ++sSkipped;
+  JIHAD_GPU_LOG("[jihad-gpu] verify %sslot %d (y %d): not comparable, the tree changed between the frame and its reference (transactions %u -> %u; %u such)\n",
+                lane, slot, y, frameSeq, refSeq, sSkipped);
+}
+
 // JIHAD_GPU_VERIFY: the frame against its whole composite (the main lane's T-503/T-513 compare, out of its poll on
 // 2026-11-03 so the express lane's frames — the second frame on the first in flight — are checked the same way)
 void BrowserPageGoanna::verifyCompare(const char* lane, int slot, int y, long shift, long askLo, long askHi, long ask2Lo, long ask2Hi,
@@ -6141,7 +6150,9 @@ bool BrowserPageGoanna::xPoll(int64_t now) {
     int r2 = -1;
     const int64_t t0 = jihadNowMs();
     while ((r2 = mPage->ComposePoll(mXJob.vToken, ref, &vr)) <= -2 && jihadNowMs() - t0 < 800) usleep(1000);
-    if (r2 >= 0) {
+    if (r2 >= 0 && cr.treeSeqKnown && vr.treeSeqKnown && cr.treeSeq != vr.treeSeq) {
+      verifyNotComparable("express ", s, mXJob.y, cr.treeSeq, vr.treeSeq);
+    } else if (r2 >= 0) {
       const int pageLo = (int)above, pageHi = (int)std::max(above, std::min((long)H, pageEnd));
       verifyCompare(mXJob.twoDeep ? "express (two deep) " : "express ", s, mXJob.y, mXJob.shift, mXJob.askLo, mXJob.askHi, mXJob.ask2Lo, mXJob.ask2Hi,
                     pixels, ref, w, H, pageLo, pageHi);
@@ -7472,6 +7483,12 @@ void BrowserPageGoanna::paintToSharedBuffer() {
               while ((r2 = mPage->ComposePoll(oldest.vToken, ref, &vr)) <= -2 && jihadNowMs() - t0 < 800) usleep(1000);
               if (r2 > -2) vrf.taken = true;   // done: back to the pool once compared (vrf)
               refPx = ref;
+              // T-605: a reference composed on a newer tree (a layer transaction between the job and it) is not this
+              // frame's: the page's load made such pairs at the top of desktop Wikipedia, read as ~790 wrong rows
+              if (r2 >= 0 && cr.treeSeqKnown && vr.treeSeqKnown && cr.treeSeq != vr.treeSeq) {
+                verifyNotComparable("", gslot, oldest.y, cr.treeSeq, vr.treeSeq);
+                r2 = -10;   // compared no further (below: not counted as a frame verified)
+              }
             } else {
               if (sScratch.size() < bytes) sScratch.resize(bytes);
               refPx = sScratch.data();
@@ -7492,6 +7509,8 @@ void BrowserPageGoanna::paintToSharedBuffer() {
             }
             if (r2 >= 0) {
               verifyCompare("", gslot, oldest.y, oldest.shift, oldest.askLo, oldest.askHi, oldest.ask2Lo, oldest.ask2Hi, pixels, refPx, w, h, pageLo, pageHi);
+            } else if (r2 == -10) {
+              // T-605: skipped, logged by verifyNotComparable
             } else {
               JIHAD_GPU_LOG("[jihad-gpu] verify: the whole composite did not finish (%d)\n", r2);
             }

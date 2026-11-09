@@ -1,0 +1,13 @@
+id: autoplay-sound
+section: Media and sound
+item: Autoplay media with sound off (T-603, the Settings row; from the Atlas app): a page's own play() of a clip with its sound is refused, and a tap on the video starts it
+shells: enyo
+prefs: jihad.media.autoplayWithSound=false
+page: http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1
+kit: cavekit-gre-widgets.md R1
+wait rect v 20
+calibrate 'sel:#status'
+wait text status 'play refused' 10
+shoot refused
+tap v
+wait text status playing 10

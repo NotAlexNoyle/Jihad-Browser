@@ -391,16 +391,18 @@ MainAssistant.prototype.gotMediaKey = function (r) {
 	if (!r || !r.key || (r.state && r.state !== "down")) { return; }
 	this.callBrowserAdapter("pageFocused", [true]);
 	this.controller.serviceRequest("palm://net.riverstonerelay.jihadBrowserMojo", {method: "mediaKey", parameters: {key: String(r.key)}});
-	Mojo.Log.info("[T-601] media key %s", r.key);
+	Mojo.Log.error("[T-601] media key %s", r.key);
 };
 
 MainAssistant.prototype.mediaPlaying = function (on) {
+	Mojo.Log.error("[T-599] media-playing " + (on ? 1 : 0) + ", in front " + this.cardInFront);
 	this.mediaOn = !!on;
 	this.mediaStateChanged();
 };
 
 //* T-602: a video plays or stopped: the lock's button while one plays, gone 3 s after it stops.
 MainAssistant.prototype.videoPlaying = function (on) {
+	Mojo.Log.error("[T-602] video-playing " + (on ? 1 : 0) + ", in front " + this.cardInFront);
 	this.videoOn = !!on;
 	if (this.lockOffTimer) { clearTimeout(this.lockOffTimer); this.lockOffTimer = null; }
 	if (on) { this.lockPart("jihad-lock-button", true); }
@@ -486,10 +488,10 @@ MainAssistant.prototype.setScreenHold = function (hold) {
 	hold = !!hold;
 	if (this.screenHeld === hold) { return; }
 	var sc = this.controller && this.controller.stageController;
-	if (!sc || typeof sc.setWindowProperties !== "function") { return; }
+	if (!sc || typeof sc.setWindowProperties !== "function") { Mojo.Log.error("[T-599] no stageController.setWindowProperties"); return; }
 	this.screenHeld = hold;
 	try { sc.setWindowProperties({blockScreenTimeout: hold}); } catch (e) { Mojo.Log.error("[T-599] setWindowProperties failed: " + e); }
-	Mojo.Log.warn("[T-599] screen hold " + (hold ? "on" : "off"));   // warn: info lines do not reach the syslog
+	Mojo.Log.error("[T-599] screen hold " + (hold ? "on" : "off"));   // error: this app's lower levels do not reach the syslog
 };
 
 // --- the WebView as a screen-sized view (2026-10-07) ----------------------------------------

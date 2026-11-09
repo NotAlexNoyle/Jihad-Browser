@@ -265,6 +265,25 @@ def compile_steps(t, shell=None):
             out.append(f'fl_probe {q[0]} {b} || fl_check FAIL "{name}" "no answer to the probe {m[0]} within 30 s"')
     return "\n".join(out) + "\n"
 
+def device_ready(bound=300):
+    """The USB drop (cavekit-device-headroom.md: the eMMC saturated under a heavy page takes the link down a while): a
+    script starts only with the device on novacom, and after a drop the system's "Connected" alert is closed (the
+    owner's standing rule) before the finger moves. Returns the seconds the device was away (-1: it did not come back)."""
+    away = 0
+    while away < bound:
+        r = subprocess.run(["novacom", "-l"], capture_output=True, text=True, errors="replace")
+        if "topaz" in r.stdout:
+            break
+        time.sleep(5); away += 5
+    else:
+        return -1
+    if away:
+        print(f"  the device was away {away} s (a USB drop): closing the Connected alert")
+        time.sleep(20)
+        subprocess.run("{ echo '/tmp/finger tap 583 232'; sleep 4; } | novacom run file://bin/sh", shell=True,
+                       capture_output=True)
+    return away
+
 def devsh(script_text, args, bound, tmp):
     p = os.path.join(tmp, "s.sh")
     open(p, "w").write(script_text)
@@ -341,6 +360,8 @@ def main():
             for fx in t["fixture"]:
                 r3 = subprocess.run([os.path.join(HERE, "suite", "fixtures", fx + ".sh"), "up", shell], capture_output=True, text=True, errors="replace")
                 rec["note"] = (rec["note"] + " " + r3.stdout.strip().splitlines()[-1] if r3.stdout.strip() else rec["note"]).strip()
+            if device_ready() < 0:
+                rec["verdict"] = "fail"; rec["note"] = "the device did not come back in 300 s"; print(f"[{shell}] {t['id']}: no device"); continue
             print(f"[{shell}] {t['id']}: the daemon on {t['page']}")
             rc, out = devsh(open(os.path.join(HERE, "daemon-start.sh")).read(), [shell, t["page"]] + ["PREF=" + p for p in t["prefs"]], 150, tmp)
             start_line = [l for l in out.splitlines() if "content frames" in l or "FATAL" in l]

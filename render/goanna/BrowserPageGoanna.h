@@ -742,6 +742,7 @@ private:
   // JIHAD_GPU_VERIFY: a published frame against the whole composite of the same tree at the same view: the rows that
   // differ, the rows wrong (far pixels), the rows structurally wrong (blocks that fit better at another offset); the
   // first wrong and the first structurally wrong frame dumped with JIHAD_GPU_VERIFY_DUMP_WRONG=1. Both lanes' frames
+  void verifyNotComparable(const char* lane, int slot, int y, uint32_t frameSeq, uint32_t refSeq);   // T-605
   void verifyCompare(const char* lane, int slot, int y, long shift, long askLo, long askHi, long ask2Lo, long ask2Hi,
                      const unsigned char* pixels, const unsigned char* refPx, int w, int h, int pageLo, int pageHi);
   bool xLeads(int64_t now);           // the card is moving: the express lane makes the frames (the frame lock held)

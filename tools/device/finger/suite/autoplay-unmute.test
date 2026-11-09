@@ -1,0 +1,12 @@
+id: autoplay-unmute
+section: Media and sound
+item: Autoplay media with sound off (T-603): a muted clip plays by itself, and the page unmuting it with no tap gets it paused
+shells: enyo
+prefs: jihad.media.autoplayWithSound=false
+page: http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&unmute=30000
+kit: cavekit-gre-widgets.md R1
+wait rect v 20
+calibrate 'sel:#status'
+wait text status playing 15
+wait text status paused 40
+shoot paused-on-unmute

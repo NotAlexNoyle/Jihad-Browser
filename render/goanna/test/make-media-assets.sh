@@ -21,6 +21,10 @@ ff() { ffmpeg -v error -y "$@"; }
 
 ff -f lavfi -i "$V" -c:v libvpx     -b:v 200k -an clip10v.webm        # VP8, video only
 ff -f lavfi -i "$V" -c:v libvpx-vp9 -b:v 200k -an clip10vp9.webm      # VP9, video only
+# T-558 (cavekit-lowpower-uxp.md R4): the VP9 decoder A/B — ffvpx against libvpx — at YouTube's sizes, 30 fps, 30 s of
+# moving detail (testsrc2 changes every pixel each frame, as video does; a static pattern would flatter the decoder)
+ff -f lavfi -i "testsrc2=size=640x360:rate=30:duration=30" -c:v libvpx-vp9 -b:v 700k -an clip30vp9-360.webm
+ff -f lavfi -i "testsrc2=size=854x480:rate=30:duration=30" -c:v libvpx-vp9 -b:v 1200k -an clip30vp9-480.webm
 ff -f lavfi -i "$V" -c:v libtheora  -q:v 5    -an clip10.ogv          # Theora, video only
 ff -f lavfi -i "$V" -c:v libx264 -pix_fmt yuv420p -an clip10h264.mp4  # H.264 (no decoder in this build)
 # VP8 + Vorbis: the only clip whose <video> has an audio track, so the only one that can show

@@ -9,11 +9,13 @@ GPREFS_ADD=""; GPUENV="JIHAD_GPU_COMPOSITOR=1"
 LOGENV="JIHAD_GPU_LOG=1"
 # novacom splits a quoted "$2" into separate args: every arg after the URL is a word
 XULDIR=""   # T-556: XULDIR=<device dir> puts another libxul.so (the -O2 build) ahead of the bundle's for this run
-for w in $(shift; echo "$@"); do case "$w" in XULDIR=*) XULDIR="${w#XULDIR=}";; IOF=*) IOF="${w#IOF=}";; PREF=*) PREFS_ADD="$PREFS_ADD ${w#PREF=}";; GPREF=*) GPREFS_ADD="$GPREFS_ADD ${w#GPREF=}";; NOGPU=*) GPUENV="";; NOLOG=*) LOGENV="";; *) EXTRA="$EXTRA $w";; esac; done
+HLDIR=""    # T-559: HLDIR=<device dir> runs the daemon from another GRE directory (the omni.ja layout) for this run
+for w in $(shift; echo "$@"); do case "$w" in HLDIR=*) HLDIR="${w#HLDIR=}";; XULDIR=*) XULDIR="${w#XULDIR=}";; IOF=*) IOF="${w#IOF=}";; PREF=*) PREFS_ADD="$PREFS_ADD ${w#PREF=}";; GPREF=*) GPREFS_ADD="$GPREFS_ADD ${w#GPREF=}";; NOGPU=*) GPUENV="";; NOLOG=*) LOGENV="";; *) EXTRA="$EXTRA $w";; esac; done
 K=/sys/devices/platform/kgsl/msm_kgsl/kgsl-3d0/io_fraction
 [ -n "$IOF" ] && [ -f $K ] && { echo "$IOF" > $K; echo "io_fraction now $(cat $K)"; }
 APP=/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser
 HL=$APP/deviceroot/hl
+[ -n "$HLDIR" ] && HL=$HLDIR
 STATE=/var/palm/jihad/enyo
 LOG=$STATE/daemon-gpu.log
 # close the card first: a launch into an open card relays the URL to it, and the old page

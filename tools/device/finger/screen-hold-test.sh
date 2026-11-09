@@ -27,11 +27,12 @@ echo "display timeout was: \${old:-unknown} s, onWhenConnected \${owc:-unknown};
 \$L palm://com.palm.display/control/setProperty '{"timeout":30,"onWhenConnected":false}' >/dev/null 2>&1
 \$L palm://com.palm.display/control/setState '{"state":"on"}' >/dev/null 2>&1
 : > /tmp/sht.mark; m0=\$(grep -ac . /var/log/messages 2>/dev/null)
-\$L palm://com.palm.applicationManager/launch '{"id":"'\$ID'","params":{"target":"'\$URL'"}}' 2>&1 | head -c 100; echo
+\$L palm://com.palm.applicationManager/launch '{"id":"'\$ID'","params":{"target":"'\$URL'"}}' >/dev/null 2>&1
 t0=\$(date +%s)
 for s in 10 20 30 40 50; do sleep 10; echo "t+\$s s (\$(date +%H:%M:%S)): display \$(state)"; done
-echo "--- the clip ends at 60 s; waiting 40 s more for the hold to let go"
-sleep 50; echo "t+100 s: display \$(state)"
+echo "--- the clip ends near 65 s; the hold lets go 3 s after the daemon hears it stop, then the 30 s timeout runs"
+sleep 30; echo "t+80 s (\$(date +%H:%M:%S)): display \$(state)"
+sleep 50; echo "t+130 s (\$(date +%H:%M:%S)): display \$(state) (expected off or dimmed: the hold let go)"
 \$L palm://com.palm.display/control/setState '{"state":"on"}' >/dev/null 2>&1
 [ -n "\$old" ] && \$L palm://com.palm.display/control/setProperty '{"timeout":'\$old'}' >/dev/null 2>&1 && echo "display timeout restored to \$old s"
 [ -n "\$owc" ] && \$L palm://com.palm.display/control/setProperty '{"onWhenConnected":'\$owc'}' >/dev/null 2>&1 && echo "onWhenConnected restored to \$owc"
@@ -39,4 +40,4 @@ for pid in \$(\$L palm://com.palm.applicationManager/running '{}' 2>/dev/null | 
 echo "--- the daemon's media lines"; grep -a "media playing\|media silent\|video playing\|video stopped" /var/palm/jihad/$V/daemon.log 2>/dev/null | tail -n 4
 echo "--- the card's hold lines"; tail -n +\$((m0+1)) /var/log/messages 2>/dev/null | grep -a "T-599" | tail -n 4 | cut -c1-160
 EOS
-build/webos-oe/dev-sh.sh -t 200 "$SCR/dev.sh" 2>&1
+build/webos-oe/dev-sh.sh -t 240 "$SCR/dev.sh" 2>&1

@@ -425,7 +425,9 @@ public:
                          int partsBytes = 0, partsFlags = 0; bool holdKnown = false; int nHold = 0; int hold[4][4] = {};
                          // T-505 (per part): each stuck rect's own signature, and the rects the pass read (bit k; the
                          // buffer holds those, packed in rect order)
-                         uint32_t partsSig[4] = {}; int partsRead = 0; bool partsSigKnown = false; };
+                         uint32_t partsSig[4] = {}; int partsRead = 0; bool partsSigKnown = false;
+                         // T-605: the content's layer transactions applied when the job composed (an engine without it: unknown)
+                         uint32_t treeSeq = 0; bool treeSeqKnown = false; };
   int ComposePoll(uint32_t token, unsigned char* dst, ComposeResult* out);
   void ComposeForget(uint32_t token);
   // Identifies the document now in the window (its inner window id; 0 if unknown). Two

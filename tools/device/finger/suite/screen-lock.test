@@ -18,6 +18,10 @@ dismiss 384 360
 wait text status playing 3
 dwell 2000
 expect text status playing
+# the notice timed out over the dwell: the unlock is the Atlas flow from a hidden notice — a tap shows "Screen
+# locked", a tap on that asks "Unlock controls?", a second unlocks (three taps, within the notice's 3 s each)
+chrome lock-notice
+pause 600
 chrome lock-notice
 pause 600
 shoot ask

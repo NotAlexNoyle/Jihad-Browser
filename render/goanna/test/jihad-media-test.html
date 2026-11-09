@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
      jihad-media-test.html — T-387 (cavekit-engine-update.md R6): the desktop media test's page.
-     ?src=<file>  plays that clip (muted) with the controls shown and reports through the title:
+     ?src=<file>  plays that clip (muted; ?sound=1 with its sound) with the controls shown and reports through the title:
        "meta WxH" after loadedmetadata, "playing" once time moves, "paused" after a tap on the
        control bar pauses it, "resumed" after another, "ended t=<currentTime> dur=<duration> decoded=<frames>" at the end,
        "error <code>" on a media error. ?audio=1 uses an <audio> element instead. No other script. -->
@@ -13,7 +13,10 @@
 <script>
   var q = {}; location.search.slice(1).split("&").forEach(function (kv) { var p = kv.split("="); if (p[0]) q[p[0]] = decodeURIComponent(p[1] || ""); });
   var el = document.createElement(q.audio ? "audio" : "video");
-  el.id = "v"; el.controls = true; el.muted = !q.audio; el.preload = "auto";
+  el.id = "v"; el.controls = true; el.muted = !q.audio && !q.sound; el.preload = "auto";
+  // ?sound=1: the clip starts with its sound (T-603: a page's own play() of an audible clip, refused while the pref
+  // jihad.media.autoplayWithSound is off); ?unmute=<ms>: the playing muted clip unmuted by the page that long after
+  // its start, with no tap (T-603: paused while the pref is off)
   el.src = q.src || "clip10v.webm";
   // ?wide=1: the picture as wide as the screen allows, so videocontrols' bar keeps every control (at 480 px it
   // hides the volume slider; media-controls.test)
@@ -22,19 +25,26 @@
   var statusEl = document.getElementById("status");   // not `status`: that is window.status, a string
   function say(s) { statusEl.textContent = s; document.title = s; }
   var sawPause = false;
-  el.addEventListener("loadedmetadata", function () { say("meta " + (el.videoWidth || 0) + "x" + (el.videoHeight || 0)); });
+  var refused = false;   // a refused play() stays on the status: the metadata arriving after it must not hide it
+  el.addEventListener("loadedmetadata", function () { if (!refused) say("meta " + (el.videoWidth || 0) + "x" + (el.videoHeight || 0)); });
   el.addEventListener("timeupdate", function () { if (el.currentTime > 0.5 && !sawPause && document.title.indexOf("playing") < 0 && document.title.indexOf("paused") < 0) say("playing"); });
   el.addEventListener("play", function () { if (sawPause) say("resumed"); });
   el.addEventListener("pause", function () { if (!el.ended) { sawPause = true; say("paused t=" + el.currentTime.toFixed(1)); } });
   el.addEventListener("ended", function () {
     var decoded = typeof el.mozDecodedFrames === "number" ? el.mozDecodedFrames : -1;
-    say("ended t=" + el.currentTime.toFixed(1) + " dur=" + el.duration.toFixed(1) + " decoded=" + decoded);
+    // T-558's decoder A/B: the frames the page was shown and the ones dropped (VideoPlaybackQuality where the engine has it)
+    var qy = el.getVideoPlaybackQuality ? el.getVideoPlaybackQuality() : null;
+    var shown = typeof el.mozPaintedFrames === "number" ? el.mozPaintedFrames : -1;
+    say("ended t=" + el.currentTime.toFixed(1) + " dur=" + el.duration.toFixed(1) + " decoded=" + decoded +
+        " painted=" + shown + " dropped=" + (qy ? qy.droppedVideoFrames : -1) + " total=" + (qy ? qy.totalVideoFrames : -1));
   });
   el.addEventListener("error", function () { say("error " + (el.error ? el.error.code : "?")); });
   // the control bar's own readouts (media-controls.test): #vol follows volumechange, #seek is the last seek's second
   function vol() { document.getElementById("vol").textContent = "volume=" + el.volume.toFixed(2) + " muted=" + el.muted; }
   el.addEventListener("volumechange", vol); el.addEventListener("loadedmetadata", vol);
   el.addEventListener("seeked", function () { document.getElementById("seek").textContent = Math.round(el.currentTime); });
-  var p = el.play(); if (p && p.catch) p.catch(function (e) { say("play refused " + e.name); });
+  var p = el.play(); if (p && p.catch) p.catch(function (e) { refused = true; say("play refused " + e.name); });
+  el.addEventListener("play", function () { refused = false; });
+  if (q.unmute) { el.addEventListener("playing", function once() { el.removeEventListener("playing", once); setTimeout(function () { el.muted = false; }, parseInt(q.unmute, 10) || 3000); }); }
 </script>
 </body></html>

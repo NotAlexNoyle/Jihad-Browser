@@ -37,7 +37,7 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
 **Description:** The Mojo variant is a usable browser, not a scaffold.
 **Acceptance Criteria:**
 - [x] A Mojo scene hosts a web-render surface bound to this variant's NPAPI MIME type and displays a real rendered page. *(Device 2026-08-03: card paints example.com and local pages through its own daemon.)*
-- [x] Address entry navigates: typing a URL (or a search term) loads the corresponding page. *(`JihadUrl.normalize` + the widget's `openURL`; device-driven navigations verified.)* *(2026-10-01: a launch carrying a link opens it; `stage-assistant.js` now reads `{target: url}`, the key the system hands a browser, and not only `params.url`.)*
+- [x] Address entry navigates: typing a URL (or a search term) loads the corresponding page. *(`JihadUrl.normalize` + the widget's `openURL`; device-driven navigations verified.)* *(2026-10-01: a launch carrying a link opens it; `stage-assistant.js` now reads `{target: url}`, the key the system hands a browser, and not only `params.url`.)* *(2026-11-09: and a link handed to the RUNNING app opens too — Mojo's framework only brought the card forward on a relaunch and dropped the link; `app-assistant.js` hands a relaunch's target to the browser scene.)*
 - [x] Back, forward, reload, and stop are present and drive the adapter. *(Command menu; stop/reload swap with load state.)*
 - [x] Load state is visible to the user (progress indication + a stop/reload affordance that reflects whether a load is in flight).
 - [x] The page title and the committed URL are reflected in the UI as the engine reports them. *(The address field; the separate title ROW was removed 2026-08-03 as redundant with the card title — user request.)*

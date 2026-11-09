@@ -121,6 +121,14 @@ The resolution switch's known gaps (the review of 2026-11-04, not fixed: the swi
 round notes): a pinch below 1.1 repaints at every step a frame gets out of (the zoom hold releases on the first
 frame, not on a settled zoom), and T-527's zoom-back and overview gates still take "a resolution above 1" as the
 zoom in's sign, so a zoom back to a fit zoom under 0.5 keeps no frame and waits for the repaint.
+T-505, the scaler (2026-11-09, the owner's scale choice (a)): `JIHAD_GPU_CPU_SCALE=1` (engine) lets the CPU bands take
+a tiled layer under a uniform downscale too — the tiles painted at resolution 1 under a card zoom below 1 (Wikipedia's
+fit zoom of 0.69), each band pixel the bilinear sample of the four layer pixels around its source point, the GPU
+pass's filter at the same scale; the census line ends with "N leaves by the scaler". Off until its rounds say
+(`docs/rounds/t505-2026-11-09/`). The daemon's `JIHAD_PURGE_AFTER_LOAD_MS=<ms>` (T-557) purges the heap that long
+after a load completes; the engine's `JIHAD_JS_HELPER_THREADS`, `JIHAD_JS_ION_THREADS`, `JIHAD_JS_PARSE_THREADS`
+and `JIHAD_JS_HELPER_NICE` (T-556) size and place the JS helper threads — the low-power kit's levers, each measured by
+`tools/device/lowpower-bench.sh LEVER=<name> EXTRA_ENV="<words>"` against its baseline rows, unset = upstream's.
 The card's self-test hook (`render/goanna/test/enyo-selftest.js`) scripts a double tap with
 `t<x>,<y>` (the adapter's smartZoom) beside the pinch `g<scale>,<x>,<y>`.
 `tools/device/gpu-bench.c` sections 11-15 (`BENCH_ONLY=<n>`): back-to-back tile uploads, which

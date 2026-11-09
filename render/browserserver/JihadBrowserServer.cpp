@@ -20,6 +20,7 @@ namespace jihad { void JihadNotifyClients(bool connected, int clients); }
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <sys/time.h>                      // gettimeofday: the timeline's "card connected" stamp (T-555)
 #include <cerrno>
 #include <unistd.h>
 #include <fcntl.h>
@@ -274,6 +275,10 @@ void JihadBrowserServer::reap(YapProxy* proxy) {
 
 void JihadBrowserServer::clientConnected(YapProxy* proxy) {
   (void)proxy; printf("[jihad-bs] client connected\n");
+  if (getenv("JIHAD_GPU_TIMELINE")) {   // T-555: a card's connection on the timeline (to its "first painted frame")
+    struct timeval tv; gettimeofday(&tv, nullptr);
+    fprintf(stderr, "[jihad-tl] t=%lld card connected\n", (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000);
+  }
   jihad::JihadNotifyClients(true, (int)mConnectOrder.size() + 1);   // the page is created after this call
 }
 void JihadBrowserServer::clientDisconnected(YapProxy* proxy) {

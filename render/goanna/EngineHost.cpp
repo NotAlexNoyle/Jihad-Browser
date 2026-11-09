@@ -76,6 +76,7 @@ static void jihadPurgeHeap(const char* why) {
           jemalloc_free_dirty_pages ? "jemalloc dirty pages returned" : "no jemalloc in this build",
           glibc ? ", glibc's arena trimmed too" : "");
 }
+void jihad::JihadPurgeHeap(const char* why) { jihadPurgeHeap(why); }
 #include <cctype>                    // tolower (case-insensitive host match)
 
 // From nsEmbedCID.h; inlined to avoid include-path churn across SDK layouts.

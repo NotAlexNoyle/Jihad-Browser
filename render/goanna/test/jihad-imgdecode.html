@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- jihad-imgdecode.html?fmt=jxl|webp|jpg&n=8 (cavekit-lowpower-uxp.md R4, T-558): the engine's decode time of one
+     picture in one format, n copies loaded one after another (each a fresh URL so the cache does not answer), from
+     the request to the decoded image (img.decode() where the engine has it, else onload); the total and the per-copy
+     median into the page title (the daemon logs titles) and the page. The pictures come from make-image-assets.sh.
+     Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-imgdecode</title></head>
+<body><h1>jihad-imgdecode</h1><pre id="out">running…</pre>
+<script>
+(function () {
+  var q = {}; location.search.replace(/^\?/, "").split("&").forEach(function (kv) { var p = kv.split("="); if (p[0]) q[p[0]] = decodeURIComponent(p[1] || ""); });
+  var fmt = q.fmt || "jpg", n = parseInt(q.n || "8", 10), times = [], i = 0;
+  function one() {
+    if (i >= n) { return done(); }
+    var img = new Image(), t0 = performance.now();
+    var finish = function () { times.push(performance.now() - t0); img = null; i++; setTimeout(one, 50); };
+    img.onerror = function () { times.push(-1); i++; setTimeout(one, 50); };
+    img.onload = function () {
+      if (img.decode) { img.decode().then(finish, finish); } else { finish(); }
+    };
+    img.src = "photo." + fmt + "?k=" + i + "-" + Date.now();
+  }
+  function done() {
+    var ok = times.filter(function (t) { return t >= 0; }).sort(function (a, b) { return a - b; });
+    var sum = ok.reduce(function (a, b) { return a + b; }, 0);
+    var med = ok.length ? ok[ok.length >> 1] : -1;
+    var text = "jihad-imgdecode " + fmt + ": " + ok.length + "/" + n + " decoded, total " + Math.round(sum) + " ms, median " + Math.round(med) + " ms";
+    document.getElementById("out").textContent = text + "\n" + times.map(Math.round).join(" ");
+    document.title = text;
+  }
+  one();
+})();
+</script></body></html>

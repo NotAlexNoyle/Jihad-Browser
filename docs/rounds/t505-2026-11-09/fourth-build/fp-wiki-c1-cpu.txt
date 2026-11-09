@@ -1,0 +1,24 @@
+--- fbstream
+fbstream: 525 samples in 35.01 s (15.0/s, asked 15), read median~6.0 ms max 85.9 ms (mmap, stride 8: 96 rows of 768), 914 flips (frames shown, 26.1/s), 15476 polls (442/s), cpu 2560 ms (7.3% of a core) finger joined from /media/internal/jihad-stream/stream.fin
+drwxrwxrwx    2 root     root         32768 Nov  9 05:26 .
+drwxrwxrwx   26 root     root         32768 Nov  9 05:25 ..
+-rwxrwxrwx    1 root     root       8712384 Nov  9 05:26 stream.fbs
+-rwxrwxrwx    1 root     root         43168 Nov  9 05:26 stream.fin
+/dev/mapper/store-media
+                      13251360   1497632  11753728  11% /media/internal
+--- CPU ticks over the drags (pid, before, after, command)
+25347 1013 1016 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+26200 1042 1047 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+8166 4296 8312 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.river
+21466 24596 25020 /usr/bin/LunaSysMgr -s
+21552 107226 108999 /usr/bin/LunaSysMgr -s
+--- /proc/stat before and after
+cpu  54037304 6722967 44653339 185427714 4522579 8734 123642 0 0 0
+cpu  54039440 6727078 44654985 185428450 4523002 8734 123647 0 0 0
+--- daemon memory before and after the drags (pid VmHWM VmRSS VmData kB, command)
+25347 37384 15592 324264 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverstone
+26200 36544 23836 324264 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverstone
+8166 292292 262728 646168 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverston
+25347 37384 15592 324264 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverstone
+26200 36544 23836 324264 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverstone
+8166 347016 321136 665624 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverston

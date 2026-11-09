@@ -88,6 +88,9 @@ const char* JihadPerDomainUaForUrl(const char* url);
 // blocker holds its lists only while a card is connected — cavekit-content-blocking.md R6).
 // `clients` is the number still connected after this event.
 void JihadNotifyClients(bool connected, int clients);
+// The heap purged now (jemalloc's dirty pages returned, glibc's arena trimmed), one log line naming why — the
+// memory-pressure watcher's and the last card's purge, and T-556/T-557's purge after a load goes idle.
+void JihadPurgeHeap(const char* why);
 
 } // namespace jihad
 

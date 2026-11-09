@@ -463,6 +463,10 @@ int main(int argc, char** argv) {
   jihad::LunaServiceStart(jihad::LunaServiceNameFor(name), server.mainLoop());
 
   printf("[jihad-bs] engine up; serving YAP '%s' (waiting for BrowserAdapter)\n", name);
+  if (getenv("JIHAD_GPU_TIMELINE")) {   // T-555: the daemon's own start-up on the timeline ("daemon main" to here)
+    struct timeval tv; gettimeofday(&tv, nullptr);
+    fprintf(stderr, "[jihad-tl] t=%lld engine up\n", (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000);
+  }
   server.run();   // GLib main loop (patched YapServer::run)
   if (g_termSignal)
     printf("[jihad-bs] signal %d — shutting the engine down cleanly\n", (int)g_termSignal);

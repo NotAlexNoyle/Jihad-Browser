@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26"
-last_edited: "2026-10-26"
+last_edited: "2026-11-09"
 complexity: thorough
 ---
 
@@ -29,12 +29,14 @@ the queue).
 ### R1: One baseline, measured the same way every time
 **Description:** A lever is judged against numbers taken the same way before and after.
 **Acceptance Criteria:**
-- [ ] A device benchmark script runs, on one variant, with sensors as the bench rules say: desktop Wikipedia
+- [x] A device benchmark script runs, on one variant, with sensors as the bench rules say: desktop Wikipedia
   (HP_TouchPad) load to idle (time, main-thread pump lengths), `jihad-jsbench.html`, a long article's resident memory
   after load and 30 s later (`/proc/<pid>/smaps` RSS and PSS of the daemon), daemon start to first frame (cold and
   warm), and the scripted pan's frame rate on Wikipedia and the long page
-- [ ] It prints one row per run and repeats each measurement at least five times, reporting median and spread
-- [ ] The baseline of the shipped build is recorded in `docs/research/lowpower-uxp.md` before any lever is tried
+- [x] It prints one row per run and repeats each measurement at least five times, reporting median and spread
+- [x] The baseline of the shipped build is recorded in `docs/research/lowpower-uxp.md` before any lever is tried
+  *(2026-11-09, T-555: `tools/device/lowpower-bench.sh`, five runs, §4 of the research document; the main thread 82 %
+  busy at rest on Wikipedia is the baseline's own finding, T-604)*
 **Dependencies:** none
 
 ### R2: The CPU levers measured
@@ -68,7 +70,8 @@ the queue).
   its measured effect on two animated sites
 - [ ] Lazy image loading is put to the owner (carry upstream's reverted implementation with a scroll-driven check, or
   not) with its measured effect on a long article (requests, resident memory)
-- [ ] `image/jxl` dropped from the Accept headers, or kept with the reason
+- [x] `image/jxl` dropped from the Accept headers, or kept with the reason *(2026-11-09, T-558: kept — on the device JPEG XL
+  decodes the same 1600x1200 picture in 204 ms against WebP's 304 and JPEG's 226, `docs/research/lowpower-uxp.md` §5)*
 - [ ] The VP9/WebM decoder A/B (ffvpx vs libvpx, MSE WebM) measured at 360p and 480p (dropped frames), and the faster
   path chosen without losing FLAC/MP3 playback
 **Dependencies:** R1, cavekit-gre-widgets.md R1
@@ -101,4 +104,5 @@ the queue).
 - cavekit-modern-web.md — sites' behaviour under the levers
 
 ## Changelog
+- 2026-11-09: R1 met (T-555, the baseline script and five runs); the rest-time main thread finding added as T-604 under R2.
 - 2026-10-26: created from the owner's request and the day's research (`docs/research/lowpower-uxp.md`).

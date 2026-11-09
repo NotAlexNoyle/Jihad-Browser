@@ -75,6 +75,10 @@ build/engine/.update-in-progress
 render/goanna/test/clip*.mp4
 render/goanna/test/clip*.webm
 render/goanna/test/tone10.*
+# the image-decode test pictures (render/goanna/test/make-image-assets.sh makes them; never stored)
+render/goanna/test/photo.jpg
+render/goanna/test/photo.webp
+render/goanna/test/photo.jxl
 
 # the device scripts' per-run files (pan-run.sh, zoom-run.sh, zoom-seq.sh write them beside themselves)
 tools/device/t502/*-inject.sh
@@ -83,6 +87,12 @@ tools/device/t502/pan-frame-*.bgra
 docs/rounds/finger-*/fs-*.fbs
 !docs/rounds/finger-*/fs-*-head.fbs
 docs/rounds/finger-*/fs-*.raw
+# the same for every round directory: the stream sampler's files and the verify's dumped frames (megabytes each)
+docs/rounds/**/fs-*.fbs
+!docs/rounds/**/fs-*-head.fbs
+docs/rounds/**/fs-*.raw
+docs/rounds/**/vw-*.raw
+docs/rounds/**/vs-*.raw
 # the thread samples of a finger round (T-567): 460 KB a round, read by tools/host/threadstat-read.py
 docs/rounds/finger-*/ft-*.txt
 # the finger suite's xpi fixture builds the test extension into the served directory for a run and removes it after

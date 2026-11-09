@@ -3841,9 +3841,16 @@ void BrowserPageGoanna::emitLoadAndLocation() {
     if (p > mLastProgress) { mLastProgress = p; mSink.msgLoadProgress(p); mNeedsPaint = true; }
   }
   bool stalled = (!mLoadWasDone && mLoadStartMs != 0 && (jihadNowMs() - mLoadStartMs) > 12000);
+  // T-557 (cavekit-lowpower-uxp.md R3, a lever measured against the baseline): JIHAD_PURGE_AFTER_LOAD_MS=<ms> purges
+  // the heap that long after a load completes (jemalloc's freed-but-resident pages back to the kernel; the engine's
+  // caches untouched) — the research's "a purge a few seconds after a load goes idle". Unset: no purge but the
+  // watcher's and the last card's (EngineHost.cpp).
+  static const long sPurgeAfterLoadMs = getenv("JIHAD_PURGE_AFTER_LOAD_MS") ? atol(getenv("JIHAD_PURGE_AFTER_LOAD_MS")) : 0;
+  if (mPurgeAtMs && jihadNowMs() >= mPurgeAtMs) { mPurgeAtMs = 0; jihad::JihadPurgeHeap("load idle (JIHAD_PURGE_AFTER_LOAD_MS)"); }
   if (mPage->LoadDone() && !mLoadWasDone) {
     // Normal completion — the one and only load-stopped boundary for this load.
     mLoadWasDone = true; mLoadStartMs = 0; mWatchdogDismissed = false;
+    if (sPurgeAfterLoadMs > 0) mPurgeAtMs = jihadNowMs() + sPurgeAfterLoadMs;
     fprintf(stderr, "[jihad-bs] load done uri=%s\n", mPage->CurrentUri().c_str());
     emitCompletion(true);
     if (mPage->GpuPath()) {   // T-502: resolution, scroll port and displayport for the new document

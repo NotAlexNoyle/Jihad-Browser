@@ -238,6 +238,11 @@ pref("jihad.youtube.maxRows", 480);        // the tallest format the lite settin
 // cavekit-device-headroom.md R4: on YouTube a video plays only within 30 s of a tap or a key: the next video and the
 // feed's previews wait (components/jihadWebCompat.js)
 pref("jihad.youtube.stopAutoplay", true);
+// cavekit-lowpower-uxp.md R4 (T-558): images marked loading="lazy" load when they come within 300 px of the view
+// (upstream's reverted issue #3030, carried with one check per document after a scroll in place of its 250 ms poll
+// per image). A lever: off until its measured effect on a long article is read and the owner says; off, the
+// attribute is ignored and every image loads with the page, as before.
+pref("jihad.images.lazy", false);
 // the browser's own path rules beside the lists (components/jihadContentBlocker.js): "host/path-prefix;…", refused on
 // the page's own host too; empty until a measured lever keeps one (cavekit-device-headroom.md R3)
 pref("jihad.blocking.extra", "");

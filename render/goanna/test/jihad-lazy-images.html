@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- jihad-lazy-images.html?n=60&gap=700 (cavekit-lowpower-uxp.md R4, T-558): a long article's worth of pictures, each
+     loading="lazy" and each in its own tall block so only the first few are in view; after 10 s the page counts the
+     pictures the engine has fetched and decoded (complete with a size) and writes "jihad-lazy n=N loaded=K" into the
+     title (the daemon logs titles). With jihad.images.lazy off every picture loads with the page (K = N); on, only
+     those within reach of the view, the rest as the page scrolls. Pictures from make-image-assets.sh.
+     Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<html><head><meta charset="utf-8"><title>jihad-lazy-images</title>
+<style>body{margin:0;font-family:sans-serif} .b{height:var(--gap);border-bottom:1px solid #ddd;padding:8px} img{width:320px;height:240px;display:block}</style></head>
+<body><h1 id="h">jihad-lazy-images</h1>
+<script>
+(function () {
+  var q = {}; location.search.replace(/^\?/, "").split("&").forEach(function (kv) { var p = kv.split("="); if (p[0]) q[p[0]] = decodeURIComponent(p[1] || ""); });
+  var n = parseInt(q.n || "60", 10), gap = parseInt(q.gap || "700", 10);
+  document.documentElement.style.setProperty("--gap", gap + "px");
+  for (var i = 0; i < n; i++) {
+    var d = document.createElement("div"); d.className = "b";
+    d.innerHTML = "<p>picture " + (i + 1) + " of " + n + "</p>";
+    var img = document.createElement("img"); img.loading = "lazy"; img.setAttribute("loading", "lazy");
+    img.src = "photo.jpg?k=" + i; d.appendChild(img); document.body.appendChild(d);
+  }
+  function count() { var k = 0, imgs = document.images; for (var i = 0; i < imgs.length; i++) { if (imgs[i].complete && imgs[i].naturalWidth > 0) k++; } return k; }
+  setTimeout(function () {
+    var text = "jihad-lazy n=" + n + " loaded=" + count();
+    document.getElementById("h").textContent = text; document.title = text;
+  }, 10000);
+})();
+</script></body></html>

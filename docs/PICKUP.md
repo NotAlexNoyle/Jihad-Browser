@@ -83,6 +83,28 @@ Enyo card seen by eye). **The host's novacomd is still the 0.4 build** (`/opt/no
 2026-10-15): 0.4.1's Linux code is 0.4's (`WINDOWS-PORT-LINUX-REGRESSION.md`: the libusb-1.0 backend is Windows-only), so the
 bench stands; the swap and the `/opt/PalmSDK` refresh are the two root commands handed to the owner (T-550's row).
 
+**Where the day stopped (2026-11-09, ~10:00, the session's usage limit):** two jobs were still running — the T-505
+scaler's SIXTH build (the bilinear sample in NEON) on the device in `docs/rounds/t505-2026-11-09/rounds-scaler.sh`
+(verify first, then 3 interleaved control/scaler rounds; its log `scratchpad/scaler-rounds6.log` is gone with the
+session: read the round files in the directory root with `wiki-rounds-table.py` and the census lines), and a libxul
+build on the host with the lazy-image lever (`jihad.images.lazy`, T-558) — NOT pushed; `make-device-bundle.sh` then
+`push-engine-update.sh enyo` when it is wanted. **The engine tree (`third_party/uxp`) holds UNCOMMITTED work on the fork
+branch:** the scaler (CompositorBridgeParent.cpp, `JIHAD_GPU_CPU_SCALE=1`, five builds measured — the scalar sample
+200 ns a pixel, no gain; the NEON sample unmeasured), the JS helper-thread switches (HelperThreads.cpp, T-556), and
+upstream's lazy loading carried scroll-driven behind the pref (HTMLImageElement.cpp/.h, nsGfxScrollFrame.cpp; the
+cherry-pick of 7574161abe is staged). Commit them on `jihad/uxp-RB_20261027` once the NEON rounds say what the scaler
+is worth (the owner's "kept only if it moves the rate"); the engine branch is then 8 commits past `UXP_PIN` (0077):
+`build/engine/patch-queue.sh --add` each and `update-engine.sh --pins` go with the owner's gitlink bump (the pin check
+wants both). **Device state:** Enyo runs the fifth scaler build (default off) + the stamped daemon with the purge
+switch (`770da53f`); Mochi/Mojo the earlier stamped daemon (`61a71464`) and the .ipks' engine; three USB drops today
+under Wikipedia finger rounds (the scripts wait and close the alert). **The owner's two root commands (T-550), not yet
+run:** `sudo third_party/webos-sdk-redux/Current/install-sdk-linux.sh` (choice 1) and `sudo install -m755
+tools/host/bin/novacomd /opt/nova/bin/novacomd && sudo pkill -x novacomd && sudo -b /opt/nova/bin/novacomd` (with the
+device idle). **Next in order:** T-505's NEON verdict → T-556 (the helper levers re-run interleaved, `LEVER_B=baseline`;
+then -O2, a full rebuild) → T-557 (`MALLOC_OPTIONS=nnff`, `JIHAD_PURGE_AFTER_LOAD_MS=5000`, each interleaved, ONLY=wiki)
+→ T-558 (lazy images measured on `jihad-lazy-images.html` with `GPREF=jihad.images.lazy=true`, reduced motion on two
+animated pages via `PAGE=`, the VP9 A/B with `yt-levers.sh`-style prefs) → T-559, T-560, T-604, T-605 → T-567 → Tier 93.
+
 **T-555, the low-power baseline, begun:** `tools/device/lowpower-bench.sh` (RUNS=5; the T-502 spike helpers with
 `JIHAD_INJECT=1 JIHAD_GPU_TIMELINE=1`): per run desktop Wikipedia's first content frame to idle with the main thread's
 calls (count, ≥100 ms, max, sum), the daemon's RSS/PSS at idle and 30 s later, the scripted pan's rate (gap-trace), the

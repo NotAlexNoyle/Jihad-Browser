@@ -1,6 +1,6 @@
 ---
 created: "2026-07-31"
-last_edited: "2026-11-07"
+last_edited: "2026-11-09"
 ---
 
 # Cavekit: Mojo UI Variant
@@ -41,7 +41,7 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
 - [x] Back, forward, reload, and stop are present and drive the adapter. *(Command menu; stop/reload swap with load state.)*
 - [x] Load state is visible to the user (progress indication + a stop/reload affordance that reflects whether a load is in flight).
 - [x] The page title and the committed URL are reflected in the UI as the engine reports them. *(The address field; the separate title ROW was removed 2026-08-03 as redundant with the card title — user request.)*
-- [x] A failed load surfaces an error to the user rather than leaving a blank card. *(The error panel + retry.)* *(2026-10-01 (third session), CE: a refused connection shows the panel ("Can't load this page / Try Again") after `loaderr failed=1 code=0x804b000d` — and BEFORE it the engine's own alert ("The connection was refused when attempting to contact …"), which the daemon waits on. Two reports of one failure; the same in the other two shells. Recorded, not changed.)*
+- [x] A failed load surfaces an error to the user rather than leaving a blank card. *(The error panel + retry.)* *(2026-11-09, by finger, `tools/device/finger/load-error-test.sh`, shots `docs/rounds/refs-2026-11-09/le-*`: the panel covers the page area with the address, the cause in words and Wi-Fi Settings (T-600); Try Again loads the page)* *(2026-10-01 (third session), CE: a refused connection shows the panel ("Can't load this page / Try Again") after `loaderr failed=1 code=0x804b000d` — and BEFORE it the engine's own alert ("The connection was refused when attempting to contact …"), which the daemon waits on. Two reports of one failure; the same in the other two shells. Recorded, not changed.)*
 - [x] A page with NO viewport tag fills the card like any other, instead of collapsing. *(Added and met 2026-10-01: a page without `<meta name=viewport>` drew as a 76x99 px thumbnail, because the daemon handed the WebView an initial scale of 0.1 for such pages (cavekit-offscreen-rendering.md R4) and the adapter took a 0x0 window as a size; fixed in both. Device: the 980-wide test page lays out at card width at zoom 1.0, stable over 18 s (`../impl/evidence-2026-10-01/mojo-no-viewport-page-after-fix.jpg`); a device-width page and `about:preferences` unchanged.)*
 **Dependencies:** cavekit-navigation-events.md, cavekit-ipc-contract.md (R1)
 
@@ -148,6 +148,7 @@ Reference: `app-mojo/README.md`, `docs/IPC-CONTRACT.md`, the Mojo framework docs
   R8 install footprint), cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-11-09: R2's failed-load criterion re-verified with the T-600 panel.
 - 2026-11-07: sweep; long evidence notes shortened, history moved verbatim to `archive/mojo-ui-history.md`.
 - 2026-10-08: R6 — taps land where drawn (one click per tap, header-aware device blit, no second zoom division) `[x]`; first-paint hold capped at 1 s `[~]` pending the owner's finger.
 - 2026-11-06 (T-565's whole runs): R2 — a flick coasts (the card meets `Mojo.handleGesture`, as the other shells do: the framework's flick event comes at the lift, too late for the scroller), and the first flick on a page scrolls; R6 — the strip the circles stand in passes a tap beside them to the page (`pointer-events`; 60 px across the foot of the page took none, the Undo of about:personas among them). Scripts: `personas-flick`, `pan-long-flick`, `persona-wear`.

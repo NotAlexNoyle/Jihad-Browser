@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-11-07"
+last_edited: "2026-11-09"
 ---
 
 # Cavekit: UI Shell (Enyo variant)
@@ -108,7 +108,18 @@ own `.ipk`; all three share this contract, and all three are built and live on d
 - [x] Mojo: the padlock tap; Mochi: the padlock after a failed load. *(Device 2026-10-06, the shells' own handlers from the test hooks: Mochi over `https://no-such-host.invalid/`, the padlock shows before the engine's alert is answered and is gone after it, and a tap says "No certificate information is available for this page."; Mojo over Wikipedia, `handleAddressTap` at x=12 brings the Certificate alert, and `pageFocused` reaches the daemon. Mojo's `pageFocused` and `cut` had gone nowhere before (cavekit-mojo-ui.md R3).)* A finger on the glyph itself is still the owner's. [human at the device] — DEFERRED by the owner 2026-10-08 ("Defer additional finger tests for later")
 **Dependencies:** cavekit-gre-widgets.md (the SSL warning's certificate view), cavekit-ipc-contract.md (R1)
 
+### R9: A failed load shows the card's own page
+**Description:** From Atlas 0.9.6 (the owner's "yes, all three shells", 2026-11-09): in place of isis's modal "Unable to
+Load Page" dialog over whatever was on screen, the card's own panel takes the page view's place.
+**Acceptance Criteria:**
+- [x] An address that does not resolve and a port that refuses each show the panel: the failed address, the cause in
+  plain words, Try Again and Wi-Fi Settings; on a fresh card and on a card that had a page. *(2026-11-09, by finger, `tools/device/finger/load-error-test.sh`, shots `docs/rounds/refs-2026-11-09/le-*`)*
+- [x] Try Again with the cause gone loads the failed address and the panel leaves; the panel stays through the engine's
+  own www. retry (no blink). Wi-Fi Settings opens the Wi-Fi app. *(2026-11-09, by finger, `tools/device/finger/load-error-test.sh`, shots `docs/rounds/refs-2026-11-09/le-*`)*
+**Dependencies:** cavekit-navigation-events.md (the failed-load message)
+
 ## Changelog
+- 2026-11-09: R9 added and met (T-600).
 - 2026-11-07: sweep; long evidence notes shortened, history moved verbatim to `archive/ui-shell-history.md`. The T-540 note that sat under R3 moved to this changelog.
 - 2026-11-06 (T-565's whole runs): find as you type grows the match where it stands and goes round past the last one (`appmenu-find`): the next letter looked after the last match and said none, with the word on the page.
 - 2026-10-25 (T-540): a dialog's reply wait ends when the card's socket hangs up (the card closed with the dialog up) or a send to it failed — it used to hold the main thread for the whole 60 s deadline, and no new card could connect meanwhile.

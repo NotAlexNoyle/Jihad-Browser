@@ -247,6 +247,10 @@ pref("jihad.images.lazy", false);
 // tap reaches it (and pauses one a script unmutes without a tap); true is upstream's behaviour. The default is the
 // owner's (asked 2026-11-09); upstream's until then. The Settings page's "Autoplay media with sound" row.
 pref("jihad.media.autoplayWithSound", true);
+// T-600: a failed load shows the card's own panel at once. Without error pages the docshell raises the failure as an
+// ALERT and waits for it (the daemon parked up to 60 s on the card's answer before the card heard of the failure); with
+// them it loads its own error page, which the card's panel covers, and the failure reaches the card straight away.
+pref("browser.xul.error_pages.enabled", true);
 // the browser's own path rules beside the lists (components/jihadContentBlocker.js): "host/path-prefix;…", refused on
 // the page's own host too; empty until a measured lever keeps one (cavekit-device-headroom.md R3)
 pref("jihad.blocking.extra", "");

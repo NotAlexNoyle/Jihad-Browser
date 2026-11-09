@@ -265,6 +265,8 @@ enyo.kind({
 	},
 	pageTitleChanged: function(inSender, inTitle, inUrl, inBack, inForward) {
 		this.log(inUrl, inTitle, inBack, inForward);
+		// T-600: did this load put a real page up (not the interim about:blank of the engine's www. retry)?
+		this._loadCommitted = !!inUrl && inUrl.indexOf("about:blank") !== 0;
 		this._committedUrl = inUrl;
 		this.$.actionbar.setPending(false);
 		this.url = inUrl;
@@ -673,6 +675,7 @@ enyo.kind({
 		   this._timeoutHandle = null;
 	   }
 	   this.isErrorLoadFailed = false;
+	   this._loadCommitted = false;
 	   this.$.actionbar.setLoadFailed(false);
 	   this.$.actionbar.setLoading(true);
 	},
@@ -688,8 +691,10 @@ enyo.kind({
 	},
 	loadStopped: function() {
 		this.doPageLoadStopped(this.url);
-		// T-600: a load that ended without an error reported took the page view back: the error panel leaves
-		if (!this.isErrorLoadFailed && this.$.loadError.showing) { this.$.loadError.hide(); }
+		// T-600: a load that ended on a real page without an error took the page view back: the error panel leaves.
+		// Not on the engine's own www. retry, whose first stop is an empty about:blank (the panel blinked off for
+		// the retry's lookup and a tap on it fell through; found 2026-11-09)
+		if (!this.isErrorLoadFailed && this._loadCommitted && this.$.loadError.showing) { this.$.loadError.hide(); }
 	},
 	//* T-600: the panel's Try Again — the load that failed, again; the panel stays until the result is known.
 	loadErrorRetry: function() {
@@ -775,9 +780,17 @@ enyo.kind({
 		// the page view's place with the cause in plain words and Try Again (LoadErrorView.js). A cancelled load
 		// is not an error. The failed address is kept so Try Again loads it, not what the view shows.
 		if (inErrorCode !== this.WebKitErrors.ERR_WK_FLOADER_CANCELLED) {
+			// the failing address rides in the message (BasicWebView: "<message>: <failingURL>"): a card opened on a
+			// link that fails has no address of its own yet (this.url is still about:blank; found 2026-11-09)
+			var m = /^[^:]*: (.+)$/.exec(inMsg || "");
+			var failing = m ? m[1] : "";
+			var own = this.url && this.url.indexOf("about:") !== 0 ? this.url : "";
+			var bare = function(u) { return u.replace(/^(\w+:\/\/)www\./i, "$1").replace(/\/$/, ""); };
 			this.isErrorLoadFailed = true;
-			this.failedLoadUrl = this.url;
-			this.showLoadError(inErrorCode, this.url);
+			// Try Again: the failing address (a failed link leaves this.url on the page it came from), unless it is
+			// the card's own address with the engine's www. guess added: then what the user asked for
+			this.failedLoadUrl = failing ? (own && bare(own) === bare(failing) ? own : failing) : own;
+			this.showLoadError(inErrorCode, failing || own);
 			this.log("load failed: " + inErrorCode + " " + inMsg);
 		}
 		this.clearProgress();

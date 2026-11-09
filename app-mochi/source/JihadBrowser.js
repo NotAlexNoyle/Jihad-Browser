@@ -695,7 +695,12 @@ enyo.kind({
 	loadErrorRetry: function() {
 		if (this._leRetrying) { return; }
 		this.$.leRetry.setContent("Trying\u2026"); this._leRetrying = true;
-		if (this._failedUrl) { this.openUrl(this._failedUrl); } else { this.reloadPage(); }
+		// the view's load(), not openUrl: the failed address is what the view's url property already holds, and its
+		// published setter does nothing for an unchanged value (the button stayed on "Trying…"; found 2026-11-09)
+		if (this._failedUrl) {
+			this.url = this._failedUrl; this._pendingUrl = true; this.updateLock();
+			this.$.view.load(this._failedUrl);
+		} else { this.reloadPage(); }
 	},
 	loadErrorSettings: function() {
 		if (!this._leSettingsApp || typeof PalmServiceBridge === "undefined") { return; }

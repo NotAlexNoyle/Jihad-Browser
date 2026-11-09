@@ -10,8 +10,10 @@ function AppAssistant() {}
 
 AppAssistant.prototype.handleLaunch = function (params) {
 	var url = params && (params.target || params.url);
+	// the card's stage even while another app's card is in front (the ACTIVE stage controller is then none, and the
+	// link was dropped with the focus; found 2026-11-09): the app's main stage, which Mojo keeps as its stageController
 	var sc = this.controller.getActiveStageController(Mojo.Controller.StageType.card) ||
-		this.controller.getStageController("stage");
+		Mojo.Controller.stageController || this.controller.getStageController("stage");
 	if (!sc) {
 		return;   // the first launch: the stage is not set up yet and reads the link itself
 	}

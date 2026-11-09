@@ -44,6 +44,7 @@ public:
   void msgScrolledTo(int32_t x, int32_t y) override;
   void msgMetaViewportSet(double is, double mn, double mx, int32_t w, int32_t h, bool us) override;
   void msgFailedLoad(const char* domain, int32_t code, const char* url, const char* description) override;
+  void msgSetMainDocumentError(const char* domain, int32_t code, const char* url, const char* description) override;
   void msgUpdateGlobalHistory(const char* url, bool reload) override;
   void msgSmartZoomCalculateResponseSimple(int32_t px, int32_t py, int32_t l, int32_t t, int32_t r, int32_t b,
                                            int32_t spot) override;

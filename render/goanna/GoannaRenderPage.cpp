@@ -424,7 +424,20 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
   // Link-clicked (R6): a top-level document load that STARTs while we did not
   // initiate it via a command (BeginLoad sets mProgrammaticLoad) is a
   // content-initiated (link/anchor) navigation. Capture its target.
-  if (top && (f & STATE_START) && (f & STATE_IS_DOCUMENT) && !mProgrammaticLoad) {
+  // T-600: the engine's own page for a failed load (about:neterror, about:certerror, about:blocked; error pages are on,
+  // jihad-platform-prefs.js) is loaded by the docshell right after the failure: it is not a navigation of the page's
+  // (no re-drive, no link capture) and it must not clear the failure it reports (the card covers it with its own panel)
+  bool errorPage = false;
+  if (top && (f & STATE_START) && (f & STATE_IS_DOCUMENT)) {
+    nsCOMPtr<nsIChannel> ech = do_QueryInterface(aRequest);
+    nsCOMPtr<nsIURI> eu; if (ech) ech->GetURI(getter_AddRefs(eu));
+    nsAutoCString es; if (eu) eu->GetSpec(es);
+    errorPage = StringBeginsWith(es, NS_LITERAL_CSTRING("about:neterror")) ||
+                StringBeginsWith(es, NS_LITERAL_CSTRING("about:certerror")) ||
+                StringBeginsWith(es, NS_LITERAL_CSTRING("about:blocked"));
+    if (errorPage) fprintf(stderr, "[jihad-bs] the engine's error page for the failed load (%.60s): the failure kept\n", es.get());
+  }
+  if (top && (f & STATE_START) && (f & STATE_IS_DOCUMENT) && !mProgrammaticLoad && !errorPage) {
     mLinkClicked = true;
     mLinkIsPost = false;
     // Reset the per-load completion/failure state HERE, synchronously with the content nav's real
@@ -496,8 +509,12 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
     // subresource doesn't mark the whole page failed; ignore NS_BINDING_ABORTED
     // (a cancelled nav, can arrive late). First failure only. (Cert errors are
     // captured separately in NotifyCertProblem during the handshake, R5.)
+    // T-600 (2026-11-09): the WINDOW's stop counts too. Asked again for a host that just failed, the docshell's www.
+    // retry STARTs a document of its own (read above as a new navigation, which clears the failure) and its failure
+    // then arrives only on the window's STOP (the negative DNS cache answers at once): the daemon reported such a load
+    // as done, and the card showed the engine's page with no panel.
     if (top && NS_FAILED(aStatus) && aStatus != kBindingAborted && aStatus != kBindingRedirected &&
-        (f & STATE_IS_DOCUMENT) && !mLoadFailed && !mDone) {
+        (f & (STATE_IS_DOCUMENT | STATE_IS_WINDOW)) && !mLoadFailed && !mDone) {
       mLoadFailed = true;
       mErrorStatus = aStatus;
       nsCOMPtr<nsIChannel> ch = do_QueryInterface(aRequest);

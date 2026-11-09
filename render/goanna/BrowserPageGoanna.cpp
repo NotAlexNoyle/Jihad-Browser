@@ -2703,6 +2703,8 @@ void BrowserPageGoanna::openUrl(const char* url, const char* referrer, uint32_t 
     // Synchronous rejection (bad/unknown-scheme URL): report it as a failed load
     // and don't leave the adapter permanently "loading" (Codex P2 + R3).
     mSink.msgFailedLoad("Goanna", 0, jihadBoundedUri(url ? url : "").c_str(), "Load failed");
+    // T-600: the card's panel as for any failed load; NS_ERROR_UNKNOWN_PROTOCOL's words fit a synchronous rejection
+    mSink.msgSetMainDocumentError("Goanna", (int32_t)0x804B0012, jihadBoundedUri(url ? url : "").c_str(), "Load failed");
     mSink.msgLoadProgress(100);
     mSink.msgLoadStopped();
     mLoadWasDone = true;
@@ -3764,7 +3766,13 @@ std::string BrowserPageGoanna::emitLocationAndTitle() {
     jihad::certstore::ForgetCertPem(certFile);
     if (!certInfoFile.empty()) unlink(certInfoFile.c_str());
   }
-  else if (failed) mSink.msgFailedLoad("Goanna", code, jihadBoundedUri(furl).c_str(), "Load failed");
+  else if (failed) {
+    mSink.msgFailedLoad("Goanna", code, jihadBoundedUri(furl).c_str(), "Load failed");
+    mSink.msgSetMainDocumentError("Goanna", code, jihadBoundedUri(furl).c_str(), "Load failed");   // T-600
+    // T-600: the bar shows the address that failed — at this moment the docshell still names the previous document
+    // (the engine's error page for this failure commits after), so the card's bar kept the address before it
+    if (!furl.empty()) mBarUrlOnce = furl;
+  }
   std::string uri = emitLocationAndTitleCore();
   return failed ? std::string() : uri;
 }
@@ -3795,6 +3803,12 @@ std::string BrowserPageGoanna::emitLocationAndTitleCore() {
   // openResource -> the DEFAULT (stock) browser, so a normal redirect (google.com -> www.google.com)
   // would leave Jihad. A redirect is just a location change, reported here.
   std::string uri = mAliasUrl.empty() ? mPage->CurrentUri() : mAliasUrl;
+  if (!mBarUrlOnce.empty()) { uri = mBarUrlOnce; mBarUrlOnce.clear(); }   // T-600: a failed load's own address
+  // T-600: under the card's error panel the engine shows its own error page; the bar keeps the address that failed
+  if (uri.compare(0, 14, "about:neterror") == 0 || uri.compare(0, 15, "about:certerror") == 0 || uri.compare(0, 13, "about:blocked") == 0) {
+    bool fl = false; int fc = 0; std::string fu;
+    if (mPage->GetLoadError(&fl, &fc, &fu) && !fu.empty()) uri = fu;
+  }
   const std::string wireUri = jihadBoundedUri(uri);
   mSink.msgLocationChanged(wireUri.c_str(), mPage->CanGoBack(), mPage->CanGoForward());
 

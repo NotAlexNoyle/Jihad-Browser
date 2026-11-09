@@ -1,6 +1,6 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-11-07"
+last_edited: "2026-11-09"
 ---
 
 # Cavekit: Mochi UI Variant
@@ -49,6 +49,9 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 - [x] **Grouped history dates.** The history view groups entries under Today, Yesterday, weekday names, weeks and month names. (The Enyo view's week bucket never appears because of a misspelt constant; the bug is not copied.) *(MET 2026-10-02, CE 3.1.0, `card-selftest.sh`: visits aged 0, 1, 3, 9, 20, 60 and 400 days are headed Today, Yesterday, Tuesday, Last Week, 2 Weeks Ago, August, 2025 (`../impl/evidence-2026-10-02/mochi_history-groups_clear-confirm_share-sheet_hold-menu.jpg`); 14 of 14 bucket cases pass on the host.)*
 - [x] **The upper-right menu is Atlas's and the Enyo shell's** (owner 2026-10-06: "Make sure the upper right menu has the same options on all 3 variants (see atlas for reference)"): Share ▾ = Add Bookmark · Share Link (Email · Text Message · Copy Address) · Add to Launcher; New Card; Bookmarks ▾ = Bookmarks · History · Downloads. The app menu (the card's title bar) is Find on Page · Settings · Print, and opens on the system's own tap: sysmgr relaunches the card with `{"palm-command":"open-app-menu"}`, which `index.html`'s `Mojo.relaunch` hands to the shell (Enyo 2 has no such mapping). *(Device 2026-10-06: hook `Mshare`/`Mlibrary`/`Mapp` + `K`/`R` — each menu's rows, Share Link → its sheet, Bookmarks → the panel, Find → the find bar; a real `open-app-menu` relaunch opened the menu at the left.)*
 **Dependencies:** cavekit-navigation-events.md, cavekit-browser-services.md
+
+- [x] A failed load shows the card's own panel under the toolbar (the failed address, the cause, Try Again, Wi-Fi
+  Settings), as the Enyo shell does (cavekit-ui-shell.md R9); Try Again loads the failed address. *(2026-11-09, by finger, `tools/device/finger/load-error-test.sh`, shots `docs/rounds/refs-2026-11-09/le-*`)*
 
 ### R3: Drives the unchanged BrowserAdapter contract
 **Description:** The Mochi UI talks to the engine only through the existing contract; no engine/IPC change.
@@ -111,6 +114,7 @@ sampler at `../mochi-sampler`, `docs/IPC-CONTRACT.md`.
 - See also: cavekit-ui-shell.md (Enyo variant), cavekit-ipc-contract.md, cavekit-navigation-events.md, cavekit-browser-services.md, cavekit-device-build.md, cavekit-licensing-branding.md
 
 ## Changelog
+- 2026-11-09: R2 gained the load-error panel's criterion, met (T-600).
 - 2026-11-07: sweep; long evidence notes shortened, history moved verbatim to `archive/mochi-ui-history.md`.
 - 2026-11-06 (T-565's whole runs): a tap on the page takes the focus off the card's own fields, so the keyboard goes down, as on Enyo (`keyboard-address`). T-569 closed: the card's size sent again no longer re-lays a page out; desktop Wikipedia keeps its declared width and the fit zoom here too (`wikipedia-zoom`, `wikipedia-keyboard-zoom`).
 - 2026-10-06 (night): R2 — the upper-right menu and the app menu match Atlas and the Enyo shell; the title-bar tap opens the app menu.

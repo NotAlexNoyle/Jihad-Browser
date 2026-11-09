@@ -161,13 +161,14 @@
    page and the address bar with it (the owner, 2026-10-12: "the lost connection to the browser engine
    message moves the urlbar when it shouldnt"). */
 .jihad-error {
-	position: absolute;
+	position: fixed;   /* T-600: the whole page area under the bar (bottom: 0), not a band over the engine's own error page */
 	top: 0;
 	left: 0;
 	right: 0;
+	bottom: 0;
 	z-index: 15;
 	width: 100%;
-	padding: 24px 8%;
+	padding: 48px 8% 24px 8%;
 	-webkit-box-sizing: border-box; box-sizing: border-box;
 	text-align: center;
 	background-color: #262626;

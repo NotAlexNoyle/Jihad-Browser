@@ -46,7 +46,12 @@
 					if (x && x.toggleAppMenu) { x.toggleAppMenu(); }
 					return true;
 				}
-				if (url && x && x.openUrl) { x.openUrl(url); }
+				if (url && x && x.openUrl) {
+					x.openUrl(url);
+					// returning true tells sysmgr not to focus the card: a link handed to the running app would load in a
+					// card left in the background (found 2026-11-09, the load-error test): bring it forward ourselves
+					if (window.PalmSystem && window.PalmSystem.activate) { window.PalmSystem.activate(); }
+				}
 			} catch (e) { /* a malformed param must not break the relaunch handshake */ }
 			return true;
 		};

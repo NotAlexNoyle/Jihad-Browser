@@ -60,6 +60,11 @@ public:
   virtual void msgFailedLoad(const char* domain, int32_t code,
                              const char* url, const char* description) = 0;
   // Optional events (default no-op so existing sinks need not override).
+  // T-600: the main document's failure, as the stock server sent it beside failedLoad — the Enyo 1 web view raises its
+  // onError from this one alone (its failedLoad is a no-op) and Mojo's widget its webViewSetMainDocumentError
+  virtual void msgSetMainDocumentError(const char* domain, int32_t code, const char* url, const char* description) {
+    (void)domain; (void)code; (void)url; (void)description;
+  }
   virtual void msgUpdateGlobalHistory(const char* url, bool reload) { (void)url; (void)reload; }
   virtual void msgSmartZoomCalculateResponseSimple(int32_t pointX, int32_t pointY, int32_t left, int32_t top,
                                                    int32_t right, int32_t bottom, int32_t spotlight) {
@@ -771,6 +776,7 @@ private:
   bool               mNeedsPaint;       // set when there is a new frame to send
   int64_t            mLoadStartMs;      // ms when the current load's msgLoadStarted was emitted (0=idle)
   int64_t            mPurgeAtMs = 0;    // T-557: the heap purge due after this load went idle (0 = none)
+  std::string        mBarUrlOnce;       // T-600: the address a failed load reports to the card's bar (once)
   int64_t            mLastNavMs = 0;    // the latest load start this page has had (kept when idle): the shedding's order
   bool               mShedForMemory = false;   // this page is about:stopped by the shedding (a navigation clears it)
   std::string        mThemePreviewDoc;         // the page showing a theme preview (no #fragment), "" = none

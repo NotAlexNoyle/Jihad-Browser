@@ -46,4 +46,13 @@ for k, ms in calls: by[k] = by.get(k, 0) + ms
 for k, v in sorted(by.items(), key=lambda x: -x[1]): print("  %-40s %d ms" % (k, v))
 PY
 XUL=build/webos-oe/out-arm/obj-jihad-goanna-arm/toolkit/library/libxul.so
-[ -s "$D/stall-$LABEL.txt" ] && python3 -I tools/host/stall-resolve.py "$D/stall-$LABEL.txt" --xul "$XUL" --from "$from" --to "$to" --merge --top 25 > "$D/rest-$LABEL-profile.txt" 2>&1 && head -45 "$D/rest-$LABEL-profile.txt"
+# the samples resolved against the unstripped libxul OF THE ENGINE ON THE DEVICE (rebuild after the push and the names
+# are wrong); it takes ~20 min, so in the background (RESOLVE=fg waits): the device is free for the next round meanwhile
+if [ -s "$D/stall-$LABEL.txt" ]; then
+  if [ "${RESOLVE:-bg}" = fg ]; then
+    python3 -I tools/host/stall-resolve.py "$D/stall-$LABEL.txt" --xul "$XUL" --from "$from" --to "$to" --merge --top 25 > "$D/rest-$LABEL-profile.txt" 2>&1 && head -45 "$D/rest-$LABEL-profile.txt"
+  else
+    nohup python3 -I tools/host/stall-resolve.py "$D/stall-$LABEL.txt" --xul "$XUL" --from "$from" --to "$to" --merge --top 25 > "$D/rest-$LABEL-profile.txt" 2>&1 &
+    echo "profile resolving in the background: $D/rest-$LABEL-profile.txt"
+  fi
+fi

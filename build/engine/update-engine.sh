@@ -97,7 +97,7 @@ roots_check() {
   url="https://repo.palemoon.org/MoonchildProductions/UXP.git"
   rel=""
   if timeout 300 git -C "$UXP" fetch -q "$url" release 2>/dev/null &&
-     git -C "$UXP" show "FETCH_HEAD:security/nss/lib/ckfw/builtins/certdata.txt" 2>/dev/null | grep -q BEGINDATA; then
+     git -C "$UXP" show "FETCH_HEAD:security/nss/lib/ckfw/builtins/certdata.txt" 2>/dev/null | grep BEGINDATA >/dev/null; then   # not -q: under pipefail its early exit SIGPIPEs git show
     rel=$(git -C "$UXP" show "FETCH_HEAD:security/nss/lib/ckfw/builtins/certdata.txt" | sha256sum | cut -c1-64)
   fi
   if [ -z "$rel" ]; then

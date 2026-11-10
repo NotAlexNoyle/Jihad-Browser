@@ -1236,6 +1236,7 @@ void BrowserPageGoanna::resetScrollForNavigation() {
   zoomBackDrop();   // another document's
   cpuPartsForget();   // T-505
   mPartsOff = false; mPartsMissRun = 0;   // T-505: a new document's parts get their chance
+  mPartsCovers = 0; mPartsOffUntil = 0;   // T-606: and its own count of covers (the last document's were carried over)
   if (mPage && mPage->GpuPath() && (mGpuViewRX != 0.0 || mGpuViewRY != 0.0)) gpuSetView(mGpuZoom > 0.0 ? mGpuZoom : 1.0, 0.0, 0.0);
   if (mPage) { mPage->SetRenderPan(0.0, 0.0); mPage->ScrollTo(0, 0); }
   mViewportSent = false;                          // the new page's meta-viewport is sent afresh
@@ -4136,7 +4137,18 @@ void BrowserPageGoanna::clearPluginRects() {
   }
   mEmittedFlashRects.clear();
   mPluginRectIds.clear();
+  for (const auto& kv : mEmittedVideoRects) {   // T-598: the controls' strips are a dead zone just the same if left
+    char buf[64];
+    snprintf(buf, sizeof buf, "{\"id\":%d,\"type\":0}", kv.first);
+    mSink.msgRemoveFlashRects(buf);
+    fprintf(stderr, "[jihad-bs] videoRect remove id=%d (teardown)\n", kv.first);
+  }
+  mEmittedVideoRects.clear();
+  mVideoRectIds.clear();
 }
+
+// The adapter keeps every interactive rect in ONE map keyed by id: plugins' and video strips' ids from one counter
+static int& jihadInteractiveRectNextId() { static int sNext = 1; return sNext; }
 
 void BrowserPageGoanna::syncPluginRects() {
   // Kill switch for bisecting: this is the only path that forces a layout flush on the tick.
@@ -4198,7 +4210,7 @@ void BrowserPageGoanna::syncPluginRects() {
       // (the adapter's insert does not overwrite), and one page's remove withdraws the
       // other's rect. Observed: two adds for id=1 with different rects and no remove
       // between them. A global counter makes the collision unrepresentable.
-      static int sNextFlashRectId = 1;
+      static int& sNextFlashRectId = jihadInteractiveRectNextId();   // shared with the video strips (T-598)
       id = sNextFlashRectId++;
       mPluginRectIds[pr.key] = id;
     }
@@ -4243,6 +4255,47 @@ void BrowserPageGoanna::syncPluginRects() {
     mEmittedFlashRects[kv.first] = kv.second;
     fprintf(stderr, "[jihad-bs] flashRect add id=%d %d,%d..%d,%d\n", kv.first,
             kv.second.l, kv.second.t, kv.second.r, kv.second.b);
+  }
+
+  // T-598: the native video controls' strips, the same way but type 0 (the adapter's default interactive rects): a drag
+  // that starts on the scrubber or the volume slider goes to the page as a mouse drag instead of panning the card. The
+  // ids come from the same process-global counter as the plugins' (one map in the adapter, keyed by id).
+  std::vector<GoannaRenderPage::PluginRect> vrects;
+  static const float kStripCss = 40.0f;   // the controls bar (28 px) and a finger's slop above it
+  if (!mPage->CollectVideoControlRects(&vrects, kStripCss)) return;
+  std::map<int, FlashRect> vwant;
+  for (const auto& pr : vrects) {
+    int id;
+    auto it = mVideoRectIds.find(pr.key);
+    if (it != mVideoRectIds.end()) id = it->second;
+    else { static int& sNext = jihadInteractiveRectNextId(); id = sNext++; mVideoRectIds[pr.key] = id; }
+    FlashRect fr;
+    fr.l = (int)((pr.left + offX) + 0.5); fr.t = (int)((pr.top + offY) + 0.5);
+    fr.r = (int)((pr.left + pr.width + offX) + 0.5); fr.b = (int)((pr.top + pr.height + offY) + 0.5);
+    vwant[id] = fr;
+  }
+  for (auto it = mEmittedVideoRects.begin(); it != mEmittedVideoRects.end(); ) {
+    auto w = vwant.find(it->first);
+    const bool moved = w != vwant.end() && (w->second.l != it->second.l || w->second.t != it->second.t ||
+                                            w->second.r != it->second.r || w->second.b != it->second.b);
+    if (w == vwant.end() || moved) {
+      char buf[64];
+      snprintf(buf, sizeof buf, "{\"id\":%d,\"type\":0}", it->first);
+      mSink.msgRemoveFlashRects(buf);
+      fprintf(stderr, "[jihad-bs] videoRect remove id=%d (%s)\n", it->first, w == vwant.end() ? "gone" : "moved");
+      it = mEmittedVideoRects.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  for (const auto& kv : vwant) {
+    if (mEmittedVideoRects.count(kv.first)) continue;
+    char buf[192];
+    snprintf(buf, sizeof buf, "[{\"id\":%d,\"left\":%d,\"top\":%d,\"right\":%d,\"bottom\":%d,\"type\":0}]",
+             kv.first, kv.second.l, kv.second.t, kv.second.r, kv.second.b);
+    mSink.msgAddFlashRects(buf);
+    mEmittedVideoRects[kv.first] = kv.second;
+    fprintf(stderr, "[jihad-bs] videoRect add id=%d %d,%d..%d,%d\n", kv.first, kv.second.l, kv.second.t, kv.second.r, kv.second.b);
   }
 }
 

@@ -72,8 +72,10 @@ the queue).
   not) with its measured effect on a long article (requests, resident memory)
 - [x] `image/jxl` dropped from the Accept headers, or kept with the reason *(2026-11-09, T-558: kept — on the device JPEG XL
   decodes the same 1600x1200 picture in 204 ms against WebP's 304 and JPEG's 226, `docs/research/lowpower-uxp.md` §5)*
-- [ ] The VP9/WebM decoder A/B (ffvpx vs libvpx, MSE WebM) measured at 360p and 480p (dropped frames), and the faster
-  path chosen without losing FLAC/MP3 playback
+- [~] The VP9/WebM decoder A/B (ffvpx vs libvpx, MSE WebM) measured at 360p and 480p (dropped frames), and the faster
+  path chosen without losing FLAC/MP3 playback *(2026-11-09, T-558: the A/B is VOID — its libvpx pref stayed for the
+  ffvpx runs after the first; libvpx alone fails FLAC (stands). MSE WebM stays on: YouTube, the MSE site this device meets, already plays
+  H.264 here (formats 160/133/134, `docs/rounds/headroom-2026-11-07/README.md`) and `jihadWebCompat.js` refuses it VP8/VP9/AV1)*
 **Dependencies:** R1, cavekit-gre-widgets.md R1
 
 ### R5: The build and startup levers measured
@@ -90,7 +92,8 @@ the queue).
 - [ ] `docs/research/lowpower-uxp.md` has, per lever, the numbers and the decision (kept / dropped / owner's call)
 - [ ] Every kept lever is in the build or the device prefs with a comment pointing at its measurement; every engine
   change is a patch in the queue (cavekit-engine-update.md R1)
-- [ ] Stock webOS 3.0.5 is not on the bench: any lever whose effect may differ there is named for the owner
+- [x] Stock webOS 3.0.5 is not on the bench: any lever whose effect may differ there is named for the owner
+  *(2026-11-09: `docs/research/lowpower-uxp.md` §6 — the memory levers, the start levers, the rest-time lever)*
 **Dependencies:** R2, R3, R4, R5
 
 ## Out of Scope
@@ -104,5 +107,6 @@ the queue).
 - cavekit-modern-web.md — sites' behaviour under the levers
 
 ## Changelog
+- 2026-11-09 (evening): the lever chain measured every R2-R5 lever against a control of its hour (§5); the PREF levers' controls carried the lever (the spike stop stripped no pref): those rows void, re-measured; R6's stock note met.
 - 2026-11-09: R1 met (T-555, the baseline script and five runs); the rest-time main thread finding added as T-604 under R2.
 - 2026-10-26: created from the owner's request and the day's research (`docs/research/lowpower-uxp.md`).

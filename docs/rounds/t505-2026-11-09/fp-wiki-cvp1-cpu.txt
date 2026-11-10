@@ -1,0 +1,16 @@
+--- CPU ticks over the drags (pid, before, after, command)
+13195 3932 7638 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.rive
+27021 692 695 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.river
+27955 639 642 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.river
+4307 55250 55655 /usr/bin/LunaSysMgr -s
+4381 198591 200155 /usr/bin/LunaSysMgr -s
+--- /proc/stat before and after
+cpu  55156514 8283560 45929913 190167636 5362283 8963 129100 0 0 0
+cpu  55159047 8286518 45931280 190168785 5362844 8963 129102 0 0 0
+--- daemon memory before and after the drags (pid VmHWM VmRSS VmData kB, command)
+13195 326600 326536 698392 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riversto
+27021 38024 35704 325288 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverstone
+27955 37164 30548 324264 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverstone
+13195 354392 347744 696344 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riversto
+27021 38024 35704 325288 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverstone
+27955 37164 30548 324264 ./ld-2.23.so --library-path /media/cryptofs/apps/usr/palm/applications/net.riverstone

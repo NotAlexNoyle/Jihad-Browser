@@ -45,10 +45,20 @@ rm -f /tmp/frame.raw /tmp/frames.raw
 # T-499 off for the spike: the widget stays at the card's size (no 980x1202 layout viewport, no fit zoom)
 PREFS=$APP/profile/prefs.js
 grep -q 'jihad.viewport.followOverflow' "$PREFS" 2>/dev/null || echo 'user_pref("jihad.viewport.followOverflow", false);' >> "$PREFS"
-# PREF=name=value words: user prefs for this run only (the stop script strips them again)
-: > /tmp/spike-prefs.txt
+# PREF=name=value words: user prefs for this run only. Each name goes to /tmp/spike-prefs.txt and the line it replaces
+# to /tmp/spike-prefs-orig.txt; the stop script strips the run's lines and puts those back. (Until 2026-11-09 nothing
+# stripped them: every lever's pref stayed in the profile, so each interleaved control after the lever's first run
+# carried the lever, and later rounds inherited ffvpx off, reduced motion, Skia and script off.) A previous run never
+# stopped is undone first.
+if [ -s /tmp/spike-prefs.txt ]; then
+  while read -r n; do [ -n "$n" ] && sed -i "/\"$n\"/d" "$PREFS"; done < /tmp/spike-prefs.txt
+  [ -s /tmp/spike-prefs-orig.txt ] && cat /tmp/spike-prefs-orig.txt >> "$PREFS"
+  echo "a previous run's prefs undone: $(tr '\n' ' ' < /tmp/spike-prefs.txt)"
+fi
+: > /tmp/spike-prefs.txt; : > /tmp/spike-prefs-orig.txt
 for pv in $PREFS_ADD; do
   n="${pv%%=*}"; v="${pv#*=}"
+  grep "\"$n\"" "$PREFS" >> /tmp/spike-prefs-orig.txt 2>/dev/null
   sed -i "/\"$n\"/d" "$PREFS"
   case "$v" in true|false|[0-9]*) echo "user_pref(\"$n\", $v);" >> "$PREFS";; *) echo "user_pref(\"$n\", \"$v\");" >> "$PREFS";; esac
   echo "$n" >> /tmp/spike-prefs.txt

@@ -218,6 +218,10 @@ public:
   // RUNNING. Flushes layout (getBoundingClientRect does), so the caller rate-limits.
   // Returns false if there is no document to ask.
   bool CollectPluginRects(std::vector<PluginRect>* out);
+  // T-598: the controls strip of every <video controls> in the content document (its bottom aStripCss CSS px, the whole
+  // video when it is shorter than twice that), same space and same non-flushing read: a drag there must reach the
+  // native controls' sliders (the scrubber, the volume), not pan the card
+  bool CollectVideoControlRects(std::vector<PluginRect>* out, float aStripCss);
 
   // Rendered content size in CSS px (for contents-size-changed events).
   bool GetContentSize(int* w, int* h);

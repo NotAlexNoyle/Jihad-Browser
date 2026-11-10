@@ -15,6 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(os.pat
 DEVSH = os.path.join(ROOT, "build", "webos-oe", "dev-sh.sh"); F = os.path.join(ROOT, "tools", "device", "finger")
 MANIFEST = os.path.join(ROOT, "tools", "host", "flash-corpus.json"); GAMES = os.path.join(ROOT, "tools", "host", "flash-games.json")
 SHELLS = {"stock": ("net.riverstonerelay.stockbench", 82), "enyo": ("net.riverstonerelay.jihad-browser", 82), "mochi": ("net.riverstonerelay.jihad-browser-mochi", 78), "mojo": ("net.riverstonerelay.jihad-browser-mojo", 73)}
+CLOSE_ALERT = os.path.join(ROOT, "tools", "device", "close-usb-alert.sh")
 HOST = "192.168.1.245:8097"; REFS = os.path.expanduser("~/.cache/jihad-flash/refs")
 ARROW = {"up": "702 757 702 700", "down": "702 757 702 810", "left": "702 757 640 757", "right": "702 757 760 757"}
 
@@ -141,14 +142,18 @@ def main():
                 if subprocess.run(["novacom", "-l"], capture_output=True, text=True).stdout.strip(): break
                 time.sleep(5)
             time.sleep(10)
-            # a USB drop brings the system's "Connected / USB Drive" alert up in the upper right: closed first (the owner's rule)
-            subprocess.run(["novacom", "run", "file:///tmp/finger", "--", "tap", "583", "232"], stdin=subprocess.DEVNULL, capture_output=True)
+            # a USB drop brings the system's "Connected / USB Drive" alert up in the upper right: closed first (the owner's rule),
+            # by looking (tools/device/close-usb-alert.sh finds it on a screenshot and proves it gone)
+            subprocess.run([CLOSE_ALERT, "300"], stdin=subprocess.DEVNULL, capture_output=True)
         for shot in ["first", "play"] + ([f"s{k}" for k in range(len(g[id_].get("start", [])))] if o.steps else []) + ([f"w{k}" for k in range(max(1, o.seconds // 5))] if o.winshots else []):
             raw = subprocess.run(["novacom", "get", f"file:///tmp/fl-{shot}.png"], capture_output=True).stdout
             q = os.path.join(tmp, "x.png"); open(q, "wb").write(raw); subprocess.run(["novacom", "run", "file://bin/rm", "--", "-f", f"/tmp/fl-{shot}.png"], stdin=subprocess.DEVNULL, capture_output=True)
             try:
                 im = Image.open(q).convert("RGB").rotate(-90, expand=True).crop((0, top, min(768, w), top + min(h, 700))); im.thumbnail((256, 256)); im.save(os.path.join(o.dir, f"{name}-{id_}-{shot}.jpg"), quality=60)
             except Exception: pass
+        # a drop inside the game's minute can come back before the next one starts: the alert looked for after every game
+        al = subprocess.run([CLOSE_ALERT, "120"], stdin=subprocess.DEVNULL, capture_output=True, text=True).stdout.strip()
+        if al and "none" not in al: print(id_, "usb-alert:", al.replace("\n", " ")[:160], flush=True)
         sig = (re.search(r"^SIG (\S+)", out, re.M) or [None, ""])[1]
         if o.make_refs and sig: open(rp, "w").write(sig + "\n")
         wins = [(int(a), int(b), float(c), int(d) if d else 0) for a, b, c, d in re.findall(r"^WIN (\d+) (\d+) ([\d.]+) ?(\d*)", out, re.M)]

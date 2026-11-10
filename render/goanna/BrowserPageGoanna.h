@@ -894,6 +894,10 @@ private:
   struct FlashRect { int l, t, r, b; };
   std::map<void*, int>     mPluginRectIds;
   std::map<int, FlashRect> mEmittedFlashRects;
+  // T-598: the video controls' strips, sent as the adapter's DEFAULT interactive rects (type 0: touches there go to the
+  // page, no movie latch); a map of their own so nothing that asks "is a plugin on the page" counts them
+  std::map<void*, int>     mVideoRectIds;
+  std::map<int, FlashRect> mEmittedVideoRects;
   int64_t mContentScrollUntilMs = 0;
   // T-576: a key's release held back until it has been down kKeyHoldMs (keyUp, flushKeyUps)
   static const int kKeyHoldMs = 120;

@@ -16,7 +16,9 @@ measure 'anon:#v|volumeControl'
 measure 'anon:#v|scrubber'
 drag-off 'anon:#v|volumeControl' 28 12 4 12 800
 wait text vol 'volume=0.' 5
-drag-off 'anon:#v|scrubber' 20 10 300 10 1000
+# the drag starts inside the visible track (the scale's box is wider than its track: 20 px in lands left of it, on the
+# gap after the play button, and nothing seeks) and ends past the track's end, where the slider clamps to the duration
+drag-off 'anon:#v|scrubber' 80 10 641 10 1000
 wait settled 4
-wait text seek 28 4
+wait text seek 60 4
 shoot seek

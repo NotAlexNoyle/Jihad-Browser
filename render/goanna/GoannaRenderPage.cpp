@@ -2227,6 +2227,39 @@ bool GoannaRenderPage::CollectPluginRects(std::vector<PluginRect>* out) {
   return true;
 }
 
+bool GoannaRenderPage::CollectVideoControlRects(std::vector<PluginRect>* out, float aStripCss) {
+  if (!out || !mChrome) return false;
+  out->clear();
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return false;
+  nsCOMPtr<nsIContentViewer> cv; ds->GetContentViewer(getter_AddRefs(cv));
+  if (!cv) return false;
+  nsCOMPtr<nsIDOMDocument> doc; cv->GetDOMDocument(getter_AddRefs(doc));
+  if (!doc) return false;
+  nsCOMPtr<nsIDOMNodeList> nodes;
+  doc->QuerySelectorAll(NS_LITERAL_STRING("video[controls]"), getter_AddRefs(nodes));
+  if (!nodes) return true;
+  nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
+  uint32_t n = 0; nodes->GetLength(&n);
+  for (uint32_t i = 0; i < n; ++i) {
+    nsCOMPtr<nsIDOMNode> node; nodes->Item(i, getter_AddRefs(node));
+    nsCOMPtr<nsIDOMElement> el = do_QueryInterface(node);
+    if (!el || !u) continue;
+    nsCOMPtr<nsIDOMClientRect> r;
+    u->GetBoundsWithoutFlushing(el, getter_AddRefs(r));   // no layout flush from the tick (see CollectPluginRects)
+    if (!r) continue;
+    PluginRect pr;
+    pr.key = el.get();
+    float top = 0, h = 0;
+    r->GetLeft(&pr.left); r->GetTop(&top); r->GetWidth(&pr.width); r->GetHeight(&h);
+    if (pr.width <= 0 || h <= 0) continue;
+    const float strip = h < 2 * aStripCss ? h : aStripCss;
+    pr.top = top + h - strip; pr.height = strip;
+    out->push_back(pr);
+  }
+  return true;
+}
+
 bool GoannaRenderPage::GetContentSize(int* w, int* h) {
   if (!mChrome) return false;
   // Flush layout FIRST so the size reflects the current viewport. emitGeometry() calls

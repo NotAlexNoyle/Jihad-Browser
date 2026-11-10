@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-09 afternoon below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-09 evening below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,50 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-09 (evening) — the lever chain read, then HALF VOIDED: the spike stop left every lever's pref in the profile (READ FIRST)
+
+**State:** main after `c875c968` with the evening's commit, NOT pushed (the owner pushes: `bash .cavekit/handoff-2026-11-08/push.sh`,
+the fork branch first). The fork gained `45aa2484b0` (T-605's hide-part log, logs only); the queue is at 0090 and
+`UXP_PIN=45aa2484b0` (patch-queue.sh --check: 90 patches reproduce it). **The owner's gitlink bumps:** `third_party/uxp`
+and `third_party/webos-sdk-redux` (`5349208`).
+
+**Trap found tonight, cost: four void levers and two wrong conclusions.** `tools/device/t502/gpu-spike-stop.sh` stripped
+only the viewport pref, never a run's `PREF=` words (its start's comment said it did). So every lever set by a pref stayed in
+the Enyo profile: each interleaved control after the lever's first run carried the lever, and every round after carried
+them all — ffvpx off (from the decoder A/B), reduced motion, Skia, and at last `javascript.enabled=false` (T-604's no-script
+profile), which is how it surfaced (Enyo's media test page drew nothing). Fixed: the start records each name and the line it
+replaces, the stop strips the run's lines and puts those back, a start undoes a run never stopped; `GPREF=`'s goanna.js is put
+back too. The profile was cleaned by hand. Mochi's and Mojo's profiles were clean (the finger daemon-start copies prefs.js
+whole and puts it back). **Rule:** after any hand-daemon round, grep the profile for the round's prefs.
+
+**The lever chain, what stands** (`docs/research/lowpower-uxp.md` §5 with its correction): the env levers — -O2 fast at
+script (jsbench strings -55 %, dom -21 %) for +42 % libxul text, its cold start confounded by the alternate directory; the
+capped helper pool reversed against its own hour; nice and the purge dropped; `MALLOC_OPTIONS=nnff` -21 MB PSS. The
+omni.ja pair stands (both sides on Skia). FLAC needs ffvpx; MSE WebM stays on (YouTube plays H.264 here). **Void, being
+re-measured:** the decoder A/B's frames, reduced motion, lazy images, Skia; T-604's "page of the hour" (the rest time fell
+from 24 s to 5 s exactly where reduced motion and lazy images stuck); T-605's DONE and T-606's finding (their rounds ran on
+Skia with reduced motion). The lean engine (`mozconfig.goanna-arm-lean`, no accessibility, no devtools server) is built:
+libxul 419 KB smaller stripped.
+
+**T-606 built, on the device from chain 3:** `JihadLeafDrawsIn` (CompositorBridgeParent.cpp) — a leaf above a part covers it
+only where its tiles hold drawn pixels; `JIHAD_GPU_EXACT_COVERS=0` restores the bound test. The daemon's cover count now
+resets per document. **T-598:** the video controls' rects: the volume drag works on the three shells, the scrubber's on
+Mochi (the test now drags inside the track to its end). **T-596:** Mojo lists the run's own download.
+
+**Also fixed:** `git show … | grep -q` under `pipefail` (update-engine.sh's roots check said "could not fetch");
+game-round.py closes the USB alert by looking after every game; rest-profile.sh resolves its samples in the background
+(against the unstripped libxul of the engine ON THE DEVICE — rebuild after the push and the names are wrong).
+
+**Running (scratchpad `chain3.sh`, then `tier93.sh`):** the T-606 engine pushed; clean-profile control verify rounds with the
+old and the exact cover test; Enyo's scrub test; T-604's rest profiles on the clean profile and each stuck pref alone on
+Wikipedia; the void levers again; Skia's eye frames; chain 2 (the alternate-directory control, the lean start, omni.ja back
+to back, the pool's third round, nnff with the long page, the six memory prefs, the timer clamp); then T-596's two runs and
+T-576's stock, software-path, Enyo, Mochi and Mojo game rounds (`docs/rounds/t576-2026-11-10/games/`).
+
+**Next, in order:** read chain 3 into §5, the T-556…T-559 rows and T-604…T-606; commit; Tier 93's report; Tier 94 (T-592,
+T-594); the owner's dialog batch (T-603's default, the scaler's default, T-567 (b)/(c), PGO, -O2 or js-only -O2, reduced
+motion, lazy images, Skia once judged by eye).
 
 ## 2026-11-09 (afternoon) — T-600 DONE on the three shells; the USB alert closed by LOOKING; the engine queue to 0089; the roots refresh (READ FIRST)
 

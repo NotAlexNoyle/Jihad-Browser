@@ -2227,6 +2227,17 @@ bool GoannaRenderPage::CollectPluginRects(std::vector<PluginRect>* out) {
   return true;
 }
 
+uint32_t GoannaRenderPage::CanvasBackgroundARGB() {
+  if (!mChrome) return 0;
+  nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+  if (!ds) return 0;
+  nsCOMPtr<nsIPresShell> ps = ds->GetPresShell();
+  if (!ps) return 0;
+  const nscolor c = ps->GetCanvasBackground();
+  if (NS_GET_A(c) != 255) return 0;
+  return 0xff000000u | ((uint32_t)NS_GET_R(c) << 16) | ((uint32_t)NS_GET_G(c) << 8) | (uint32_t)NS_GET_B(c);
+}
+
 bool GoannaRenderPage::CollectVideoControlRects(std::vector<PluginRect>* out, float aStripCss) {
   if (!out || !mChrome) return false;
   out->clear();

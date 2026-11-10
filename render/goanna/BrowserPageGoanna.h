@@ -398,6 +398,7 @@ private:
   PubDirty mPubDirty;
   int mPubX = 0, mPubY = 0, mPubW = 0, mPubH = 0; double mPubZoom = -1.0; bool mPubPopups = false;
   long mPubContentH = -1;   // the page's height the published frame's white fill past its end was made for
+  std::atomic<uint32_t> mPageBg{0};   // T-567 (b): the page's canvas background, read on the main thread, written in the trailer
   uint32_t mPubSeq = 0;   // the publishes so far (the trailer's dirtySeq)
   void pubDirtyAll() { mPubDirty.all = true; }
   void pubDirtyAdd(long lo, long hi, long x0, long x1, bool xKnown, int x, int y, int w, int h, double zoom);

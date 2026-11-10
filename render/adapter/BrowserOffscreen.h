@@ -68,6 +68,8 @@ public:
     // T-527: the frame's number and, when the daemon wrote one, the rect (frame px) that differs from
     // frame *base (JihadFrameWindow.h); false: no rect, the whole frame is new
     uint32_t frameSeq() const;
+    // T-567 (b): the page's canvas background (0xAARRGGBB, as the frame's pixels) when the daemon wrote it; 0: none
+    uint32_t pageBackground() const;
     bool dirtyRect(uint32_t* base, int* left, int* top, int* right, int* bottom) const;
     // T-544: the frame's fixed and stuck rects (frame px: left, top, right, bottom) and the card's view's
     // top-left in it when it was composed, when the daemon wrote them for this frame; 0: none

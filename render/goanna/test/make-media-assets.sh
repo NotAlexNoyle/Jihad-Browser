@@ -27,6 +27,10 @@ ff -f lavfi -i "testsrc2=size=640x360:rate=30:duration=30" -c:v libvpx-vp9 -b:v 
 ff -f lavfi -i "testsrc2=size=854x480:rate=30:duration=30" -c:v libvpx-vp9 -b:v 1200k -an clip30vp9-480.webm
 ff -f lavfi -i "$V" -c:v libtheora  -q:v 5    -an clip10.ogv          # Theora, video only
 ff -f lavfi -i "$V" -c:v libx264 -pix_fmt yuv420p -an clip10h264.mp4  # H.264 (no decoder in this build)
+# T-594 (cavekit-device-headroom.md R4): the hardware decoder probe (tools/device/omx-probe/) reads raw Annex-B H.264, the
+# baseline profile YouTube serves this device (formats 133/134), at its two sizes, 30 s of moving detail
+ff -f lavfi -i "testsrc2=size=640x360:rate=30:duration=30" -c:v libx264 -profile:v baseline -level 3.0 -pix_fmt yuv420p -b:v 700k -bsf:v h264_mp4toannexb -an -f h264 clip30h264-360.h264
+ff -f lavfi -i "testsrc2=size=854x480:rate=30:duration=30" -c:v libx264 -profile:v baseline -level 3.0 -pix_fmt yuv420p -b:v 1200k -bsf:v h264_mp4toannexb -an -f h264 clip30h264-480.h264
 # VP8 + Vorbis: the only clip whose <video> has an audio track, so the only one that can show
 # the mute/volume controls enabled on a <video>.
 ff -f lavfi -i "testsrc=size=320x240:rate=15:duration=12" -f lavfi -i "sine=frequency=440:duration=12" \
@@ -65,6 +69,8 @@ check clip10v.webm   vp8    150
 check clip10vp9.webm vp9    150
 check clip10.ogv     theora 150
 check clip10h264.mp4 h264   150
+check clip30h264-360.h264 h264 900
+check clip30h264-480.h264 h264 900
 check clip12av.webm  vp8    180
 check clip60v.webm   vp8    900
 check clip60av.webm  vp8    900

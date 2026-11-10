@@ -16,9 +16,9 @@ LOG=/var/palm/jihad/enyo/daemon-gpu.log
 t=0; while [ $t -lt 75 ]; do grep -aq 'titleAndUrl title=\[ended\|title changed by the page: \[ended\|title=\[error\|page: \[error' $LOG && break; sleep 1; t=$((t+1)); done
 grep -a 'title=\[ended\|page: \[ended\|title=\[error\|page: \[error\|play refused' $LOG | tail -n 1 | sed 's/.*\[\(ended[^]]*\|error[^]]*\|play refused[^]]*\)\].*/\1/'
 EOS
-one() {   # one LABEL SRC [PREF words]
+one() {   # one LABEL SRC [PREF words] (the page starts its clip itself: autoplay with sound on for the run, T-603's default being off)
 	local label=$1 src=$2; shift 2
-	build/webos-oe/dev-sh.sh -t 90 $T/gpu-spike-start.sh "http://$HOST/jihad-media-test.html?src=$src&wide=1" JIHAD_GPU_EXPRESS=1 "$@" 2>&1 | grep -a "FATAL" | head -1
+	build/webos-oe/dev-sh.sh -t 90 $T/gpu-spike-start.sh "http://$HOST/jihad-media-test.html?src=$src&wide=1" JIHAD_GPU_EXPRESS=1 PREF=jihad.media.autoplayWithSound=true "$@" 2>&1 | grep -a "FATAL" | head -1
 	echo "$label $src: $(build/webos-oe/dev-sh.sh -t 90 "$SCR/end.sh" 2>&1 | tail -n 1)"
 	build/webos-oe/dev-sh.sh -t 60 $T/gpu-spike-stop.sh 2>&1 | grep -a "FATAL" | head -1
 }

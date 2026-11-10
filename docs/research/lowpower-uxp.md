@@ -115,6 +115,8 @@ set no pref and stand, the omni.ja pair measured on the Skia backend on both sid
 run's lines and puts back what they replaced (and the start undoes a run never stopped); the profile was cleaned.
 Every void row is measured again.
 
+**Second correction (2026-11-10): the first fix raced.** The stop stripped the run's lines 2 s after SIGTERM, but an exiting daemon saves its prefs, and it saved them back: from T-604's no-script profile at 22:40 to 08:15 the Enyo profile had `javascript.enabled=false` (and Skia from 00:38), so the night's re-measurement ("chain 3": the PREF levers on Wikipedia, the decoder A/B, reduced motion, lazy images, and all of chain 2: the alternate directory, the lean start, omni.ja back to back, the pool's third round, nnff's second, the six memory prefs, the timer clamp) ran without page script and is void, but for one reading it does give: a copy of the shipped libxul in its own directory starts cold 1.7 s slower than the shipped one in place (6 249 against 4 566 ms, four runs each; script off on both sides), so every `XULDIR`/`HLDIR` cold start is read against such a copy. The stop now waits for the daemon to be gone (30 s, then SIGKILL) before it edits, says so if a stripped pref is still there, and the chain checks the profile after every lever. Valid from that night: T-605's two clean rounds (22:31-22:36, before the leak) and the clean rest profile (22:38: the main thread 80 % busy at rest, 1 % with script off).
+
 | lever (row) | words | result | decision |
 |---|---|---|---|
 | JS helper threads for two cores (row 1, T-556) | `JIHAD_JS_HELPER_THREADS=2 JIHAD_JS_ION_THREADS=1 JIHAD_JS_PARSE_THREADS=1` | Wikipedia's load 16 547 ms [13 878..17 834] against 13 973 [13 540..15 102]; the main thread's sum over the load 24 131 against 21 681; at rest the same (24 599 against 24 613); jsbench within the spread (loop 578 / objects 1 418 / strings 988 / regex 140 / dom 5 866 against 586 / 1 308 / 1 002 / 152 / 6 086) | **dropped**: the capped pool serialises Ion compiles and off-thread parses behind each other and the load pays 2.5 s; upstream's cores + 4 stays. The helpers' nice value (`JIHAD_JS_HELPER_NICE`) is a separate lever, below |
@@ -146,6 +148,27 @@ pool, -O2, reduced motion, lazy images, Skia, the VP9 decoder) should read the s
   rest costs the rest of the system.
 
 Each is re-read on the stock device by the same script (`lowpower-bench.sh`, interleaved) when it arrives.
+
+## 7. PGO on a cross build (R2: the owner's "try it", 2026-11-10)
+
+GCC 9.4 cross, no profiling server on the host: the profile is made on the TouchPad by the engine itself.
+
+1. **Generate:** `build/webos-oe/build-goanna-arm.sh all "" mozconfig.goanna-arm-pgo-gen` — the shipped options (-Os)
+   plus `-fprofile-generate=/media/internal/jihad-pgo` in an objdir of its own (`/out/obj-jihad-goanna-arm-pgo`). GCC 9
+   names each `.gcda` after its object's absolute path with `/` as `#`, so the generate and use phases share that one
+   objdir path.
+2. **Profile:** the instrumented libxul, stripped, to `<app>/deviceroot/hl-pgo/` and run through the bench's own pages with
+   `XULDIR=<app>/deviceroot/hl-pgo` (desktop Wikipedia's load, rest and pan; jsbench; the long page's pan; the lazy page;
+   the colours page's start): the representative mix of this kit's measurements. The daemon writes the counters at exit
+   (SIGTERM → `exit(0)` → libgcov's dump): every run is stopped with a wait long enough for thousands of files (the
+   stop's 30 s is not), and `/media/internal/jihad-pgo` is read for their count before the next.
+3. **Pull:** `/media/internal/jihad-pgo/*.gcda` to `build/webos-oe/out-arm/pgo-data/` (`/out/pgo-data`).
+4. **Use:** `build-goanna-arm.sh all "" mozconfig.goanna-arm-pgo-use` — the same objdir, `-fprofile-use=/out/pgo-data
+   -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch` (counters from threads race without atomic updates:
+   the correction tolerates it).
+5. **Measure:** the used libxul stripped into its own copied directory and read against a copy of the shipped one (the
+   alternate-directory penalty, §5's second correction) on the bench's interleaved rows: jsbench, Wikipedia's load and
+   pan, the start, libxul's size.
 
 ## Sources
 

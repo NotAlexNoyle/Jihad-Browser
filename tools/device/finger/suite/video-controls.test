@@ -4,6 +4,8 @@ item: A video's play/pause by tap: jihad-media-test.html's clip plays (its statu
 shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-media-test.html
 kit: cavekit-gre-widgets.md R1
+# the page starts its clip by itself, with sound: the shipped default refuses that (T-603, off by the owner), so this test turns it on
+prefs: jihad.media.autoplayWithSound=true
 wait rect status 20
 calibrate status
 tap 'sel:video'

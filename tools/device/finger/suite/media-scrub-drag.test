@@ -5,6 +5,8 @@ shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1
 kit: cavekit-gre-widgets.md R1
 known: T-598 never
+# the page starts its clip by itself, with sound: the shipped default refuses that (T-603, off by the owner), so this test turns it on
+prefs: jihad.media.autoplayWithSound=true
 wait rect v 20
 calibrate 'sel:#status'
 wait text status playing 15

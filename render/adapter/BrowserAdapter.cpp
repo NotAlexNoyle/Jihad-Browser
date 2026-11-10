@@ -1425,6 +1425,20 @@ void BrowserAdapter::handlePaint(NpPalmDrawEvent* event)
                             mScrollPos.x, mScrollPos.y, gi->renderedWidth, gi->renderedHeight,
                             gi->renderedX, gi->renderedY); } }
                 if (timed) tvD = tvC = tvB;
+                // T-567 (b): the rows past the frame's end (the card ran ahead of the frames under a fast drag) in
+                // the page's background colour, not the card's own grey; only below the page's top, only when the
+                // daemon gave the colour
+                if (dbm < event->dstBottom && dr > dl) {
+                    static uint32_t sBg = 0;
+                    sBg = mOffscreenCurrent->pageBackground();
+                    if ((sBg >> 24) == 0xff) {
+                        const int ft = dbm > event->dstTop ? dbm : event->dstTop;
+                        if (PGSurface* one = PGSurface::wrap(1, 1, (unsigned char*)&sBg, false)) {
+                            gc->bitblt(one, 0, 0, 1, 1, event->dstLeft, ft, event->dstRight, event->dstBottom);
+                            one->releaseRef();
+                        }
+                    }
+                }
                 if (blitted) {
                     gc->bitblt(surf, sL, sT, sR, sB, dl, dt, dr, dbm);
                     if (timed) gettimeofday(&tvC, NULL);

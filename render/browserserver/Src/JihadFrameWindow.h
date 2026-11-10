@@ -40,6 +40,11 @@ static const size_t   kJihadTrailerBytes = 64;
 static const uint32_t kJihadWindowMagic  = 0x4e49574aU;   // "JWIN"
 static const uint32_t kJihadWindowCaps   = 0x5041434aU;   // "JCAP"
 static const uint32_t kJihadDirtyMagic   = 0x5452444aU;   // "JDRT"
+// T-567 (b), the owner's choice of 2026-11-10: reserved[0] is kJihadBgMagic when reserved[1] holds the page's canvas
+// background as the frame's pixels hold a colour (0xAARRGGBB, B-G-R-A bytes); the card fills its rows past the frame's
+// end with it rather than leaving its own background there (a grey band under a fast drag). A card from before
+// never reads it; a daemon from before leaves it zero.
+static const uint32_t kJihadBgMagic      = 0x4347424aU;   // "JBGC"
 
 // T-544, the stuck parts. Between two frames of a pan the card moves the frame it holds, and the
 // frame's fixed and stuck parts (desktop Wikipedia's sidebars) moved with the page and jumped back at

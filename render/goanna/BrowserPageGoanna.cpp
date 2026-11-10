@@ -806,6 +806,10 @@ void BrowserPageGoanna::publishWindow(int key, int windowRows, const long* dirty
   if (JihadFrameTrailer* t = shmTrailer(key)) {
     t->windowRows = windowRows < 0 ? 0 : windowRows;
     t->magic = kJihadWindowMagic;
+    // T-567 (b): the colour the card fills past the frame's end with
+    const uint32_t bg = mPageBg.load(std::memory_order_relaxed);
+    t->reserved[1] = bg;
+    t->reserved[0] = bg ? kJihadBgMagic : 0;
     // T-527: the change since the frame before, or the whole
     static const bool sNoDirty = getenv("JIHAD_GPU_NO_DIRTY") != nullptr;
     t->dirtySeq = mPubSeq;
@@ -3880,6 +3884,8 @@ void BrowserPageGoanna::emitLoadAndLocation() {
       fprintf(stderr, "[jihad-bs] media %s: the card told (media-playing %d)\n", playing ? "playing" : "silent", playing);
     }
   }
+  // T-567 (b): the page's canvas background for the frame trailer (an inline read of the presShell's colour)
+  if (mPage) mPageBg.store(mPage->CanvasBackgroundARGB(), std::memory_order_relaxed);
   // T-602: a playing <video> (sound or not), checked once a second on the main thread: "video-playing" 1/0 to the
   // card, once per change — the screen lock's button shows for it, and a silent video holds the screen on too
   if (mPage) {

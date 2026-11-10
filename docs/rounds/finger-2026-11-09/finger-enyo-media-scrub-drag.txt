@@ -1,28 +1,16 @@
-CHECK FAIL 8-wait-rect: no element v with a size within the bound
-  frame kept: /media/internal/jihad-finger/8-wait-rect_.last.raw
+WAIT ok 8-rect v
 calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 102 landed on document y 25)
-CHECK FAIL 10-wait-text: status never read playing within the bound
-  frame kept: /media/internal/jihad-finger/10-wait-text_.last.raw
-  tap at 0,82: no clickAt
-CHECK FAIL 11-tap: the tap on v reached no clickAt
-  frame kept: /media/internal/jihad-finger/11-tap_.last.raw
-CHECK FAIL 12-wait-text: status never read paused within the bound
-  frame kept: /media/internal/jihad-finger/12-wait-text_.last.raw
-CHECK FAIL 13-wait-rect: no element anon:#v|controlBar with a size within the bound
-  frame kept: /media/internal/jihad-finger/13-wait-rect_.last.raw
-CHECK FAIL 14-wait-rect: no element anon:#v|volumeControl with a size within the bound
-  frame kept: /media/internal/jihad-finger/14-wait-rect_.last.raw
-  measure anon:#v|volumeControl: none (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
-  measure anon:#v|scrubber: none (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
-  drag on anon:#v|volumeControl from 22 91 to 3 91 (800 ms)
-CHECK FAIL 18-wait-text: vol never read volume=0. within the bound
-  frame kept: /media/internal/jihad-finger/18-wait-text_.last.raw
-  drag on anon:#v|scrubber from 63 90 to 502 90 (1000 ms)
+WAIT ok 10-text status = [playing]
+  tap at 301,389 -> clickAt 385 391
+WAIT ok 12-text status = [paused t=15.1]
+WAIT ok 13-rect anon:#v|controlBar
+WAIT ok 14-rect anon:#v|volumeControl
+  measure anon:#v|volumeControl: 708 637 32 28 0 0 0 0 724 651 (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
+  measure anon:#v|scrubber: 26 637 642 28 0 0 0 0 347 651 (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
+  drag on anon:#v|volumeControl from 577 590 to 558 590 (800 ms)
+WAIT ok 18-text vol = [volume=0.16 muted=false]
+  drag on anon:#v|scrubber from 83 589 to 522 589 (1000 ms)
 WAIT ok 22-settled: the card's scroll 0 0
-CHECK FAIL 23-wait-text: seek never read 60 within the bound
-  frame kept: /media/internal/jihad-finger/23-wait-text_.last.raw
+WAIT ok 23-text seek = [60]
   frame kept: /media/internal/jihad-finger/seek_.last.raw
-CHECKS 8 FAILS 8
-/tmp/dev-sh.5116.s.sh: line 854: syntax error:  + 
-/tmp/dev-sh.5116.s.sh: line 856: syntax error:  + 
-novacom: unexpected EOF from server
+CHECKS 0 FAILS 0

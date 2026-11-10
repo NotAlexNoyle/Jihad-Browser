@@ -1,0 +1,17 @@
+=== 5 events merged: 148 ms, 12 samples (10 ms each)
+--- by bucket:
+   50.0%  GC
+   25.0%  other
+   16.7%  other module: libpthread.so.0
+    8.3%  JS interpreter / runtime
+--- top 25 functions:
+   16.7%  void js::GCMarker::traverse<js::ObjectGroup*>(js::ObjectGroup*)
+   16.7%  js::GCMarker::processMarkStackTop(js::SliceBudget&)
+   16.7%  libpthread.so.0
+    8.3%  bool ShouldMark<JSObject*>(js::GCMarker*, JSObject*)
+    8.3%  js::gc::ChunkBitmap::markIfUnmarked(js::gc::Cell const*, unsigned int)
+    8.3%  js::ObjectGroup::Property** js::TypeHashSet::InsertTry<jsid, js::ObjectGroup::Property, js::ObjectGroup::Property>(js::LifoAlloc&, js::Objec
+    8.3%  UnmarkGrayTracer::onChild(JS::GCCellPtr const&)
+    8.3%  JS::Value DoCallback<JS::Value>(JS::CallbackTracer*, JS::Value*, char const*)
+    8.3%  JS::AutoTracingIndex::AutoTracingIndex(JSTracer*, unsigned int)
+

@@ -126,9 +126,12 @@ script
 	# JIHAD_GPU_COMPOSITOR=0 here, or the pref jihad.gpu.enabled=false in the profile (the daemon
 	# reads it before the engine starts). A GPU that fails at run time falls back to the software
 	# path by itself (T-509). The daemon's log says which path it took ("rendering: ...").
+	# JIHAD_GPU_CPU_SCALE=1 (T-505, the owner's default of 2026-11-10): band frames whose tiles are painted at
+	# resolution 1 under the card's fit zoom are composed on the CPU, scaled (desktop Wikipedia's pan 11.3 fps
+	# against 10.5, docs/rounds/t505-2026-11-09/eighth-build-results.txt); =0 here turns it off.
 	exec env LD_LIBRARY_PATH="$HL" ICU_DATA="$HL" HOME="$STATE" \
 	         JIHAD_BS_NAME=jihad-browser-mojo JIHAD_OFFSCREEN=1 JIHAD_DISABLE_OMTC=1 \
-	         JIHAD_GPU_COMPOSITOR=1 JIHAD_GPU_EXPRESS=1 \
+	         JIHAD_GPU_COMPOSITOR=1 JIHAD_GPU_EXPRESS=1 JIHAD_GPU_CPU_SCALE=1 \
 	         JIHAD_STATE_DIR="$STATE" \
 	    ./ld-2.23.so --library-path "$HL" ./jihad-browserserver "$HL"
 end script

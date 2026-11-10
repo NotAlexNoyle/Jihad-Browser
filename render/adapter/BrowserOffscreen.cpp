@@ -106,6 +106,12 @@ uint32_t BrowserOffscreen::frameSeq() const
     return (t && t->magic == kJihadWindowMagic) ? t->dirtySeq : 0;
 }
 
+uint32_t BrowserOffscreen::pageBackground() const
+{
+    const JihadFrameTrailer* t = jihadFrameTrailer((unsigned char*)m_ipcBuffer->buffer(), m_ipcBuffer->size());
+    return (t && t->magic == kJihadWindowMagic && t->reserved[0] == kJihadBgMagic) ? t->reserved[1] : 0;
+}
+
 bool BrowserOffscreen::dirtyRect(uint32_t* base, int* left, int* top, int* right, int* bottom) const
 {
     const JihadFrameTrailer* t = jihadFrameTrailer((unsigned char*)m_ipcBuffer->buffer(), m_ipcBuffer->size());

@@ -222,6 +222,9 @@ public:
   // video when it is shorter than twice that), same space and same non-flushing read: a drag there must reach the
   // native controls' sliders (the scrubber, the volume), not pan the card
   bool CollectVideoControlRects(std::vector<PluginRect>* out, float aStripCss);
+  // T-567 (b): the canvas background the presShell paints past the page (0xAARRGGBB as the frame's pixels; 0 when
+  // there is none or it is not opaque)
+  uint32_t CanvasBackgroundARGB();
 
   // Rendered content size in CSS px (for contents-size-changed events).
   bool GetContentSize(int* w, int* h);

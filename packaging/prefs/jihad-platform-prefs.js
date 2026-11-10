@@ -244,9 +244,10 @@ pref("jihad.youtube.stopAutoplay", true);
 // attribute is ignored and every image loads with the page, as before.
 pref("jihad.images.lazy", false);
 // T-603 (from the Atlas app's "Autoplay media with sound"): false lets a page start media only muted until the user's
-// tap reaches it (and pauses one a script unmutes without a tap); true is upstream's behaviour. The default is the
-// owner's (asked 2026-11-09); upstream's until then. The Settings page's "Autoplay media with sound" row.
-pref("jihad.media.autoplayWithSound", true);
+// tap reaches it (and pauses one a script unmutes without a tap); true is upstream's behaviour. Off by the owner's
+// choice of 2026-11-10 (quieter, and no autoplaying sound eating the CPU). The Settings page's "Autoplay media with
+// sound" row.
+pref("jihad.media.autoplayWithSound", false);
 // T-600: a failed load shows the card's own panel at once. Without error pages the docshell raises the failure as an
 // ALERT and waits for it (the daemon parked up to 60 s on the card's answer before the card heard of the failure); with
 // them it loads its own error page, which the card's panel covers, and the failure reaches the card straight away.

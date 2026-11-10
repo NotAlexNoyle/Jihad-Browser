@@ -1,0 +1,50 @@
+=== 200 events merged: 12850 ms, 1039 samples (10 ms each)
+--- by bucket:
+   30.1%  Paint / display list
+   28.7%  other
+    9.2%  Style (selectors, restyle)
+    8.6%  Memory (malloc, strings)
+    6.4%  other module: libpthread.so.0
+    5.4%  other module: jihad-browserserver
+    3.3%  Layout (reflow, frames)
+    2.5%  other module: libm.so.6
+    1.1%  DOM bindings / XPCOM glue
+    1.1%  other module: ld-2.23.so
+    0.9%  HTML parse / DOM build
+    0.7%  GC
+    0.7%  other module: libmemcpy.so
+    0.4%  other module: libnspr4.so
+    0.3%  other module: libgcc_s.so.1
+    0.2%  JIT compile (Ion/Baseline)
+    0.2%  other module: libc.so.6
+    0.2%  Images / media
+    0.1%  JS interpreter / runtime
+    0.1%  Cycle collector
+    0.1%  other module: libstdc++.so.6
+--- top 25 functions:
+    6.4%  libpthread.so.0
+    5.4%  jihad-browserserver
+    2.7%  mozilla::FrameLayerBuilder::ComputeGeometryChangeForItem(mozilla::FrameLayerBuilder::DisplayItemData*)
+    2.6%  nsIFrame::BuildDisplayListForChild(nsDisplayListBuilder*, nsIFrame*, nsDisplayListSet const&, unsigned int)
+    2.5%  libm.so.6
+    1.8%  mozilla::ContainerState::ProcessDisplayItems(nsDisplayList*)
+    1.6%  nsStyleDisplay const* nsStyleContext::DoGetStyleDisplay<true>()
+    1.5%  nsTArray_base<nsTArrayInfallibleAllocator, nsTArray_CopyWithMemutils>::Length() const
+    1.3%  nsRect::nsRect(nsRect const&)
+    1.1%  ld-2.23.so
+    1.1%  mozilla::gfx::BaseRect<int, mozilla::gfx::IntRectTyped<mozilla::gfx::UnknownUnits>, mozilla::gfx::IntPointTyped<mozilla::gfx::UnknownUnits>,
+    0.9%  PLDHashEntryHdr* PLDHashTable::SearchTable<(PLDHashTable::SearchReason)0>(void const*, unsigned int)
+    0.9%  mozilla::gfx::BaseRect<int, mozilla::gfx::IntRectTyped<mozilla::gfx::UnknownUnits>, mozilla::gfx::IntPointTyped<mozilla::gfx::UnknownUnits>,
+    0.9%  unsigned int nsTArray_Impl<mozilla::FrameProperties::PropertyValue, nsTArrayInfallibleAllocator>::IndexOf<mozilla::FramePropertyDescriptorUn
+    0.8%  operator&(nsFrameState, nsFrameState)
+    0.8%  nsTArray_Impl<mozilla::FrameProperties::PropertyValue, nsTArrayInfallibleAllocator>::Elements() const
+    0.7%  libmemcpy.so
+    0.7%  mozilla::PaintedLayerData::Accumulate(mozilla::ContainerState*, nsDisplayItem*, mozilla::gfx::IntRegionTyped<mozilla::gfx::UnknownUnits> con
+    0.7%  nsDisplayText::GetBounds(nsDisplayListBuilder*, bool*)
+    0.7%  nsIFrame::GetVisualOverflowRectRelativeToSelf() const
+    0.7%  nsRegion::Intersects(nsRect const&) const
+    0.7%  nsConditionalResetStyleData::GetStyleData(nsStyleStructID, nsStyleContext*, bool) const
+    0.7%  nsDisplayListBuilder::IsAnimatedGeometryRoot(nsIFrame*, nsIFrame**)
+    0.6%  RuleHash::EnumerateAllRules(mozilla::dom::Element*, ElementDependentRuleProcessorData*, NodeMatchContext&)
+    0.6%  nsPropertyTable::GetPropertyListFor(nsIAtom*) const
+

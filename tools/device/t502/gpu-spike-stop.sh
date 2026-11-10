@@ -9,9 +9,12 @@ done
 # (2026-11-09: a strip 2 s after SIGTERM was undone that way, and script stayed off for six hours of rounds); as the start
 # waits: 30 s, then SIGKILL
 gone() { for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *jihad-browserserver*"$HL"*) return 1;; esac; done; return 0; }
-i=0; while [ $i -lt 30 ] && ! gone; do sleep 1; i=$((i+1)); done
+# /tmp/spike-stop-wait (seconds) lengthens it: an instrumented engine (PGO, lowpower-uxp.md §7) writes thousands of
+# profile files at exit, and a SIGKILL would lose them
+W=30; [ -s /tmp/spike-stop-wait ] && W=$(cat /tmp/spike-stop-wait)
+i=0; while [ $i -lt $W ] && ! gone; do sleep 1; i=$((i+1)); done
 if ! gone; then
-  echo "the hand daemon outlived SIGTERM by 30 s: SIGKILL"
+  echo "the hand daemon outlived SIGTERM by $W s: SIGKILL"
   for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *jihad-browserserver*"$HL"*) kill -9 ${p#/proc/} 2>/dev/null;; esac; done
   i=0; while [ $i -lt 5 ] && ! gone; do sleep 1; i=$((i+1)); done
 fi

@@ -157,7 +157,7 @@ spike() {   # spike <url> -> the hand-started daemon with the timeline, the card
 collect() {   # collect <file>: the daemon log to the host, the device's dumps removed
 	build/webos-oe/dev-sh.sh -t 40 $T/gpu-spike-collect.sh 2>/dev/null | sed -n '/=== LOG BEGIN/,/=== LOG END/p' | grep -v 'Fontconfig warning' > "$1"
 }
-stopspike() { build/webos-oe/dev-sh.sh -t 60 $T/gpu-spike-stop.sh 2>&1 | grep 'enyo daemons running\|FATAL' ; }
+stopspike() { build/webos-oe/dev-sh.sh -t ${STOP_T:-60} $T/gpu-spike-stop.sh 2>&1 | grep 'enyo daemons running\|FATAL' ; }   # STOP_T: a long exit (PGO)
 panrate() {   # panrate <log> -> "frames ms fps"
 	python3 tools/host/gap-trace.py "$1" 2>/dev/null | sed -n 's/^the pan: \([0-9]*\) frames over \([0-9]*\) ms.*/\1 \2/p' | awk '{ if ($2 > 0) printf "%d %d %.1f\n", $1, $2, $1 * 1000 / $2; else print "NA NA NA" }' | head -1
 }

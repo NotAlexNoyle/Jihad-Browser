@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-09 evening below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-10 morning below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,44 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-10 (morning) — the pref leak was two bugs; T-605 reproduced on the clean profile; the owner's four calls built (READ FIRST)
+
+**State:** main at `2815f6a7`, NOT pushed (the owner pushes: `bash .cavekit/handoff-2026-11-08/push.sh`, the fork branch
+first). The fork's head `4943bcfc47` (T-606's exact cover test); queue 0091, `UXP_PIN=4943bcfc47` (patch-queue.sh --check:
+91 patches). **The owner's gitlink bumps:** `third_party/uxp` (to `4943bcfc47`) and `third_party/webos-sdk-redux` (`5349208`).
+
+**The owner's calls of 2026-11-10 (memory `jihad-owner-decisions-2026-11-10`), all built:** autoplay with sound OFF by
+default (`jihad-platform-prefs.js`; the media tests that rely on a page's own start turn it on for their runs); T-505's
+scaler ON (`JIHAD_GPU_CPU_SCALE=1` in the three generated jobs); T-567 option (b): the daemon puts the page's canvas
+background in the frame trailer (`kJihadBgMagic`) and the card fills the rows past the frame with it; PGO TRIED
+(`mozconfig.goanna-arm-pgo-{gen,use}`, one objdir, procedure `docs/research/lowpower-uxp.md` §7; the generate build was
+running at this writing). Deployed by `tier93b.sh`'s first step (bundle, engine+daemon, the jobs, the adapter).
+
+**The pref leak, both halves (READ):** (1) `gpu-spike-stop.sh` stripped no `PREF=` word: every lever's pref stayed in the
+Enyo profile for the controls and every later round (ffvpx off, reduced motion, Skia, script off). (2) The first fix
+stripped 2 s after SIGTERM, and the exiting daemon saved its prefs back over it: script stayed OFF from 22:40 to 08:15.
+Now the stop waits for the daemon to be gone (as the start always did), says when a stripped pref survives, and chain 4
+greps the profile after every lever. Void: the PREF levers of the lever chain, all of "chain 3" and "chain 2" (the night),
+T-604's "page of the hour", T-605's DONE, T-606's parts-off finding. Valid: the env levers before 19:43 (-O2, the pool,
+nice, nnff, the purge), the stock browser's game round (`docs/rounds/t576-2026-11-10/games/stock.json`), and three
+clean rounds of 22:31-22:40.
+
+**What the clean rounds say:** T-605's top-of-page fault IS there on the clean profile (3 and 11 frames at y -141 during
+the load, 144-160 rows structurally wrong); at those frames the contents sidebar's sticky layer has 9 children (1 after
+the load) — likely the article under it during the load, hidden with the part and not dressed back. T-606: the bound
+cover test saw no cover in 149 frames on the clean profile (the evening's covers were the polluted profile's); the exact
+test (`JihadLeafDrawsIn`) is on the device and flagged one real cover. T-604: the main thread at rest is 80 % busy with
+script (30 % of the samples painting: something animates), 1 % without.
+
+**Running:** `chain4.sh` (the PREF levers on Wikipedia, the decoder A/B, reduced motion, lazy images, Skia's eye frames,
+then chain 2 into `docs/rounds/lowpower-2026-11-10/`), then `tier93b.sh` (the deploy, T-596's two runs, T-576's software
+path, Enyo, Mochi and Mojo game rounds, the report). Built and waiting for the device: `tools/device/omx-probe/` (T-594).
+
+**Next, in order:** read chain 4 into §5 and T-556…T-559/T-604; the PGO profile run and its use build; T-605's hide log
+with each hidden part's children, then its fix; Tier 93's report; T-594's probe on the device; T-606's cost and the
+engine-parts band path by eye; T-567's bottom-band count with the fill; the owner's remaining calls (-O2, reduced
+motion, lazy images, Skia) once chain 4 has clean numbers.
 
 ## 2026-11-09 (evening) — the lever chain read, then HALF VOIDED: the spike stop left every lever's pref in the profile (READ FIRST)
 

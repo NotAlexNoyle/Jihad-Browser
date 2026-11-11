@@ -29,9 +29,9 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
 
 ### R1: The SDK submodule at upstream's latest release
 **Acceptance Criteria:**
-- [~] `third_party/webos-sdk-redux` is at upstream's 0.4.1 commit (`5349208` or the newest release commit on the day it
+- [x] `third_party/webos-sdk-redux` is at upstream's 0.4.1 commit (`5349208` or the newest release commit on the day it
   is done), committed as the gitlink; `Current` resolves to the 0.4.1 tree *(2026-11-09: checked out at `5349208`,
-  `Current -> ./0.4.1`; the gitlink commit is the owner's)*
+  `Current -> ./0.4.1`; 2026-11-10: the owner's gitlink commit `5e4ace62`)*
 - [x] The PDK pin (`fetch-pdk.sh`, its sha256) is unchanged and the adapter still builds with it
 - [x] `docs/DEVICE-BUILD.md` and cavekit-device-build.md R11 name 0.4.1
 **Dependencies:** none
@@ -66,6 +66,6 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
 - cavekit-finger-emulation.md — its tools run over novacom
 
 ## Changelog
-- 2026-11-10: R3 met (T-550, the owner's two root steps: the installer and the novacomd swap); R1 waits only for the gitlink commit (the owner's).
+- 2026-11-10: R1 and R3 met (the owner's gitlink commit `5e4ace62`; T-550, the owner's two root steps: the installer and the novacomd swap). R2's stock 3.0.5 check waits for the stock TouchPad.
 - 2026-11-09: R1 met but for the gitlink (the owner's), R2 met on the bench (T-548, T-549); R3's root command handed over (T-550).
 - 2026-10-26: created from the owner's request and the day's research.

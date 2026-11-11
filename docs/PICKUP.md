@@ -56,8 +56,9 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 
 **State:** main after `ecdb5379` with the evening's commit, NOT pushed (the owner pushes: `bash .cavekit/handoff-2026-11-08/push.sh`,
 the fork branch first). The fork's head `70706643b2`; queue 0094, `UXP_PIN=70706643b2` (patch-queue.sh --check: 94
-patches reproduce it). **The owner's gitlink bumps:** `third_party/uxp` (to `70706643b2`) and `third_party/webos-sdk-redux`
-(`5349208`).
+patches reproduce it). **The gitlinks are committed** (the owner: `5e4ace62` webos-sdk-redux 0.4.1, `4db950ad` uxp at
+`70706643b2`). **The SDK is at 0.4.1 everywhere** (T-550: `/opt/PalmSDK/Current -> 0.4.1`, the host's novacomd the 0.4.1
+build since 21:27).
 
 **Chain 4 (clean, `docs/research/lowpower-uxp.md` §5 "Chain 4"):** the capped JS helper pool KEPT (two rounds gain; in the
 three jobs); omni.ja and the lean engine not taken (any copied directory starts cold +51 %, the confound measured);

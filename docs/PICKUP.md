@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-11 early below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-11 later below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -82,6 +82,51 @@ phones too. That legacy engine port is the base the phone rows above build on.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-11 (later) — the research picks built as switches (0097-0103), the audio fix, three readback paths measured, Pale Moon's items queued (READ FIRST)
+
+**What changed today (after the early section):**
+- **Audio:**
+  - 0096 (FFmpegAudioDecoder S16) fixes MP3/FLAC/MP4 audio in the S16 build.
+  - T-614: Flash sound turns the speaker amp on, because the plugin is matched by its whole cmdline (its comm is
+    `ld-2.23.so`). Numid 87 reads on,on during Flash; the owner has not listened yet.
+- **T-609 done:** the three shells were pushed with the strip fix (Enyo ipk 45.9 to 35.9 MB). The jobs carry no
+  LD_LIBRARY_PATH; default-check gives 0 faults.
+- **Engine queue 0097-0103, each OFF by default:** `JIHAD_JS_COMPRESS=off|nowait|log` (T-620), `JIHAD_GC_TIMERS=tff`
+  (T-623), `JIHAD_TEXT_PROPFLAGS=1` (T-624), `JIHAD_JS_INLINE_DOMSTR=1` (T-625), `JIHAD_BIDI_SKIPLTR=1` (T-621), the
+  ARM assembler fast paths (T-627, no switch, byte-identical code), `JIHAD_PLUGIN_SETWINDOW_DEDUP=1` (T-638).
+  - UXP_PIN = queue head; **the gitlink is the owner's to bump** (check-engine-pins FAILs on it only).
+  - The engine compiles at `-j4`. At the default job count earlyoom killed cc1plus on the 31 GB host; that was memory,
+    not the code.
+- **Daemon:** `JIHAD_CLOCK_HOLD=tickle` (T-630) holds the CPU floor through `/dev/ondemandtcl0` (`_IO('k',4)` hold,
+  `_IO('k',5)` release; present on CE) and logs "clock hold: held in N us".
+- **Readback, measured with gpu-bench sections 19 and 20 (`docs/rounds/gpu-bench-2026-11-11/`):**
+  - lock_surface costs 28.4 ms per 1024x768 and gives ABGR: not adopted (T-610).
+  - An RGB565 read takes 6.8 ms against 16.6 + swizzle: built for drags only (T-637, the owner's choice; an agent is
+    on it).
+  - Palm's libnapp NPixmap is **no readback**: GPU clears never reach its memory. It **is a live texture source**: CPU
+    BGRA writes are sampled at once, which gives zero-copy tile uploads (T-636).
+- **T-643/T-644** (from Pale Moon for Android): tablet zoom/tap rules and `jihad.zoom.allowEveryPage`, default true,
+  with a Settings > Content row. Both adapter and daemon compile; **untested on the device**. Two calls are open for
+  the owner: declared zoom ranges are kept, and pinch on a fit-the-card user-scalable=no page now zooms.
+- **T-639 first read** (`docs/rounds/levers-2026-11-11/`): a 300 ms initial paint delay loaded Wikipedia in a median
+  13.9 s against 16.5 s, with less paint time and about 10 MB less RSS. One 31 s outlier, so 3 more runs are queued.
+- **New rows:** T-636..T-645, from the owner's answers on Pale Moon for Android (all 4 speed items, all 4 design
+  features, 565 during drags only).
+
+**Running or queued at the time of writing:**
+- chain7: T-639, T-622 JIT warm-up, T-640 preload, T-626 video queue.
+- chain8: engine, daemon and adapters pushed; frames shot per switch; every switch A/B.
+- chain9: T-641, the disk-cache cap, with three 15.6 MB images symlinked into `render/goanna/test` while it runs.
+- Agents: reader mode + per-tab desktop toggle (T-642/T-645), RGB565 drags (T-637, told not to build).
+
+**Next:**
+- Read chains 7-9 and keep or drop each switch: kept only if faster AND the frames match the control by eye.
+- The PGO use build: the stale .o files are deleted, so rerun
+  `in-container.sh --arm build/webos-oe/build-goanna-arm.sh build "" mozconfig.goanna-arm-pgo use`.
+- The A9 build (T-608).
+- The Mochi minify A/B.
+- T-616/T-636 zero-copy tiles.
 
 ## 2026-11-11 (early) — novacomd 1.2.1 on the host and its libusb trap; the PGO use build made; chains 5 and 6 first read (READ FIRST)
 

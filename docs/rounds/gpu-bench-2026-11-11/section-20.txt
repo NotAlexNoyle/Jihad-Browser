@@ -1,0 +1,28 @@
+section 20: libnapp.so loaded; fence sync available; kinds: 0 private (WebKit's), 1 wrapped-sysv (our own shm segment), 2 shared (Palm's shm); BENCH20_KIND picks one, BENCH20_NOFREE=1 leaks the pixmaps
+section 20 private 1024x768: pixmap object 0x35b00, CPU address 0x2d005000, pitch 4096, shm id -1
+section 20 private 1024x768: image 0x1, bind err 0x0; as a texture: memory 10 20 30 ff samples as RGBA 30 20 10 ff (memory is BGRA); a CPU rewrite to 40 50 60 ff samples as 60 50 40 ff: seen (live mapping) (err 0x0)
+section 20 private 1024x768: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear 00 00 ff ff, after a blue clear 00 00 ff ff (written 40 50 60 ff before; glReadPixels saw the red as ff 00 00 ff; err 0x0)
+section 20 private 1024x256: pixmap object 0x35b00, CPU address 0x2d015000, pitch 4096, shm id -1
+section 20 private 1024x256: image 0x2, bind err 0x0; as a texture: memory 10 20 30 ff samples as RGBA 30 20 10 ff (memory is BGRA); a CPU rewrite to 40 50 60 ff samples as 60 50 40 ff: seen (live mapping) (err 0x0)
+section 20 private 1024x256: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear 00 00 ff ff, after a blue clear 00 00 ff ff (written 40 50 60 ff before; glReadPixels saw the red as ff 00 00 ff; err 0x0)
+section 20 private 1024x128: pixmap object 0x35b00, CPU address 0x2d015000, pitch 4096, shm id -1
+section 20 private 1024x128: image 0x3, bind err 0x0; as a texture: memory 10 20 30 ff samples as RGBA 30 20 10 ff (memory is BGRA); a CPU rewrite to 40 50 60 ff samples as 60 50 40 ff: seen (live mapping) (err 0x0)
+section 20 private 1024x128: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear 00 00 ff ff, after a blue clear 00 00 ff ff (written 40 50 60 ff before; glReadPixels saw the red as ff 00 00 ff; err 0x0)
+section 20 wrapped-sysv 1024x768: pixmap object 0x91af8, CPU address 0x2d334000, pitch 4096, shm id 1817870369
+section 20 wrapped-sysv 1024x768: image 0x4, bind err 0x0; as a texture: memory 10 20 30 ff samples as RGBA 30 20 10 ff (memory is BGRA); a CPU rewrite to 40 50 60 ff samples as 60 50 40 ff: seen (live mapping) (err 0x0)
+section 20 wrapped-sysv 1024x768: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear 00 00 ff ff, after a blue clear 00 00 ff ff (written 40 50 60 ff before; glReadPixels saw the red as ff 00 00 ff; err 0x0)
+section 20 wrapped-sysv 1024x256: pixmap object 0x91af8, CPU address 0x2d0a4000, pitch 4096, shm id 1817903137
+section 20 wrapped-sysv 1024x256: image 0x5, bind err 0x0; as a texture: memory 10 20 30 ff samples as RGBA 00 00 00 00 (not the pixmap's bytes); a CPU rewrite to 40 50 60 ff samples as 30 20 10 ff: unclear (err 0x0)
+section 20 wrapped-sysv 1024x256: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear 40 50 60 ff, after a blue clear ff 00 00 ff (written 40 50 60 ff before; glReadPixels saw the red as ff 00 00 ff; err 0x0)
+section 20 wrapped-sysv 1024x128: pixmap object 0x91af8, CPU address 0x2d0a4000, pitch 4096, shm id 1817935905
+section 20 wrapped-sysv 1024x128: image 0x6, bind err 0x0; as a texture: memory 10 20 30 ff samples as RGBA 30 20 10 ff (memory is BGRA); a CPU rewrite to 40 50 60 ff samples as 60 50 40 ff: seen (live mapping) (err 0x0)
+section 20 wrapped-sysv 1024x128: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear 00 00 ff ff, after a blue clear 00 00 ff ff (written 40 50 60 ff before; glReadPixels saw the red as ff 00 00 ff; err 0x0)
+section 20 shared 1024x768: pixmap object 0x35b00, CPU address 0x2d335000, pitch 4096, shm id 1817968673
+section 20 shared 1024x768: image 0x7, bind err 0x0; as a texture: memory 10 20 30 ff samples as RGBA 30 20 10 ff (memory is BGRA); a CPU rewrite to 40 50 60 ff samples as 60 50 40 ff: seen (live mapping) (err 0x0)
+section 20 shared 1024x768: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear 00 00 ff ff, after a blue clear 00 00 ff ff (written 40 50 60 ff before; glReadPixels saw the red as ff 00 00 ff; err 0x0)
+section 20 shared 1024x256: pixmap object 0x35b00, CPU address 0x2d0a5000, pitch 4096, shm id 1818001441
+section 20 shared 1024x256: image 0x8, bind err 0x0; as a texture: memory 10 20 30 ff samples as RGBA 30 20 10 ff (memory is BGRA); a CPU rewrite to 40 50 60 ff samples as 60 50 40 ff: seen (live mapping) (err 0x0)
+section 20 shared 1024x256: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear 00 00 ff ff, after a blue clear 00 00 ff ff (written 40 50 60 ff before; glReadPixels saw the red as ff 00 00 ff; err 0x0)
+section 20 shared 1024x128: pixmap object 0x35b00, CPU address 0x2d0a5000, pitch 4096, shm id 1818034209
+section 20 shared 1024x128: image 0x9, bind err 0x0; as a texture: memory 10 20 30 ff samples as RGBA 30 20 10 ff (memory is BGRA); a CPU rewrite to 40 50 60 ff samples as 60 50 40 ff: seen (live mapping) (err 0x0)
+section 20 shared 1024x128: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear 00 00 ff ff, after a blue clear 00 00 ff ff (written 40 50 60 ff before; glReadPixels saw the red as ff 00 00 ff; err 0x0)

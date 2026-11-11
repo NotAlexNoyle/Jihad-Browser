@@ -92,6 +92,190 @@ F(void, glGetIntegerv, (GLenum, GLint*));
 static double now_ms(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6; }
 static GLuint shader(GLenum type, const char* src) { GLuint s = glCreateShader(type); glShaderSource(s, 1, &src, NULL); glCompileShader(s); GLint ok = 0; glGetShaderiv(s, GL_COMPILE_STATUS, &ok); if (!ok) { fprintf(stderr, "shader compile failed\n"); exit(3); } return s; }
 
+// Section 20 (T-616): Palm's native-pixmap EGLImage as a render target, the pixels read by the CPU at
+// the pixmap's own address. The pixmaps come from libnapp.so (gpu-bench-npixmap.h).
+#include "gpu-bench-npixmap.h"
+static int px20(const uint8_t* p, int roff, int boff, int red) { return red ? (p[roff] >= 0xF8 && p[boff] <= 7) : (p[roff] <= 7 && p[boff] >= 0xF8); }
+static void fill20(uint8_t* v, int pitch, int w, int h, uint32_t px) { for (int y = 0; y < h; y++) { uint32_t* r = (uint32_t*)(v + (size_t)y * pitch); for (int x = 0; x < w; x++) r[x] = px; } }
+static int __attribute__((noinline)) section20(EGLDisplay dpy, int frames, int W, int H, const uint8_t* pix, uint8_t* back, GLuint srcTex, GLint um) {
+  typedef void* (*PFNCI20)(EGLDisplay, EGLContext, GLenum, void*, const EGLint*);
+  typedef EGLBoolean (*PFNDI20)(EGLDisplay, void*);
+  typedef void (*PFNTT20)(GLenum, void*);
+  typedef void* (*PFNCS20)(EGLDisplay, GLenum, const EGLint*);
+  typedef EGLint (*PFNWS20)(EGLDisplay, void*, EGLint, uint64_t);
+  typedef EGLBoolean (*PFNDS20)(EGLDisplay, void*);
+  npix_step = "eglGetProcAddress";
+  PFNCI20 createImage = (PFNCI20)eglGetProcAddress("eglCreateImageKHR");
+  PFNDI20 destroyImage = (PFNDI20)eglGetProcAddress("eglDestroyImageKHR");
+  PFNTT20 targetTex = (PFNTT20)eglGetProcAddress("glEGLImageTargetTexture2DOES"); if (!targetTex) targetTex = (PFNTT20)dlsym(G, "glEGLImageTargetTexture2DOES");
+  PFNCS20 createSync = (PFNCS20)eglGetProcAddress("eglCreateSyncKHR");
+  PFNWS20 waitSync = (PFNWS20)eglGetProcAddress("eglClientWaitSyncKHR");
+  PFNDS20 destroySync = (PFNDS20)eglGetProcAddress("eglDestroySyncKHR");
+  const int haveSync = createSync && waitSync && destroySync;
+  if (!createImage || !destroyImage || !targetTex) { printf("section 20: no eglCreateImageKHR (%p) / eglDestroyImageKHR (%p) / glEGLImageTargetTexture2DOES (%p)\n", (void*)createImage, (void*)destroyImage, (void*)targetTex); return 0; }
+  npix_step = "dlopen libnapp.so";
+  struct npix_api np; const char* why = npix_load(&np);
+  if (why) { printf("section 20: libnapp.so not usable: %s\n", why); return 0; }
+  printf("section 20: libnapp.so loaded; fence sync %s; kinds: 0 private (WebKit's), 1 wrapped-sysv (our own shm segment), 2 shared (Palm's shm); BENCH20_KIND picks one, BENCH20_NOFREE=1 leaks the pixmaps\n", haveSync ? "available" : "not available");
+  uint8_t* gl = malloc((size_t)W * H * 4); if (!gl) { printf("section 20: no memory\n"); return 0; }
+  glDisable(GL_BLEND); glUniform4f(um, 1, 1, 1, 1);
+  glBindTexture(GL_TEXTURE_2D, srcTex); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+  const int only = getenv("BENCH20_KIND") ? atoi(getenv("BENCH20_KIND")) : -1; const int nofree = getenv("BENCH20_NOFREE") != NULL;
+  const int hs[3] = { 768, 256, 128 };
+  for (int kind = 0; kind < NPIX_KINDS; kind++) {
+    if (only >= 0 && only != kind) continue;
+    for (int hi = 0; hi < 3; hi++) {
+      const int h = hs[hi]; const char* nm = npix_names[kind];
+      struct npix_buf b; void* img = NULL; GLuint t = 0, fb = 0;
+      // 1. the pixmap
+      npix_step = "creating the pixmap";
+      why = npix_create(&np, kind, W, h, &b);
+      if (why) { printf("section 20 %s 1024x%d: %s\n", nm, h, why); continue; }
+      printf("section 20 %s 1024x%d: pixmap object %p, CPU address %p, pitch %d, shm id %d\n", nm, h, b.obj, (void*)b.vaddr, b.pitch, b.key);
+      npix_step = "the first CPU write to the pixmap";
+      fill20(b.vaddr, b.pitch, W, h, 0xFF302010u);   // bytes 10 20 30 ff
+      // 2. the image and its texture (NRemoteTexture::create's calls, libnrwindow.so:0x1880)
+      npix_step = "eglCreateImageKHR(EGL_NATIVE_PIXMAP_KHR)";
+      const EGLint ia[] = { 0x30D2 /*EGL_IMAGE_PRESERVED_KHR*/, 0, EGL_NONE };
+      img = createImage(dpy, EGL_NO_CONTEXT, 0x30B0 /*EGL_NATIVE_PIXMAP_KHR*/, b.obj, ia);
+      if (!img) { printf("section 20 %s 1024x%d: EGL_NO_IMAGE (egl error 0x%x)\n", nm, h, eglGetError()); goto done; }
+      npix_step = "glEGLImageTargetTexture2DOES";
+      glGenTextures(1, &t); glBindTexture(GL_TEXTURE_2D, t);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, 0x2802, 0x812F); glTexParameteri(GL_TEXTURE_2D, 0x2803, 0x812F);
+      while (glGetError() != GL_NO_ERROR) { }
+      targetTex(GL_TEXTURE_2D, img);
+      const GLenum bindErr = glGetError();
+      // 3. Palm's direction first (CPU writes, GPU samples), into the pbuffer: the byte order as a
+      //    texture, and whether a later CPU write is seen without a new image.
+      {
+        npix_step = "sampling the image texture";
+        uint8_t s1[4] = { 0, 0, 0, 0 }, s2[4] = { 0, 0, 0, 0 };
+        glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H);
+        glClearColor(0, 0, 0, 0); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+        glReadPixels(W / 2, H / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, s1);
+        fill20(b.vaddr, b.pitch, W, h, 0xFF605040u);   // bytes 40 50 60 ff
+        glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+        glReadPixels(W / 2, H / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, s2);
+        const char* ord = abs(s1[0] - 0x10) <= 2 && abs(s1[2] - 0x30) <= 2 ? "memory is RGBA" : abs(s1[2] - 0x10) <= 2 && abs(s1[0] - 0x30) <= 2 ? "memory is BGRA" : "not the pixmap's bytes";
+        const char* live = abs(s2[1] - 0x50) <= 2 ? "seen (live mapping)" : abs(s2[1] - s1[1]) <= 2 ? "not seen (a snapshot)" : "unclear";
+        printf("section 20 %s 1024x%d: image %p, bind err 0x%x; as a texture: memory 10 20 30 ff samples as RGBA %02x %02x %02x %02x (%s); a CPU rewrite to 40 50 60 ff samples as %02x %02x %02x %02x: %s (err 0x%x)\n",
+               nm, h, img, bindErr, s1[0], s1[1], s1[2], s1[3], ord, s2[0], s2[1], s2[2], s2[3], live, glGetError());
+      }
+      // 4. the question: the image's texture as a framebuffer's colour attachment
+      npix_step = "attaching the image texture to a framebuffer";
+      glBindTexture(GL_TEXTURE_2D, srcTex);
+      glGenFramebuffers(1, &fb); glBindFramebuffer(GL_FRAMEBUFFER, fb);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t, 0);
+      const GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+      if (st != 0x8CD5 /*GL_FRAMEBUFFER_COMPLETE*/) { printf("section 20 %s 1024x%d: framebuffer not complete (0x%x, err 0x%x): the image is not a render target\n", nm, h, st, glGetError()); goto done; }
+      glViewport(0, 0, W, h);
+      const uint8_t* mid = b.vaddr + (size_t)(h / 2) * b.pitch + (size_t)(W / 2) * 4;
+      int roff = -1, boff = -1, rowflip = -1, bad = 0;
+      {
+        npix_step = "the first clears into the image";
+        uint8_t pr[4], pb[4], gr[4] = { 0, 0, 0, 0 };
+        glClearColor(1, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glFinish(); memcpy(pr, mid, 4);
+        glReadPixels(W / 2, h / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, gr);
+        glClearColor(0, 0, 1, 1); glClear(GL_COLOR_BUFFER_BIT); glFinish(); memcpy(pb, mid, 4);
+        for (int i = 0; i < 4; i++) { if (pr[i] >= 0xF8 && pb[i] <= 7) roff = i; if (pr[i] <= 7 && pb[i] >= 0xF8) boff = i; }
+        if (roff < 0 || boff < 0) {
+          printf("section 20 %s 1024x%d: fb complete, but the pixels did not reach the pixmap's memory after glFinish: after a red clear %02x %02x %02x %02x, after a blue clear %02x %02x %02x %02x (written 40 50 60 ff before; glReadPixels saw the red as %02x %02x %02x %02x; err 0x%x)\n",
+                 nm, h, pr[0], pr[1], pr[2], pr[3], pb[0], pb[1], pb[2], pb[3], gr[0], gr[1], gr[2], gr[3], glGetError());
+          goto done;
+        }
+        for (int y = 0; y < h; y++) { const uint8_t* r = b.vaddr + (size_t)y * b.pitch; for (int x = 0; x < W; x++) bad += !px20(r + x * 4, roff, boff, 0); }
+        // which memory row is GL's row 0: the bottom quarter cleared green
+        glEnable(0x0C11 /*GL_SCISSOR_TEST*/); glScissor(0, 0, W, h / 4); glClearColor(0, 1, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glDisable(0x0C11); glFinish();
+        const uint8_t* top = b.vaddr + (size_t)2 * b.pitch + (size_t)(W / 2) * 4; const uint8_t* bot = b.vaddr + (size_t)(h - 3) * b.pitch + (size_t)(W / 2) * 4;
+        rowflip = top[1] >= 0xF8 && bot[1] <= 7 ? 0 : bot[1] >= 0xF8 && top[1] <= 7 ? 1 : -1;
+        printf("section 20 %s 1024x%d: fb 0x%x; memory after a red clear %02x %02x %02x %02x, after a blue clear %02x %02x %02x %02x: red at byte %d, blue at byte %d (%s); %d of %d pixels wrong after the blue clear; memory row 0 is GL's %s row (%s)\n",
+               nm, h, st, pr[0], pr[1], pr[2], pr[3], pb[0], pb[1], pb[2], pb[3], roff, boff,
+               roff == 2 && boff == 0 ? "BGRA, no swizzle" : roff == 0 && boff == 2 ? "RGBA, swizzle needed" : "check the order", bad, W * h,
+               rowflip == 0 ? "bottom" : rowflip == 1 ? "top" : "?", rowflip == 0 ? "as glReadPixels" : rowflip == 1 ? "flipped against glReadPixels" : "check");
+      }
+      // 5. what makes the CPU's view coherent: 8 clears each of alternating red and blue, 16 pixels
+      //    checked each time (pixels the CPU read the frame before, so a stale CPU cache shows too)
+      {
+        int okFinish = 0, okFence = 0, okFlush = 0; EGLint wr = 0; double tfence = 0;
+        for (int mode = 0; mode < 3; mode++) {
+          if (mode == 1 && !haveSync) continue;
+          npix_step = mode == 0 ? "the coherence round with glFinish" : mode == 1 ? "the coherence round with a fence sync" : "the coherence round with glFlush only";
+          for (int i = 0; i < 8; i++) {
+            const int red = i & 1;
+            glClearColor(red ? 1 : 0, 0, red ? 0 : 1, 1); glClear(GL_COLOR_BUFFER_BIT);
+            if (mode == 0) glFinish();
+            else if (mode == 1) {
+              double a = now_ms(); void* sy = createSync(dpy, 0x30F9 /*EGL_SYNC_FENCE_KHR*/, NULL);
+              if (sy) { wr = waitSync(dpy, sy, 1 /*EGL_SYNC_FLUSH_COMMANDS_BIT_KHR*/, 1000000000ull); destroySync(dpy, sy); } else { wr = eglGetError(); glFinish(); }
+              tfence += now_ms() - a;
+            } else glFlush();
+            int good = 1;
+            for (int k = 0; k < 16; k++) { const int x = (k * 61 + 7) % W, y = k * h / 16 + 1; good &= px20(b.vaddr + (size_t)y * b.pitch + (size_t)x * 4, roff, boff, red); }
+            if (mode == 0) okFinish += good; else if (mode == 1) okFence += good; else okFlush += good;
+            if (mode == 2) glFinish();
+          }
+        }
+        if (haveSync) printf("section 20 %s 1024x%d: the CPU saw the frame after glFinish %d/8, after a fence wait %d/8 (last wait 0x%x, %.2f ms each; 0x30f6 = signalled), after glFlush only %d/8\n", nm, h, okFinish, okFence, wr, tfence / 8, okFlush);
+        else printf("section 20 %s 1024x%d: the CPU saw the frame after glFinish %d/8, after glFlush only %d/8 (no fence sync)\n", nm, h, okFinish, okFlush);
+      }
+      // 6. the timing, with section 19's layer: draw + finish, the copy out of the pixmap, the swizzle
+      //    if the order needs one; then glReadPixels of the same framebuffer for the same frame.
+      {
+        npix_step = "the timed draws";
+        const int swz = !(roff == 2 && boff == 0);
+        double tdraw = 0, tcopy = 0, tswz = 0, tfdraw = 0, tread = 0; int diff = 0;
+        glClearColor(0, 0, 0, 0);
+        for (int f = 0; f < frames; f++) {
+          double a = now_ms(); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+          double c = now_ms();
+          for (int y = 0; y < h; y++) memcpy(back + (size_t)y * W * 4, b.vaddr + (size_t)y * b.pitch, (size_t)W * 4);
+          double d = now_ms();
+          if (swz) for (size_t i = 0; i < (size_t)W * h * 4; i += 4) { uint8_t r = back[i]; back[i] = back[i + 2]; back[i + 2] = r; }
+          double e = now_ms(); tdraw += c - a; tcopy += d - c; tswz += e - d;
+        }
+        if (haveSync) for (int f = 0; f < frames; f++) {
+          double a = now_ms(); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+          void* sy = createSync(dpy, 0x30F9, NULL); if (sy) { waitSync(dpy, sy, 1, 1000000000ull); destroySync(dpy, sy); } else glFinish();
+          tfdraw += now_ms() - a;
+        }
+        npix_step = "glReadPixels of the image framebuffer";
+        glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+        for (int f = 0; f < frames; f++) { double a = now_ms(); glReadPixels(0, 0, W, h, GL_RGBA, GL_UNSIGNED_BYTE, gl); tread += now_ms() - a; }
+        const GLenum rerr = glGetError();
+        for (int y = 0; y < h; y++) {
+          const uint8_t* m = b.vaddr + (size_t)y * b.pitch; const uint8_t* g = gl + (size_t)(rowflip == 1 ? h - 1 - y : y) * W * 4;
+          for (int x = 0; x < W; x++) diff += m[x * 4 + roff] != g[x * 4] || m[x * 4 + 1] != g[x * 4 + 1] || m[x * 4 + boff] != g[x * 4 + 2];
+        }
+        printf("section 20 %s 1024x%d: draw+finish %.2f, copy from the pixmap %.2f, swizzle %.2f%s ms/frame; draw+fence wait %.2f; glReadPixels RGBA of the same fb %.2f (err 0x%x); %d of %d pixels differ from glReadPixels (err 0x%x)\n",
+               nm, h, tdraw / frames, tcopy / frames, tswz / frames, swz ? "" : " (not needed)", haveSync ? tfdraw / frames : -1.0, tread / frames, rerr, diff, W * h, glGetError());
+      }
+    done:
+      npix_step = "releasing the image and the pixmap";
+      glBindFramebuffer(GL_FRAMEBUFFER, 0); glBindTexture(GL_TEXTURE_2D, srcTex);
+      if (fb) glDeleteFramebuffers(1, &fb);
+      if (t) glDeleteTextures(1, &t);
+      if (img) destroyImage(dpy, img);
+      glFinish();
+      if (!nofree) npix_destroy(&np, &b);
+      fflush(stdout);
+    }
+  }
+  free(gl);
+  return 0;
+}
+static int section20_guarded(EGLDisplay dpy, int frames, int W, int H, const uint8_t* pix, uint8_t* back, GLuint srcTex, GLint um) {
+  if (sigsetjmp(npix_jmp, 1)) {
+    printf("section 20: signal %d while %s; stopped (the driver's state is unknown: run the other kinds with BENCH20_KIND=0|1|2)\n", (int)npix_sig, (const char*)npix_step);
+    fflush(stdout); _exit(0);
+  }
+  npix_guard(1);
+  int r = section20(dpy, frames, W, H, pix, back, srcTex, um);
+  npix_guard(0);
+  return r;
+}
+
 int main(int argc, char** argv) {
   int frames = argc > 1 ? atoi(argv[1]) : 30; const int W = 1024, H = 768;
   E = dlopen("/usr/lib/libEGL.so", RTLD_NOW | RTLD_GLOBAL); if (!E) E = dlopen("libEGL.so.1", RTLD_NOW | RTLD_GLOBAL);
@@ -154,6 +338,14 @@ int main(int argc, char** argv) {
   //     16 rows, a 64x64 rect through a packed copy (GLES2 has no UNPACK_ROW_LENGTH; Gecko copies);
   //     with the GPU idle and under a queued draw that reads them. Then round 4's case on a converted
   //     1024x768 texture. BENCH_ONLY=18.
+  // 20. T-616 (codepoet80's lead, 2026-11-11): Palm's shared-pixmap EGLImage as the readback. WebKit's
+  //     ContentLayerPalm binds an NPixmap as a texture through eglCreateImageKHR(EGL_NATIVE_PIXMAP_KHR)
+  //     (NRemoteTexture::create); here the image's texture is a framebuffer's colour attachment and the
+  //     CPU reads the frame at the pixmap's own address, with no glReadPixels. Three kinds of pixmap
+  //     (gpu-bench-npixmap.h), each at 1024 x 768, 256, 128: the byte order, the row order, whether the
+  //     CPU's view is coherent after glFinish / a fence wait / glFlush alone, then section 19's layer
+  //     drawn and copied out. BENCH_ONLY=20.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 20) return section20_guarded(dpy, frames, W, H, pix, back, tex[0], um);
   // 19. T-610 / T-617 (the research of 2026-11-11): two readback layouts against today's, a band at a
   //     time (1024 x 768, 256, 128): today = glReadPixels RGBA from an RGBA8 renderbuffer FBO, then the
   //     CPU's R<->B swizzle; (a) an RGB565 renderbuffer read as GL_RGB/UNSIGNED_SHORT_5_6_5 (half the

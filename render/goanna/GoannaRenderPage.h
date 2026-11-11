@@ -582,6 +582,7 @@ public:
   bool PluginLaneInfo(int* w, int* h);
   int PluginLaneCopy(unsigned char* dst, int stride, int x, int y, int w, int h);
   bool GpuPath() const { return mGpu; }   // T-502
+  uint32_t mDrag565Seen = 0;              // T-637: the engine's 565 reads this page's slots were last cleared of (BrowserPageGoanna::maybePaint)
   // T-509: the GPU path given up for this daemon's life (an EGL failure, a frame the compositor did
   // not compose in time): this page and every page made after it render in software
   void DisableGpu(const char* why);

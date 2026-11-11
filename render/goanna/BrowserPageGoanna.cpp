@@ -418,6 +418,32 @@ static int64_t jihadNowMs() {
   return (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+// T-637 (JIHAD_GPU_DRAG565=1, the GPU path only): while the card is dragged, the engine composes a frame into an
+// RGB565 target and reads it in that format (CompositorOGL.cpp: about half the draw and well under half the read
+// of 8888 on the Adreno 220), widened to the adapter's 32-bit rows before they reach the slot. This side says when:
+// every position the card sends is a move (the YAP reader thread's expressWant, the main thread's setScrollPosition
+// and setZoomAndScroll), and JIHAD_GPU_DRAG565_HOLD_MS (250) without one is the rest. At the rest, when the engine
+// has read 565 rows since this page's slots were last cleared of them, every slot is painted whole again (maybePaint):
+// the rows a pan keeps from frame to frame would carry the 565 ones on otherwise, and the frame at rest is never 565.
+// Declared here, not in EngineCompat.h: optional, and an engine without them leaves the lever off.
+extern "C" {
+void jihad_gpu_drag565(int aOn) __attribute__((weak));
+uint32_t jihad_gpu_drag565_frames() __attribute__((weak));
+}
+static std::atomic<uint32_t> gDrag565LastMs{0};   // the last move (the clock's low 32 bits: differences only)
+static std::atomic<int> gDrag565Active{0};
+static bool jihadDrag565On() {
+  static const bool sOn = getenv("JIHAD_GPU_DRAG565") && atoi(getenv("JIHAD_GPU_DRAG565")) != 0 &&
+                          getenv("JIHAD_GPU_COMPOSITOR") != nullptr && jihad_gpu_drag565 && jihad_gpu_drag565_frames;
+  return sOn;
+}
+static void jihadDrag565Move() {   // any thread
+  if (!jihadDrag565On()) return;
+  gDrag565LastMs.store((uint32_t)jihadNowMs());
+  gDrag565Active.store(1);
+  jihad_gpu_drag565(1);
+}
+
 // T-515, the express lane: frames composed and published by a thread of their own while the main
 // thread is busy in the engine (JihadFrameLock.h says why). JIHAD_GPU_EXPRESS=1 with the GPU path
 // (JIHAD_GPU_COMPOSITOR); JIHAD_GPU_EXPRESS_MS (default 45) is how long the card waits for the main
@@ -2424,6 +2450,7 @@ void BrowserPageGoanna::setScrollPosition(int x, int y) {
     return;
   }
   mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
+  jihadDrag565Move();   // T-637
   if (mPage->GpuPath() && !getenv("JIHAD_GPU_OLD_SCROLL")) {
     // T-502: the compositor applies the card's scroll (CSS px = zoomed px over the zoom);
     // the engine is scrolled only to re-anchor the displayport (gpuScrollTo).
@@ -2567,6 +2594,7 @@ void BrowserPageGoanna::setZoomAndScroll(double zoom, int x, int y) {
     mGpuZoomCmdMs = jihadNowMs(); mGpuZoomDumpN++;   // T-504: JIHAD_GPU_ZOOM_DUMP's next file
   }
   mLastScrollMs = jihadNowMs();   // a pan is in flight (see maybePaint)
+  jihadDrag565Move();   // T-637
   if (zoom >= 0.05 && zoom <= 20.0) mZoom = zoom;   // sane range for coord mapping (R5, Codex P0)
   double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
   mPage->SetZoom(z);   // clamped — SetZoom(raw) diverged from mZoom/contentZoom (review #6 F-008)
@@ -5039,6 +5067,29 @@ void BrowserPageGoanna::maybePaint() {
               (int)(mPage && mPage->PaintingSuppressed()), (int)mInFlight[0], (int)mInFlight[1], (int)mInFlight[2]);
   }
   if (mFrozen) return;                       // card backgrounded: don't paint
+  if (jihadDrag565On()) {
+    // T-637: the drag's end (no position for the hold), then the frame at rest in full colour: as a popup's close
+    // and T-513's late write, every slot painted whole again, once, when 565 rows were read since the last time
+    // (a job in flight composed as a drag's is drained or dropped by its generation: gpuSlotsReset)
+    static const long sHold = getenv("JIHAD_GPU_DRAG565_HOLD_MS") ? atol(getenv("JIHAD_GPU_DRAG565_HOLD_MS")) : 250;
+    if (gDrag565Active.load() && (uint32_t)((uint32_t)jihadNowMs() - gDrag565LastMs.load()) >= (uint32_t)(sHold > 0 ? sHold : 0)) {
+      gDrag565Active.store(0);
+      jihad_gpu_drag565(0);
+    }
+    if (!gDrag565Active.load() && mPage) {
+      const uint32_t n = jihad_gpu_drag565_frames();
+      if (n != mPage->mDrag565Seen) {
+        const uint32_t was = mPage->mDrag565Seen;
+        mPage->mDrag565Seen = n;
+        if (mPage->GpuPath()) {
+          mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+          mDamageValid = false; mDamageForceFull = true; mNeedsPaint = true;
+          mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0; gpuSlotsReset();
+          JIHAD_GPU_LOG("[jihad-gpu] drag565: the drag ended after %u 565 reads: every slot painted whole again in full colour\n", n - was);
+        }
+      }
+    }
+  }
   // The engine's own first-paint gate (GoannaRenderPage::PaintingSuppressed). Our offscreen
   // render does not go through it, so a page could be drawn before its stylesheets applied —
   // and then nothing said it changed, so it stayed unstyled until a touch forced a paint
@@ -5704,6 +5755,7 @@ void BrowserPageGoanna::expressWant(int x, int y, double zoom, bool hasZoom, uin
   // the card following a scroll the page made (our own msgScrolledTo, setScrollPosition's rule): not
   // a move (the echo's fields are the main thread's, read racily: a heuristic)
   if (!hasZoom && now - mGpuEchoMs < 1500 && std::abs(x - mGpuEchoX) <= 2 && std::abs(y - mGpuEchoY) <= 2) return;
+  jihadDrag565Move();   // T-637
   double z = hasZoom ? zoom : (mXWant.seq ? mXWant.zoom : mXZoomNow);
   if (!(z >= 0.05 && z <= 20.0)) z = (mXZoomNow >= 0.05 && mXZoomNow <= 20.0) ? mXZoomNow : 1.0;
   if (hasZoom && z != mXWant.zoom) { mXZoomWantMs = now; ++mXZoomDumpN; }

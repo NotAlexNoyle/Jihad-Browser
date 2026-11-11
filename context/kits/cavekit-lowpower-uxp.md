@@ -54,6 +54,8 @@ the queue).
 - [~] PGO is either tried (with the on-device profiling run's procedure written down) or declined by the owner
   *(2026-11-10: the owner's "try it"; the procedure is §7 of the research document, its first profiling run found two
   traps (written there) and runs again)*
+- [ ] GCC's tuning for the Scorpion cores measured: the default (Cortex-A8, as `-march=armv7-a` gives) against
+  `-mtune=cortex-a9` (`mozconfig.goanna-arm-a9`), interleaved, from copied directories
 **Dependencies:** R1, cavekit-engine-update.md R1
 
 ### R3: The memory levers measured

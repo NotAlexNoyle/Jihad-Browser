@@ -16,11 +16,14 @@
 # adapted from the Atlas browser (atlas-browser-app/packaging/ipk-postinst.sh, Apache-2.0,
 # Herman van Hazendonk / Herrie82), which runs its WPE engine in place the same way.
 #
-# ── HARD-WON: LD_LIBRARY_PATH IS SET ONLY VIA `env`, ON THE EXEC LINE ────────────────────────
-# It must NEVER be exported into this script's shell. The bundled gcc9 glibc-2.23 is not
-# compatible with the device's 2.8 userland, so an exported LD_LIBRARY_PATH makes /bin/rm,
-# mkdir, touch — every command below — load the wrong libc and segfault before the daemon ever
-# execs. Keep it on the `exec env` line and nowhere else.
+# ── HARD-WON: NO LD_LIBRARY_PATH, ANYWHERE ───────────────────────────────────────────────────
+# The bundled gcc9 glibc-2.23 is not compatible with the device's 2.8 userland: an exported
+# LD_LIBRARY_PATH makes /bin/rm, mkdir, touch — every command below — load the wrong libc and
+# segfault before the daemon ever execs. It is not on the exec line either (2026-11-11): the
+# daemon runs as `ld-2.23.so --library-path "$HL"`, which covers it and every dlopen, and the
+# plugin child goes through the same loader (EngineHost.cpp). In the process's environment it
+# could only hurt: a crash makes the kernel's minicore replay that environment into busybox
+# tools, which then load glibc 2.23 and segfault (Atlas's whole-device lockup of 2026-07-12).
 start on stopped fontconfig_cache
 stop on started start_update
 # ── AND stop when the system is going down, EARLY ────────────────────────────────────────────
@@ -133,7 +136,7 @@ script
 	# helpers, one Ion compile and one off-thread parse at a time instead of upstream's cores + 4. Two interleaved
 	# rounds on desktop Wikipedia: the load -10 % / -4 %, the main thread's sum over it -10 % / -5 %, jsbench's loop
 	# -14 % both times. Unset (delete the three words) for upstream's pool.
-	exec env LD_LIBRARY_PATH="$HL" ICU_DATA="$HL" HOME="$STATE" \
+	exec env ICU_DATA="$HL" HOME="$STATE" \
 	         JIHAD_BS_NAME=jihad-browser-mojo JIHAD_OFFSCREEN=1 JIHAD_DISABLE_OMTC=1 \
 	         JIHAD_GPU_COMPOSITOR=1 JIHAD_GPU_EXPRESS=1 JIHAD_GPU_CPU_SCALE=1 \
 	         JIHAD_JS_HELPER_THREADS=2 JIHAD_JS_ION_THREADS=1 JIHAD_JS_PARSE_THREADS=1 \

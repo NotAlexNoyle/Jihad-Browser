@@ -39,6 +39,8 @@ open (why), or upstream (Palefill, UXP).
 - [x] Every failure row names its cause category, and an *engine feature* row names the feature or the exact console error (from `JIHAD_JS_CONSOLE=all`), not a guess. *(GitHub: `Turbo is not defined`; Mastodon: `import.meta may only appear in a module`; DuckDuckGo's full page: not yet captured — its row says so.)*
 - [x] Every fix landed by R2–R4 is re-tested on the device and its row updated with the result and the screenshot. *(T-484 and Round 2's second run (2c, 2026-10-15): the slow-script guard at 60 s (The Verge renders in full, `jihad-busy.html` still brings the dialog); the Cloudflare rule (w3.org: the rule alone does not pass Turnstile, then T-494/T-495's learned identity); GitHub (`Turbo is not defined`: an engine feature). Each row of `docs/MODERN-WEB.md` carries the result and the shot.)*
 - [x] The README's "Known issues" line links to the ledger. *(The README's "Caveats" section, the owner's 2026-10-16 name for its known issues, opens with "Site by site, with causes and what was tried: `docs/MODERN-WEB.md`".)*
+- [ ] AAC, MP3 and FLAC through FFmpeg are heard, not just played to the end: the S16 build's sample conversion
+  (queue 0096) checked by the owner's ear on an MP4, an MP3 and a FLAC
 **Dependencies:** none
 
 ### R2: The slow-script guard fits the device

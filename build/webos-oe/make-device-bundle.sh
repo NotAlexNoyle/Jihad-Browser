@@ -525,10 +525,17 @@ pref("toolkit.storage.synchronous", 2);                   // FULL fsync for the 
 // shared file cites it rather than repeating it.
 JIHADPREFS
 
-# strip everything to shrink for the device
+# strip everything to shrink for the device. The toolchain's glibc, libstdc++ and libgcc_s arrive
+# read-only (0555/0444): strip failed on them with "Permission denied", and the silenced error let
+# 2026-11-11's bundle ship 42 MB of their debug info per variant (nizovn research, T-615). Each file
+# is made writable for the strip and gets its mode back; a strip that still fails stops the build.
 for so in "$OUT"/*.so "$OUT"/*.so.* "$OUT/jihad-browserserver" "$OUT/libxul.so" \
           "$OUT/plugin-container"; do
-  [ -f "$so" ] && "$STRIP" "$so" 2>/dev/null || true
+  [ -f "$so" ] && [ ! -L "$so" ] || continue
+  mode=$(stat -c %a "$so")
+  chmod u+w "$so"
+  "$STRIP" "$so" || { echo "ERROR: strip failed on $so" >&2; exit 1; }
+  chmod "$mode" "$so"
 done
 
 # review #9: required-file manifest — a bundle missing anything essential is a hard failure, not a

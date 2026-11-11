@@ -67,6 +67,12 @@ autoplay switch). This kit covers the device's headroom against any page, and Yo
   ended its player at 374 MB together, Enyo's stopped the watch page at 421 MB, then 9 minutes at load 2-4 with 330 MB
   available; 73 of 73 probes answered, the worst 274 ms, the application manager under 0.5 s, the witness never late.
   The next video was allowed to start in all three. docs/rounds/headroom-2026-11-08/notes.txt)*
+- [ ] Each shell's daemon starts at that shell's first launch, not at boot, so a shell never opened costs no RAM
+  (the owner, 2026-11-11: "jihad browsers daemons should start at first launch"; the first launch waits for the
+  engine to come up)
+- [ ] No daemon carries `LD_LIBRARY_PATH` in its environment: the loader's `--library-path` serves it, and a crash
+  cannot replay the bundled glibc into busybox tools (Atlas's lockup of 2026-07-12); Flash, audio, video and the
+  self-test checked without it
 **Dependencies:** cavekit-flash.md R10
 
 ### R2: YouTube measured the same way every time
@@ -124,6 +130,8 @@ autoplay switch). This kit covers the device's headroom against any page, and Yo
   MET: the bar waits on hardware decoding (T-594) or a decision of the owner's)*
 - [ ] Hardware H.264 decoding through the device's OMX decoder (what Atlas does with gst-omx) is evaluated with a
   probe that decodes a clip from the daemon's process; built, or declined by the owner with the measured cost
+- [ ] Atlas's hardware H.264 recipe weighed for Jihad: its gst-omx TouchPad patch, the MDP4 rotator de-tile, the V4L2
+  overlay and the hand-off that frees `pmem_smipool` (docs from the 2026-11-11 research, `webos-projects.md` §B6)
 **Dependencies:** R2, cavekit-modern-web.md R6
 
 ### R5: What Atlas and add-ons do, read

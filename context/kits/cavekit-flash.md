@@ -133,6 +133,8 @@ fetched and verified by a tool, and kept out of the repository (it is public and
 - [ ] The audio stream closes within 2 s of navigating away, of a reload and of closing the card, and no stream is left open by plugin-container
 - [ ] With the card sent to the background the sound behaves as in the stock browser on the same file, and it comes back when the card does *(2026-11-07: the owner heard YouTube in a front Enyo card and nothing from Learn to Fly 3 in the Mochi card behind it. The player holds no ALSA device, only sockets; pulseaudio owns the hardware stream. Open, T-579)*
 - [ ] A music player app runs 10 minutes with its stream open throughout and no plugin exit; clicks and dropouts are a person's, on R14's clips
+- [ ] Flash games heard again: the owner noticed silent Flash games (2026-11-11), against R9's August result; the
+  cause found (the ALSA-through-pulse path, webOS's audio policy, or the engine) and fixed
 **Dependencies:** R2
 
 ## R10: The movie's life — teardown, crashes, memory, more than one

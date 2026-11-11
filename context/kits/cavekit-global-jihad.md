@@ -77,6 +77,8 @@ WebAppMgr files), which would undo or break the engine replacement.
   any CE device. No change to CE's own files is left behind.
 - [ ] Re-checked against each CE release that changes the checker, since CE's OTA client is still being built
   (`Docs/OTA-STRATEGY.md`).
+- [ ] (R1's companion) Global Jihad's daemons start at the first boot, unlike Jihad Browser's (the owner,
+  2026-11-11: "global jihads daemons should start at first boot"): every app needs the engine from the start
 **Dependencies:** R1
 
 ## Out of Scope

@@ -190,12 +190,14 @@ static int jihadFlashAudioStreams() {
     int ppid = 0; char st = 0;
     if (!rp || sscanf(rp + 1, " %c %d", &st, &ppid) != 2 || ppid != me) continue;
     // our child launched through the bundled loader: its comm is ld-2.23.so, so the command line names it
+    // (the loader's path and its --library-path come first: the name sits ~300 bytes in)
+    char cl[2048];
     snprintf(path, sizeof path, "/proc/%s/cmdline", e->d_name);
     if (FILE* c = fopen(path, "r")) {
-      len = fread(buf, 1, sizeof buf - 1, c); fclose(c); buf[len] = 0;
-      for (size_t i = 0; i < len; i++) if (!buf[i]) buf[i] = ' ';
+      size_t cn = fread(cl, 1, sizeof cl - 1, c); fclose(c); cl[cn] = 0;
+      for (size_t i = 0; i < cn; i++) if (!cl[i]) cl[i] = ' ';
     } else continue;
-    if (!strstr(buf, "plugin-container")) continue;
+    if (!strstr(cl, "plugin-container")) continue;
     snprintf(path, sizeof path, "/proc/%s/maps", e->d_name);
     if (FILE* m = fopen(path, "r")) {
       char line[512];

@@ -1,0 +1,57 @@
+
+##### 09:17:41 T-639: the initial paint delay, Pale Moon's 300 ms against Jihad's 100, desktop Wikipedia (3 runs each)
+   row: paint300 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe
+   row: paint-control 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps
+   row: paint300 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe
+   row: paint-control 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps
+   row: paint300 3 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe
+   row: paint-control 3 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps
+
+##### 09:30:22 T-622: bwarm2 (JIT_OPTION_baselineWarmUpThreshold=2) against the control, Wikipedia and jsbench (2 runs each)
+   row: bwarm2 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_f
+   row: bwarm2 1 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 540 1528 994 168 6384
+   row: bwarm2-control 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fp
+   row: bwarm2-control 1 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 542 1558 996 156 6386
+   row: bwarm2 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_f
+   row: bwarm2 2 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 604 1494 918 130 6232
+   row: bwarm2-control 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fp
+   row: bwarm2-control 2 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 580 1120 986 162 5810
+
+##### 09:44:01 T-622: ion500 (JIT_OPTION_forcedDefaultIonWarmUpThreshold=500) against the control, Wikipedia and jsbench (2 runs each)
+   row: ion500 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_f
+   row: ion500 1 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 536 1450 1002 136 6076
+   row: ion500-control 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fp
+   row: ion500-control 1 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 560 1192 964 136 5426
+   row: ion500 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_f
+   row: ion500 2 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 572 1584 966 134 6032
+   row: ion500-control 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fp
+   row: ion500-control 2 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 718 1314 1164 160 6548
+
+##### 09:56:55 T-622: ion2000 (JIT_OPTION_forcedDefaultIonWarmUpThreshold=2000) against the control, Wikipedia and jsbench (2 runs each)
+   row: ion2000 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_
+   row: ion2000 1 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 536 1532 1118 162 6340
+   row: ion2000-control 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_f
+   row: ion2000-control 1 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 534 1880 960 140 6246
+   row: ion2000 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_
+   row: ion2000 2 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 600 1482 928 146 6492
+   row: ion2000-control 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_f
+   row: ion2000-control 2 jsbench loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms 562 1890 1010 148 6498
+
+##### 10:09:36 T-640: media preload (default 1, auto 2) on the YouTube watch page (3 runs each)
+   row: preload 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_
+   row: preload-control 1 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_f
+   row: preload 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_
+   row: preload-control 2 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_f
+   row: preload 3 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_fps pipe_
+   row: preload-control 3 wiki load_ms main_calls main_ge100 main_max_ms main_sum_ms rest_calls rest_sum_ms rest_max_ms paint_sum_ms paint_calls rss_kb pss_kb rss30_kb pss30_kb pan_frames pan_ms pan_f
+
+##### 10:23:12 T-626: the decoded-video queue (default-size 30, send-to-compositor-size 10) on the 480p VP9 clip (3 runs each)
+run 1 vqueue  clip30vp9-480.webm: ended t=30.0 dur=30.0 decoded=900 painted=583 dropped=6 total=899
+run 1 control clip30vp9-480.webm: ended t=30.0 dur=30.0 decoded=900 painted=583 dropped=39 total=899
+run 2 vqueue  clip30vp9-480.webm: ended t=30.0 dur=30.0 decoded=900 painted=593 dropped=22 total=899
+run 2 control clip30vp9-480.webm: ended t=30.0 dur=30.0 decoded=900 painted=582 dropped=26 total=899
+run 3 vqueue  clip30vp9-480.webm: ended t=30.0 dur=30.0 decoded=900 painted=598 dropped=15 total=899
+run 3 control clip30vp9-480.webm: ended t=30.0 dur=30.0 decoded=900 painted=591 dropped=23 total=899
+usb-alert: none
+
+##### 10:32:23 DONE

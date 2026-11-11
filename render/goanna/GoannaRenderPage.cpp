@@ -167,6 +167,8 @@ static bool JihadOverridableCertError(int32_t e) {
 
 namespace jihad {
 
+void jihadTimelineMark(const char* what);   // BrowserPageGoanna.cpp (T-631, T-646: the first page's load split)
+
 // XPCOM chrome + progress listener for one page. Refcounted; owns the browser.
 static already_AddRefed<nsIDocShell> GetDocShell(nsIWebBrowser* wb);   // defined further down
 
@@ -498,6 +500,12 @@ NS_IMETHODIMP PageChrome::OnStateChange(nsIWebProgress* aWebProgress, nsIRequest
         uint32_t p = 0; http->GetReferrerPolicy(&p); mLinkReferrerPolicy = p;
       }
     }
+  }
+  // the top document's own steps on the timeline (T-646: open url to the first frame took 3.4 s on a local page)
+  if (top && (f & STATE_IS_DOCUMENT)) {
+    if (f & STATE_START) jihadTimelineMark("doc start");
+    else if (f & STATE_TRANSFERRING) jihadTimelineMark("doc transferring");
+    else if (f & STATE_STOP) jihadTimelineMark("doc stop");
   }
   if (top && (f & (STATE_START | STATE_STOP))) {
     fprintf(stderr, "[jihad-bs] state top f=0x%x doc=%d win=%d net=%d %s status=0x%x\n",

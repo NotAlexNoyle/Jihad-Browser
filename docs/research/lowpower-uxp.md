@@ -158,6 +158,33 @@ Every lever interleaved with a control of its hour, the profile checked clean af
 | `decode_bytes_at_a_time` 64 KB | 3 | **load 16 467 [16 109..16 586] against 17 514 [17 374..17 800] (-6 %)**, PSS 30 s after -3 % | a second round (chain 5) |
 | the parser's flush timer 250 ms | 3 | **load -16.5 %**, the main thread's sum -13 %, PSS after the load -5.6 % | a second round (chain 5) |
 
+### 2026-11-11: the research picks, Pale Moon's items, PGO and the CPU tuning (chains 7-12)
+
+Each switch built into the engine or the daemon OFF by default, then interleaved against a control of its hour, kept
+only if faster with the frames at rest matching the control by eye (the owner, 2026-11-11). The rounds are under
+`docs/rounds/{switches,levers,pgo,a9,npixmap,cache-cap,gpu-bench}-2026-11-11/`; build-site carries every number.
+Wikipedia's load reads ~14 s or ~17 s by the hour on both sides alike, so a 2-run gain is confirmed with 5-7 runs.
+
+| lever (row) | runs | result | decision |
+|---|---|---|---|
+| **PGO, -O2** (T-556; `mozconfig.goanna-arm-pgo`, §7) | 3 | Wikipedia **13.7 s against 17.0**, the main thread 19.0 s against 24.3; jsbench **dom 4.0 s against 6.2**, strings 0.72 against 0.96, loop 0.65 against 0.79; the card's frame **5.9 s against 7.0 cold**, 4.4 against 5.7 warm; RSS at 30 s 270 MB against 284; the pan even; the daemon's cold start 5.9 s against 4.7 (38 MB of libraries against 33), paint 1.9 s against 1.5; frames at rest identical | **KEPT**: `make-device-bundle.sh` bundles the PGO build (a newer plain build is bundled instead, with a warning) |
+| `-mtune=cortex-a9` (T-608) | 3 | Wikipedia 14.1 s against 17.4; jsbench even; the long page's pan 31.9 fps against 32.7; the daemon's cold start 7.3 s against 5.0 | dropped: PGO gives more on every row |
+| Ion warm-up 500 (T-622) | 2 + 7 | the 2-run gain (13.9 s against 18.1) gone over 7 runs: 17.5 against 17.5; jsbench mixed | dropped; baseline warm-up 2 (pan 7.8 fps against 13.1) and Ion 2000 (neutral) dropped too |
+| text-frame property flags (T-624) | 2 + 5 | the two rounds point opposite ways; jsbench within 2 % | dropped (`JIHAD_TEXT_PROPFLAGS` unset) |
+| short DOM strings inline (T-625) | 2 + 5 | Wikipedia 17.1 s against 14.1, paint +0.8 s, RSS +8 MB | dropped |
+| JS source compression off / no wait (T-620) | 2 | 17.0 s against 14.2; nowait 16.4 against 16.0 | dropped |
+| bidi skipped for left-to-right blocks (T-621) | 2 | 16.2 s against 14.4, paint 3.9 s against 2.1 | dropped |
+| TenFourFox's GC and CC timers (T-623) | 2 | the pipeline 9.8 fps against 11.8, the cold start +0.9 s | dropped |
+| the CPU floor held by the tickle device (T-630) | 2 | jsbench dom 6.7 s against 6.0, the cold card 7.7 s against 7.0 | dropped; the scaling_min_freq hold stays |
+| 565 express frames during drags (T-637) | 2 | the pan 9.3 fps against 13.9: the 565 band reads stall the twin FBO | dropped as built |
+| NPixmap-backed tiles (T-636) | 3 | the page never finished (120 s), the pan stopped after 4 s; each pixmap 2.5-49 ms to make, none reused | dropped; a pooled design would be another row |
+| initial paint delay 300 ms (T-639) | 6 | load 16.1 s against 16.5 (within the spread), paint 1.7 s against 4.9, RSS -7 MB, **the pan 12.2 fps against 13.5**, the first frame 200 ms later by design; frames at rest match | dropped: 100 ms stays |
+| a deeper video queue (T-626) | 3 + 2 | 15 drops against 26 of 900 at 480p; the daemon's RSS during play up to 17 MB more | dropped: the RAM goes to pages |
+| media preload prefs (T-640) | 3 | YouTube's pan 2.2 fps against 4.2, RSS +10 MB | dropped |
+| a 2 MB disk-cache cap (T-641) | 2 | nothing to cut: cache2 held about 1 MB either way | dropped |
+| lock_surface readback (T-610) | bench | 28.4 ms a frame against 16.6 + 18.0, and ABGR | dropped |
+| the blocker's host-set index (T-646) | built | three hash tables written beside their text and read back in one copy (desktop: 10 ms against 64); on the device the load took meta.json 370 ms + host sets 1 000 ms on the first card's connect | measured next, with the PGO bundle |
+
 ## 6. Stock webOS 3.0.5 (R6: named for the owner, not measured)
 
 The bench is a CE 3.1.0 TouchPad; the same hardware runs stock 3.0.5 (the owner's second TouchPad is on its way). The

@@ -1,0 +1,169 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Wed, 11 Nov 2026 09:28:03 -0500
+Subject: [PATCH] js: short Latin-1 DOM strings copied inline (Mozilla 1352323;
+ T-625, an experiment)
+
+JS_NewMaybeExternalString. With JIHAD_JS_INLINE_DOMSTR=1 a short Latin-1 string from
+the DOM becomes an inline JS string instead of an external two-byte one (TenFourFox
+eb6f6264); a copied string is neither shared nor cached. Unset: always external, as
+upstream.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ js/src/jsapi.cpp               |  9 +++++++++
+ js/src/jsapi.h                 | 11 +++++++++++
+ js/src/vm/String.cpp           | 31 +++++++++++++++++++++++++++++++
+ js/src/vm/String.h             |  4 ++++
+ js/xpconnect/src/XPCString.cpp |  7 ++++---
+ js/xpconnect/src/xpcpublic.h   | 15 ++++++++++++---
+ 6 files changed, 71 insertions(+), 6 deletions(-)
+
+diff --git a/js/src/jsapi.cpp b/js/src/jsapi.cpp
+index cdf7d6f965..ab83b391bc 100644
+--- a/js/src/jsapi.cpp
++++ b/js/src/jsapi.cpp
+@@ -1498,6 +1498,15 @@ JS_NewExternalString(JSContext* cx, const char16_t* chars, size_t length,
+     return s;
+ }
+ 
++JS_PUBLIC_API(JSString*)
++JS_NewMaybeExternalString(JSContext* cx, const char16_t* chars, size_t length,
++                          const JSStringFinalizer* fin, bool* isExternal)
++{
++    AssertHeapIsIdle(cx);
++    CHECK_REQUEST(cx);
++    return NewMaybeExternalString(cx, chars, length, fin, isExternal);
++}
++
+ extern JS_PUBLIC_API(bool)
+ JS_IsExternalString(JSString* str)
+ {
+diff --git a/js/src/jsapi.h b/js/src/jsapi.h
+index 2f5124aa28..87cc4e2fd1 100644
+--- a/js/src/jsapi.h
++++ b/js/src/jsapi.h
+@@ -1735,6 +1735,17 @@ extern JS_PUBLIC_API(JSString*)
+ JS_NewExternalString(JSContext* cx, const char16_t* chars, size_t length,
+                      const JSStringFinalizer* fin);
+ 
++/**
++ * Create a new JSString whose chars member may refer to external memory.
++ * If the returned string refers to the external memory, |*isExternal| is set
++ * to true.  Otherwise the returned string is not an external string and
++ * |*isExternal| is set to false.  If |*isExternal| is false, |fin| won't be
++ * called.
++ */
++extern JS_PUBLIC_API(JSString*)
++JS_NewMaybeExternalString(JSContext* cx, const char16_t* chars, size_t length,
++                          const JSStringFinalizer* fin, bool* isExternal);
++
+ /**
+  * Return whether 'str' was created with JS_NewExternalString or
+  * JS_NewExternalStringWithClosure.
+diff --git a/js/src/vm/String.cpp b/js/src/vm/String.cpp
+index 538e9c09eb..22b7705445 100644
+--- a/js/src/vm/String.cpp
++++ b/js/src/vm/String.cpp
+@@ -1407,6 +1407,37 @@ NewStringCopyUTF8N(JSContext* cx, const JS::UTF8Chars utf8)
+ template JSFlatString*
+ NewStringCopyUTF8N<CanGC>(JSContext* cx, const JS::UTF8Chars utf8);
+ 
++// Jihad (T-625, an experiment; Mozilla bug 1352323, TenFourFox eb6f6264): a short
++// Latin-1 DOM string is copied inline instead of becoming an external two-byte string.
++// JIHAD_JS_INLINE_DOMSTR=1 turns it on; unset, every string stays external, as upstream.
++static bool
++JihadInlineDOMStrings()
++{
++    static const bool on = [] {
++        const char* v = getenv("JIHAD_JS_INLINE_DOMSTR");
++        return v && v[0] == '1';
++    }();
++    return on;
++}
++
++JSString*
++NewMaybeExternalString(JSContext* cx, const char16_t* s, size_t n, const JSStringFinalizer* fin,
++                       bool* isExternal)
++{
++    if (JihadInlineDOMStrings()) {
++        if (JSString* str = TryEmptyOrStaticString(cx, s, n)) {
++            *isExternal = false;
++            return str;
++        }
++        if (JSThinInlineString::lengthFits<Latin1Char>(n) && CanStoreCharsAsLatin1(s, n)) {
++            *isExternal = false;
++            return NewInlineStringDeflated<CanGC>(cx, mozilla::Range<const char16_t>(s, n));
++        }
++    }
++    *isExternal = true;
++    return JSExternalString::new_(cx, s, n, fin);
++}
++
+ } /* namespace js */
+ 
+ #ifdef DEBUG
+diff --git a/js/src/vm/String.h b/js/src/vm/String.h
+index 300c497a11..c60f9364af 100644
+--- a/js/src/vm/String.h
++++ b/js/src/vm/String.h
+@@ -1306,6 +1306,10 @@ NewStringCopyZ(js::ExclusiveContext* cx, const char* s)
+     return NewStringCopyN<allowGC>(cx, s, strlen(s));
+ }
+ 
++JSString*
++NewMaybeExternalString(JSContext* cx, const char16_t* s, size_t n, const JSStringFinalizer* fin,
++                       bool* isExternal);
++
+ template <js::AllowGC allowGC>
+ extern JSFlatString*
+ NewStringCopyUTF8N(JSContext* cx, const JS::UTF8Chars utf8);
+diff --git a/js/xpconnect/src/XPCString.cpp b/js/xpconnect/src/XPCString.cpp
+index 68e775121d..e92aca4cfb 100644
+--- a/js/xpconnect/src/XPCString.cpp
++++ b/js/xpconnect/src/XPCString.cpp
+@@ -95,9 +95,10 @@ XPCStringConvert::ReadableToJSVal(JSContext* cx,
+     uint32_t length = readable.Length();
+ 
+     if (readable.IsLiteral()) {
+-        JSString* str = JS_NewExternalString(cx,
+-                                             static_cast<const char16_t*>(readable.BeginReading()),
+-                                             length, &sLiteralFinalizer);
++        bool ignored;
++        JSString* str = JS_NewMaybeExternalString(cx,
++                                                  static_cast<const char16_t*>(readable.BeginReading()),
++                                                  length, &sLiteralFinalizer, &ignored);
+         if (!str)
+             return false;
+         vp.setString(str);
+diff --git a/js/xpconnect/src/xpcpublic.h b/js/xpconnect/src/xpcpublic.h
+index 5351be979b..8d95bafd2b 100644
+--- a/js/xpconnect/src/xpcpublic.h
++++ b/js/xpconnect/src/xpcpublic.h
+@@ -249,13 +249,22 @@ public:
+             return true;
+         }
+ 
+-        JSString* str = JS_NewExternalString(cx,
+-                                             static_cast<char16_t*>(buf->Data()),
+-                                             length, &sDOMStringFinalizer);
++        bool isExternal;
++        JSString* str = JS_NewMaybeExternalString(cx,
++                                                  static_cast<char16_t*>(buf->Data()),
++                                                  length, &sDOMStringFinalizer, &isExternal);
+         if (!str) {
+             return false;
+         }
+         rval.setString(str);
++
++        // A copied (non-external) string does not hold the buffer and has no
++        // finalizer: neither shared nor cached.
++        if (!isExternal) {
++            *sharedBuffer = false;
++            return true;
++        }
++
+         if (!cache) {
+             cache = new ZoneStringCache();
+             JS_SetZoneUserData(zone, cache);

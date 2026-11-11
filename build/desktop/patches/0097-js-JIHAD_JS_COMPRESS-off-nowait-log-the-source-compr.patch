@@ -1,0 +1,129 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Wed, 11 Nov 2026 09:28:03 -0500
+Subject: [PATCH] js: JIHAD_JS_COMPRESS=off|nowait|log, the source-compression
+ wait (T-620, an experiment)
+
+Every compile waits for its source's compression, which queues behind Ion and parse
+tasks on the two capped helpers. off compresses nothing (TenFourFox 6a91f966); nowait
+drops a task no helper has started; log reports the main thread's waits. Unset: as
+upstream.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ js/src/jsscript.cpp         |  4 ++++
+ js/src/vm/HelperThreads.cpp | 44 ++++++++++++++++++++++++++++++++++++-
+ js/src/vm/HelperThreads.h   |  7 ++++++
+ 3 files changed, 54 insertions(+), 1 deletion(-)
+
+diff --git a/js/src/jsscript.cpp b/js/src/jsscript.cpp
+index 5d42909bce..879ad3fe5f 100644
+--- a/js/src/jsscript.cpp
++++ b/js/src/jsscript.cpp
+@@ -46,6 +46,7 @@
+ #include "vm/ArgumentsObject.h"
+ #include "vm/Compression.h"
+ #include "vm/Debugger.h"
++#include "vm/HelperThreads.h"
+ #include "vm/Opcodes.h"
+ #include "vm/SelfHosting.h"
+ #include "vm/Shape.h"
+@@ -1952,6 +1953,9 @@ ScriptSource::setSourceCopy(ExclusiveContext* cx, SourceBufferHolder& srcBuf,
+         HelperThreadState().threadCount >= 2 &&
+         CanUseExtraThreads();
+     const size_t TINY_SCRIPT = 256;
++    // Jihad (T-620): JIHAD_JS_COMPRESS=off compresses nothing (TenFourFox 6a91f966).
++    if (JihadJsCompressMode() == JihadCompressMode::Off)
++        canCompressOffThread = false;
+     if (TINY_SCRIPT <= srcBuf.length() && canCompressOffThread) {
+         task->ss = this;
+         if (!StartOffThreadCompression(cx, task))
+diff --git a/js/src/vm/HelperThreads.cpp b/js/src/vm/HelperThreads.cpp
+index af5c9e8e9f..6ead1d32de 100644
+--- a/js/src/vm/HelperThreads.cpp
++++ b/js/src/vm/HelperThreads.cpp
+@@ -8,6 +8,9 @@
+ #include "mozilla/DebugOnly.h"
+ #include "mozilla/Unused.h"
+ 
++#include <stdlib.h>
++#include <string.h>
++
+ #include "jsnativestack.h"
+ #include "jsnum.h" // For FIX_FPU()
+ #include "js/SourceBufferHolder.h"
+@@ -1742,6 +1745,24 @@ GlobalHelperThreadState::compressionInProgress(SourceCompressionTask* task,
+     return false;
+ }
+ 
++JihadCompressMode
++js::JihadJsCompressMode()
++{
++    static const JihadCompressMode mode = [] {
++        const char* v = getenv("JIHAD_JS_COMPRESS");
++        if (!v)
++            return JihadCompressMode::Upstream;
++        if (!strcmp(v, "off"))
++            return JihadCompressMode::Off;
++        if (!strcmp(v, "nowait"))
++            return JihadCompressMode::NoWait;
++        if (!strcmp(v, "log"))
++            return JihadCompressMode::Log;
++        return JihadCompressMode::Upstream;
++    }();
++    return mode;
++}
++
+ bool
+ SourceCompressionTask::complete()
+ {
+@@ -1750,8 +1771,29 @@ SourceCompressionTask::complete()
+ 
+     {
+         AutoLockHelperThreadState lock;
+-        while (HelperThreadState().compressionInProgress(this, lock))
++        JihadCompressMode mode = JihadJsCompressMode();
++        if (mode == JihadCompressMode::NoWait) {
++            // Not started yet: drop it rather than make the main thread wait for its turn on
++            // the helpers. The source stays uncompressed, as a tiny script's does.
++            auto& list = HelperThreadState().compressionWorklist(lock);
++            for (size_t i = 0; i < list.length(); i++) {
++                if (list[i] == this) {
++                    list.erase(&list[i]);
++                    ss = nullptr;
++                    return true;
++                }
++            }
++        }
++        int64_t start = mode == JihadCompressMode::Log ? PRMJ_Now() : 0;
++        bool waited = false;
++        while (HelperThreadState().compressionInProgress(this, lock)) {
++            waited = true;
+             HelperThreadState().wait(lock, GlobalHelperThreadState::CONSUMER);
++        }
++        if (mode == JihadCompressMode::Log && waited) {
++            fprintf(stderr, "[jihad-js] source compression wait %lld us (%zu chars)\n",
++                    (long long)(PRMJ_Now() - start), ss->length());
++        }
+     }
+ 
+     if (result == Success) {
+diff --git a/js/src/vm/HelperThreads.h b/js/src/vm/HelperThreads.h
+index 14cfa80396..d229d6c010 100644
+--- a/js/src/vm/HelperThreads.h
++++ b/js/src/vm/HelperThreads.h
+@@ -497,6 +497,13 @@ struct AutoEnqueuePendingParseTasksAfterGC {
+ bool
+ StartOffThreadCompression(ExclusiveContext* cx, SourceCompressionTask* task);
+ 
++// Jihad (T-620, an experiment): JIHAD_JS_COMPRESS=off starts no source compression,
++// =nowait takes a task no helper has started off the list instead of waiting for it,
++// =log only reports the main thread's waits. Unset: upstream's behaviour.
++enum class JihadCompressMode { Upstream, Off, NoWait, Log };
++JihadCompressMode
++JihadJsCompressMode();
++
+ class MOZ_RAII AutoLockHelperThreadState : public LockGuard<Mutex>
+ {
+     using Base = LockGuard<Mutex>;

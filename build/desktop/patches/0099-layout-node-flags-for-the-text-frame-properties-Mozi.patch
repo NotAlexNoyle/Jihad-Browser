@@ -1,0 +1,183 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Wed, 11 Nov 2026 09:28:03 -0500
+Subject: [PATCH] layout: node flags for the text-frame properties (Mozilla
+ 1385395; T-624, an experiment)
+
+NS_HAS_NEWLINE_PROPERTY and NS_HAS_FLOWLENGTH_PROPERTY are kept up to date always.
+JIHAD_TEXT_PROPFLAGS=1 lets a missing flag skip the property-table lookup on every
+text frame's creation, reflow and teardown (TenFourFox b8ebae83). Unset: every lookup
+and delete as upstream.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ dom/base/nsGenericDOMDataNode.h |  8 +++++++-
+ layout/generic/nsTextFrame.cpp  | 28 ++++++++++++++++++----------
+ layout/generic/nsTextFrame.h    | 29 +++++++++++++++++++++++++++--
+ 3 files changed, 52 insertions(+), 13 deletions(-)
+
+diff --git a/dom/base/nsGenericDOMDataNode.h b/dom/base/nsGenericDOMDataNode.h
+index e0ce236f54..6338c29c76 100644
+--- a/dom/base/nsGenericDOMDataNode.h
++++ b/dom/base/nsGenericDOMDataNode.h
+@@ -52,10 +52,16 @@ enum {
+   // bit is set, and if so it indicates whether we're only whitespace or
+   // not.
+   NS_TEXT_IS_ONLY_WHITESPACE =            DATA_NODE_FLAG_BIT(3),
++
++  // Set while nsTextFrame has a NewlineProperty / FlowLengthProperty on the
++  // node (Mozilla bug 1385395; Jihad T-624), so a frame need not look the
++  // property up when there is none.
++  NS_HAS_NEWLINE_PROPERTY =               DATA_NODE_FLAG_BIT(4),
++  NS_HAS_FLOWLENGTH_PROPERTY =            DATA_NODE_FLAG_BIT(5),
+ };
+ 
+ // Make sure we have enough space for those bits
+-ASSERT_NODE_FLAGS_SPACE(NODE_TYPE_SPECIFIC_BITS_OFFSET + 4);
++ASSERT_NODE_FLAGS_SPACE(NODE_TYPE_SPECIFIC_BITS_OFFSET + 6);
+ 
+ #undef DATA_NODE_FLAG_BIT
+ 
+diff --git a/layout/generic/nsTextFrame.cpp b/layout/generic/nsTextFrame.cpp
+index 8ecf6d2fdf..29caa7c0fc 100644
+--- a/layout/generic/nsTextFrame.cpp
++++ b/layout/generic/nsTextFrame.cpp
+@@ -730,7 +730,9 @@ int32_t nsTextFrame::GetInFlowContentLength() {
+   }
+ 
+   FlowLengthProperty* flowLength =
+-    static_cast<FlowLengthProperty*>(mContent->GetProperty(nsGkAtoms::flowlength));
++    (UsePropertyFlags() && !mContent->HasFlag(NS_HAS_FLOWLENGTH_PROPERTY))
++    ? nullptr
++    : static_cast<FlowLengthProperty*>(mContent->GetProperty(nsGkAtoms::flowlength));
+ 
+   /**
+    * This frame must start inside the cached flow. If the flow starts at
+@@ -757,6 +759,8 @@ int32_t nsTextFrame::GetInFlowContentLength() {
+                                         nsINode::DeleteProperty<FlowLengthProperty>))) {
+       delete flowLength;
+       flowLength = nullptr;
++    } else {
++      mContent->SetFlags(NS_HAS_FLOWLENGTH_PROPERTY);
+     }
+   }
+   if (flowLength) {
+@@ -4258,9 +4262,9 @@ nsTextFrame::Init(nsIContent*       aContent,
+ 
+   // Remove any NewlineOffsetProperty or InFlowContentLengthProperty since they
+   // might be invalid if the content was modified while there was no frame
+-  aContent->DeleteProperty(nsGkAtoms::newline);
+-  if (PresContext()->BidiEnabled()) {
+-    aContent->DeleteProperty(nsGkAtoms::flowlength);
++  DeleteNewlineProperty(aContent);
++  if (UsePropertyFlags() || PresContext()->BidiEnabled()) {
++    DeleteFlowLengthProperty(aContent);
+   }
+ 
+   // Since our content has a frame now, this flag is no longer needed.
+@@ -4738,9 +4742,9 @@ nsTextFrame::DisconnectTextRuns()
+ nsresult
+ nsTextFrame::CharacterDataChanged(CharacterDataChangeInfo* aInfo)
+ {
+-  mContent->DeleteProperty(nsGkAtoms::newline);
+-  if (PresContext()->BidiEnabled()) {
+-    mContent->DeleteProperty(nsGkAtoms::flowlength);
++  DeleteNewlineProperty(mContent);
++  if (UsePropertyFlags() || PresContext()->BidiEnabled()) {
++    DeleteFlowLengthProperty(mContent);
+   }
+ 
+   // Find the first frame whose text has changed. Frames that are entirely
+@@ -9011,7 +9015,9 @@ nsTextFrame::ReflowText(nsLineLayout& aLineLayout, nscoord aAvailableWidth,
+   NewlineProperty* cachedNewlineOffset = nullptr;
+   if (textStyle->NewlineIsSignificant(this)) {
+     cachedNewlineOffset =
+-      static_cast<NewlineProperty*>(mContent->GetProperty(nsGkAtoms::newline));
++      (UsePropertyFlags() && !mContent->HasFlag(NS_HAS_NEWLINE_PROPERTY))
++      ? nullptr
++      : static_cast<NewlineProperty*>(mContent->GetProperty(nsGkAtoms::newline));
+     if (cachedNewlineOffset && cachedNewlineOffset->mStartOffset <= offset &&
+         (cachedNewlineOffset->mNewlineOffset == -1 ||
+          cachedNewlineOffset->mNewlineOffset >= offset)) {
+@@ -9497,6 +9503,8 @@ nsTextFrame::ReflowText(nsLineLayout& aLineLayout, nscoord aAvailableWidth,
+                                           nsINode::DeleteProperty<NewlineProperty>))) {
+         delete cachedNewlineOffset;
+         cachedNewlineOffset = nullptr;
++      } else {
++        mContent->SetFlags(NS_HAS_NEWLINE_PROPERTY);
+       }
+     }
+     if (cachedNewlineOffset) {
+@@ -9504,7 +9512,7 @@ nsTextFrame::ReflowText(nsLineLayout& aLineLayout, nscoord aAvailableWidth,
+       cachedNewlineOffset->mNewlineOffset = contentNewLineOffset;
+     }
+   } else if (cachedNewlineOffset) {
+-    mContent->DeleteProperty(nsGkAtoms::newline);
++    DeleteNewlineProperty(mContent);
+   }
+ 
+   // Compute space and letter counts for justification, if required
+@@ -9991,7 +9999,7 @@ void
+ nsTextFrame::AdjustOffsetsForBidi(int32_t aStart, int32_t aEnd)
+ {
+   AddStateBits(NS_FRAME_IS_BIDI);
+-  mContent->DeleteProperty(nsGkAtoms::flowlength);
++  DeleteFlowLengthProperty(mContent);
+ 
+   /*
+    * After Bidi resolution we may need to reassign text runs.
+diff --git a/layout/generic/nsTextFrame.h b/layout/generic/nsTextFrame.h
+index 43a4f5f1c5..86c6600a8b 100644
+--- a/layout/generic/nsTextFrame.h
++++ b/layout/generic/nsTextFrame.h
+@@ -16,6 +16,7 @@
+ #include "gfxTextRun.h"
+ #include "nsDisplayList.h"
+ #include "JustificationUtils.h"
++#include "nsGenericDOMDataNode.h"
+ #include "RubyUtils.h"
+ 
+ // Undo the windows.h damage
+@@ -91,7 +92,31 @@ public:
+       aNextContinuation->RemoveStateBits(NS_FRAME_IS_FLUID_CONTINUATION);
+     // Setting a non-fluid continuation might affect our flow length (they're
+     // quite rare so we assume it always does) so we delete our cached value:
+-    GetContent()->DeleteProperty(nsGkAtoms::flowlength);
++    DeleteFlowLengthProperty(GetContent());
++  }
++  // T-624 (Mozilla bug 1385395): the node flags say whether a frame property exists.
++  // JIHAD_TEXT_PROPFLAGS=1 lets a missing flag skip the property table; unset, every
++  // lookup and delete happens as upstream, and only the flags are kept up to date.
++  static bool UsePropertyFlags() {
++    static const bool on = [] {
++      const char* v = getenv("JIHAD_TEXT_PROPFLAGS");
++      return v && v[0] == '1';
++    }();
++    return on;
++  }
++  static void DeleteFlowLengthProperty(nsIContent* aContent) {
++    if (UsePropertyFlags() && !aContent->HasFlag(NS_HAS_FLOWLENGTH_PROPERTY)) {
++      return;
++    }
++    aContent->DeleteProperty(nsGkAtoms::flowlength);
++    aContent->UnsetFlags(NS_HAS_FLOWLENGTH_PROPERTY);
++  }
++  static void DeleteNewlineProperty(nsIContent* aContent) {
++    if (UsePropertyFlags() && !aContent->HasFlag(NS_HAS_NEWLINE_PROPERTY)) {
++      return;
++    }
++    aContent->DeleteProperty(nsGkAtoms::newline);
++    aContent->UnsetFlags(NS_HAS_NEWLINE_PROPERTY);
+   }
+   virtual nsIFrame* GetNextInFlowVirtual() const override { return GetNextInFlow(); }
+   nsIFrame* GetNextInFlow() const {
+@@ -108,7 +133,7 @@ public:
+         !mNextContinuation->HasAnyStateBits(NS_FRAME_IS_FLUID_CONTINUATION)) {
+       // Changing from non-fluid to fluid continuation might affect our flow
+       // length, so we delete our cached value:
+-      GetContent()->DeleteProperty(nsGkAtoms::flowlength);
++      DeleteFlowLengthProperty(GetContent());
+     }
+     if (aNextInFlow) {
+       aNextInFlow->AddStateBits(NS_FRAME_IS_FLUID_CONTINUATION);

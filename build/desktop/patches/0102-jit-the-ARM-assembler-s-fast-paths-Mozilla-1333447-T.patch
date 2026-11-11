@@ -1,0 +1,249 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Wed, 11 Nov 2026 09:28:04 -0500
+Subject: [PATCH] jit: the ARM assembler's fast paths (Mozilla 1333447; T-627)
+
+putInt inline: allocEntry only when nop fill is on, or the pool or a branch deadline
+needs a flush (the same hasSpaceForInsts(1, 0) test). allocEntry MOZ_NEVER_INLINE;
+writeInst/writeBranchInst inline; the dead markAsBranch parameter removed. The
+emitted code is byte-identical (Arctic Fox 6eb43fafff).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ js/src/jit/arm/Assembler-arm.cpp              | 36 ++++---------------
+ js/src/jit/arm/Assembler-arm.h                | 24 +++++++++----
+ js/src/jit/arm64/vixl/MozBaseAssembler-vixl.h |  9 ++---
+ js/src/jit/shared/IonAssemblerBuffer.h        | 21 +++++++++++
+ .../IonAssemblerBufferWithConstantPools.h     | 20 ++++++++---
+ 5 files changed, 66 insertions(+), 44 deletions(-)
+
+diff --git a/js/src/jit/arm/Assembler-arm.cpp b/js/src/jit/arm/Assembler-arm.cpp
+index 735268d152..ae74490271 100644
+--- a/js/src/jit/arm/Assembler-arm.cpp
++++ b/js/src/jit/arm/Assembler-arm.cpp
+@@ -1664,26 +1664,7 @@ Assembler::SpewNodes::remove(uint32_t key)
+ 
+ #endif // JS_DISASM_ARM
+ 
+-// Write a blob of binary into the instruction stream.
+-BufferOffset
+-Assembler::writeInst(uint32_t x)
+-{
+-    BufferOffset offs = m_buffer.putInt(x);
+-#ifdef JS_DISASM_ARM
+-    spew(m_buffer.getInstOrNull(offs));
+-#endif
+-    return offs;
+-}
+-
+-BufferOffset
+-Assembler::writeBranchInst(uint32_t x, Label* documentation)
+-{
+-    BufferOffset offs = m_buffer.putInt(x, /* markAsBranch = */ true);
+-#ifdef JS_DISASM_ARM
+-    spewBranch(m_buffer.getInstOrNull(offs), documentation);
+-#endif
+-    return offs;
+-}
++// T-627 (bug 1333447): writeInst and writeBranchInst are inline in Assembler-arm.h.
+ 
+ // Allocate memory for a branch instruction, it will be overwritten
+ // subsequently and should not be disassembled.
+@@ -1691,7 +1672,7 @@ Assembler::writeBranchInst(uint32_t x, Label* documentation)
+ BufferOffset
+ Assembler::allocBranchInst()
+ {
+-    return m_buffer.putInt(Always | InstNOP::NopInst, /* markAsBranch = */ true);
++    return m_buffer.putInt(Always | InstNOP::NopInst);
+ }
+ 
+ void
+@@ -2145,17 +2126,12 @@ Assembler::as_dtm(LoadStore ls, Register rn, uint32_t mask,
+     return writeInst(0x08000000 | RN(rn) | ls | mode | mask | c | wb);
+ }
+ 
+-// Note, it's possible for markAsBranch and loadToPC to disagree,
+-// because some loads to the PC are not necessarily encoding
+-// instructions that should be marked as branches: only patchable
+-// near branch instructions should be marked.
+-
+ BufferOffset
+ Assembler::allocEntry(size_t numInst, unsigned numPoolEntries,
+                       uint8_t* inst, uint8_t* data, ARMBuffer::PoolEntry* pe,
+-                      bool markAsBranch, bool loadToPC)
++                      bool loadToPC)
+ {
+-    BufferOffset offs = m_buffer.allocEntry(numInst, numPoolEntries, inst, data, pe, markAsBranch);
++    BufferOffset offs = m_buffer.allocEntry(numInst, numPoolEntries, inst, data, pe);
+     propagateOOM(offs.assigned());
+ #ifdef JS_DISASM_ARM
+     spewData(offs, numInst, loadToPC);
+@@ -2171,7 +2147,7 @@ Assembler::as_Imm32Pool(Register dest, uint32_t value, Condition c)
+ {
+     PoolHintPun php;
+     php.phd.init(0, c, PoolHintData::PoolDTR, dest);
+-    BufferOffset offs = allocEntry(1, 1, (uint8_t*)&php.raw, (uint8_t*)&value, nullptr, false,
++    BufferOffset offs = allocEntry(1, 1, (uint8_t*)&php.raw, (uint8_t*)&value, nullptr,
+                                    dest == pc);
+     return offs;
+ }
+@@ -2191,7 +2167,7 @@ Assembler::as_BranchPool(uint32_t value, RepatchLabel* label, ARMBuffer::PoolEnt
+     PoolHintPun php;
+     php.phd.init(0, c, PoolHintData::PoolBranch, pc);
+     BufferOffset ret = allocEntry(1, 1, (uint8_t*)&php.raw, (uint8_t*)&value, pe,
+-                                  /* markAsBranch = */ true, /* loadToPC = */ true);
++                                  /* loadToPC = */ true);
+     // If this label is already bound, then immediately replace the stub load
+     // with a correct branch.
+     if (label->bound()) {
+diff --git a/js/src/jit/arm/Assembler-arm.h b/js/src/jit/arm/Assembler-arm.h
+index 0cbd3b0819..66d3af24fa 100644
+--- a/js/src/jit/arm/Assembler-arm.h
++++ b/js/src/jit/arm/Assembler-arm.h
+@@ -1242,7 +1242,7 @@ class Assembler : public AssemblerShared
+     // Shim around AssemblerBufferWithConstantPools::allocEntry.
+     BufferOffset allocEntry(size_t numInst, unsigned numPoolEntries,
+                             uint8_t* inst, uint8_t* data, ARMBuffer::PoolEntry* pe = nullptr,
+-                            bool markAsBranch = false, bool loadToPC = false);
++                            bool loadToPC = false);
+ 
+     Instruction* editSrc(BufferOffset bo) {
+         return m_buffer.getInst(bo);
+@@ -1424,12 +1424,24 @@ class Assembler : public AssemblerShared
+     // Size of the data table, in bytes.
+     size_t bytesNeeded() const;
+ 
+-    // Write a blob of binary into the instruction stream *OR* into a
+-    // destination address.
+-    BufferOffset writeInst(uint32_t x);
++    // Write a single instruction into the instruction stream.
++    // T-627 (bug 1333447): very hot, so inline.
++    MOZ_ALWAYS_INLINE BufferOffset writeInst(uint32_t x) {
++        BufferOffset offs = m_buffer.putInt(x);
++#ifdef JS_DISASM_ARM
++        spew(m_buffer.getInstOrNull(offs));
++#endif
++        return offs;
++    }
+ 
+-    // As above, but also mark the instruction as a branch.
+-    BufferOffset writeBranchInst(uint32_t x, Label* documentation = nullptr);
++    // As above, for a branch; "documentation" only feeds the disassembly.
++    MOZ_ALWAYS_INLINE BufferOffset writeBranchInst(uint32_t x, Label* documentation = nullptr) {
++        BufferOffset offs = m_buffer.putInt(x);
++#ifdef JS_DISASM_ARM
++        spewBranch(m_buffer.getInstOrNull(offs), documentation);
++#endif
++        return offs;
++    }
+ 
+     // Write a placeholder NOP for a branch into the instruction stream
+     // (in order to adjust assembler addresses and mark it as a branch), it will
+diff --git a/js/src/jit/arm64/vixl/MozBaseAssembler-vixl.h b/js/src/jit/arm64/vixl/MozBaseAssembler-vixl.h
+index d079340fcf..2d97173737 100644
+--- a/js/src/jit/arm64/vixl/MozBaseAssembler-vixl.h
++++ b/js/src/jit/arm64/vixl/MozBaseAssembler-vixl.h
+@@ -104,11 +104,10 @@ class MozBaseAssembler : public js::jit::AssemblerShared {
+   // Propagate OOM errors.
+   BufferOffset allocEntry(size_t numInst, unsigned numPoolEntries,
+                           uint8_t* inst, uint8_t* data,
+-                          ARMBuffer::PoolEntry* pe = nullptr,
+-                          bool markAsBranch = false)
++                          ARMBuffer::PoolEntry* pe = nullptr)
+   {
+     BufferOffset offset = armbuffer_.allocEntry(numInst, numPoolEntries, inst,
+-                                                data, pe, markAsBranch);
++                                                data, pe);
+     propagateOOM(offset.assigned());
+     return offset;
+   }
+@@ -116,7 +115,9 @@ class MozBaseAssembler : public js::jit::AssemblerShared {
+   // Emit the instruction, returning its offset.
+   BufferOffset Emit(Instr instruction, bool isBranch = false) {
+     JS_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
+-    return armbuffer_.putInt(*(uint32_t*)(&instruction), isBranch);
++    // T-627 (bug 1333447): isBranch is no longer used by the buffer.
++    (void)isBranch;
++    return armbuffer_.putInt(*(uint32_t*)(&instruction));
+   }
+ 
+   BufferOffset EmitBranch(Instr instruction) {
+diff --git a/js/src/jit/shared/IonAssemblerBuffer.h b/js/src/jit/shared/IonAssemblerBuffer.h
+index b6af126bc8..9a7071cec4 100644
+--- a/js/src/jit/shared/IonAssemblerBuffer.h
++++ b/js/src/jit/shared/IonAssemblerBuffer.h
+@@ -134,6 +134,16 @@ class BufferSlice
+             memcpy(&instructions[length()], source, numBytes);
+         bytelength_ += numBytes;
+     }
++
++    // T-627 (bug 1333447): one aligned instruction word; the fixed-size memcpy compiles to a single store.
++    MOZ_ALWAYS_INLINE
++    void putU32Aligned(uint32_t value) {
++        MOZ_ASSERT(bytelength_ + 4 <= SliceSize);
++        MOZ_ASSERT((bytelength_ & 3) == 0);
++        MOZ_ASSERT((uintptr_t(&instructions[0]) & 3) == 0);
++        memcpy(&instructions[bytelength_], &value, 4);
++        bytelength_ += 4;
++    }
+ };
+ 
+ template<int SliceSize, class Inst>
+@@ -233,6 +243,17 @@ class AssemblerBuffer
+         return putBytes(sizeof(value), &value);
+     }
+ 
++    // T-627 (bug 1333447): putInt without the generic byte copy.
++    MOZ_ALWAYS_INLINE
++    BufferOffset putU32Aligned(uint32_t value) {
++        if (!ensureSpace(sizeof(value)))
++            return BufferOffset();
++
++        BufferOffset ret = nextOffset();
++        tail->putU32Aligned(value);
++        return ret;
++    }
++
+     // Add numBytes bytes to this buffer.
+     // The data must fit in a single slice.
+     BufferOffset putBytes(size_t numBytes, const void* inst) {
+diff --git a/js/src/jit/shared/IonAssemblerBufferWithConstantPools.h b/js/src/jit/shared/IonAssemblerBufferWithConstantPools.h
+index a7d364e9d8..f8a7fb31fd 100644
+--- a/js/src/jit/shared/IonAssemblerBufferWithConstantPools.h
++++ b/js/src/jit/shared/IonAssemblerBufferWithConstantPools.h
+@@ -830,9 +830,10 @@ struct AssemblerBufferWithConstantPools : public AssemblerBuffer<SliceSize, Inst
+         return this->nextOffset();
+     }
+ 
++    // T-627 (bug 1333447): the slow path, kept out of line so putInt stays small.
++    MOZ_NEVER_INLINE
+     BufferOffset allocEntry(size_t numInst, unsigned numPoolEntries,
+-                            uint8_t* inst, uint8_t* data, PoolEntry* pe = nullptr,
+-                            bool markAsBranch = false)
++                            uint8_t* inst, uint8_t* data, PoolEntry* pe = nullptr)
+     {
+         // The allocation of pool entries is not supported in a no-pool region,
+         // check.
+@@ -878,8 +879,19 @@ struct AssemblerBufferWithConstantPools : public AssemblerBuffer<SliceSize, Inst
+         return this->putBytes(numInst * InstSize, inst);
+     }
+ 
+-    BufferOffset putInt(uint32_t value, bool markAsBranch = false) {
+-        return allocEntry(1, 0, (uint8_t*)&value, nullptr, nullptr, markAsBranch);
++    // T-627 (bug 1333447): one plain instruction skips allocEntry unless nop fill is on or the pool must flush.
++    // No oom() test here: space for the word exists, and every caller's result is checked later anyway.
++    MOZ_ALWAYS_INLINE
++    BufferOffset putInt(uint32_t value) {
++        if (nopFill_ || !hasSpaceForInsts(/* numInsts= */ 1, /* numPoolEntries= */ 0))
++            return allocEntry(1, 0, (uint8_t*)&value, nullptr, nullptr);
++
++#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || \
++    defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
++        return this->putU32Aligned(value);
++#else
++        return this->AssemblerBuffer<SliceSize, Inst>::putInt(value);
++#endif
+     }
+ 
+     // Register a short-range branch deadline.

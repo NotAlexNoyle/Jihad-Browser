@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Wed, 11 Nov 2026 09:28:45 -0500
+Subject: [PATCH] plugins: JIHAD_PLUGIN_SETWINDOW_DEDUP=1 passes window
+ attributes only on a change (T-638)
+
+After Pale Moon d078ed24: DoAsyncSetWindow told the plugin its window attributes every
+time, so the plugin repainted even when nothing had changed. With the switch on,
+UpdateWindowAttributes runs only when the size, clip, position or type differs. Unset:
+as upstream.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ dom/plugins/ipc/PluginInstanceChild.cpp | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index 5247c16051..e46bb4a97c 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.cpp
++++ b/dom/plugins/ipc/PluginInstanceChild.cpp
+@@ -3686,12 +3686,23 @@ PluginInstanceChild::DoAsyncSetWindow(const gfxSurfaceType& aSurfaceType,
+     }
+ 
+     mWindow.window = nullptr;
++    // Jihad T-638 (Pale Moon d078ed24), an experiment: JIHAD_PLUGIN_SETWINDOW_DEDUP=1 tells the plugin its window
++    // attributes only when something changed (size, clip, position, type), saving it a spurious repaint
++    static const bool sDedup = [] {
++        const char* v = getenv("JIHAD_PLUGIN_SETWINDOW_DEDUP");
++        return v && v[0] == '1';
++    }();
++    bool windowChanged = false;
+     if (mWindow.width != aWindow.width || mWindow.height != aWindow.height ||
+         mWindow.clipRect.top != aWindow.clipRect.top ||
+         mWindow.clipRect.left != aWindow.clipRect.left ||
+         mWindow.clipRect.bottom != aWindow.clipRect.bottom ||
+-        mWindow.clipRect.right != aWindow.clipRect.right)
++        mWindow.clipRect.right != aWindow.clipRect.right) {
++        windowChanged = true;
+         mAccumulatedInvalidRect = nsIntRect(0, 0, aWindow.width, aWindow.height);
++    } else {
++        windowChanged = mWindow.x != aWindow.x || mWindow.y != aWindow.y || mWindow.type != aWindow.type;
++    }
+ 
+     mWindow.x = aWindow.x;
+     mWindow.y = aWindow.y;
+@@ -3708,7 +3719,9 @@ PluginInstanceChild::DoAsyncSetWindow(const gfxSurfaceType& aSurfaceType,
+ 
+     mLayersRendering = true;
+     mSurfaceType = aSurfaceType;
+-    UpdateWindowAttributes(true);
++    if (!sDedup || windowChanged) {
++        UpdateWindowAttributes(true);
++    }
+ 
+ #ifdef XP_WIN
+     if (GetQuirks() & QUIRK_FLASH_THROTTLE_WMUSER_EVENTS)

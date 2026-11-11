@@ -26,7 +26,8 @@ DAEMON_ONLY=0
 if [ "${1:-}" = "--daemon-only" ]; then DAEMON_ONLY=1; shift; fi
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-DIST="$HERE/out-arm/obj-jihad-goanna-arm/dist"
+. "$HERE/engine-dist.sh"
+DIST=$(jihad_engine_dist "$HERE")   # the same engine build make-device-bundle.sh bundles
 DAEMON="$HERE/out-arm/jihad-browserserver-arm"
 # goanna.js comes from the assembled BUNDLE, not from the dist: the dist copy is the stock
 # upstream file, and the low-RAM / add-on / OMTC pref blocks are appended by
@@ -55,7 +56,9 @@ XUL=$(readlink -f "$DIST/bin/libxul.so"); [ -f "$XUL" ] || die "no libxul at $DI
 novacom -l >/dev/null 2>&1 || die "no device on novacom"
 
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
-cp -L "$XUL" "$TMP/libxul.so"; cp -L "$DAEMON" "$TMP/jihad-browserserver"
+# libxul stripped straight from the build: the PGO build's is 1.3 GB unstripped, and $TMP is on the host's 16 GB tmpfs
+"$STRIP" -o "$TMP/libxul.so" "$XUL" || die "could not strip $XUL"
+cp -L "$DAEMON" "$TMP/jihad-browserserver"
 cp -L "$PREFS" "$TMP/goanna.js"
 # ffvpx is dlopen'd at runtime from the engine directory and is part of the engine build, so it
 # travels with libxul (see make-device-bundle.sh). FLAC has no other decoder.

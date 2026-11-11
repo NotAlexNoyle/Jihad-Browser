@@ -13,6 +13,9 @@ namespace jihad { void JihadNotifyClients(bool connected, int clients); }
 #include "JihadLunaService.h"              // LunaServiceReadWebosProxy (a card opened)
 #include "../goanna/JihadFrameLock.h"      // T-515: the express lane's frame lock
 #include <dlfcn.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <time.h>
 #include <YapDefs.h>                       // kMaxMsgLen (the inject pan's packets)
 #include <thread>
 #include <mutex>
@@ -752,6 +755,18 @@ private:
     std::string max;
     if (!readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq", &max)) { mDisabled = true; return; }
     mTop = max;
+    // T-630 (Herrie fea6d480c4b; HP's cpufreq_ondemand_tickle.c), an experiment: JIHAD_CLOCK_HOLD=tickle holds the
+    // floor through the governor's own device. A floor there belongs to this open file: the governor takes the highest
+    // of its clients, sets the clock in its own work item (no policy update for the caller to wait on), and drops the
+    // floor when the file closes, so a daemon that dies cannot leave it up and three daemons cannot release each other's.
+    if (e && !strcmp(e, "tickle")) {
+      mTickleFd = open("/dev/ondemandtcl0", O_RDWR | O_CLOEXEC);
+      if (mTickleFd >= 0) {
+        fprintf(stderr, "[jihad-bs] clock hold on: /dev/ondemandtcl0 floor %s kHz while the engine has work\n", mTop.c_str());
+        return;
+      }
+      fprintf(stderr, "[jihad-bs] clock hold: /dev/ondemandtcl0 not usable (%s), the sysfs floor instead\n", strerror(errno));
+    }
     for (int c = 0; c < 2; c++) {
       char p[96]; snprintf(p, sizeof(p), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", c);
       std::string orig;
@@ -776,6 +791,17 @@ private:
             mTop.c_str(), gov.c_str(), mOrigMin[0].c_str());
   }
   void set(bool hold) {
+    static const bool sTimeline = getenv("JIHAD_GPU_TIMELINE") != nullptr;   // T-515 device rounds
+    struct timespec t0; clock_gettime(CLOCK_MONOTONIC, &t0);
+    if (mTickleFd >= 0) {
+      // _IO('k', 4): TICKLE_IOCT_FLOOR_HOLD, the argument in kHz; _IO('k', 5): TICKLE_IOC_FLOOR_UNHOLD
+      int r = hold ? ioctl(mTickleFd, _IO('k', 4), (unsigned long)atol(mTop.c_str())) : ioctl(mTickleFd, _IO('k', 5), 0);
+      if (r < 0 && hold) { fprintf(stderr, "[jihad-bs] clock hold: the floor ioctl failed (%s), off\n", strerror(errno)); mDisabled = true; return; }
+      mHeld = hold;
+      if (hold) mHolds++;
+      if (mHolds <= 1 || sTimeline) logSet(hold, t0);
+      return;
+    }
     // cpu1 is hot-plugged by this kernel (its cpufreq directory comes and goes with it), so its
     // path is tried at every change rather than once at the probe; a missing file is not an error
     for (int c = 0; c < 2; c++) {
@@ -788,11 +814,15 @@ private:
     }
     mHeld = hold;
     if (hold) mHolds++;
-    static const bool sTimeline = getenv("JIHAD_GPU_TIMELINE") != nullptr;   // T-515 device rounds
-    if (mHolds <= 1 || sTimeline) fprintf(stderr, "[jihad-bs] clock hold: %s\n", hold ? "held" : "released");
+    if (mHolds <= 1 || sTimeline) logSet(hold, t0);
+  }
+  static void logSet(bool hold, const struct timespec& t0) {   // T-630: what a hold or a release costs its caller
+    struct timespec t1; clock_gettime(CLOCK_MONOTONIC, &t1);
+    long us = (t1.tv_sec - t0.tv_sec) * 1000000L + (t1.tv_nsec - t0.tv_nsec) / 1000;
+    fprintf(stderr, "[jihad-bs] clock hold: %s in %ld us\n", hold ? "held" : "released", us);
   }
   bool mProbed = false, mDisabled = false, mHeld = false;
-  int mHolds = 0;
+  int mHolds = 0, mTickleFd = -1;
   int64_t mLastBusyMs = 0;
   std::string mTop, mMinPath[2], mOrigMin[2];
   std::mutex mLock;

@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26"
-last_edited: "2026-11-09"
+last_edited: "2026-11-10"
 complexity: quick
 ---
 
@@ -49,8 +49,12 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
 
 ### R3: The machine's own SDK (outside the repository), if the owner wants it
 **Acceptance Criteria:**
-- [ ] *(The owner, 2026-10-26: **yes, refresh it.**)* If the owner says so, `/opt/PalmSDK` is refreshed with 0.4.1's installer (a root step: the owner runs the command
-  the session hands over), and `/usr/local/bin/palm-package` reports it; otherwise left as it is and noted
+- [x] *(The owner, 2026-10-26: **yes, refresh it.**)* If the owner says so, `/opt/PalmSDK` is refreshed with 0.4.1's installer (a root step: the owner runs the command
+  the session hands over), and `/usr/local/bin/palm-package` reports it; otherwise left as it is and noted *(2026-11-10,
+  T-550: the owner ran the installer (choices 1/1): `/opt/PalmSDK/Current -> 0.4.1`, 17 `palm-*` links in `/usr/local/bin`,
+  `palm-package` resolves into 0.4.1 (its tool version 3.0.5b38, as 0.4 shipped); 0.4 and older left beside it. The host's
+  novacomd swapped for the 0.4.1 build the same evening (`/opt/nova/bin/novacomd`, byte-identical to
+  `tools/host/bin/novacomd`), the TouchPad back online at once)*
 **Dependencies:** R1
 
 ## Out of Scope
@@ -62,5 +66,6 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
 - cavekit-finger-emulation.md — its tools run over novacom
 
 ## Changelog
+- 2026-11-10: R3 met (T-550, the owner's two root steps: the installer and the novacomd swap); R1 waits only for the gitlink commit (the owner's).
 - 2026-11-09: R1 met but for the gitlink (the owner's), R2 met on the bench (T-548, T-549); R3's root command handed over (T-550).
 - 2026-10-26: created from the owner's request and the day's research.

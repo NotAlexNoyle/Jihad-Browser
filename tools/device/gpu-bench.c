@@ -87,6 +87,7 @@ F(GLuint, glCreateProgram, (void)); F(void, glAttachShader, (GLuint, GLuint)); F
 F(void, glVertexAttribPointer, (GLuint, GLint, GLenum, GLboolean, GLsizei, const void*)); F(void, glEnableVertexAttribArray, (GLuint)); F(void, glDrawArrays, (GLenum, GLint, GLsizei)); F(void, glUniform1i, (GLint, GLint)); F(void, glUniform4f, (GLint, float, float, float, float));
 F(void, glEnable, (GLenum)); F(void, glDisable, (GLenum)); F(void, glBlendFunc, (GLenum, GLenum)); F(void, glViewport, (GLint, GLint, GLsizei, GLsizei)); F(void, glScissor, (GLint, GLint, GLsizei, GLsizei)); F(GLenum, glGetError, (void)); F(const unsigned char*, glGetString, (GLenum)); F(void, glActiveTexture, (GLenum));
 
+F(void, glGetIntegerv, (GLenum, GLint*));
 #define LOAD(lib, name) do { name = dlsym(lib, #name); if (!name) { fprintf(stderr, "no %s\n", #name); return 2; } } while (0)
 static double now_ms(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6; }
 static GLuint shader(GLenum type, const char* src) { GLuint s = glCreateShader(type); glShaderSource(s, 1, &src, NULL); glCompileShader(s); GLint ok = 0; glGetShaderiv(s, GL_COMPILE_STATUS, &ok); if (!ok) { fprintf(stderr, "shader compile failed\n"); exit(3); } return s; }
@@ -99,7 +100,7 @@ int main(int argc, char** argv) {
   LOAD(E, eglGetDisplay); LOAD(E, eglInitialize); LOAD(E, eglChooseConfig); LOAD(E, eglCreatePbufferSurface); LOAD(E, eglCreateContext); LOAD(E, eglMakeCurrent); LOAD(E, eglQueryString); LOAD(E, eglGetError); LOAD(E, eglBindAPI);
   LOAD(G, glClearColor); LOAD(G, glClear); LOAD(G, glFinish); LOAD(G, glFlush); LOAD(G, glReadPixels); LOAD(E, eglGetProcAddress); LOAD(E, eglQuerySurface); LOAD(E, eglDestroyContext); LOAD(E, eglDestroySurface); LOAD(G, glGenRenderbuffers); LOAD(G, glBindRenderbuffer); LOAD(G, glRenderbufferStorage); LOAD(G, glFramebufferRenderbuffer); LOAD(G, glDeleteRenderbuffers); LOAD(G, glGenFramebuffers); LOAD(G, glBindFramebuffer); LOAD(G, glFramebufferTexture2D); LOAD(G, glCheckFramebufferStatus); LOAD(G, glDeleteFramebuffers); LOAD(G, glDeleteTextures); LOAD(G, glGenTextures); LOAD(G, glBindTexture); LOAD(G, glTexImage2D); LOAD(G, glTexSubImage2D); LOAD(G, glTexParameteri);
   LOAD(G, glCreateShader); LOAD(G, glShaderSource); LOAD(G, glCompileShader); LOAD(G, glGetShaderiv); LOAD(G, glCreateProgram); LOAD(G, glAttachShader); LOAD(G, glLinkProgram); LOAD(G, glGetProgramiv); LOAD(G, glUseProgram);
-  LOAD(G, glGetAttribLocation); LOAD(G, glGetUniformLocation); LOAD(G, glVertexAttribPointer); LOAD(G, glEnableVertexAttribArray); LOAD(G, glDrawArrays); LOAD(G, glUniform1i); LOAD(G, glUniform4f); LOAD(G, glEnable); LOAD(G, glDisable); LOAD(G, glBlendFunc); LOAD(G, glViewport); LOAD(G, glScissor); LOAD(G, glGetError); LOAD(G, glGetString); LOAD(G, glActiveTexture);
+  LOAD(G, glGetAttribLocation); LOAD(G, glGetUniformLocation); LOAD(G, glVertexAttribPointer); LOAD(G, glEnableVertexAttribArray); LOAD(G, glDrawArrays); LOAD(G, glUniform1i); LOAD(G, glUniform4f); LOAD(G, glGetIntegerv); LOAD(G, glEnable); LOAD(G, glDisable); LOAD(G, glBlendFunc); LOAD(G, glViewport); LOAD(G, glScissor); LOAD(G, glGetError); LOAD(G, glGetString); LOAD(G, glActiveTexture);
 
   double t0 = now_ms();
   EGLDisplay dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY); EGLint maj = 0, mn = 0;
@@ -153,6 +154,100 @@ int main(int argc, char** argv) {
   //     16 rows, a 64x64 rect through a packed copy (GLES2 has no UNPACK_ROW_LENGTH; Gecko copies);
   //     with the GPU idle and under a queued draw that reads them. Then round 4's case on a converted
   //     1024x768 texture. BENCH_ONLY=18.
+  // 19. T-610 / T-617 (the research of 2026-11-11): two readback layouts against today's, a band at a
+  //     time (1024 x 768, 256, 128): today = glReadPixels RGBA from an RGBA8 renderbuffer FBO, then the
+  //     CPU's R<->B swizzle; (a) an RGB565 renderbuffer read as GL_RGB/UNSIGNED_SHORT_5_6_5 (half the
+  //     bytes; banding to be judged by eye); (b) EGL_KHR_lock_surface on a pbuffer the size of the band,
+  //     whose bitmap the driver may already lay out as BGRA (Atlas). Each draws one textured layer first.
+  //     BENCH_ONLY=19.
+  if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 19) {
+    const int hs[3] = { 768, 256, 128 };
+    glBindTexture(GL_TEXTURE_2D, tex[0]); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+    glUniform4f(um, 1, 1, 1, 1);
+    for (int fi = 0; fi < 2; fi++) {
+      const GLenum rbfmt = fi == 0 ? 0x8058 /*RGBA8_OES*/ : 0x8D62 /*RGB565*/;
+      for (int hi = 0; hi < 3; hi++) {
+        const int h = hs[hi];
+        GLuint fb, rb; glGenFramebuffers(1, &fb); glGenRenderbuffers(1, &rb);
+        glBindRenderbuffer(GL_RENDERBUFFER, rb); glRenderbufferStorage(GL_RENDERBUFFER, rbfmt, W, h);
+        glBindFramebuffer(GL_FRAMEBUFFER, fb); glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rb);
+        GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        GLint rf = 0, rt = 0; glGetIntegerv(0x8B9B /*IMPLEMENTATION_COLOR_READ_FORMAT*/, &rf); glGetIntegerv(0x8B9A /*..._TYPE*/, &rt);
+        glViewport(0, 0, W, h);
+        double tdraw = 0, tread = 0, tswz = 0, tread2 = 0;
+        for (int f = 0; f < frames; f++) {
+          double a = now_ms(); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+          double b = now_ms();
+          if (fi == 0) {
+            glReadPixels(0, 0, W, h, GL_RGBA, GL_UNSIGNED_BYTE, back);
+            double c = now_ms();
+            for (size_t i = 0; i < (size_t)W * h * 4; i += 4) { uint8_t r = back[i]; back[i] = back[i + 2]; back[i + 2] = r; }
+            double d = now_ms(); tread += c - b; tswz += d - c;
+          } else {
+            glReadPixels(0, 0, W, h, 0x1907 /*RGB*/, 0x8363 /*UNSIGNED_SHORT_5_6_5*/, back);
+            double c = now_ms();
+            glReadPixels(0, 0, W, h, GL_RGBA, GL_UNSIGNED_BYTE, back);
+            double d = now_ms(); tread += c - b; tread2 += d - c;
+          }
+          tdraw += b - a;
+        }
+        if (fi == 0)
+          printf("section 19 RGBA8 1024x%d (fb 0x%x, read format 0x%x/0x%x): draw %.2f, read RGBA %.2f, swizzle %.2f ms/frame (err 0x%x)\n",
+                 h, st, rf, rt, tdraw / frames, tread / frames, tswz / frames, glGetError());
+        else
+          printf("section 19 RGB565 1024x%d (fb 0x%x, read format 0x%x/0x%x): draw %.2f, read 565 %.2f, read as RGBA %.2f ms/frame (err 0x%x)\n",
+                 h, st, rf, rt, tdraw / frames, tread / frames, tread2 / frames, glGetError());
+        glBindFramebuffer(GL_FRAMEBUFFER, 0); glDeleteFramebuffers(1, &fb); glDeleteRenderbuffers(1, &rb);
+      }
+    }
+    // (b) lock_surface pbuffers the size of each band
+    typedef EGLBoolean (*PFNLOCK19)(EGLDisplay, EGLSurface, const EGLint*);
+    typedef EGLBoolean (*PFNUNLOCK19)(EGLDisplay, EGLSurface);
+    PFNLOCK19 lockf = (PFNLOCK19)eglGetProcAddress("eglLockSurfaceKHR");
+    PFNUNLOCK19 unlockf = (PFNUNLOCK19)eglGetProcAddress("eglUnlockSurfaceKHR");
+    const EGLint lcfg[] = { 0x3033, 0x0001 | 0x0080, 0x3040, 0x0004, 0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3021, 8, 0x3038 };
+    EGLConfig lc; EGLint ln = 0;
+    if (!lockf || !unlockf || !eglChooseConfig(dpy, lcfg, &lc, 1, &ln) || ln < 1) {
+      printf("section 19 lock_surface: not available (egl error 0x%x)\n", eglGetError());
+      return 0;
+    }
+    for (int hi = 0; hi < 3; hi++) {
+      const int h = hs[hi];
+      const EGLint pba[] = { 0x3057, W, 0x3056, h, 0x3038 };
+      EGLSurface ls = eglCreatePbufferSurface(dpy, lc, pba);
+      const EGLint cattr[] = { 0x3098, 2, 0x3038 };
+      EGLContext lctx = eglCreateContext(dpy, lc, EGL_NO_CONTEXT, cattr);
+      if (ls == EGL_NO_SURFACE || lctx == EGL_NO_CONTEXT || !eglMakeCurrent(dpy, ls, ls, lctx)) { printf("section 19 lock_surface 1024x%d: surface/context failed (0x%x)\n", h, eglGetError()); continue; }
+      GLuint p2 = glCreateProgram(); glAttachShader(p2, shader(GL_VERTEX_SHADER, vs)); glAttachShader(p2, shader(GL_FRAGMENT_SHADER, fs)); glLinkProgram(p2); glUseProgram(p2);
+      GLint a2 = glGetAttribLocation(p2, "p"), t2 = glGetAttribLocation(p2, "t"), m2 = glGetUniformLocation(p2, "m");
+      glVertexAttribPointer(a2, 2, GL_FLOAT, GL_FALSE, 16, quad); glEnableVertexAttribArray(a2);
+      glVertexAttribPointer(t2, 2, GL_FLOAT, GL_FALSE, 16, quad + 2); glEnableVertexAttribArray(t2);
+      glUniform4f(m2, 1, 1, 1, 1); glViewport(0, 0, W, h);
+      GLuint lt; glGenTextures(1, &lt); glBindTexture(GL_TEXTURE_2D, lt); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+      const EGLint lattr[] = { 0x30C4, 1, 0x30C5, 0x0001, 0x3038 };
+      double tdraw = 0, tlock = 0, tcopy = 0, tun = 0; int okc = 0; EGLint ptrv = 0, pitch = 0, roff = -1, boff = -1;
+      for (int f = 0; f < frames; f++) {
+        double a = now_ms(); glClear(GL_COLOR_BUFFER_BIT); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
+        double b = now_ms();
+        eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        if (!lockf(dpy, ls, lattr)) { printf("section 19 lock_surface 1024x%d: lock failed (0x%x)\n", h, eglGetError()); break; }
+        eglQuerySurface(dpy, ls, 0x30C6, &ptrv); eglQuerySurface(dpy, ls, 0x30C7, &pitch);
+        eglQuerySurface(dpy, ls, 0x30C9, &roff); eglQuerySurface(dpy, ls, 0x30CB, &boff);
+        double c = now_ms();
+        if (ptrv && pitch > 0) { for (int y = 0; y < h; y++) memcpy(back + (size_t)y * W * 4, (uint8_t*)(intptr_t)ptrv + (size_t)y * pitch, (size_t)W * 4); }
+        double d = now_ms();
+        unlockf(dpy, ls); eglMakeCurrent(dpy, ls, ls, lctx);
+        double e = now_ms();
+        tdraw += b - a; tlock += c - b; tcopy += d - c; tun += e - d; okc++;
+      }
+      if (okc) printf("section 19 lock_surface 1024x%d: draw %.2f, unbind+lock %.2f, copy %.2f, unlock+rebind %.2f ms/frame (red offset %d, blue offset %d: %s)\n",
+                      h, tdraw / okc, tlock / okc, tcopy / okc, tun / okc, roff, boff, roff == 16 && boff == 0 ? "BGRA, no swizzle" : "check the order");
+      eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT); eglDestroyContext(dpy, lctx); eglDestroySurface(dpy, ls);
+    }
+    return 0;
+  }
   if (getenv("BENCH_ONLY") && atoi(getenv("BENCH_ONLY")) == 18) {
     enum { NT = 12 };
     printf("section 18: GL_EXT_unpack_subimage=%d\n", ext && strstr(ext, "GL_EXT_unpack_subimage") != NULL);

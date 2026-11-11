@@ -56,6 +56,7 @@ bool gJihadViewportFollow = true;     // T-499: the layout viewport follows a pa
 #endif
 #include <string>
 #include <cstring>                   // strstr/strchr for JihadPerDomainUaForUrl
+#include <algorithm>                 // std::min for the kernel-formula memory estimate (T-634)
 #include <cstdio>                    // /proc/meminfo poll (memory-pressure watcher)
 #include <cstdlib>                   // getenv/atol (JIHAD_MEM_LOW_KB, profile dir)
 #include <ctime>                     // clock_gettime (watcher rate-limit)
@@ -1405,6 +1406,47 @@ static long jihadAvailableKb() {
   return freeKb + buffersKb + reclaimable;
 }
 
+// T-634 (Herrie 93b783c6f32, Atlas 6dc2cca, an experiment): the kernel's own MemAvailable formula (3.14+), computed
+// from 2.6.35's fields: MemFree less the reserve (each zone's high watermark), plus the file LRU and the reclaimable
+// slab, each less the part the kernel keeps (half, at most the low watermark). Shmem is on the anon LRU since 2.6.28,
+// so it is not counted. JIHAD_MEM_AVAILABLE=kernel makes the guard use it; =log only logs both estimates.
+static long jihadAvailableKbKernel() {
+  long freeKb = -1, activeFile = 0, inactiveFile = 0, srecl = 0, v;
+  FILE* f = fopen("/proc/meminfo", "r");
+  if (!f) return -1;
+  char line[128];
+  while (fgets(line, sizeof(line), f)) {
+    if (sscanf(line, "MemFree: %ld", &v) == 1) freeKb = v;
+    else if (sscanf(line, "Active(file): %ld", &v) == 1) activeFile = v;
+    else if (sscanf(line, "Inactive(file): %ld", &v) == 1) inactiveFile = v;
+    else if (sscanf(line, "SReclaimable: %ld", &v) == 1) srecl = v;
+  }
+  fclose(f);
+  long lowPages = 0, highPages = 0;
+  if (FILE* z = fopen("/proc/zoneinfo", "r")) {
+    while (fgets(line, sizeof(line), z)) {
+      if (sscanf(line, " low %ld", &v) == 1) lowPages += v;
+      else if (sscanf(line, " high %ld", &v) == 1) highPages += v;
+    }
+    fclose(z);
+  }
+  if (freeKb < 0) return -1;
+  const long lowKb = lowPages * 4, reserveKb = highPages * 4, pagecache = activeFile + inactiveFile;
+  long avail = freeKb - reserveKb;
+  avail += pagecache - std::min(pagecache / 2, lowKb);
+  avail += srecl - std::min(srecl / 2, lowKb);
+  return avail < 0 ? 0 : avail;
+}
+
+static int jihadMemAvailableMode() {   // 0 upstream (the sum above), 1 the kernel's formula, 2 log both
+  static int mode = -1;
+  if (mode < 0) {
+    const char* v = getenv("JIHAD_MEM_AVAILABLE");
+    mode = !v ? 0 : !strcmp(v, "kernel") ? 1 : !strcmp(v, "log") ? 2 : 0;
+  }
+  return mode;
+}
+
 // Pages swapped in since boot (/proc/vmstat pswpin, 4 kB each), or -1.
 // Pages swapped in AND out since boot: 2026-11-08's stall was the swap-OUT storm (200-1400 pages a second, the
 // kernel making room for the browser's heaps and the video's cache pages) that saturated the eMMC beside the swap-ins.
@@ -1535,6 +1577,12 @@ EngineHost::CheckMemoryPressure()
   // an override, not a safety property.
   static const long lowKb = jihadGuardKb("JIHAD_MEM_LOW_KB", "jihad.memory.flushKb", 49152, 8192, 1048576);
   long avail = jihadAvailableKb();
+  if (jihadMemAvailableMode()) {
+    const long availK = jihadAvailableKbKernel();
+    if (jihadMemAvailableMode() == 2 || avail < 2 * lowKb || availK < 2 * lowKb)
+      fprintf(stderr, "[jihad-bs] memory estimate: %ld kB (sum), %ld kB (kernel formula)\n", avail, availK);
+    if (jihadMemAvailableMode() == 1 && availK >= 0) avail = availK;
+  }
 
   // Past the flush (cavekit-device-headroom.md R1; EngineHost.h): the floor, or swapping in without pause.
   static const long floorKb = jihadGuardKb("JIHAD_MEM_FLOOR_KB", "jihad.memory.floorKb", 24576, 4096, 1048576);

@@ -169,17 +169,58 @@ static void jihadRunAudioScript(const char* script) {
 // poll thread, read and told from the main thread's tick (emitLoadAndLocation), once per change.
 static volatile int gJihadMediaPlaying = -1;   // -1 unknown, 0 silent, 1 playing
 
+// T-614: Flash's sound is not engine media. The plugin process (plugin-container, our child) plays through ALSA's
+// pulse plugin, which it loads only when the movie opens a sound (its startup probe loads libasound alone), so a
+// child plugin-container mapping libasound_module_pcm_pulse is a Flash movie with sound. Without counting it, the
+// speaker amp stayed muted at rest (audio-off.sh) and every Flash game was silent (the owner, 2026-11-11; Flash
+// audio was heard on 2026-08-10, before this routing landed on 08-15).
+static int jihadFlashAudioStreams() {
+  int n = 0;
+  const pid_t me = getpid();
+  DIR* d = opendir("/proc");
+  if (!d) return 0;
+  while (struct dirent* e = readdir(d)) {
+    if (e->d_name[0] < '1' || e->d_name[0] > '9') continue;
+    char path[64], buf[256];
+    snprintf(path, sizeof path, "/proc/%s/stat", e->d_name);
+    FILE* f = fopen(path, "r");
+    if (!f) continue;
+    size_t len = fread(buf, 1, sizeof buf - 1, f); fclose(f); buf[len] = 0;
+    const char* rp = strrchr(buf, ')');                 // "pid (comm) state ppid ..."
+    int ppid = 0; char st = 0;
+    if (!rp || sscanf(rp + 1, " %c %d", &st, &ppid) != 2 || ppid != me) continue;
+    // our child launched through the bundled loader: its comm is ld-2.23.so, so the command line names it
+    snprintf(path, sizeof path, "/proc/%s/cmdline", e->d_name);
+    if (FILE* c = fopen(path, "r")) {
+      len = fread(buf, 1, sizeof buf - 1, c); fclose(c); buf[len] = 0;
+      for (size_t i = 0; i < len; i++) if (!buf[i]) buf[i] = ' ';
+    } else continue;
+    if (!strstr(buf, "plugin-container")) continue;
+    snprintf(path, sizeof path, "/proc/%s/maps", e->d_name);
+    if (FILE* m = fopen(path, "r")) {
+      char line[512];
+      while (fgets(line, sizeof line, m)) {
+        if (strstr(line, "libasound_module_pcm_pulse")) { ++n; break; }
+      }
+      fclose(m);
+    }
+  }
+  closedir(d);
+  return n;
+}
+
 static void* jihadAudioPollThread(void*) {
   const std::string& sd = jihad::RuntimeStateDir();
   if (sd.empty()) { return nullptr; }
   const std::string onp = sd + "/audio-on.sh";
   const std::string offp = sd + "/audio-off.sh";
   const std::string volp = sd + "/audio-vol.sh";
-  int prev = 0, tick = 0;
+  int prev = 0, tick = 0, flash = 0, scan = 0;
   for (;;) {
     usleep(200 * 1000);
     if (!jihad_pulse_active_streams) { continue; }
-    int n = jihad_pulse_active_streams();
+    if ((scan++ % 5) == 0) flash = jihadFlashAudioStreams();   // once a second: a /proc scan
+    int n = jihad_pulse_active_streams() + flash;
     gJihadMediaPlaying = n > 0 ? 1 : 0;
     if (n > 0 && prev == 0) { jihadRunAudioScript(onp.c_str()); tick = 0; }
     else if (n == 0 && prev > 0) { jihadRunAudioScript(offp.c_str()); }
@@ -422,6 +463,12 @@ static void jihadTimelineFirstPainted() {
   if (sLogged || !jihadTimelineOn()) return;
   sLogged = true;
   fprintf(stderr, "[jihad-tl] t=%lld first painted frame\n", (long long)jihadNowMs());
+}
+// T-631/T-619: a named moment on the timeline (a card's page created, its first address opened), so the time from a
+// card's connection to its first frame splits into its parts.
+void jihadTimelineMark(const char* what) {
+  if (!jihadTimelineOn()) return;
+  fprintf(stderr, "[jihad-tl] t=%lld mark %s\n", (long long)jihadNowMs(), what);
 }
 void jihadTimelineMain(const char* what, long ms) {   // ms: how long it took, ending now
   if (!jihadTimelineOn() || ms < 15) return;
@@ -2633,6 +2680,7 @@ static bool jihadAboutPage(const char* url, std::string* outHtml, std::string* o
 
 void BrowserPageGoanna::openUrl(const char* url, const char* referrer, uint32_t referrerPolicy, bool fromPage) {
   if (!mPage || !url) return;
+  jihadTimelineMark("open url");
   mShedForMemory = false;
   // A newer explicit navigation supersedes ALL queued input aimed at the old document, and the
   // generation bump stops an in-flight drain from continuing into the superseded page.

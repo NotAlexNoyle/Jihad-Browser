@@ -147,6 +147,34 @@ install -m 0644 "$REPO/NOTICE"  "$STAGE/NOTICE"
 } > "$STAGE/BUNDLED-VERSIONS"
 cat "$STAGE/BUNDLED-VERSIONS"
 
+# --- MOCHI_MINIFY=1 (T-618, an experiment): Enyo 2's own deploy tool concatenates and minifies the
+# framework, the two libraries and the app into build/{enyo,app}.{js,css}, and index.html loads those
+# four files instead of ~230 modules through the debug loader (codepoet's bootplate does the same with
+# deploy.sh -w). It needs node and the unpruned Enyo tree (its tools/ and minify/). The module sources
+# stay staged: the CSS's url()s point into lib/, and the debug build stays one setting away.
+if [ "${MOCHI_MINIFY:-0}" = 1 ]; then
+	command -v node >/dev/null || die "MOCHI_MINIFY=1 needs node"
+	W=$(mktemp -d)
+	cp -a "$STAGE/lib" "$STAGE/source" "$STAGE/index.html" "$W/" && cp -a "$ENYO_SRC" "$W/enyo"
+	for f in icon.png appinfo.json; do [ -f "$STAGE/$f" ] && cp "$STAGE/$f" "$W/"; done   # the deploy copies them along
+	printf 'enyo.depends(\n\t"$lib/layout",\n\t"$lib/mochi",\n\t"source"\n);\n' > "$W/package.js"
+	(cd "$W" && node enyo/tools/deploy.js -s . -o "$W/out" > "$W/deploy.log" 2>&1) || { cat "$W/deploy.log"; die "enyo deploy failed"; }
+	for f in enyo.js enyo.css app.js app.css; do [ -s "$W/out/build/$f" ] || die "enyo deploy made no build/$f"; done
+	mkdir -p "$STAGE/build" && cp "$W"/out/build/{enyo.js,enyo.css,app.js,app.css} "$STAGE/build/"
+	python3 -I - "$STAGE/index.html" <<'PY'
+import re, sys
+p = sys.argv[1]; t = open(p).read()
+old = ['enyo/enyo.js', 'lib/layout/package.js', 'lib/mochi/package.js', 'source/package.js']
+for s in old:
+    t, n = re.subn(r'\s*<script src="%s" type="text/javascript"></script>' % re.escape(s), '', t)
+    assert n == 1, s
+t = t.replace('</head>', '\t<link href="build/enyo.css" rel="stylesheet" type="text/css">\n\t<link href="build/app.css" rel="stylesheet" type="text/css">\n\t<script src="build/enyo.js" type="text/javascript"></script>\n\t<script src="build/app.js" type="text/javascript"></script>\n</head>', 1)
+open(p, 'w').write(t)
+PY
+	rm -rf "$W"
+	echo "=== minified: build/enyo.js $(stat -c %s "$STAGE/build/enyo.js"), build/app.js $(stat -c %s "$STAGE/build/app.js") bytes ==="
+fi
+
 # --- sanity: every <script src> in index.html resolves in the staging tree -----
 echo "=== resolving index.html script srcs ==="
 missing=0

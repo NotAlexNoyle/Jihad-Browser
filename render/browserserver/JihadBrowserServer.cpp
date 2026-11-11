@@ -4,7 +4,7 @@
 /* Jihad Browser — JihadBrowserServer implementation. See header. */
 namespace jihad { void GpuDumpRestart(); }   // GoannaRenderPage.cpp (T-502 round 133)
 namespace jihad { void MarkInputLatency(); }   // BrowserPageGoanna.cpp (T-506: input to the first changed frame)
-namespace jihad { void jihadTimelineMain(const char* what, long ms); }   // BrowserPageGoanna.cpp (T-515)
+namespace jihad { void jihadTimelineMain(const char* what, long ms); void jihadTimelineMark(const char* what); }   // BrowserPageGoanna.cpp (T-515, T-631)
 #include "JihadBrowserServer.h"
 #include "../goanna/JihadRuntimePaths.h"   // the ONE runtime-state dir (T-057 / R8)
 // A card connected or left → the engine side tells the components (render/goanna/EngineHost.cpp;
@@ -990,10 +990,12 @@ void JihadBrowserServer::asyncCmdConnect(YapProxy* proxy, int32_t pageWidth, int
   printf("[jihad-bs] connect %dx%d keys=0x%x,0x%x sz=%d id=%d\n", pageWidth, pageHeight, (unsigned)sharedBufferKey1, (unsigned)sharedBufferKey2, sharedBufferSize, (int)identifier);
   reap(proxy);                                     // replace any existing page
   ProxySink* sink = new ProxySink(this, proxy);
+  jihad::jihadTimelineMark("connect received");
   jihad::BrowserPageGoanna* page = new jihad::BrowserPageGoanna(mHost, *sink);
   if (!page->init(pageWidth, pageHeight, sharedBufferKey1, sharedBufferKey2, sharedBufferSize)) {
     printf("[jihad-bs] page init FAILED\n"); delete page; delete sink; return;
   }
+  jihad::jihadTimelineMark("page created");
   mPages[proxy] = Page{ page, sink };
   if (jihad::jihadExpressOn()) {   // T-515: the reader thread's way to the page
     std::lock_guard<std::mutex> l(jihad::jihadWantLock());

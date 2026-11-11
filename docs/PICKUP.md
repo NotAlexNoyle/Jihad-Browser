@@ -79,15 +79,36 @@ instrumented start); GCC 9 gates every speed transform on `optimize_size`, so **
 is only worth doing at -O2 (untrained code then compiles -Os-like, placed cold); the instrumented engine's 10x comes
 from the per-function indirect-call probe through `__tls_get_addr` (`-fno-profile-values` removes it), lost inlining
 and atomic counters (`-fprofile-update=single`); UXP's own `MOZ_PROFILE_GENERATE`/`MOZ_PROFILE_USE` route avoids the
-stale-object and js-config traps. **Next:** the owner's call on -O2 + PGO (the -O2 decision deferred to "after PGO").
+stale-object and js-config traps. **The owner, 2026-11-11: "-O2 + PGO, redone"** (settles -O2): built as
+`mozconfig.goanna-arm-pgo` + `tools/device/pgo-profile.sh` (lowpower-uxp.md §7, commit `f121212a`); the gen engine
+(119 MB stripped, no atomics, no TLS probes) profiled on the TouchPad from 06:13, the use build and the measure next.
 
-**Chain 5 (first read):** VP9 on libvpx confirmed (ffvpx at 480p dropped 858 and 889 of 900 frames; libvpx 28 and 64);
-T-605's three verify rounds 0 structurally wrong of 322 frames (new hide and old alike), but the opacity-group page
-drew 4 of 5 frames wrong when sticky (plain: right): a new finding to chase; Wikipedia medians: the exact covers stay
-(16.5 s / 11.9 fps against 17.7 / 8.9 bound), jemalloc `nn` alone saved 37 MB PSS at load and 19 MB at 30 s (worth a
-confirming round), `ff`, flush250, decode64k, imgcache8m no gain, Skia (by the default pref) +30 % paint time, its
-eye frames still to read. Not yet read: the settings walk, T-596, T-598, T-594's OMX probe, T-606's stream rounds,
-the Age of War rerun.
+**Chain 5 (read):** VP9 on libvpx confirmed (ffvpx at 480p dropped 858 and 889 of 900 frames; libvpx 28 and 64).
+Wikipedia medians (3-4 interleaved runs):
+- the exact covers stay (16.5 s / 11.9 fps against 17.7 / 8.9 with the bound test);
+- jemalloc `nn` alone saved 37 MB PSS at load and 19 MB at 30 s with no slowdown, worth a confirming round;
+- `ff`, flush250, decode64k and imgcache8m gave no gain.
+
+**Skia, through the default pref (GPREF), really drew this time:** the frame differs from Cairo's in 21 888 pixels,
+anti-aliasing only, and by eye both are right (`docs/rounds/lowpower-2026-11-10/eye-wiki-g-*.png`). It costs +30 %
+paint time (4.5 s against 3.4 s) and gains nothing, so Cairo stays. That is a recommendation for the owner, whose
+open call it was.
+
+**T-605:** the three verify rounds had 0 structurally wrong of 322 frames, with the new hide and the old alike. The
+opacity-group page with sticky content: the verify marks the four group boxes' rows (233-648) wrong in 4 frames and the
+bottom 11 rows structurally wrong, yet the screen at +12 s is identical to the plain page's (204 differing pixels: the
+clock and the URL). So the GPU frames were wrong for a moment, or the CPU reference draws a sticky opacity group
+differently. **Open:** dump both frames of one such slot (`docs/rounds/t505-2026-11-09/opacity-group-sticky-*`).
+
+**Finger and probe rounds:**
+- the Settings walk on the three shells: 3 runs, 0 failed, the Page animations row among them. The preflight flagged
+  leftovers (an open Enyo card, Mojo hand daemons, `/tmp` scripts and dumps), which were cleaned;
+- T-596 (download list on Mojo): pass;
+- T-598 (the scrubber drag on Mojo): 1 failed of 5, then 0 failed of 5;
+- T-594's OMX probe listed `libOmxVdec.so`, `/dev/msm_vidc_dec` and the components, but the AVC decode results never
+  reached the host: `/tmp/omx-360.txt` and `omx-480.txt` may still be on the device. Fetch them after the PGO
+  session;
+- the Age of War rerun went into T-576's games report (mostly short of the bar, as before).
 
 **Chain 6 (T-592):** none of the four levers (no web fonts, a 192 MB JS heap, a 32 MB GC threshold, parsing on the
 main thread) moved YouTube's watch page by more than 3 % (load ~19 s); its load list is nearly all YouTube's own

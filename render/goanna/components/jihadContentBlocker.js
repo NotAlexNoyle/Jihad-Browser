@@ -393,16 +393,24 @@ function writeCache(r, versions) {
     typed: mapToObj(r.typed), paths: mapToObj(r.paths), excRules: mapToObj(r.excRules), site: r.site, excSel: r.excSel || {}, gh: r.gh || {hosts: [], prefixes: []}, counts: r.counts}));
 }
 // null when there is no cache for these versions and this compiler
+// The load's phases on the main thread (T-631's split: the first card's connect waited 1.7 s on this), logged once a load
+var gLoadTimes = null;
 function readCache(versions) {
+  let t0 = Date.now();
   let mf = profileFile("meta.json");
   if (!mf.exists()) return null;
   let c = JSON.parse(readFileText(mf));
   if (c.compiler !== COMPILER_VERSION || c.versions.easylist !== versions.easylist || c.versions.easyprivacy !== versions.easyprivacy) return null;
   for (let n of ["hosts.txt", "tp.txt", "exc.txt", "cosmetic.css"]) if (!profileFile(n).exists()) return null;
-  return {hosts: new HostSet(readFileText(profileFile("hosts.txt"))), tp: new HostSet(readFileText(profileFile("tp.txt"))),
-          excHosts: new HostSet(readFileText(profileFile("exc.txt"))),
+  let t1 = Date.now();
+  let hosts = new HostSet(readFileText(profileFile("hosts.txt"))), tp = new HostSet(readFileText(profileFile("tp.txt"))),
+      excHosts = new HostSet(readFileText(profileFile("exc.txt")));
+  let t2 = Date.now();
+  let r = {hosts: hosts, tp: tp, excHosts: excHosts,
           typed: objToMap(c.typed || {}), paths: objToMap(c.paths || {}), excRules: objToMap(c.excRules || {}),
           css: null, site: c.site || {}, excSel: c.excSel || {}, gh: c.gh || {hosts: [], prefixes: []}, counts: c.counts};
+  gLoadTimes = {meta: t1 - t0, sets: t2 - t1, maps: Date.now() - t2};
+  return r;
 }
 
 function JihadContentBlocker() {
@@ -623,7 +631,11 @@ JihadContentBlocker.prototype = {
       if (!files.easylist && !files.easyprivacy) { this._noLists = true; this._loading = false; log("no lists: nothing is blocked"); return; }
       try {
         let c = readCache(versions);
-        if (c) { this._loading = false; this._install(c, versions, "cache"); return; }
+        if (c) {
+          this._loading = false; let t0 = Date.now(); this._install(c, versions, "cache");
+          if (gLoadTimes) log("load from the cache on the main thread: meta.json " + gLoadTimes.meta + " ms, host sets " + gLoadTimes.sets + " ms, maps " + gLoadTimes.maps + " ms, install " + (Date.now() - t0) + " ms");
+          return;
+        }
       } catch (e) { log("cache unreadable, recompiling: " + e); }
       let texts = [files.easylist ? readFileText(files.easylist) : "", files.easyprivacy ? readFileText(files.easyprivacy) : ""];
       compile(texts, (r) => this._afterCompile(r, versions, "compiled"));
@@ -728,8 +740,9 @@ JihadContentBlocker.prototype = {
       let f = profileFile("cosmetic.css");
       if (!f.exists()) return;
       this._sheetURI = Services.io.newFileURI(f);
+      let t0 = Date.now();
       sss.loadAndRegisterSheet(this._sheetURI, sss.USER_SHEET);
-      log("hiding on (" + (this._counts ? this._counts.cosmetic : "?") + " generic selectors)");
+      log("hiding on (" + (this._counts ? this._counts.cosmetic : "?") + " generic selectors), the sheet registered in " + (Date.now() - t0) + " ms");
     } catch (e) { log("sheet failed: " + e); this._sheetURI = null; }
   },
   _siteSheetFor: function (doc) {

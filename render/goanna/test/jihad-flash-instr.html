@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
      jihad-flash-instr.html: an instrumented movie (make-instrument-swf.py) and what it reports, in elements a check reads
-     (cavekit-flash.md R2, R4). ?movie=avm1|avm2&swf=FILE&scale=showAll&w=400&h=300&vars=a=b&wmode=&allow=&bg=&tag=&layout=&api=1&over=1 -->
+     (cavekit-flash.md R2, R4). ?movie=avm1|avm2&swf=FILE&scale=showAll&w=400&h=300&vars=a=b&wmode=&allow=&bg=&tag=&layout=&api=1&over=1&bench=1 -->
 <html><head><meta charset="utf-8"><title>jihad-flash-instr</title>
 <script>if (!/[?&]fit=1/.test(location.search)) { document.write('<meta name="viewport" content="width=device-width">'); }</script>
 <style>
@@ -21,6 +21,7 @@
 </div>
 <script>
   var q = {}; location.search.replace(/[?&]([^=]+)=([^&]*)/g, function (m, k, v) { q[k] = decodeURIComponent(v); });
+  var benchFrames = 0, benchT0 = Date.now();
   var n = 0, all = [], keyAt = 0, pressAt = 0, movesInPress = 0, firstMove = 0, lastMove = 0;
   function jihadFlash(s) {
     s.split(";").forEach(function (line) {
@@ -44,6 +45,8 @@
         movesInPress++; if (!firstMove) { firstMove = now; } lastMove = now;
       }
     });
+    // bench=1 (lowpower-bench's flash measure, T-638): every movie's frame lines summed into the title the daemon logs
+    if (q.bench) { benchFrames += 30 * (s.match(/(^|;)frames /g) || []).length; document.title = "jihad-flash: frames=" + benchFrames + " ms=" + (Date.now() - benchT0); }
     document.getElementById("count").textContent = String(n);
     document.getElementById("all").textContent = all.join(" | ");
   }
@@ -65,6 +68,7 @@
   else if (q.tag == "nested") html = '<object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"' + size + '><param name="movie" value="' + src + '">' + params() + '<object id="m" data="' + src + '" type="application/x-shockwave-flash"' + size + '>' + params() + '</object></object>';
   else if (q.layout == "three") html = embedOf("m") + embedOf("m2") + embedOf("m3");
   else if (q.layout == "frame") html = '<iframe id="m" src="jihad-flash-instr.html?movie=' + (q.movie || "avm1") + '&inframe=1&w=' + w + '&h=' + h + '" width="' + w + '" height="' + h + '" frameborder="0" scrolling="no" style="display:block;margin:40px 0 0 40px"></iframe>';
+  else if (q.layout == "column") { html = ""; for (var i = 0; i < 6; i++) { html += embedOf(i ? "m" + (i + 1) : "m") + '<div style="height:500px"></div>'; } }   // movies down a page the bench pans
   else if (q.layout == "low") html = '<div style="height:480px"></div>' + embedOf("m");
   else if (q.layout == "below") html = '<div style="height:1500px"></div>' + embedOf("m");
   else if (q.layout == "hidden") html = '<button id="show" style="display:block;width:300px;height:60px;margin:20px 0 0 40px" onclick="document.getElementById(\'m\').style.display=\'block\'">show</button>' + embedOf("m").replace('<embed ', '<embed style="display:none" ');

@@ -14,6 +14,9 @@
 #           pipeline rate over the pan's 2 s windows (median)
 #   jsbench jihad-jsbench.html's five timings (the page writes them into its title; the daemon logs titles)
 #   long    the long static page's scripted pan rate
+#   flash   (T-638) six instrumented movies down a page (jihad-flash-instr.html layout=column bench=1), panned: the
+#           movies' frames per second from the page's title over the whole run and over the pan, the main thread's
+#           calls in the pan, and the pan's own rates
 #   start   the daemon's start to its engine up ("daemon main" to "engine up" on the timeline): cold (page cache dropped
 #           first) and warm (started again at once); and the card's connection to its first content frame ("card
 #           connected" to "first painted frame") on the colours page
@@ -97,6 +100,20 @@ elif mode == 'load':
     # the layer paints alone over the load and its 10 s (T-559's content backend lever reads on these)
     paints = [int(re.search(r'(\d+) ms$', r).group(1)) for t, r in ev if r.startswith('main layer paint') and t0 <= t < tl_after_done + 10000]
     print(tl_after_done - t0, *load, rest[0], rest[3], rest[2], sum(paints), len(paints))
+elif mode == 'flash':
+    # the titles the page writes ("jihad-flash: frames=N ms=T"), all and those inside the pan; the main calls in the pan
+    allt, pant, pmain = [], [], 0; on = False
+    for line in open(path, encoding='latin1'):
+        if 'inject pan' in line and 'done' not in line: on = True
+        if 'inject pan done' in line: on = False
+        m = re.search(r'jihad-flash: frames=(\d+) ms=(\d+)', line)
+        if m:
+            allt.append((int(m.group(1)), int(m.group(2))))
+            if on: pant.append(allt[-1])
+        m = re.search(r'\[jihad-tl\] t=\d+ main .* (\d+) ms$', line)
+        if on and m: pmain += int(m.group(1))
+    def fps(xs): return '%.1f' % ((xs[-1][0] - xs[0][0]) * 1000.0 / (xs[-1][1] - xs[0][1])) if len(xs) > 1 and xs[-1][1] > xs[0][1] else 'NA'
+    print(fps(allt), fps(pant), pmain)
 elif mode == 'pipe':
     # the paint pipeline's rate over the pan: the "(N fps)" of its 2 s windows after the pan mark line, median
     rates = []; on = False
@@ -138,6 +155,12 @@ grep -a 'jihad-jsbench: ' $LOG | tail -n 1 | sed 's/.*jihad-jsbench: //; s/\].*/
 EOS
 # a slow engine's waits (WAIT_SCALE): the load, the jsbench title
 sed -i "s/-lt 90 ]/-lt $((90 * WS)) ]/" "$SCR/idle.sh"; sed -i "s/-lt 150 ]/-lt $((150 * WS)) ]/" "$SCR/title.sh"
+cat > "$SCR/flashwait.sh" <<'EOS'
+LOG=/var/palm/jihad/enyo/daemon-gpu.log
+t=0; while [ $t -lt 60 ]; do grep -aq 'jihad-flash: frames=' $LOG && break; sleep 1; t=$((t+1)); done
+sleep 15
+echo "movies reporting after $t s: $(grep -a 'jihad-flash: frames=' $LOG | tail -n 1 | sed 's/.*jihad-flash: //; s/\].*//')"
+EOS
 cat > "$SCR/drop.sh" <<'EOS'
 sync; echo 3 > /proc/sys/vm/drop_caches; echo "page cache dropped"
 EOS
@@ -207,6 +230,18 @@ for r in $(seq 1 "$RUNS"); do
 	collect "$D/lp-r$r-$LV-long.log"
 	rate=$(panrate "$D/lp-r$r-$LV-long.log"); pipe=$(tl pipe "$D/lp-r$r-$LV-long.log")
 	row "$r" long "pan_frames pan_ms pan_fps pipe_fps" $rate $pipe
+	stopspike
+	;; esac
+	case " $ONLY " in *" flash "*)
+	say "run $r: flash, six movies panned"
+	spike "http://$HOST/jihad-flash-instr.html?movie=avm2&layout=column&bench=1"
+	dev "$SCR/flashwait.sh" $((90 * WS)) | tail -n 1
+	dev "$SCR/pan.sh" 40 | tail -n 1 >/dev/null
+	sleep 5
+	collect "$D/lp-r$r-$LV-flash.log"
+	fl=$(tl flash "$D/lp-r$r-$LV-flash.log")
+	rate=$(panrate "$D/lp-r$r-$LV-flash.log"); pipe=$(tl pipe "$D/lp-r$r-$LV-flash.log")
+	row "$r" flash "flash_fps pan_flash_fps pan_main_ms pan_frames pan_ms pan_fps pipe_fps" $fl $rate $pipe
 	stopspike
 	;; esac
 	case " $ONLY " in *" start "*)

@@ -139,12 +139,19 @@ enyo.kind({
 		{name: "printDialog", kind: "JihadPrintDialog", lazy: false, onFindPrinters: "printFind", onPrintPage: "printPage"},
 		{name: "printNothing", kind: "BrowserPrompt", caption: $L("Print"),
 			message: $L("Open a page first: there is nothing to print on the start page."), cancelCaption: ""},
-		{kind: "AppMenu", components: [
+		// lazy: false so the two page entries exist to be shown, hidden and renamed before the
+		// menu's first opening (updatePageMenuItems).
+		{kind: "AppMenu", lazy: false, onBeforeOpen: "updatePageMenuItems", components: [
 			// Upstream isis shipped this COMMENTED OUT, and this fork inherited it — so the
 			// FindBar, its handlers and the frozen findInPage command were all present and
 			// wired, with nothing anywhere to open them. Re-enabled 2026-08-05, now that
 			// findInPage actually searches (it used to abort the daemon: patch 0015).
 			{caption: $L("Find on Page"), onclick: "showFindOnPage"},
+			// T-642 / T-645 (the owner, 2026-11-11, from the Pale Moon for Android research): the
+			// page's article alone, and a desktop identity for this card. On http(s) pages only;
+			// hidden until updatePageMenuItems says the page is one.
+			{name: "readerMenuItem", caption: $L("Reader View"), showing: false, onclick: "readerClick"},
+			{name: "desktopMenuItem", caption: $L("Desktop Site"), showing: false, onclick: "desktopSiteClick"},
 			// ONE settings entry (cavekit-preferences-ui.md R5, finished 2026-10-05): the engine's
 			// about:preferences, the surface the three shells share. The card's own "Browser
 			// Settings" panel is gone; so is Help, which launched the system help app at an HP
@@ -266,6 +273,7 @@ enyo.kind({
 	},
 	paneViewSelected: function(inSender, inView) {
 		if (this._theme !== undefined && inView && inView.applyTheme) { inView.applyTheme(this._theme); }
+		this.updatePageMenuItems();
 	},
 	//* Every reply on that subscription lands here — the immediate
 	//* {"returnValue":true,"subscribed":true} handshake as well as each later push. Only a
@@ -702,6 +710,7 @@ enyo.kind({
 		// The settings page publishes an edit by rewriting its own fragment; this is where
 		// the card learns about it (cavekit-preferences-ui.md R5).
 		this.noteUrlForChromePrefs(inUrl);
+		this.updatePageMenuItems();
 	},
 	pageLoadStopped: function(inSender, inUrl) {
 		this.updateHistory(this.title, this.url);
@@ -861,6 +870,24 @@ enyo.kind({
 		if (this.$.browser) {
 			this.$.browser.clearHistory();
 		}
+	},
+	//* The app menu's Reader View and Desktop Site entries follow the page: there on an
+	//* http(s) page (and, for the reader, in the reader), each named for what a tap does.
+	//* Called when the menu is about to open and whenever the page or the view changes.
+	updatePageMenuItems: function() {
+		var r = this.$.readerMenuItem, d = this.$.desktopMenuItem;
+		if (!r || !d) { return; }
+		var st = (this.isBrowserShowing() && this.$.browser) ? this.$.browser.pageToolState() : {reader: "", desktop: ""};
+		r.setShowing(!!st.reader);
+		r.setCaption(st.reader === "leave" ? $L("Leave Reader View") : $L("Reader View"));
+		d.setShowing(!!st.desktop);
+		d.setCaption(st.desktop === "on" ? $L("Leave Desktop Site") : $L("Desktop Site"));
+	},
+	readerClick: function() {
+		if (this.isBrowserShowing()) { this.$.browser.toggleReader(); }
+	},
+	desktopSiteClick: function() {
+		if (this.isBrowserShowing()) { this.$.browser.toggleDesktopSite(); this.updatePageMenuItems(); }
 	},
 	showFindOnPage: function() {
 		if (this.isBrowserShowing()) {

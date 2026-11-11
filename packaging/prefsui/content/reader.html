@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+     about:reader?url=… — the page's article alone (T-642). This file is the empty frame of it: it has no script,
+     and it is served UNPRIVILEGED (jihadAboutReader.js, which also fetches the article and fills the elements
+     below by id). The style is inline because an unprivileged document may not load a sheet from this package. -->
+<html>
+<head>
+	<meta charset="UTF-8"/>
+	<meta name="viewport" content="width=device-width"/>
+	<title>Reader</title>
+	<style>
+		html { background: #fbfaf7; }
+		body { margin: 0 auto; padding: 20px 24px 64px; max-width: 42em; font: 20px/1.55 Georgia, "Times New Roman", serif; color: #222; }
+		a { color: #1a5fb4; }
+		#reader-bar { font: 15px sans-serif; color: #666; overflow: hidden; padding-bottom: 12px; border-bottom: 1px solid #ddd; margin-bottom: 20px; }
+		#reader-domain { float: left; color: #666; text-decoration: none; word-break: break-all; }
+		#reader-original { float: right; margin-left: 16px; }
+		h1#reader-title { font: bold 30px/1.25 sans-serif; margin: 0 0 8px; }
+		#reader-credits { font: italic 16px sans-serif; color: #666; margin: 0 0 20px; }
+		#reader-credits:empty { display: none; }
+		#reader-status { font: 18px sans-serif; color: #666; margin: 32px 0; }
+		body.loaded #reader-status { display: none; }
+		#reader-content { display: none; word-wrap: break-word; }
+		body.loaded #reader-content { display: block; }
+		#reader-content img, #reader-content video, #reader-content svg { max-width: 100%; height: auto; }
+		#reader-content figure { margin: 1em 0; }
+		#reader-content figcaption, #reader-content .caption, #reader-content .wp-caption-text { font: 15px sans-serif; color: #666; }
+		#reader-content pre { white-space: pre-wrap; font-size: 16px; background: #f0eee8; padding: 8px 12px; }
+		#reader-content code { font-size: 16px; }
+		#reader-content blockquote { margin: 1em 0; padding-left: 16px; border-left: 3px solid #ccc; color: #444; }
+		#reader-content table { border-collapse: collapse; max-width: 100%; font-size: 16px; }
+		#reader-content td, #reader-content th { border: 1px solid #ccc; padding: 4px 8px; }
+		#reader-content h1, #reader-content h2, #reader-content h3 { font-family: sans-serif; line-height: 1.25; }
+		#reader-content .hidden, #reader-content .invisible { display: none; }
+	</style>
+</head>
+<body>
+	<div id="reader-bar">
+		<a id="reader-domain"></a>
+		<a id="reader-original">Leave reader view</a>
+	</div>
+	<h1 id="reader-title"></h1>
+	<div id="reader-credits"></div>
+	<p id="reader-status">Loading the article…</p>
+	<div id="reader-content"></div>
+</body>
+</html>

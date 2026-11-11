@@ -167,7 +167,8 @@ enyo.kind({
 		// 2026-10-06: "the upper right menu has the same options on all 3 variants"):
 		//   share button    Add Bookmark · Share Link · Add to Launcher      (APP_MENUS.share)
 		//   bookmarks button Bookmarks · History · Downloads                 (APP_MENUS.library)
-		//   the app menu    Find on Page · Settings · Print                  (APP_MENUS.app)
+		//   the app menu    Find on Page · Reader View · Desktop Site · Settings · Print   (APP_MENUS.app;
+		//                   the two page entries on http(s) pages only — T-642 / T-645, menuRows)
 		// with New Card its own button. Settings is the engine's about:preferences, the surface
 		// the three shells share (the card's own panel was merged into it, 2026-10-05).
 		{name: "menuPopup", classes: "jihad-menu-overlay", showing: false, ontap: "closeMenu", components: [
@@ -622,7 +623,8 @@ enyo.kind({
 	closeMenu: function() { this.$.menuPopup.hide(); },
 	//* The menus (see the menuPopup component). Each row: [label, handler].
 	APP_MENUS: {
-		app:     {side: "left",  rows: [["Find on Page", "menuFind"], ["Settings", "menuSettings"], ["Print", "menuPrint"]]},
+		app:     {side: "left",  rows: [["Find on Page", "menuFind"], ["Reader View", "menuReader"], ["Desktop Site", "menuDesktopSite"],
+		                                ["Settings", "menuSettings"], ["Print", "menuPrint"]]},
 		share:   {side: "right", rows: [["Add Bookmark", "menuAddBookmark"], ["Share Link", "menuShareLink"], ["Add to Launcher", "menuAddToLauncher"]]},
 		library: {side: "right", rows: [["Bookmarks", "menuBookmarks"], ["History", "menuHistory"], ["Downloads", "menuDownloads"]]}
 	},
@@ -634,12 +636,30 @@ enyo.kind({
 		this._menuName = which;
 		this.$.menuBox.addRemoveClass("jihad-menu-left", m.side === "left");
 		this.$.menuItems.destroyClientControls();
-		for (i = 0; i < m.rows.length; i++) {
-			this.$.menuItems.createComponent({classes: "jihad-menu-item", content: m.rows[i][0],
-				menuAction: m.rows[i][1], ontap: "menuPick"}, {owner: this});
+		var rows = this.menuRows(m.rows);
+		for (i = 0; i < rows.length; i++) {
+			this.$.menuItems.createComponent({classes: "jihad-menu-item", content: rows[i][0],
+				menuAction: rows[i][1], ontap: "menuPick"}, {owner: this});
 		}
 		this.$.menuItems.render();
 		this.$.menuPopup.show();
+	},
+	//* A menu's rows as they stand for the page on screen. Reader View and Desktop Site
+	//* (T-642 / T-645) are there on an http(s) page only — the reader's entry in the reader
+	//* too — and each is named for what a tap does.
+	menuRows: function(rows) {
+		var st = this.pageToolState(), out = [], i, action;
+		for (i = 0; i < rows.length; i++) {
+			action = rows[i][1];
+			if (action === "menuReader") {
+				if (st.reader) { out.push([st.reader === "leave" ? "Leave Reader View" : "Reader View", action]); }
+			} else if (action === "menuDesktopSite") {
+				if (st.desktop) { out.push([st.desktop === "on" ? "Leave Desktop Site" : "Desktop Site", action]); }
+			} else {
+				out.push(rows[i]);
+			}
+		}
+		return out;
 	},
 	menuPick: function(inSender) {
 		var action = inSender && inSender.menuAction;
@@ -1362,6 +1382,57 @@ enyo.kind({
 	menuHistory:     function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.historyList.open(); },
 	menuDownloads:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.downloadList.open(); this.refreshDownloads(); },
 	menuFind:        function() { this.$.menuPopup.hide(); this.$.findBar.show(); },
+
+	// --- Reader View and Desktop Site (T-642 / T-645; Browser.js parity) ------
+	// Both are asked of the engine by opening an address — about:reader and
+	// about:desktopsite, see packaging/prefsui/content/jihadAboutReader.js and
+	// jihadSiteMode.js — so nothing is added to the adapter's call set.
+	//* The address an about:reader url shows as an article, or "" for any other url.
+	readerOriginal: function(url) {
+		var m = /^about:reader\?(?:[^#]*&)?url=([^&#]*)/i.exec(url || ""), u = "";
+		try { u = m ? decodeURIComponent(m[1]) : ""; } catch (e) { u = ""; }
+		return /^https?:\/\//i.test(u) ? u : "";
+	},
+	//* What the app menu offers for the page the engine has committed: reader is "enter" on
+	//* an http(s) page, "leave" in the reader, "" anywhere else; desktop is "on"/"off" on an
+	//* http(s) page (this card's state), "" anywhere else.
+	pageToolState: function() {
+		var url = this._committedUrl || "";
+		var web = /^https?:\/\//i.test(url);
+		return {
+			reader: web ? "enter" : (this.readerOriginal(url) ? "leave" : ""),
+			desktop: web ? (this._desktopSite ? "on" : "off") : ""
+		};
+	},
+	//* Into the reader from an http(s) page; out of it to the page it shows. Out is a step
+	//* Back when that is where the page is (the reader was entered from it in this card),
+	//* so the page comes back as it was left; otherwise the page is opened.
+	menuReader: function() {
+		this.$.menuPopup.hide();
+		var url = this._committedUrl || "", original = this.readerOriginal(url);
+		if (original) {
+			if (this._readerFrom === original && this._canGoBack) {
+				this.$.view.callBrowserAdapter("goBack");
+			} else {
+				this.openUrl(original);
+			}
+		} else if (/^https?:\/\//i.test(url)) {
+			this._readerFrom = url;
+			this.openUrl("about:reader?url=" + encodeURIComponent(url));
+		}
+	},
+	//* Desktop site for THIS card, on or off, and the page loaded again with it. The engine
+	//* loads the page itself under its own address (the about: address is never committed),
+	//* so the address bar is left alone: only the view is pointed at the request.
+	menuDesktopSite: function() {
+		this.$.menuPopup.hide();
+		var url = this._committedUrl || "";
+		if (!/^https?:\/\//i.test(url)) { return; }
+		this._desktopSite = !this._desktopSite;
+		this._pendingUrl = true;
+		this.$.view.setUrl("about:desktopsite?on=" + (this._desktopSite ? "1" : "0") + "&url=" + encodeURIComponent(url));
+		this.updateLock();
+	},
 	menuAddBookmark: function() { this.$.menuPopup.hide(); this.addCurrentBookmark(); },
 
 	// --- print (BrowserApp.js printClick parity; see JihadPrintDialog.js) -----

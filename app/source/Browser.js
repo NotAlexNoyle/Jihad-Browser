@@ -284,6 +284,54 @@ enyo.kind({
 		this.$.actionbar.setCanGoBack(inBack);
 		this.$.actionbar.setCanGoForward(inForward);
 	},
+	//* T-642 / T-645: Reader View and Desktop Site, the app menu's two page entries
+	//* (BrowserApp.js). Both are asked of the engine by opening an address — about:reader
+	//* and about:desktopsite, see packaging/prefsui/content/jihadAboutReader.js and
+	//* jihadSiteMode.js — so nothing is added to the adapter's call set.
+	//*
+	//* The address an about:reader url shows as an article, or "" for any other url.
+	readerOriginal: function(inUrl) {
+		var m = /^about:reader\?(?:[^#]*&)?url=([^&#]*)/i.exec(inUrl || ""), u = "";
+		try { u = m ? decodeURIComponent(m[1]) : ""; } catch (e) { u = ""; }
+		return /^https?:\/\//i.test(u) ? u : "";
+	},
+	//* What the app menu offers for the page the engine has committed: reader is "enter" on
+	//* an http(s) page, "leave" in the reader, "" anywhere else; desktop is "on"/"off" on an
+	//* http(s) page (this card's state), "" anywhere else.
+	pageToolState: function() {
+		var url = this._committedUrl || "";
+		var web = /^https?:\/\//i.test(url);
+		return {
+			reader: web ? "enter" : (this.readerOriginal(url) ? "leave" : ""),
+			desktop: web ? (this._desktopSite ? "on" : "off") : ""
+		};
+	},
+	//* Into the reader from an http(s) page; out of it to the page it shows. Out is a step
+	//* Back when that is where the page is (the reader was entered from it in this card),
+	//* so the page comes back as it was left; otherwise the page is opened.
+	toggleReader: function() {
+		var url = this._committedUrl || "", original = this.readerOriginal(url);
+		if (original) {
+			if (this._readerFrom === original && this.canGoBack) {
+				this.$.view.callBrowserAdapter("goBack");
+			} else {
+				this.setUrl(original);
+			}
+		} else if (/^https?:\/\//i.test(url)) {
+			this._readerFrom = url;
+			this.setUrl("about:reader?url=" + encodeURIComponent(url));
+		}
+	},
+	//* Desktop site for THIS card, on or off, and the page loaded again with it. The engine
+	//* loads the page itself under its own address (the about: address is never committed),
+	//* so the address bar is left alone: only the view is pointed at the request.
+	toggleDesktopSite: function() {
+		var url = this._committedUrl || "";
+		if (!/^https?:\/\//i.test(url)) { return; }
+		this._desktopSite = !this._desktopSite;
+		this.$.view.setUrl("about:desktopsite?on=" + (this._desktopSite ? "1" : "0") + "&url=" + encodeURIComponent(url));
+		this.$.actionbar.setLoading(true);
+	},
 	goClick: function(inSender, inUrl) {
 		//this.$.popup.openAtTap({centerX: 100, centerY: 100});
 		this.setUrl(inUrl);

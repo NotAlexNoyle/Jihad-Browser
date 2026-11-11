@@ -21,3 +21,13 @@
 # Paths are relative to THIS FILE, which is installed at the GRE root next to
 # chrome.manifest (same arrangement as jihad-branding.manifest).
 content jihad-prefs prefsui/content/
+
+# about:reader?url=… (T-642) and about:desktopsite?on=…&url=… (T-645). Two components of this
+# package rather than of render/goanna/components/: each is the about: module for a name of
+# its own and is used only with the files beside it. Each file's header says what it does.
+# about:reader's page is content/reader.html, served UNPRIVILEGED (the module sets
+# URI_SAFE_FOR_UNTRUSTED_CONTENT, so the chrome channel's system principal is dropped).
+component {b7a1c3e2-5d94-4f08-8a6b-3e2f9c7d1a54} prefsui/content/jihadAboutReader.js
+contract @mozilla.org/network/protocol/about;1?what=reader {b7a1c3e2-5d94-4f08-8a6b-3e2f9c7d1a54}
+component {2c9e6f41-7b3a-4d85-9e10-6a4b8d2f5c37} prefsui/content/jihadSiteMode.js
+contract @mozilla.org/network/protocol/about;1?what=desktopsite {2c9e6f41-7b3a-4d85-9e10-6a4b8d2f5c37}

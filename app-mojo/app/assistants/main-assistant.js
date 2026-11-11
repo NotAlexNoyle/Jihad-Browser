@@ -162,14 +162,90 @@ MainAssistant.prototype.setupAppMenu = function () {
 	this.appMenuModel = {
 		visible: true,
 		// The same app menu as the Enyo and Mochi shells (and Atlas's, minus what this
-		// browser has not got): Find on Page, Settings, Print.
-		items: [
-			{ label: $L("Find on Page"), command: "jihad-find" },
-			{ label: $L("Settings"), command: "jihad-settings" },
-			{ label: $L("Print"), command: "jihad-print" }
-		]
+		// browser has not got): Find on Page, Reader View, Desktop Site, Settings, Print.
+		// The two page entries are there on http(s) pages only (appMenuItems).
+		items: this.appMenuItems()
 	};
+	var st = this.pageToolState();
+	this._appMenuKey = st.reader + "/" + st.desktop;
 	this.controller.setupWidget(Mojo.Menu.appMenu, { omitDefaultItems: true }, this.appMenuModel);
+};
+
+// --- Reader View and Desktop Site (T-642 / T-645; the Enyo shell's Browser.js parity) ---------
+// Both are asked of the engine by opening an address — about:reader and about:desktopsite, see
+// packaging/prefsui/content/jihadAboutReader.js and jihadSiteMode.js — so nothing is added to the
+// adapter's call set.
+
+//* The address an about:reader url shows as an article, or "" for any other url.
+MainAssistant.prototype.readerOriginal = function (url) {
+	var m = /^about:reader\?(?:[^#]*&)?url=([^&#]*)/i.exec(url || ""), u = "";
+	try { u = m ? decodeURIComponent(m[1]) : ""; } catch (e) { u = ""; }
+	return /^https?:\/\//i.test(u) ? u : "";
+};
+
+//* What the app menu offers for the committed page: reader is "enter" on an http(s) page,
+//* "leave" in the reader, "" anywhere else; desktop is "on"/"off" on an http(s) page (this
+//* card's state), "" anywhere else.
+MainAssistant.prototype.pageToolState = function () {
+	var url = this.url || "";
+	var web = /^https?:\/\//i.test(url);
+	return {
+		reader: web ? "enter" : (this.readerOriginal(url) ? "leave" : ""),
+		desktop: web ? (this.desktopSite ? "on" : "off") : ""
+	};
+};
+
+//* The app menu's rows as they stand for the committed page, each page entry named for what a
+//* tap does.
+MainAssistant.prototype.appMenuItems = function () {
+	var st = this.pageToolState();
+	var items = [{ label: $L("Find on Page"), command: "jihad-find" }];
+	if (st.reader) {
+		items.push({ label: st.reader === "leave" ? $L("Leave Reader View") : $L("Reader View"), command: "jihad-reader" });
+	}
+	if (st.desktop) {
+		items.push({ label: st.desktop === "on" ? $L("Leave Desktop Site") : $L("Desktop Site"), command: "jihad-desktop-site" });
+	}
+	items.push({ label: $L("Settings"), command: "jihad-settings" });
+	items.push({ label: $L("Print"), command: "jihad-print" });
+	return items;
+};
+
+//* Rebuild the app menu when what it offers has changed (syncChrome, on every commit).
+MainAssistant.prototype.syncAppMenu = function () {
+	if (!this.appMenuModel) { return; }
+	var st = this.pageToolState(), key = st.reader + "/" + st.desktop;
+	if (key === this._appMenuKey) { return; }
+	this._appMenuKey = key;
+	this.appMenuModel.items = this.appMenuItems();
+	this.controller.modelChanged(this.appMenuModel);
+};
+
+//* Into the reader from an http(s) page; out of it to the page it shows. Out is a step Back
+//* when that is where the page is (the reader was entered from it in this card), so the page
+//* comes back as it was left; otherwise the page is opened.
+MainAssistant.prototype.toggleReader = function () {
+	var url = this.url || "", original = this.readerOriginal(url);
+	if (original) {
+		if (this._readerFrom === original && this.canGoBack) {
+			this.callBrowserAdapter("goBack");
+		} else {
+			this.openUrl(original);
+		}
+	} else if (/^https?:\/\//i.test(url)) {
+		this._readerFrom = url;
+		this.openUrl("about:reader?url=" + encodeURIComponent(url));
+	}
+};
+
+//* Desktop site for THIS card, on or off, and the page loaded again with it. The engine loads
+//* the page itself under its own address: the about: address is never committed.
+MainAssistant.prototype.toggleDesktopSite = function () {
+	var url = this.url || "";
+	if (!/^https?:\/\//i.test(url)) { return; }
+	this.desktopSite = !this.desktopSite;
+	this.openUrl("about:desktopsite?on=" + (this.desktopSite ? "1" : "0") + "&url=" + encodeURIComponent(url));
+	this.syncAppMenu();
 };
 
 MainAssistant.prototype.setupCommandMenu = function () {
@@ -1548,6 +1624,12 @@ MainAssistant.prototype.handleCommand = function (event) {
 		case "jihad-find":
 			this.showFind();
 			break;
+		case "jihad-reader":
+			this.toggleReader();
+			break;
+		case "jihad-desktop-site":
+			this.toggleDesktopSite();
+			break;
 		case "jihad-settings":
 			this.openUrl(JihadChromePrefs.settingsUrl());
 			break;
@@ -1976,6 +2058,7 @@ MainAssistant.prototype.syncChrome = function () {
 	this.addressModel.value = isStart ? "" : (this.url || "");
 	this.controller.modelChanged(this.addressModel);
 	this.syncCommandMenu();
+	this.syncAppMenu();
 };
 
 //* Every committed url passes here (cavekit-mojo-ui.md R7, cavekit-preferences-ui.md R5).

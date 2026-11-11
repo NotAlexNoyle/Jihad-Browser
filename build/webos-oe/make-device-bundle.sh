@@ -11,6 +11,18 @@ REPO="${JIHAD_REPO:-$(cd "$HERE/../.." && pwd)}"   # repo root: source of the in
 # All inputs are env-overridable so the OE product recipe can point them at bitbake-built
 # artifacts (jihad-deviceroot recipe). Defaults = the direct cross-build layout.
 TC="${JIHAD_TC:-$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi}"
+# The engine shipped is the PGO build (T-556, measured 2026-11-11: Wikipedia 13.7 s against 17.0, jsbench dom -35 %,
+# the card's frame -1.1 s cold; docs/rounds/pgo-2026-11-11/) when it exists: mozconfig.goanna-arm-pgo, use phase. The
+# plain build's dist is the fallback, and DIST=... still picks either.
+PGO_DIST="$HERE/out-arm/obj-jihad-goanna-arm-pgo/dist"
+# A plain build newer than the PGO one carries engine changes the PGO build lacks: that one is used, loudly.
+PLAIN_XUL="$HERE/out-arm/obj-jihad-goanna-arm/dist/bin/libxul.so"
+if [ -z "${DIST:-}" ] && [ -e "$PGO_DIST/bin/libxul.so" ]; then
+  if [ -e "$PLAIN_XUL" ] && [ "$(readlink -f "$PLAIN_XUL")" -nt "$(readlink -f "$PGO_DIST/bin/libxul.so")" ]; then
+    echo "!! engine: the plain build is newer than the PGO build; bundling the plain one. Redo the PGO use build:" >&2
+    echo "!!   build/webos-oe/in-container.sh --arm build/webos-oe/build-goanna-arm.sh build \"\" mozconfig.goanna-arm-pgo use" >&2
+  else DIST="$PGO_DIST"; echo "engine: the PGO build ($PGO_DIST)"; fi
+fi
 DIST="${DIST:-$HERE/out-arm/obj-jihad-goanna-arm/dist}"
 SYS="${SYS:-$HERE/arm-sysroot/root}"
 TCS="${TCS:-$TC/arm-webos-linux-gnueabi/sysroot}"

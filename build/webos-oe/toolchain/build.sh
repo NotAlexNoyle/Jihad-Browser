@@ -13,19 +13,23 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
-CTNG="$REPO/third_party/crosstool-ng"
+# CTNG_SRC=<dir>: another crosstool-NG checkout at a release tag (T-633's GCC 12 needs 1.26.0); DEFCONFIG=<file here>:
+# another fragment (default jihad.defconfig); ALLOW_DOWNLOAD=1: ct-ng fetches what tarballs.manifest does not pin.
+CTNG="${CTNG_SRC:-$REPO/third_party/crosstool-ng}"
+DEFCONFIG="${DEFCONFIG:-jihad.defconfig}"
+[ -f "$HERE/$DEFCONFIG" ] || { echo "!! no $DEFCONFIG beside build.sh" >&2; exit 2; }
 MODE="${1:-build}"
 ENGINE="${CONTAINER_ENGINE:-$(command -v podman || command -v docker || true)}"
 [ -n "$ENGINE" ] || { echo "!! need podman or docker" >&2; exit 2; }
-[ -f "$CTNG/bootstrap" ] || { echo "!! third_party/crosstool-ng is not checked out: git submodule update --init third_party/crosstool-ng" >&2; exit 2; }
+[ -f "$CTNG/bootstrap" ] || { echo "!! $CTNG is not a crosstool-NG checkout (git submodule update --init third_party/crosstool-ng)" >&2; exit 2; }
 # The version crosstool-NG reports (and writes into every binary the toolchain compiles, as
 # "crosstool-NG <version>") comes from the submodule's tag; the container cannot run git on it.
-VER="$(git -C "$CTNG" describe --tags --exact-match 2>/dev/null)" || { echo "!! third_party/crosstool-ng is not at a release tag" >&2; exit 2; }
+VER="$(git -C "$CTNG" describe --tags --exact-match 2>/dev/null)" || { echo "!! $CTNG is not at a release tag" >&2; exit 2; }
 VER="${VER#crosstool-ng-}"
 OUT="${TOOLCHAIN_OUT:-$HERE/out-toolchain}"
 mkdir -p "$OUT"
 # The source tarballs first, by the repository's manifest (ct-ng is forbidden to download).
-bash "$HERE/fetch-tarballs.sh" "$OUT/src"
+[ "${ALLOW_DOWNLOAD:-0}" = 1 ] || bash "$HERE/fetch-tarballs.sh" "$OUT/src"
 "$ENGINE" build -t jihad-xtool-build "$HERE"
 # Who the container runs as, so that /out ends up the invoking user's whatever their uid:
 #   podman  keep-id maps the invoking user into the container, but it KEEPS the image's USER
@@ -39,7 +43,7 @@ bash "$HERE/fetch-tarballs.sh" "$OUT/src"
 # ct-ng refuses to run as root, which is why docker gets --user at all. No SELinux relabelling of
 # the mounts (label=disable, as in-container.sh): the repository would otherwise be unreadable from
 # the container on an enforcing host (shown on that VM: Enforcing, no denial).
-RUNOPTS=(--rm --security-opt label=disable -e HOME=/home/builder -e CTNG_VERSION="$VER")
+RUNOPTS=(--rm --security-opt label=disable -e HOME=/home/builder -e CTNG_VERSION="$VER" -e DEFCONFIG="$DEFCONFIG" -e ALLOW_DOWNLOAD="${ALLOW_DOWNLOAD:-0}")
 if [ "$(basename "$ENGINE")" = podman ]; then RUNOPTS+=(--userns=keep-id:uid=1000,gid=1000); else RUNOPTS+=(--user "$(id -u):$(id -g)"); fi
 "$ENGINE" run "${RUNOPTS[@]}" \
   -v "$HERE:/cfg:ro" -v "$CTNG:/ctng-src:ro" -v "$OUT:/out" \

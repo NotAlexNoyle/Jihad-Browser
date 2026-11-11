@@ -22,7 +22,7 @@ trap 'cp -f "$WORK/build.log" /out/ct-ng-build.log 2>/dev/null || true' EXIT
 echo "== crosstool-NG $CTNG_VERSION from the submodule =="
 rm -rf /home/builder/ctng-src /home/builder/ctng
 cp -a /ctng-src /home/builder/ctng-src
-rm -f /home/builder/ctng-src/.git
+rm -rf /home/builder/ctng-src/.git   # a file in the submodule, a directory in a plain checkout (CTNG_SRC)
 echo "$CTNG_VERSION" > /home/builder/ctng-src/.tarball-version
 ( cd /home/builder/ctng-src && ./bootstrap && ./configure --prefix=/home/builder/ctng \
   && make -j"$(nproc)" && make install ) > /home/builder/ctng-install.log 2>&1 \
@@ -40,9 +40,9 @@ cd "$WORK"
 echo "== loading base sample: arm-unknown-linux-gnueabi (softfp glibc) =="
 ct-ng arm-unknown-linux-gnueabi
 
-echo "== overlaying jihad.defconfig fragment =="
+echo "== overlaying ${DEFCONFIG:-jihad.defconfig} fragment =="
 # Merge fragment on top of the sample's .config, then normalise.
-cat /cfg/jihad.defconfig >> .config
+cat "/cfg/${DEFCONFIG:-jihad.defconfig}" >> .config
 ct-ng olddefconfig
 
 echo "== effective target tuple + key choices =="
@@ -71,7 +71,7 @@ mkdir -p /out/src
 set_cfg CT_PREFIX_DIR '"/out/x-tools/${CT_TARGET}"'
 set_cfg CT_LOCAL_TARBALLS_DIR '"/out/src"'
 set_cfg CT_SAVE_TARBALLS 'y'
-set_cfg CT_FORBID_DOWNLOAD 'y'
+if [ "${ALLOW_DOWNLOAD:-0}" != 1 ]; then set_cfg CT_FORBID_DOWNLOAD 'y'; else sed -i '/^CT_FORBID_DOWNLOAD=/d' .config; fi
 ct-ng olddefconfig
 ct-ng "build.$(nproc)"
 

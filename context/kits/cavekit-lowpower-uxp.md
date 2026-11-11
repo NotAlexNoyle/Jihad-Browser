@@ -48,8 +48,9 @@ the queue).
   sum and jsbench, nothing lost beyond the spread; `JIHAD_JS_HELPER_THREADS=2 JIHAD_JS_ION_THREADS=1
   JIHAD_JS_PARSE_THREADS=1` in the three jobs (`packaging/gen-variant-scripts.sh`); the helpers' nice value dropped,
   no effect)*
-- [ ] -O2 (whole tree, or js/src + layout + gfx) tried against -Os: script and paint times, libxul size, start time,
-  resident memory; the choice recorded with the numbers
+- [~] -O2 (whole tree, or js/src + layout + gfx) tried against -Os: script and paint times, libxul size, start time,
+  resident memory; the choice recorded with the numbers *(2026-11-09/10: measured, §5; the owner, 2026-11-10: decided
+  after PGO's numbers, -Os with PGO against -O2)*
 - [~] PGO is either tried (with the on-device profiling run's procedure written down) or declined by the owner
   *(2026-11-10: the owner's "try it"; the procedure is §7 of the research document, its first profiling run found two
   traps (written there) and runs again)*
@@ -73,10 +74,14 @@ the queue).
 ### R4: The page-content levers, owner's choices
 **Description:** Levers that change what a page does (research rows 5-8).
 **Acceptance Criteria:**
-- [ ] Reduced motion (`prefers-reduced-motion`) is put to the owner as a choice (default on, a setting, or off) with
-  its measured effect on two animated sites
-- [ ] Lazy image loading is put to the owner (carry upstream's reverted implementation with a scroll-driven check, or
-  not) with its measured effect on a long article (requests, resident memory)
+- [x] Reduced motion (`prefers-reduced-motion`) is put to the owner as a choice (default on, a setting, or off) with
+  its measured effect on two animated sites *(2026-11-10: on the clean profile Wikipedia at rest -65 %, apple.com's paint
+  -95 %, animate.style unchanged; the owner: **on by default, with a setting** — `ui.prefersReducedMotion=1` in the
+  platform prefs, the Settings page's "Page animations" row)*
+- [x] Lazy image loading is put to the owner (carry upstream's reverted implementation with a scroll-driven check, or
+  not) with its measured effect on a long article (requests, resident memory) *(2026-11-10: on the clean profile the long
+  page loads 17 % slower with 7 % more PSS, Wikipedia unchanged; the owner: **not carried** — `jihad.images.lazy` stays
+  false)*
 - [x] `image/jxl` dropped from the Accept headers, or kept with the reason *(2026-11-09, T-558: kept — on the device JPEG XL
   decodes the same 1600x1200 picture in 204 ms against WebP's 304 and JPEG's 226, `docs/research/lowpower-uxp.md` §5)*
 - [~] The VP9/WebM decoder A/B (ffvpx vs libvpx, MSE WebM) measured at 360p and 480p (dropped frames), and the faster
@@ -122,7 +127,7 @@ the queue).
 - cavekit-modern-web.md — sites' behaviour under the levers
 
 ## Changelog
-- 2026-11-10: chain 4 on the clean profile: the helper pool kept (R2), omni.ja and the lean engine not taken (R5), the VP9 path chosen (R4, patch 0093), the memory prefs' first round (R3); Skia's A/B found unmeasured.
+- 2026-11-10: the owner's calls: reduced motion on with a setting, lazy images not carried, -O2 after PGO. Chain 4 on the clean profile: the helper pool kept (R2), omni.ja and the lean engine not taken (R5), the VP9 path chosen (R4, patch 0093), the memory prefs' first round (R3); Skia's A/B found unmeasured.
 - 2026-11-09 (evening): the lever chain measured every R2-R5 lever against a control of its hour (§5); the PREF levers' controls carried the lever (the spike stop stripped no pref): those rows void, re-measured; R6's stock note met.
 - 2026-11-09: R1 met (T-555, the baseline script and five runs); the rest-time main thread finding added as T-604 under R2.
 - 2026-10-26: created from the owner's request and the day's research (`docs/research/lowpower-uxp.md`).

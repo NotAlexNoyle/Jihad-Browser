@@ -248,9 +248,15 @@ pref("jihad.youtube.maxRows", 480);        // the tallest format the lite settin
 pref("jihad.youtube.stopAutoplay", true);
 // cavekit-lowpower-uxp.md R4 (T-558): images marked loading="lazy" load when they come within 300 px of the view
 // (upstream's reverted issue #3030, carried with one check per document after a scroll in place of its 250 ms poll
-// per image). A lever: off until its measured effect on a long article is read and the owner says; off, the
-// attribute is ignored and every image loads with the page, as before.
+// per image). Measured on the clean profile (2026-11-10, docs/research/lowpower-uxp.md §5 "Chain 4"): nothing gained on
+// desktop Wikipedia, and on the long test page the load 17 % slower and PSS 7 % higher; the owner's call of 2026-11-10:
+// not carried. Off, the attribute is ignored and every image loads with the page, as before.
 pref("jihad.images.lazy", false);
+// REDUCED MOTION ON (cavekit-lowpower-uxp.md R4, T-604; the owner's call of 2026-11-10: on by default, with a Settings
+// row). Sites that honour prefers-reduced-motion drop or shorten their animations. Measured on the clean profile:
+// desktop Wikipedia at rest keeps the main thread busy 8.7 s of 30 instead of 24.8 s (-65 %), its load -9.5 %;
+// apple.com's paint -95 % and its memory -15 %; a site that ignores the query is unchanged. 0 lets sites animate.
+pref("ui.prefersReducedMotion", 1);
 // T-603 (from the Atlas app's "Autoplay media with sound"): false lets a page start media only muted until the user's
 // tap reaches it (and pauses one a script unmutes without a tap); true is upstream's behaviour. Off by the owner's
 // choice of 2026-11-10 (quieter, and no autoplaying sound eating the CPU). The Settings page's "Autoplay media with

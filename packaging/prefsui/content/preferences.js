@@ -66,6 +66,9 @@ const PANES = [
 				title: "Browsing",
 				rows: [
 					{pref: "general.smoothScroll", type: "bool", label: "Use smooth scrolling"},
+					{pref: "ui.prefersReducedMotion", type: "choice", label: "Page animations",
+					 options: [[1, "Reduced"], [0, "As the site makes them"]],
+					 help: "Reduced: sites that offer a calmer version drop or shorten their animations, which saves this device a great deal of work (desktop Wikipedia at rest: two thirds less). Applies to pages opened after the change."},
 					{pref: "browser.sessionhistory.max_entries", type: "int",
 					 label: "Back/forward entries to keep per page"},
 					{pref: "layout.frame_rate", type: "int",

@@ -161,7 +161,7 @@ backgrounded cards. Deeper memory tuning is Phase 3.
 
 ```bash
 git clone --recurse-submodules <repo> && cd Jihad-Browser
-tools/host/build-novacom.sh                                     # novacom, once (webOS Archive's SDK 0.4.1, the submodule)
+tools/host/build-novacom.sh                                     # novacom (the SDK 0.4.1 submodule) and novacomd (NotAlexNoyle/novacomd 1.2.1, fetched)
 sudo -b tools/host/bin/novacomd                                 # its USB daemon, in the background
 build/webos-oe/build-all-device.sh                               # TouchPad plugged in the first time
 ```
@@ -186,7 +186,7 @@ classes (model-agnostic ARMv7 softfp, so one build serves both models):
 
 | Input or step | How | Where it comes from |
 |---|---|---|
-| submodules | `git submodule update --init` | `.gitmodules` (engine, Enyo 2, layout, Mochi, crosstool-NG, libpbnjson, yajl, npapi-headers, PulseAudio, webos-sdk-redux at release 0.4.1 — palm-package, novacom, novacomd; build-webos only on demand) |
+| submodules | `git submodule update --init` | `.gitmodules` (engine, Enyo 2, layout, Mochi, crosstool-NG, libpbnjson, yajl, npapi-headers, PulseAudio, webos-sdk-redux at release 0.4.1 — palm-package, novacom; build-webos only on demand; novacomd comes from NotAlexNoyle/novacomd's 1.2.1 tag, fetched by `build-novacom.sh`) |
 | cross toolchain | `toolchain/build.sh` (about an hour) | crosstool-NG 1.25.0 from the submodule, in the jihad-xtool-build image |
 | Palm PDK | `fetch-pdk.sh` | HP's SDK `.deb` from the Internet Archive, sha256-pinned |
 | Qt4 headers | `gen-adapter-deps-manifest.sh --fetch-qt4` | archive.debian.org, sha256-pinned |

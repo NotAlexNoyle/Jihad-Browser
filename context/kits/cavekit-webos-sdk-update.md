@@ -57,6 +57,36 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
   `tools/host/bin/novacomd`), the TouchPad back online at once)*
 **Dependencies:** R1
 
+### R4: novacomd from the owner's fork
+*(The owner, 2026-11-11: "at the next milestone where nothing is running on the touchpad I want to use
+NotAlexNoyle/novacomd 1.2.1"; "current novacomd is installed at /usr/local/bin/novacomd and also exists in jihad browser
+build make sure those get removed or replaced".)* The daemon comes from https://git.trueog.net/NotAlexNoyle/novacomd
+(release 1.2.1, tag at `b8c48ef`). The client, novacom, stays the SDK's.
+**Acceptance Criteria:**
+- [x] `tools/host/build-novacom.sh` builds novacomd from the fork at tag 1.2.1, stopping if the tag is not at
+  `b8c48ef`, stamped `novacomd-1.2.1`; novacom from the SDK submodule as before; each binary moved into `tools/host/bin/`
+  by rename, so a running script never finds it missing *(2026-11-11)*
+- [ ] The host's daemon is 1.2.1 on libusb-compat: `/opt/nova/bin/novacomd` (which `/usr/local/bin/novacomd` links to)
+  is novacomd 1.2.1 linked against libusb-compat; the older novacomd copies in `/usr/local/bin` removed. A root step for
+  the owner, run while nothing is running on the TouchPad *(2026-11-11: the release's `novacomd-1.2.1-linux-x86_64`
+  installed at 04:29 and the two backups removed; at 04:36, under the Enyo self-test, it hit a USB timeout and never
+  answered again: its USB thread blocked in `USBDEVFS_REAPURB` with no timeout, the main thread waiting on the channel
+  open behind it (the capture: `/proc/<pid>/task/*/{wchan,syscall,stack}`). The cause is the original libusb 0.1.12
+  that the release's Linux binaries have built in: after a timeout it cancels the transfer and then waits, with no
+  timeout, for whichever transfer finishes next, while novacomd reads and writes from two threads. The same 1.2.1 built
+  here against Void's libusb-compat 0.1.8 (`tools/host/bin/novacomd`, run by the owner since 04:49) passed the self-test
+  three times through four USB timeouts. Open: `/opt/nova/bin/novacomd` replaced by that build until a 1.2.2 release
+  carries libusb-compat; the fork's fix is staged for the owner (install script and release binaries on libusb-compat))*
+- [x] On the bench with the 1.2.1 daemon: `novacom -l` lists the TouchPad; a `novacom run`, a `put`/`get` of a 40 MB file
+  and a full `push-variant.sh` succeed *(2026-11-11 through the release binary: the 40 MB file both ways byte-identical
+  in 10 s / 13 s, `push-variant.sh enyo` in 148 s with its payload's md5 checked; then `default-check.sh enyo` ×3
+  through the libusb-compat build, faults 0)*
+- [x] `tools/host/build-novacom.sh` refuses the original libusb 0.1.12: libusb-compat calls into libusb 1.0 and the
+  original does not, so the library's text tells them apart (both report 0.1.12 to pkg-config); checked refusing on
+  Debian 13's `libusb-dev` and passing on Void *(2026-11-11; dropped once the pin is a release whose install script
+  builds libusb-compat itself)*
+**Dependencies:** R2
+
 ## Out of Scope
 - A replacement for the proprietary PDK compiler (a crosstool-NG gcc 4.3 build): a separate decision
 - The Windows and macOS parts of 0.4.1
@@ -66,6 +96,8 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
 - cavekit-finger-emulation.md — its tools run over novacom
 
 ## Changelog
+- 2026-11-11 (morning): R4's swap done and undone in part: the release binary's built-in libusb 0.1.12 hung novacomd after a USB timeout; the libusb-compat build runs instead; `build-novacom.sh` refuses 0.1.12.
+- 2026-11-11: R4 added (the owner: novacomd from NotAlexNoyle/novacomd 1.2.1, the old copies removed or replaced); `build-novacom.sh` builds it from the tag.
 - 2026-11-10 (late): upstream re-read: no release after 0.4.1 (the newest tag `0.4.1-Release`); main (`755de99`, the same on GitHub and the Gitea mirror) is three untagged commits past the pin (2026-11-04/05), all in the SDK's own copies of the Enyo 1 and Mojo frameworks (`0.4.1/share/framework`, Lunacy's patches 0013-0015: the spinner as a ring at high density, scrolling at 120 Hz, a WebView in a frame hearing its own events and its views going with the frame). Weighed for Jihad: not applicable — the Enyo card runs on the device's own framework, the Mochi card on `third_party/mochi-sampler`, and nothing here builds from the SDK's copies; the TouchPad's screen is 60 Hz. R1 stays on the release.
 - 2026-11-10: R1 and R3 met (the owner's gitlink commit `5e4ace62`; T-550, the owner's two root steps: the installer and the novacomd swap). R2's stock 3.0.5 check waits for the stock TouchPad.
 - 2026-11-09: R1 met but for the gitlink (the owner's), R2 met on the bench (T-548, T-549); R3's root command handed over (T-550).

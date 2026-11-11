@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-10 evening below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-11 early below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,47 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-11 (early) — novacomd 1.2.1 on the host and its libusb trap; the PGO use build made; chains 5 and 6 first read (READ FIRST)
+
+**State:** main after this morning's commit, NOT pushed (the owner pushes: `bash .cavekit/handoff-2026-11-08/push.sh`).
+UXP gitlink `073c723996` (the owner's `868e823b`), queue 0095.
+
+**novacomd (T-607, cavekit-webos-sdk-update.md R4; the owner, 2026-11-11: "use NotAlexNoyle/novacomd 1.2.1"; the fork
+itself belongs to the agent on the owner's server, the PC session does not message it):** `tools/host/build-novacom.sh`
+builds novacomd from the fork's 1.2.1 tag (checked against `b8c48ef`), novacom from the SDK as before, and refuses the
+original libusb 0.1.12. The release's linux-x86_64 binary was installed as `/opt/nova/bin/novacomd` (04:29) and **hung
+for good after a USB timeout** under `default-check.sh` (04:36): its built-in libusb 0.1.12 waits for a cancelled
+transfer with no timeout (USB thread in `USBDEVFS_REAPURB`, main thread behind it; capture in the kit). The same 1.2.1
+built here on Void's libusb-compat runs instead (the owner, tmux, `cd / && doas tools/host/bin/novacomd`, since 04:49):
+`default-check.sh enyo` ×3 faults 0 through four USB timeouts. **Left:** the owner's
+`doas install -m 0755 tools/host/bin/novacomd /opt/nova/bin/novacomd`. The fork's fix (install script and release
+binaries on libusb-compat, `linux-release.sh`, README) is staged in `~/eclipse-workspace/novacomd` for the owner. A
+TouchPad USB timeout under load is normal (redux logged six in chain 5); only the daemon's recovery differs.
+
+**PGO (T-556):** the use build needed two fixes before it linked: 67 gen-phase objects survived (make does not track
+flags), and `js/src/config.status` kept `-fprofile-generate` (old-configure is autoconf 2.13, so `subconfigure.py`'s
+cache check never sees an environment-only CFLAGS change): the whole JS engine was rebuilt instrumented. The third use
+build made libxul 30.57 MB stripped (shipped 30.29), no gcov left. A Fable review
+(`docs/research/pgo-review-2026-11-11.md`; its procedure fixes to go into lowpower-uxp.md §7) found: the profile is
+start-up only (6.1 % of functions ever ran; every page row timed out: the card connected before the 29-51 s
+instrumented start); GCC 9 gates every speed transform on `optimize_size`, so **-Os + PGO cannot speed anything**: PGO
+is only worth doing at -O2 (untrained code then compiles -Os-like, placed cold); the instrumented engine's 10x comes
+from the per-function indirect-call probe through `__tls_get_addr` (`-fno-profile-values` removes it), lost inlining
+and atomic counters (`-fprofile-update=single`); UXP's own `MOZ_PROFILE_GENERATE`/`MOZ_PROFILE_USE` route avoids the
+stale-object and js-config traps. **Next:** the owner's call on -O2 + PGO (the -O2 decision deferred to "after PGO").
+
+**Chain 5 (first read):** VP9 on libvpx confirmed (ffvpx at 480p dropped 858 and 889 of 900 frames; libvpx 28 and 64);
+T-605's three verify rounds 0 structurally wrong of 322 frames (new hide and old alike), but the opacity-group page
+drew 4 of 5 frames wrong when sticky (plain: right): a new finding to chase; Wikipedia medians: the exact covers stay
+(16.5 s / 11.9 fps against 17.7 / 8.9 bound), jemalloc `nn` alone saved 37 MB PSS at load and 19 MB at 30 s (worth a
+confirming round), `ff`, flush250, decode64k, imgcache8m no gain, Skia (by the default pref) +30 % paint time, its
+eye frames still to read. Not yet read: the settings walk, T-596, T-598, T-594's OMX probe, T-606's stream rounds,
+the Age of War rerun.
+
+**Chain 6 (T-592):** none of the four levers (no web fonts, a 192 MB JS heap, a 32 MB GC threshold, parsing on the
+main thread) moved YouTube's watch page by more than 3 % (load ~19 s); its load list is nearly all YouTube's own
+(15 scripts, images, fonts; only doubleclick refused): the cost is YouTube's JavaScript, i.e. engine speed.
 
 ## 2026-11-10 (evening) — chain 4 read clean; VP9 to libvpx (0093); T-605 found and fixed (0094); PGO's two traps (READ FIRST)
 

@@ -244,7 +244,7 @@ podman, curl, binutils and xz (and gcc, make and the libusb-compat headers for n
 ```bash
 git clone --recurse-submodules https://git.trueog.net/NotAlexNoyle/Jihad-Browser.git
 cd Jihad-Browser
-tools/host/build-novacom.sh          # novacom + novacomd, into tools/host/bin/
+tools/host/build-novacom.sh          # novacom (the SDK) + novacomd (NotAlexNoyle/novacomd 1.2.1), into tools/host/bin/
 sudo -b tools/host/bin/novacomd      # keep it running while a device is plugged in
 build/webos-oe/build-all-device.sh   # plug in a TouchPad the first time: eight of its libraries are copied once
 ```

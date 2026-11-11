@@ -1151,8 +1151,9 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
     //     what the user sees. Sent directly rather than left to emitScrollIfChanged: that path
     //     suppresses anything near a recent adapter scroll, and a tap right after a pan is
     //     exactly this case.
-    // Only at zoom 1 — the card zooms to 1.0 when a field takes focus, and elsewhere the engine
-    // scroll is parked and the render pan carries the position.
+    // This branch only at zoom 1, where the engine's scroll is the position. (It said "the card zooms
+    // to 1.0 when a field takes focus": no code in the adapter, the daemon or the three shells does
+    // that, T-643 2026-11-11.) At any other zoom the branch after it tells the card alone.
     int ft = 0, fb = 0;
     const bool unzoomed = (mZoom >= 0.99 && mZoom <= 1.01);
     if (unzoomed && mPage->FocusedEditableBox(&ft, &fb)) {
@@ -1174,8 +1175,39 @@ void BrowserPageGoanna::setWindowSize(uint32_t width, uint32_t height) {
           mSink.msgScrolledTo(sx2, sy2);
         }
       }
-    } else if (sy1 > sy0) {
-      mPage->ScrollTo(sx0, sy0);
+    } else {
+      if (sy1 > sy0) mPage->ScrollTo(sx0, sy0);
+      // T-643 (2026-11-11): a field focused at a zoom other than 1 keeps the zoom (no zoom onto a focused
+      // field on a tablet: Pale Moon 4498d9b2, its formhelper never zooms when isTablet), and is still
+      // brought out from under the keyboard. Until now nothing was done here ("the keyboard-cover check
+      // runs only at zoom 1"): a field in the lower half of a zoomed page was typed into blind. The same
+      // decision as above, in the page's CSS px: the card shows the page from its own scroll over the
+      // zoom, `height / zoom` tall; the field's place in the page is its client box plus the offset a
+      // document point loses to become a viewport point (docOffset: the engine's scroll on the GPU path,
+      // the render pan on the software one). Only the card is told (msgScrolledTo, which it multiplies by
+      // its zoom and clamps): its scroller moves the view and sends the scroll back as a finger's pan
+      // does, which is the one way the position reaches the compositor at a zoom (debugCardScrollTo's
+      // route). The zoom and the horizontal position are not touched.
+      const double z = (mZoom >= 0.05 && mZoom <= 20.0) ? mZoom : 1.0;
+      if (!unzoomed && mPage->FocusedEditableBox(&ft, &fb)) {
+        double ox = 0, oy = 0;
+        docOffset(&ox, &oy, false);
+        const double kMargin = 16.0 / z;                       // 16 card px, as at zoom 1
+        const double visTop = mAdapterScrollY / z, visH = (double)height / z;
+        const double top = ft + oy, bot = fb + oy;             // the field, in page px
+        if (top < visTop || bot > visTop + visH - kMargin) {
+          double target = bot - (visH - kMargin);              // bottom edge above the keyboard
+          if (top - target < kMargin) target = top - kMargin;  // tall field: its top wins
+          if (target < 0) target = 0;
+          const int tx = (int)(mAdapterScrollX / z + 0.5), ty = (int)(target + 0.5);
+          if (std::abs(ty - (int)(visTop + 0.5)) >= 2) {
+            fprintf(stderr, "[jihad-bs] keyboard would cover the focused field at zoom %.4f (page y=%d..%d, the card "
+                            "shows %d..%d): card scrolled to %d,%d, zoom kept\n",
+                    z, (int)top, (int)bot, (int)visTop, (int)(visTop + visH), tx, ty);
+            mSink.msgScrolledTo(tx, ty);
+          }
+        }
+      }
     }
   }
   if (mLastWinH != (int)height) { mLastWinResizeDh = (int)height - mLastWinH; mLastWinResizeMs = jihadNowMs(); }

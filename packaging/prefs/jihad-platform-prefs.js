@@ -301,6 +301,15 @@ pref("jihad.gpu.enabled", true);
 // viewport); the card's fit-zoom is unchanged. BrowserPageGoanna.cpp emitGeometry. ---
 pref("jihad.viewport.followOverflow", true);
 
+// --- Allow zoom on every page (T-644, 2026-11-11; from Pale Moon for Android's and Fennec's
+// browser.ui.zoom.force-user-scalable) — true: a page's `user-scalable=no` and its `maximum-scale` do not stop the
+// user's pinch and double tap (the zoom's ceiling is the 4.0 of a page that declares none, or the GPU path's limit).
+// false: such a page keeps the scale it asks for, as the stock browser did. On by default: most mobile browsers
+// ignore both now, and many pages lock the zoom needlessly on a 9.7" screen. A page that says no and fits the card
+// (a map, a game) still gets a finger's moves either way. Read per page in GoannaRenderPage::GetViewport and told
+// to the card in the meta viewport message's scale range (no new message); the Settings page's Content row. ---
+pref("jihad.zoom.allowEveryPage", true);
+
 // --- The memory guard (cavekit-device-headroom.md R1, EngineHost::CheckMemoryPressure, 2026-11-07/08). Every 5 s:
 // under flushKb available the engine's caches are flushed and the heap returned; then, while memory stays short
 // (under floorKb, or over swapinPages swapped in or out per poll twice running, or this daemon and its players past budgetKb

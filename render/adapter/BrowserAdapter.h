@@ -586,6 +586,7 @@ private:
     static BrowserAdapter* GetAndInitAdapter( AdapterBase* adapter );
     static bool isSafeDir(const char* pszFileName);
     bool prvSmartZoom(const Point& pt);
+    bool zoomRefusedByPage() const;   // T-644
     void invalidate(void);
     void handlePaintInFrozenState(NpPalmDrawEvent* event);
 

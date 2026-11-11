@@ -2386,6 +2386,25 @@ bool GoannaRenderPage::GetViewport(double* initialScale, double* minScale,
   // T-524: the GPU path published empty frames at 6.2). The stock browser never went past its
   // adapter's 4.0 without a declared maximum; say the same.
   if (declared.Find(NS_LITERAL_STRING("maximum-scale"), true) < 0 && mx > 4.0) mx = 4.0;
+  // T-644 (2026-11-11): "Allow zoom on every page" (jihad.zoom.allowEveryPage, on by default). A page's
+  // user-scalable=no and its maximum-scale are not taken as a refusal of the user's pinch and double tap
+  // (Pale Moon's and Fennec's browser.ui.zoom.force-user-scalable; Safari and Chrome ignore both too). The
+  // message's shape is the contract's, so the adapter is told through the scale range it already caps every
+  // zoom at: on, the range is opened to the 4.0 of a page with no declared maximum (after the initial scale
+  // above was worked out from the page's own limits, so the page opens as it always did); off, a page that
+  // says no gets a range of one value, its initial scale (what user-scalable=no means, and what the engine's
+  // own mobile front ends make of it). userScalable itself stays the page's word: the adapter passes a
+  // finger's moves to a page that fits the card and says no (a map, a game), and that must not change.
+  bool zoomEveryPage = true;
+  {
+    nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+    if (pb) pb->GetBoolPref("jihad.zoom.allowEveryPage", &zoomEveryPage);
+  }
+  // "Says no" is user-scalable=no, or a maximum-scale that leaves nothing above the initial scale (the
+  // commoner way to lock a page: `initial-scale=1, maximum-scale=1`). A page that declares a range one can
+  // zoom in keeps its own maximum (Fennec drops every declared limit; that is one line here if wanted).
+  const bool zoomLocked = !allow || mx <= dz * 1.01;
+  if (zoomEveryPage && zoomLocked && mx < 4.0) mx = 4.0;
   // T-524 (2026-10-24): what the GPU path paints in full. Above a resolution of about 4096 / the
   // layout viewport's larger side the frames lose their right part and then everything (desktop
   // Wikipedia, laid out 1116x1374: full at 2.99, the right 45% white at 3.49, empty at 4.0; with the
@@ -2401,6 +2420,7 @@ bool GoannaRenderPage::GetViewport(double* initialScale, double* minScale,
     if (gpuMax < mx) mx = gpuMax > 1.5 ? gpuMax : 1.5;
   }
   if (dz > mx) dz = mx;
+  if (!zoomEveryPage && !allow) { mn = dz; mx = dz; }   // T-644: the page's refusal, kept (see above)
   if (initialScale) *initialScale = dz;
   if (minScale) *minScale = mn;
   if (maxScale) *maxScale = mx;
@@ -4652,12 +4672,45 @@ void GoannaRenderPage::HitTestAt(int x, int y, std::string* json) {
   *json = out;
 }
 
+// T-643 (2026-11-11): the block a double tap zooms to is chosen by what the element IS in the layout, its
+// computed `display`, as Fennec and Pale Moon choose it (mobile/android/chrome/content/browser.js,
+// _shouldZoomToElement: anything but an inline box), not by a list of tag names: a <span> or an <a> styled
+// display:block (a card, a tile, a column of a CSS grid) is a block, a <div> styled display:inline is not,
+// and a custom element is whatever its style says. Their two exceptions are kept: a list item (its marker
+// lies outside its box, so the fit cut the bullets off) and a quote (indented: the fit lost the text's
+// place in its column) go on to the list and to the block around the quote. Ours are kept too: a picture,
+// a video or a canvas is a target although it is an inline box (the old list had them: a double tap on a
+// photo fits the photo), and the parts of a table that are not boxes of their own (rows, row groups,
+// columns) are passed over for the cell below them or the table above.
+// Returns 1 for a target, 0 for not one, -1 when the engine gave no style (the caller falls back on the tag).
+static int jihadZoomTargetByDisplay(nsIDOMWindowUtils* u, nsIDOMElement* e, const std::string& tag) {
+  if (tag == "li" || tag == "blockquote" || tag == "q") return 0;
+  if (tag == "img" || tag == "video" || tag == "canvas" || tag == "svg" || tag == "object" || tag == "embed")
+    return 1;
+  nsAutoString disp16;
+  if (NS_FAILED(u->GetVisitedDependentComputedStyle(e, EmptyString(), NS_LITERAL_STRING("display"), disp16)) ||
+      disp16.IsEmpty())
+    return -1;
+  NS_ConvertUTF16toUTF8 d8(disp16);
+  const std::string d = d8.get();
+  if (d == "none" || d == "contents") return 0;
+  if (d.compare(0, 6, "inline") == 0 && d != "inline-block" && d != "inline-table" &&
+      d != "inline-flex" && d != "inline-grid")
+    return 0;                                  // inline, and the engine's inline-box / inline-stack
+  if (d.compare(0, 4, "ruby") == 0) return 0;
+  if (d == "table-row" || d == "table-row-group" || d == "table-header-group" ||
+      d == "table-footer-group" || d == "table-column" || d == "table-column-group")
+    return 0;
+  return 1;   // block, list-item, flex, grid, table, table-cell, table-caption, inline-block, -moz-box, …
+}
+
 bool GoannaRenderPage::SmartZoomBlockAt(int x, int y, int* left, int* top, int* right, int* bottom) {
   if (!mChrome || !mChrome->mBrowser) return false;
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
   nsCOMPtr<nsIDOMElement> el = engine_calls::ElementAt(u, (float)x, (float)y);
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(el);
+  // the rule before T-643, now only for an element the engine gives no computed style for
   static const char* const kBlocks[] = {
     "p", "li", "td", "th", "dd", "dt", "pre", "blockquote", "figure", "img", "video", "canvas",
     "h1", "h2", "h3", "h4", "h5", "h6", "article", "section", "div", "table", "ul", "ol", "form",
@@ -4670,8 +4723,10 @@ bool GoannaRenderPage::SmartZoomBlockAt(int x, int y, int* left, int* top, int* 
       std::string tag = tag8.get();
       for (char& c : tag) c = (char)tolower((unsigned char)c);
       if (tag == "body" || tag == "html") break;   // the whole page: no block
-      bool block = false;
-      for (int i = 0; kBlocks[i] && !block; ++i) block = (tag == kBlocks[i]);
+      int byDisplay = jihadZoomTargetByDisplay(u, e, tag);
+      bool block = byDisplay > 0;
+      if (byDisplay < 0)
+        for (int i = 0; kBlocks[i] && !block; ++i) block = (tag == kBlocks[i]);
       if (block) {
         nsCOMPtr<nsIDOMClientRect> r; e->GetBoundingClientRect(getter_AddRefs(r));
         float l = 0, t = 0, w = 0, h = 0;
@@ -4680,7 +4735,8 @@ bool GoannaRenderPage::SmartZoomBlockAt(int x, int y, int* left, int* top, int* 
         // narrower than a third of the card makes a zoom past 3, where the first block met was a
         // 104 px infobox cell on desktop Wikipedia (6.2x, then a grey card: T-524, 2026-10-24).
         // Climb to one at least that wide (the infobox table, the column), as Safari's double tap
-        // and the stock browser's WebKit did.
+        // and the stock browser's WebKit did. (With T-643's rule this is also what passes over the
+        // small non-inline boxes a tag list never met: an inline-block button, a flex item's icon.)
         float minW = mWidth > 0 ? (float)mWidth / 3.0f - 20.0f : 60.0f;
         if (minW < 60.0f) minW = 60.0f;
         if (w >= minW && h >= 8.0f) {

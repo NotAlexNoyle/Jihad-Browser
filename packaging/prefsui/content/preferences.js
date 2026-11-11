@@ -122,7 +122,12 @@ const PANES = [
 					// typing and scrolling, and this device is slower than any desktop. Off here too, with
 					// the choice left to the user (the owner, 2026-10-12: "supporting modern web standards").
 					{pref: "layout.css.has-pseudo.enabled", type: "bool", label: "Support the CSS :has() selector",
-					 help: "Newer sites use it in their layout. Off by default, as in Pale Moon: on some pages it slows typing and scrolling. Applies to pages opened after the change."}
+					 help: "Newer sites use it in their layout. Off by default, as in Pale Moon: on some pages it slows typing and scrolling. Applies to pages opened after the change."},
+					// T-644: the daemon reads it when it reports a page's viewport tag to the card
+					// (GoannaRenderPage::GetViewport); the card's adapter then takes or refuses the pinch
+					// and the double tap.
+					{pref: "jihad.zoom.allowEveryPage", type: "bool", label: "Allow zoom on every page",
+					 help: "Some pages forbid zooming or limit how far you can zoom. On: a pinch and a double tap zoom every page all the same. Off: such pages keep the size they ask for. Applies to pages opened after the change."}
 				]
 			},
 			{

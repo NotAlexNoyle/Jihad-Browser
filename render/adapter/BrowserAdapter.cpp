@@ -2151,7 +2151,8 @@ bool BrowserAdapter::handleGesture(NpPalmGestureEvent *event)
     if (mPageWidth == 0 || mPageHeight == 0)
         return true;
 
-    bool passGestureEvents = m_passInputEvents || (mMetaViewport && !mMetaViewport->userScalable);
+    // T-644: a pinch is the page's only when the page's refusal of zoom stands (zoomRefusedByPage)
+    bool passGestureEvents = m_passInputEvents || zoomRefusedByPage();
 
     switch (event->type) {
     case npPalmGestureStartEvent:
@@ -4389,8 +4390,9 @@ bool BrowserAdapter::prvSmartZoom(const Point& pt)
 {
     init();
 
-    // no double tap zoom if meta viewport sets user-scalable=false
-    if (mMetaViewport && !mMetaViewport->userScalable) {
+    // no double tap zoom if meta viewport sets user-scalable=false, unless the user's
+    // "Allow zoom on every page" overrides it (T-644, zoomRefusedByPage)
+    if (zoomRefusedByPage()) {
         return false;
     }
 
@@ -4740,6 +4742,22 @@ void BrowserAdapter::msgSmartZoomCalculateResponseSimple(int32_t inCenterX, int3
 
         left = centerX - viewportWidth / 2;
         top = centerY - viewportHeight / 2;
+
+        // T-643 (2026-11-11): a block taller than the view keeps the tapped line in view (the
+        // centre above is the tap, not the block's middle), and the view does not run past the
+        // block's own ends to do it: a tap in the block's first half screen shows the block from
+        // its top, one in its last half screen shows it to its bottom, with the tapped line still
+        // in view either way (Fennec's and Pale Moon's _zoomToElement shows a tall block from its
+        // top unless the tap is further down). Before, such a tap filled up to half the view with
+        // what lies above or below the block.
+        if ((inBottom - inTop) * zoom >= viewportHeight) {
+            int blockTop = inTop * zoom - kMargin;
+            int blockBottom = inBottom * zoom + kMargin;
+            if (top < blockTop)
+                top = blockTop;
+            else if (top + viewportHeight > blockBottom)
+                top = blockBottom - viewportHeight;
+        }
     }
 
     // Clamp on edges
@@ -6484,6 +6502,21 @@ void BrowserAdapter::msgHitTestResponse(int32_t queryNum,
             }
         }
     }
+}
+
+// T-644 (2026-11-11): does the page's user-scalable=no stand? The user's setting "Allow zoom on every
+// page" (the engine pref jihad.zoom.allowEveryPage, on by default) lives in the daemon, and the
+// contract has no message for it, so it arrives in the meta viewport message's own numbers
+// (GoannaRenderPage::GetViewport): with the setting ON a page that says no still comes with a scale
+// range to zoom in (up to 4.0, or the GPU path's limit); with it OFF the range is one value, the
+// page's initial scale. userScalable is the page's word either way, and the two rules below
+// (a finger's moves and touches passed to a page that says no) keep reading it: a map or a game
+// that fits the card gets its drags as before, at the page's fit. A pinch there now zooms; once
+// zoomed in, the page no longer fits and a drag pans it, and a double tap goes back to the fit.
+bool BrowserAdapter::zoomRefusedByPage() const
+{
+    return mMetaViewport && !mMetaViewport->userScalable
+           && mMetaViewport->maximumScale <= mMetaViewport->minimumScale * 1.01;
 }
 
 bool BrowserAdapter::shouldPassInputEvents()

@@ -114,19 +114,35 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **New rows:** T-636..T-645, from the owner's answers on Pale Moon for Android (all 4 speed items, all 4 design
   features, 565 during drags only).
 
-**Running or queued at the time of writing:**
-- chain7: T-639, T-622 JIT warm-up, T-640 preload, T-626 video queue.
-- chain8: engine, daemon and adapters pushed; frames shot per switch; every switch A/B.
-- chain9: T-641, the disk-cache cap, with three 15.6 MB images symlinked into `render/goanna/test` while it runs.
-- Agents: reader mode + per-tab desktop toggle (T-642/T-645), RGB565 drags (T-637, told not to build).
+**Settled since (build-site has the numbers):**
+- NOT ADOPTED: T-620 compression, T-621 bidi skip, T-623 GC timers, T-630 tickle hold (chain 8), T-637 565 drags
+  (engine 0104), T-641 cache cap (chain 9: the engine never stored the 15.6 MB images, so nothing to cut), T-640
+  preload, T-622 bwarm2 and ion2000. The switches stay in the engine, off.
+- Built and committed: T-642 Reader View + T-645 Desktop Site (about:reader, about:desktopsite, the three shells'
+  menus); T-636 NPixmap tiles as engine 0105 (`JIHAD_GPU_NPIXMAP_TILES=1`, off). The PGO use build and the A9 build
+  are made (obj-jihad-goanna-arm-pgo, -a9).
+- Candidates waiting for 5 runs + rest shots: T-639 paint delay 300 (6 runs: 16.1 s against 16.5, paint 1.7 s against
+  4.9, pan 12.2 against 13.5 fps), ion500 (T-622), T-624 propflags, T-625 inline-domstr.
+
+**Trap of 2026-11-11 evening:** the host's /tmp is a 16 GB tmpfs. Research clones in the session scratchpad filled it
+and chain 10's copy of the unstripped 1.1 GB PGO libxul ran it out; its strip failed silently and it went on toward
+the device. chain10.sh now strips with `-o` from the build and refuses a libxul over 150 MB. Check `df /tmp` before
+staging engine copies there.
+
+**Running at the time of writing (one background run, chains in order):**
+- chain10: PGO, then A9, each against the shipped engine from `$APPD/hl-<name>` (XULDIR), rest shots, 3 runs of
+  wiki/jsbench/long/start; rounds `docs/rounds/{pgo,a9}-2026-11-11`.
+- chain11: rest shots for control, propflags, inline-domstr, tickle, ion500, paint300; ion500, propflags and
+  inline-domstr x5; the video queue RSS.
+- chain12: engine 0105 pushed; NPixmap tiles against the control (rest shots, 3 runs wiki + long);
+  `docs/rounds/npixmap-2026-11-11`.
 
 **Next:**
-- Read chains 7-9 and keep or drop each switch: kept only if faster AND the frames match the control by eye.
-- The PGO use build: the stale .o files are deleted, so rerun
-  `in-container.sh --arm build/webos-oe/build-goanna-arm.sh build "" mozconfig.goanna-arm-pgo use`.
-- The A9 build (T-608).
-- The Mochi minify A/B.
-- T-616/T-636 zero-copy tiles.
+- Read chains 10-12; keep only what is faster AND whose frames match the control at rest by eye; make the kept ones
+  defaults (prefs in packaging/prefs or make-device-bundle.sh, engine switches turned on).
+- Push the card JS to the three shells and test the T-642/T-645 menus and the T-643/T-644 zoom pages with the finger
+  tool (jihad-touch.html needs `jihad.zoom.allowEveryPage` false).
+- T-638 Flash A/B, then the Mochi minify A/B.
 
 ## 2026-11-11 (early) — novacomd 1.2.1 on the host and its libusb trap; the PGO use build made; chains 5 and 6 first read (READ FIRST)
 

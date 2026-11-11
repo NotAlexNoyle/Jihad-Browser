@@ -515,7 +515,12 @@ int main(int argc, char** argv) {
     sigaction(SIGBUS,  &sa, nullptr);
     sigaction(SIGSEGV, &sa, nullptr);
     signal(SIGALRM, teardown_bailout);
-    alarm(kTeardownDeadlineSec);   // a flush that cannot finish must not hold up the OS
+    // JIHAD_TEARDOWN_SEC (1..600): a longer deadline for a hand-started run only. The PGO profiling
+    // engine (T-556) is several times slower and writes its counters after this teardown returns;
+    // the 8 s bailout's _exit would throw them away. The jobs never set it.
+    unsigned deadline = kTeardownDeadlineSec;
+    if (const char* e = getenv("JIHAD_TEARDOWN_SEC")) { long v = atol(e); if (v >= 1 && v <= 600) deadline = (unsigned)v; }
+    alarm(deadline);   // a flush that cannot finish must not hold up the OS
   }
   host.Shutdown();
   alarm(0);

@@ -1,5 +1,5 @@
 {
- "date": "2026-11-10T04:13:44",
+ "date": "2026-11-10T14:15:55",
  "shells": [
   "mojo"
  ],
@@ -10,29 +10,15 @@
    "kit": "cavekit-device-build.md R4",
    "item": "A finished download stands in the card's downloads panel (the history button's panel, its Downloads tab, by finger) and its bytes are on the device under /media/internal/downloads",
    "section": "Media and sound",
-   "verdict": "pass",
-   "checks": [
-    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)",
-    "WAIT ok 9-line: [jihad-dl] finished data:application/octet-stream;base64,SGVsbG8gZnJvbSBKaWhhZAo= -> /media/internal/downloads/jihad-download-26",
-    "CHECK ok 10-file: /media/internal/downloads/jihad-download-26 (17 bytes) holds [Hello from Jihad]",
-    "WAIT ok 12-differs 0,100,756,960",
-    "WAIT ok 14-still 0,100,756,960",
-    "WAIT ok 17-differs 0,100,756,960",
-    "WAIT ok 18-still 0,100,756,960",
-    "WAIT ok 22-differs 450,80,768,400",
-    "WAIT ok 23-still 450,80,768,400",
-    "WAIT ok 26-content 10,90,400,300"
-   ],
-   "kept": [
-    "kept/mojo-download-list-panel_.jpg",
-    "kept/mojo-download-list-downloads_.jpg"
-   ],
-   "seconds": 83,
-   "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +9 s, 3 content frames at +13 s; the GPU path, frames off the main thread (the express lane) (the job's J",
-   "restore": "mojo: (1536821/486556770) jihad-mojo (start) running, process 19609; daemons running: 1"
+   "verdict": "fail",
+   "checks": [],
+   "kept": [],
+   "seconds": 68,
+   "note": "the session did not reach its end (rc 255)",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +3 s, load done at +12 s, 3 content frames at +12 s; the GPU path, frames off the main thread (the express lane) (the job's ",
+   "restore": "unable to find device"
   }
  ],
- "end_check": "DEVICE ok job-enyo: (1536821/593016178) jihad (start) running, process 9457\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE FAIL cards-enyo: 1 card(s) of net.riverstonerelay.jihad-browser still open\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (1536829/484763288) jihad-mochi (start) running, process 4858\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (1536836/143831879) jihad-mojo (start) running, process 19609\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/eye-cairo.png /tmp/eye-skia.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 6% of /tmp used\nnovacom: unexpected EOF from server",
- "seconds": 105
+ "end_check": "unable to find device",
+ "seconds": 68
 }

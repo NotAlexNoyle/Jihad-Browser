@@ -145,6 +145,14 @@ pref("browser.cache.disk.smart_size.enabled", false); // never autosize from fre
 // decoder chain regardless, and that refusal is correct.
 pref("media.webm.enabled", true);
 
+// VP8/VP9 GO TO LIBVPX, FLAC STAYS ON FFVPX (cavekit-lowpower-uxp.md R4, T-558; engine patch 0093).
+// ffvpx's ARM tree has no NEON for VP9, libvpx has. Measured 2026-11-10 on a clean profile, three
+// runs of a 30 s clip each side (docs/research/lowpower-uxp.md §5): 360p dropped 37-78 frames with
+// ffvpx against 0-23 with libvpx; 480p 855-891 of 900 (unwatchable) against 45-87. Turning ffvpx
+// off whole (media.ffvpx.enabled=false) loses FLAC, the one format nothing else decodes, so the
+// engine got a narrower switch: with it false ffvpx declines VP8/VP9 and the next module takes them.
+pref("media.ffvpx.vpx.enabled", false);
+
 // WHY AN UNDECODABLE CLIP NEEDS NO WORK FROM US: the GRE degrades visibly and the assets ship.
 // videocontrols' error branch shows its status overlay with the label picked off
 // video.error.code ("Video format or MIME type is not supported.") — seen on the device for an

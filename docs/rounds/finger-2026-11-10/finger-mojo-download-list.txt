@@ -1,20 +1,3 @@
-calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
-  inject url data:application/octet-stream;base64,SGVsbG8gZnJvbSBKaWhhZAo=
-WAIT ok 9-line: [jihad-dl] finished data:application/octet-stream;base64,SGVsbG8gZnJvbSBKaWhhZAo= -> /media/internal/downloads/jihad-download-26
-CHECK ok 10-file: /media/internal/downloads/jihad-download-26 (17 bytes) holds [Hello from Jihad]
-  sample page of 0,100,756,960: hash aa64d07f
-WAIT ok 12-differs 0,100,756,960
-  chrome dialog-ok tapped at 384 935
-WAIT ok 14-still 0,100,756,960
-  sample page2 of 0,100,756,960: hash aa64d07f
-  chrome history tapped at 438 983
-WAIT ok 17-differs 0,100,756,960
-WAIT ok 18-still 0,100,756,960
-  frame kept: /media/internal/jihad-finger/panel_.last.raw
-  sample list of 450,80,768,400: hash 2d60b621
-  chrome downloads-tab tapped at 552 979
-WAIT ok 22-differs 450,80,768,400
-WAIT ok 23-still 450,80,768,400
-WAIT ok 26-content 10,90,400,300
-  frame kept: /media/internal/jihad-finger/downloads_.last.raw
-CHECKS 1 FAILS 0
+
+novacomd socket was closed prematurely
+novacom: unexpected EOF from server

@@ -133,6 +133,31 @@ Every void row is measured again.
 | the Skia content backend (row 9, T-559) — **VOID, its control carried the lever (see the correction)** | `PREF=gfx.content.azure.backends=skia`, `LEVER_B=cairo-control`, four runs | paint sum 2 583 against 3 414 ms (-24 %), **the pipeline 11.9 against 9.9 fps (+20 %)**, the pan 12.1 against 11.7; RSS +3 %; the load the same | **promising, not yet kept**: the text is to be judged by eye (R5) — chain 2 takes the same Wikipedia frame with each backend, and a second round confirms the rate |
 | the GRE packed into omni.ja (row 10, T-559) | `HLDIR=<app>/hl-omni`: a copy of the GRE with chrome, modules, res, defaults and the stock components packed into `omni.ja` (179 files against 2 126), `LEVER_B=loose` | load 16 106 against 18 641 (-14 %, the spread overlapping: 14 600..17 859 / 14 605..18 802); the card's first frame -6 % cold, -3 % warm; **the daemon's start to engine up 6 251 against 3 922 cold (+59 %), 3 194 against 2 458 warm (+30 %)**; the pipeline 9.2 against 11.3 fps | **not yet decided**: the run is confounded twice — the copied directory (the -O2 row's +2.3 s cold) and the startup cache, whose bundle id flips between the two layouts so every omni run starts with it dropped. Chain 2 runs omni back to back after one warm-up |
 
+### Chain 4: the void rows measured again on the clean profile (2026-11-10, 08:18-13:33)
+
+Every lever interleaved with a control of its hour, the profile checked clean after each (`docs/rounds/lowpower-2026-11-10/`,
+`lowpower-bench.tsv`; medians, the spread in brackets). Rows 1-4 and 9 run on desktop Wikipedia.
+
+| lever | runs | result | decision |
+|---|---|---|---|
+| reduced motion, Wikipedia (`PREF=ui.prefersReducedMotion=1`, T-604) | 4 | **at rest 8 696 [5 235..12 384] against 24 823 ms [24 203..25 105] of 30 s (-65 %)**, paint -67 %, load -9.5 %, the pan the same | **owner's call, a strong case**: the main thread's rest work on Wikipedia is animation |
+| reduced motion, apple.com / animate.style | 3 | apple.com: **paint 159 against 3 032 ms (-95 %)**, at rest -40 %, load -10 %, PSS 30 s after the load -15 %; animate.style: nothing beyond the spread (its rest is 235 ms either way) | as above |
+| the page's timers clamped to 100 ms (`dom.min_timeout_value`, T-604) | 3 | at rest 24 212 against 24 439 ms (-0.9 %) | **dropped**: the rest work is not timers |
+| lazy images, Wikipedia and the long page (`PREF=jihad.images.lazy=true`) | 4 / 3 | Wikipedia: nothing beyond the spread; the long page: **load +17 %, PSS +6.7 %**, paint -15 % | **not recommended**: the void night's gain was the no-script profile's; owner's call (it was put as "recommended on") |
+| Skia (`PREF=gfx.content.azure.backends=skia`) | 4 | nothing beyond the spread; **the eye frames are pixel-identical to Cairo's** but for the status bar | **not measured**: a gfx pref set in prefs.js comes too late (the gfx prefs are read before the profile's); measured again through the default pref (`GPREF=`, chain 5) |
+| the VP9 decoder A/B (`decoder-ab.sh 3`, T-558) | 3 | 360p: ffvpx dropped 57 / 37 / 78 of 900, libvpx 0 / 18 / 23; **480p: ffvpx dropped 883 / 891 / 855 (painted 2-27), libvpx 87 / 56 / 45 (painted 536-558)**; with ffvpx off MP3 plays, FLAC fails (error 4) | **libvpx for VP8/VP9, ffvpx for FLAC**: engine patch 0093 (`media.ffvpx.vpx.enabled`, false in Jihad's platform prefs); confirmed on the device by chain 5 |
+| the alternate directory (a copy of the shipped libxul, `XULDIR`) | 4 | the engine up **8 190 against 5 411 ms cold (+51 %)**, warm the same; the card's first frame -8 % cold | every `XULDIR`/`HLDIR` cold start is read against such a copy |
+| the lean engine (no accessibility, no devtools server; both from copied directories) | 4 | the engine up 7 723 against 8 400 ms cold (-8 %), warm +17 % (the spreads overlap), the card the same; 419 KB smaller stripped | **not taken**: within the run-to-run spread, for an engine without accessibility |
+| omni.ja (`HLDIR`, back to back against the loose GRE in place) | 5 | the engine up 8 381 against 5 238 ms cold (+60 %: the copy's +51 % and about +6 % of its own), the card -8 % cold, warm the same | **dropped**: no start gain once the copy is counted |
+| the capped helper pool, third round | 4 | jsbench loop -14 %, objects -15 %, regex -10 %, strings -4 %; load -4 %, PSS -4 %; paint +28 % [1 805..6 355 against 1 769..3 680] | **kept**: the second and third rounds both gain (load -10 % / -4 %, the main thread's sum -10 % / -5 %, loop -14 % / -14 %) and the losses of either round are within the other's spread; into the jobs' environment |
+| jemalloc nnff, second round | 4 | **PSS -11.6 % after the load, -9 % 30 s after**, load -16 %; the long page's pan the same (28.6 / 28.2 fps); **Wikipedia's pipeline 9.2 against 12.7 fps** (the first round 11.6 against 12.9) | **not yet**: the pipeline lost twice; chain 5 measures ff (the dirty cap) and nn (the arenas) apart |
+| the network predictor off | 3 | nothing beyond the spread | dropped |
+| `gc_max_empty_chunk_count=4` | 3 | nothing beyond the spread (at rest +11 %) | dropped |
+| `image.cache.size` 8 MB | 3 | PSS 30 s after the load 251 616 against 263 144 kB (-4.4 %), paint -36 % | a second round (chain 5) |
+| surface cache expiry 30 s | 3 | PSS +2.4 % | dropped |
+| `decode_bytes_at_a_time` 64 KB | 3 | **load 16 467 [16 109..16 586] against 17 514 [17 374..17 800] (-6 %)**, PSS 30 s after -3 % | a second round (chain 5) |
+| the parser's flush timer 250 ms | 3 | **load -16.5 %**, the main thread's sum -13 %, PSS after the load -5.6 % | a second round (chain 5) |
+
 ## 6. Stock webOS 3.0.5 (R6: named for the owner, not measured)
 
 The bench is a CE 3.1.0 TouchPad; the same hardware runs stock 3.0.5 (the owner's second TouchPad is on its way). The
@@ -162,6 +187,13 @@ GCC 9.4 cross, no profiling server on the host: the profile is made on the Touch
    the colours page's start): the representative mix of this kit's measurements. The daemon writes the counters at exit
    (SIGTERM → `exit(0)` → libgcov's dump): every run is stopped with a wait long enough for thousands of files (the
    stop's 30 s is not), and `/media/internal/jihad-pgo` is read for their count before the next.
+   **Two traps, found by the first try (2026-11-10, 0 profile files):** the instrumented libxul takes libgcov's
+   profilers (`__gcov_indirect_call`, the `*_atomic` ones: `-pthread` makes GCC pick atomic counter updates) from the
+   instrumented libraries it was linked against (libnspr4, liblgpllibs, libmozsqlite3, ...), which export them, not
+   from libgcov.a — so `hl-pgo` holds every instrumented library of the objdir's `dist/bin`, not libxul alone ("symbol
+   lookup error: ... undefined symbol: __gcov_indirect_call" otherwise). And the daemon gives its teardown 8 s before
+   it `_exit`s (the shutdown that once bricked the device, `Main.cpp`), which an instrumented engine can overrun and
+   lose every counter: `JIHAD_TEARDOWN_SEC=300` (the daemon, hand-started runs only) lengthens it.
 3. **Pull:** `/media/internal/jihad-pgo/*.gcda` to `build/webos-oe/out-arm/pgo-data/` (`/out/pgo-data`).
 4. **Use:** `build-goanna-arm.sh all "" mozconfig.goanna-arm-pgo-use` — the same objdir, `-fprofile-use=/out/pgo-data
    -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch` (counters from threads race without atomic updates:

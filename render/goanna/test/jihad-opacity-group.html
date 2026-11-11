@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
+     jihad-opacity-group.html — T-605: an opacity group (a container at opacity 0.6 holding four layers of its own, so
+     the compositor draws it through an intermediate surface) at the left, and AFTER it in paint order a positioned
+     article of numbered coloured rows across the whole width. A frame drawn with that group must show every row whole,
+     right of the group and below it too: T-605's faulty frames drew the layers after such a group only inside the
+     group's surface extent. ?sticky=1 makes the group a sticky sidebar (a part, hidden for a frame without its parts,
+     as desktop Wikipedia's contents sidebar is). No script but the query. -->
+<html><head><meta charset="utf-8">
+<title>jihad-opacity-group</title>
+<style>
+  body { margin: 0; width: 1000px; font: 24px/1.4 sans-serif; background: #fff; }
+  #wrap { position: relative; }
+  #group { position: absolute; left: 20px; top: 120px; width: 200px; opacity: 0.6; }
+  #group.sticky { position: sticky; top: 0; float: left; margin-top: 120px; }
+  #group div { height: 120px; margin-bottom: 20px; background: #2050c0; color: #fff; will-change: transform; }
+  #article { position: relative; margin-left: 260px; padding-top: 20px; }
+  #article p { margin: 0 0 12px; height: 60px; color: #000; }
+  #article p:nth-child(3n+1) { background: #ffd0d0; }
+  #article p:nth-child(3n+2) { background: #d0ffd0; }
+  #article p:nth-child(3n+3) { background: #d0d0ff; }
+</style></head>
+<body><div id="wrap">
+<div id="group"><div>g1</div><div>g2</div><div>g3</div><div>g4</div></div>
+<div id="article"></div>
+</div>
+<script>
+if (/[?&]sticky=1/.test(location.search)) document.getElementById("group").className = "sticky";
+var a = document.getElementById("article"), h = "";
+for (var i = 1; i <= 40; i++) h += "<p>row " + i + " — the whole width of the article, left edge to right edge ......... " + i + "</p>";
+a.innerHTML = h;
+</script>
+</body></html>

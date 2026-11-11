@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-10 morning below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-10 evening below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -51,6 +51,45 @@ Jihad Browser, and it starts when Jihad Browser is finished.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-10 (evening) — chain 4 read clean; VP9 to libvpx (0093); T-605 found and fixed (0094); PGO's two traps (READ FIRST)
+
+**State:** main after `ecdb5379` with the evening's commit, NOT pushed (the owner pushes: `bash .cavekit/handoff-2026-11-08/push.sh`,
+the fork branch first). The fork's head `70706643b2`; queue 0094, `UXP_PIN=70706643b2` (patch-queue.sh --check: 94
+patches reproduce it). **The owner's gitlink bumps:** `third_party/uxp` (to `70706643b2`) and `third_party/webos-sdk-redux`
+(`5349208`).
+
+**Chain 4 (clean, `docs/research/lowpower-uxp.md` §5 "Chain 4"):** the capped JS helper pool KEPT (two rounds gain; in the
+three jobs); omni.ja and the lean engine not taken (any copied directory starts cold +51 %, the confound measured);
+reduced motion is a strong case (Wikipedia at rest -65 %, apple.com paint -95 %); lazy images not recommended (the long
+page +17 % load); nnff saves 9-12 % PSS but cost Wikipedia's pipeline twice (ff and nn apart next); three memory prefs to
+a second round (image cache, decode chunk, the parser's flush timer); the timer clamp dropped. **Skia was never measured**:
+a gfx pref in prefs.js is read too late (the eye frames are pixel-identical): it runs again as a default pref (`GPREF=`).
+
+**VP9 (T-558):** clean, at 480p ffvpx drops 855-891 of 900 frames, libvpx 45-87. Patch 0093 adds `media.ffvpx.vpx.enabled`
+(false in `jihad-platform-prefs.js`): ffvpx declines VP8/VP9, libvpx takes them, ffvpx keeps FLAC.
+
+**T-605 (the top-of-page frames):** not the subtree (the 9 children lie inside the sidebar). The faulty frame has the article
+only in x < 208 and the GL rows 0..787 — the hidden sidebar's intermediate-surface extent: a part hidden at opacity 0 with
+several children goes through a surface, and what is drawn after it came out clipped. Patch 0094 hides a part's leaves
+instead (`JIHAD_GPU_HIDE_PART=1` restores the old way). Not yet proven on the device; `render/goanna/test/jihad-opacity-group.html`
+checks whether an ordinary opacity group does the same.
+
+**PGO's first profiling run wrote nothing:** the instrumented libxul takes libgcov's profilers from the instrumented
+libnspr4 and siblings, and only libxul had been deployed; and the daemon's 8 s teardown bailout would drop the counters.
+Fixed in the procedure (§7): all instrumented libraries go to `hl-pgo`; the daemon honours `JIHAD_TEARDOWN_SEC` (hand runs).
+
+**Running (scratchpad scripts):** `tier93b.sh` (T-576's Mochi and Mojo game rounds, the report) → `pgo-profile2.sh` (the
+daemon with the teardown knob to the three shells, every instrumented library, a smoke run that must write .gcda, two
+profiling passes, the pull; then the PGO use build starts on the host) → `chain5.sh` (deploy 0093 + 0094 + the jobs with
+the helper pool; T-605's verify rounds new/old/new; the opacity-group page; the decoder A/B on the new pref with FLAC and
+MP3; T-598's scrub on Mojo ×2; T-594's OMX probe; T-606's cover-test cost and the parts-off stream round; T-567's fill by
+two stream rounds (the table now counts the card's grey apart); ff / nn apart; the three prefs' second rounds; Skia via
+GPREF with eye frames).
+
+**Next, in order:** read chain 5 and the PGO use build (measured against a copy of the shipped libxul, §7 step 5); T-605's
+verdict (and the opacity-group page's); the Tier 93 report; the owner's calls by the dialog: -O2 (whole / js only), reduced
+motion, lazy images, Skia once measured.
 
 ## 2026-11-10 (morning) — the pref leak was two bugs; T-605 reproduced on the clean profile; the owner's four calls built (READ FIRST)
 

@@ -72,7 +72,8 @@ for pv in $GPREFS_ADD; do
   n="${pv%%=*}"; v="${pv#*=}"
   [ -f "$HL/goanna.js.spike-orig" ] || cp "$HL/goanna.js" "$HL/goanna.js.spike-orig"
   sed -i "/^pref(\"$n\"/d" "$HL/goanna.js"
-  echo "pref(\"$n\", $v);" >> "$HL/goanna.js"
+  # a string value is quoted here as PREF= quotes it (the Skia round of 2026-11-10 needed "skia")
+  case "$v" in true|false|[0-9]*|-[0-9]*|\"*) echo "pref(\"$n\", $v);" >> "$HL/goanna.js";; *) echo "pref(\"$n\", \"$v\");" >> "$HL/goanna.js";; esac
   echo "$n" >> /tmp/spike-gprefs.txt
   echo "default pref for this run: $n = $v"
 done

@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Tue, 10 Nov 2026 21:18:32 -0500
+Subject: [PATCH] compositor: hide a part's leaves, never the part, for a frame
+ without its parts (T-605)
+
+A part hidden at shadow opacity 0 with more than one child is composed
+through an intermediate surface (DefaultComputeEffectiveTransforms). On
+desktop Wikipedia's load the contents sidebar holds 9 children, and on
+those frames the layers drawn after it (the article) came out only inside
+the surface's extent (x < 208, GL rows 0..787): a blank article under the
+dressed sidebar. With one child the opacity folds into it and the frames
+were right. The leaves at 0 need no surface and cost no offscreen pass.
+JIHAD_GPU_HIDE_PART=1 restores the old hide.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index ccd016ea48..b06687bada 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1212,7 +1212,20 @@ CompositorBridgeParent::JihadHideForJob()
+             }
+           }
+         }
+-        l->AsLayerComposite()->SetShadowOpacity(0.0f);
++        // T-605: the part's leaves at 0, never the part itself. A container at opacity 0 with more than one child is
++        // composed through an intermediate surface (DefaultComputeEffectiveTransforms), and on the frames that had one
++        // (the contents sidebar's 9 children during desktop Wikipedia's load) the layers drawn after it, the article,
++        // came out only inside the surface's extent (x below 208, the GL scissor's 787 rows from the bottom): a blank
++        // article under the dressed sidebar. With one child the opacity folds into it and the frames were right. A
++        // leaf at 0 needs no surface, and the hidden part costs no offscreen pass either. JIHAD_GPU_HIDE_PART=1: as before
++        static const bool sHideWhole = getenv("JIHAD_GPU_HIDE_PART") != nullptr;
++        if (sHideWhole) {
++          l->AsLayerComposite()->SetShadowOpacity(0.0f);
++        } else {
++          ForEachNode<ForwardIterator>(l, [](Layer* d) {
++            if (!d->GetFirstChild()) d->AsLayerComposite()->SetShadowOpacity(0.0f);
++          });
++        }
+       }
+       return;
+     }

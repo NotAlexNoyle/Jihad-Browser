@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Tue, 10 Nov 2026 21:02:11 -0500
+Subject: [PATCH] media: a pref that leaves VP8/VP9 to libvpx, ffvpx keeping
+ FLAC (T-558)
+
+media.ffvpx.vpx.enabled (default true, upstream's behaviour): false makes the
+ffvpx module decline VP8/VP9, so the next module (libvpx, AgnosticDecoderModule)
+decodes them while ffvpx still takes FLAC. On the TouchPad's ARMv7 ffvpx's VP9
+has no NEON: a 480p clip dropped 855-891 of 900 frames against libvpx's 45-87.
+media.ffvpx.enabled=false would lose FLAC, which nothing else decodes.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ dom/media/MediaPrefs.h                           |  2 ++
+ dom/media/platforms/ffmpeg/FFmpegDecoderModule.h | 11 +++++++++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/dom/media/MediaPrefs.h b/dom/media/MediaPrefs.h
+index 31fda673a7..3363ca479a 100644
+--- a/dom/media/MediaPrefs.h
++++ b/dom/media/MediaPrefs.h
+@@ -109,6 +109,8 @@ private:
+ #endif
+ #ifdef MOZ_FFVPX
+   DECL_MEDIA_PREF("media.ffvpx.enabled",                      PDMFFVPXEnabled, bool, true);
++  // Jihad (T-558): false hands VP8/VP9 to libvpx, ffvpx keeping FLAC (FFmpegDecoderModule.h).
++  DECL_MEDIA_PREF("media.ffvpx.vpx.enabled",                  PDMFFVPXVpxEnabled, bool, true);
+ #endif
+ #ifdef MOZ_AV1
+   DECL_MEDIA_PREF("media.av1.enabled",                        AV1Enabled, bool, true);
+diff --git a/dom/media/platforms/ffmpeg/FFmpegDecoderModule.h b/dom/media/platforms/ffmpeg/FFmpegDecoderModule.h
+index c6536da5a1..7f3a718a19 100644
+--- a/dom/media/platforms/ffmpeg/FFmpegDecoderModule.h
++++ b/dom/media/platforms/ffmpeg/FFmpegDecoderModule.h
+@@ -10,6 +10,9 @@
+ #include "FFmpegLibWrapper.h"
+ #include "FFmpegAudioDecoder.h"
+ #include "FFmpegVideoDecoder.h"
++#ifdef FFVPX_VERSION
++#include "MediaPrefs.h"
++#endif
+ 
+ namespace mozilla
+ {
+@@ -68,6 +71,14 @@ public:
+     if (audioCodec == AV_CODEC_ID_NONE && videoCodec == AV_CODEC_ID_NONE) {
+       return false;
+     }
++#ifdef FFVPX_VERSION
++    // Jihad (T-558): media.ffvpx.vpx.enabled=false leaves VP8/VP9 to the next module (libvpx,
++    // AgnosticDecoderModule) while ffvpx keeps FLAC. On the TouchPad (ARMv7) ffvpx's VP9 has no
++    // NEON and drops nearly every frame of a 480p clip where libvpx drops 5-10 %.
++    if (videoCodec != AV_CODEC_ID_NONE && !MediaPrefs::PDMFFVPXVpxEnabled()) {
++      return false;
++    }
++#endif
+     AVCodecID codec = audioCodec != AV_CODEC_ID_NONE ? audioCodec : videoCodec;
+     return !!FFmpegDataDecoder<V>::FindAVCodec(mLib, codec);
+   }

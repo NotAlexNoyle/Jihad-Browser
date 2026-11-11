@@ -1,8 +1,10 @@
 #!/bin/bash
-# decoder-ab.sh [runs=3] : cavekit-lowpower-uxp.md R4, T-558 — the VP9 decoder A/B: ffvpx (the default) against libvpx
-# (media.ffvpx.enabled=false), each 30 s clip of make-media-assets.sh at 360p and 480p played to its end on the Enyo
-# hand daemon, the frames painted and dropped read from the page's title (jihad-media-test.html: "ended ... painted= dropped=
-# total="); then, with ffvpx off, an MP3 and a FLAC played to their end (the lever must not lose them). One line a run.
+# decoder-ab.sh [runs=3] : cavekit-lowpower-uxp.md R4, T-558 — the VP9 decoder A/B: ffvpx (media.ffvpx.vpx.enabled=true,
+# the engine's upstream default) against libvpx (the shipped prefs since 2026-11-10: media.ffvpx.vpx.enabled=false, engine
+# patch 0093, ffvpx declining VP8/VP9), each 30 s clip of make-media-assets.sh at 360p and 480p played to its end on the
+# Enyo hand daemon, the frames painted and dropped read from the page's title (jihad-media-test.html: "ended ... painted=
+# dropped= total="); then, on the shipped prefs, an MP3 and a FLAC played to their end (ffvpx keeps FLAC, the one format
+# nothing else decodes). One line a run.
 #   tools/device/decoder-ab.sh 3
 set -u
 R=/home/notalexnoyle/eclipse-workspace/Jihad/Jihad-Browser
@@ -24,9 +26,9 @@ one() {   # one LABEL SRC [PREF words] (the page starts its clip itself: autopla
 }
 for r in $(seq 1 "$N"); do
 	for clip in clip30vp9-360.webm clip30vp9-480.webm; do
-		one "run $r ffvpx " "$clip"
-		one "run $r libvpx" "$clip" PREF=media.ffvpx.enabled=false
+		one "run $r ffvpx " "$clip" PREF=media.ffvpx.vpx.enabled=true
+		one "run $r libvpx" "$clip"
 	done
 done
-echo "--- with ffvpx off, the other formats"
-for f in tone10.mp3 tone10.flac; do one "libvpx-config" "$f&audio=1" PREF=media.ffvpx.enabled=false; done
+echo "--- the shipped prefs, the other formats"
+for f in tone10.mp3 tone10.flac; do one "shipped" "$f&audio=1"; done

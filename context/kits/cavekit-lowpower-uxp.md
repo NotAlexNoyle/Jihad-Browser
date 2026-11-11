@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26"
-last_edited: "2026-11-09"
+last_edited: "2026-11-10"
 complexity: thorough
 ---
 
@@ -42,23 +42,30 @@ the queue).
 ### R2: The CPU levers measured
 **Description:** The levers that trade CPU (research rows 1, 2, 12).
 **Acceptance Criteria:**
-- [ ] JS helper threads capped for two cores (Ion and parse threads, and a lower priority for helpers) tried as an
+- [x] JS helper threads capped for two cores (Ion and parse threads, and a lower priority for helpers) tried as an
   engine patch: the Wikipedia pumps and jsbench against the baseline; kept only if both improve or neither regresses
-  beyond the spread
+  beyond the spread *(2026-11-10: kept — two interleaved rounds on the clean profile gain on the load, the main thread's
+  sum and jsbench, nothing lost beyond the spread; `JIHAD_JS_HELPER_THREADS=2 JIHAD_JS_ION_THREADS=1
+  JIHAD_JS_PARSE_THREADS=1` in the three jobs (`packaging/gen-variant-scripts.sh`); the helpers' nice value dropped,
+  no effect)*
 - [ ] -O2 (whole tree, or js/src + layout + gfx) tried against -Os: script and paint times, libxul size, start time,
   resident memory; the choice recorded with the numbers
-- [ ] PGO is either tried (with the on-device profiling run's procedure written down) or declined by the owner
+- [~] PGO is either tried (with the on-device profiling run's procedure written down) or declined by the owner
+  *(2026-11-10: the owner's "try it"; the procedure is §7 of the research document, its first profiling run found two
+  traps (written there) and runs again)*
 **Dependencies:** R1, cavekit-engine-update.md R1
 
 ### R3: The memory levers measured
 **Description:** The levers that trade resident memory (research rows 3, 4).
 **Acceptance Criteria:**
-- [ ] The allocator's arena count and dirty-page cap set for the daemon (environment, no rebuild) and a purge after a
+- [~] The allocator's arena count and dirty-page cap set for the daemon (environment, no rebuild) and a purge after a
   load goes idle: resident memory after Wikipedia and a long article, and the script and pan numbers, against the
-  baseline
-- [ ] Each memory pref of research row 4 tried alone (predictor off, empty GC chunks, image cache size, surface-cache
+  baseline *(2026-11-10: nnff saves 9-12 % PSS twice but costs Wikipedia's pipeline rate twice; the arena count and
+  the dirty cap are measured apart next; the purge dropped)*
+- [~] Each memory pref of research row 4 tried alone (predictor off, empty GC chunks, image cache size, surface-cache
   expiry): its memory and time effect recorded; the kept ones in the device prefs with a comment naming the
-  measurement
+  measurement *(2026-11-10: all six measured on the clean profile; predictor, GC chunks, surface expiry dropped; the
+  image cache, decode chunk and parser flush timer go to a second round)*
 - [ ] Three daemons running at once (one per variant) with the kept levers stay inside the memory budget of
   cavekit-device-build.md R5
 **Dependencies:** R1
@@ -73,18 +80,26 @@ the queue).
 - [x] `image/jxl` dropped from the Accept headers, or kept with the reason *(2026-11-09, T-558: kept — on the device JPEG XL
   decodes the same 1600x1200 picture in 204 ms against WebP's 304 and JPEG's 226, `docs/research/lowpower-uxp.md` §5)*
 - [~] The VP9/WebM decoder A/B (ffvpx vs libvpx, MSE WebM) measured at 360p and 480p (dropped frames), and the faster
-  path chosen without losing FLAC/MP3 playback *(2026-11-09, T-558: the A/B is VOID — its libvpx pref stayed for the
-  ffvpx runs after the first; libvpx alone fails FLAC (stands). MSE WebM stays on: YouTube, the MSE site this device meets, already plays
+  path chosen without losing FLAC/MP3 playback *(2026-11-10, T-558: measured clean — at 480p ffvpx drops 855-891 of 900
+  frames, libvpx 45-87; at 360p 37-78 against 0-23. Chosen: libvpx for VP8/VP9 and ffvpx for FLAC, by engine patch 0093
+  (`media.ffvpx.vpx.enabled`, false in the platform prefs); on the device with the next deploy, where the A/B runs again
+  and FLAC and MP3 play on the shipped prefs. MSE WebM stays on: YouTube, the MSE site this device meets, already plays
   H.264 here (formats 160/133/134, `docs/rounds/headroom-2026-11-07/README.md`) and `jihadWebCompat.js` refuses it VP8/VP9/AV1)*
 **Dependencies:** R1, cavekit-gre-widgets.md R1
 
 ### R5: The build and startup levers measured
 **Description:** Research rows 9-11.
 **Acceptance Criteria:**
-- [ ] The GRE packed into `omni.ja` tried: start to first frame, cold and warm; kept if faster
+- [x] The GRE packed into `omni.ja` tried: start to first frame, cold and warm; kept if faster *(2026-11-10: not faster —
+  cold +60 % against the loose GRE in place, of which +51 % is any copied directory's; the card's first frame -8 % cold;
+  dropped)*
 - [ ] The content backend A/B (Skia vs the current) measured for paint time on Wikipedia and judged by eye for text
-- [ ] Removing accessibility and the devtools server tried only if no shipped feature or supported add-on needs them
-  (checked against cavekit-addons-extensions.md), with libxul size and start time
+  *(2026-11-10: not yet measured — set as a profile pref it never took effect (the eye frames are pixel-identical); runs
+  again as a default pref)*
+- [x] Removing accessibility and the devtools server tried only if no shipped feature or supported add-on needs them
+  (checked against cavekit-addons-extensions.md), with libxul size and start time *(2026-11-10: the add-ons kit names
+  neither; the lean libxul is 419 KB smaller stripped and starts cold 8 % sooner, within the spread, warm the same: not
+  taken)*
 **Dependencies:** R1
 
 ### R6: Every result recorded, nothing kept unmeasured
@@ -107,6 +122,7 @@ the queue).
 - cavekit-modern-web.md — sites' behaviour under the levers
 
 ## Changelog
+- 2026-11-10: chain 4 on the clean profile: the helper pool kept (R2), omni.ja and the lean engine not taken (R5), the VP9 path chosen (R4, patch 0093), the memory prefs' first round (R3); Skia's A/B found unmeasured.
 - 2026-11-09 (evening): the lever chain measured every R2-R5 lever against a control of its hour (§5); the PREF levers' controls carried the lever (the spike stop stripped no pref): those rows void, re-measured; R6's stock note met.
 - 2026-11-09: R1 met (T-555, the baseline script and five runs); the rest-time main thread finding added as T-604 under R2.
 - 2026-10-26: created from the owner's request and the day's research (`docs/research/lowpower-uxp.md`).

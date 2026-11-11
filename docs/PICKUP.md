@@ -135,7 +135,17 @@ staging engine copies there.
 - chain11: rest shots for control, propflags, inline-domstr, tickle, ion500, paint300; ion500, propflags and
   inline-domstr x5; the video queue RSS.
 - chain12: engine 0105 pushed; NPixmap tiles against the control (rest shots, 3 runs wiki + long);
-  `docs/rounds/npixmap-2026-11-11`.
+  `docs/rounds/npixmap-2026-11-11`. Its daemon carries the new timeline marks (doc start/transferring/stop) and the
+  blocker's load phases (T-646).
+- chain13: T-618 Mochi minified against the debug loader (LunaSysMgr restarted before each cold launch, launch to
+  `[JIHAD-START]` timed on the device, 5 runs, screenshots); `docs/rounds/mochi-minify-2026-11-11`.
+- chain14: T-638 Flash SetWindow dedup against the control (lowpower-bench's new `flash` measure); `flash-dedup-2026-11-11`.
+- chain15: T-613 on the device: the jobs without `start on` and the new adapters laid down, each shell launched with
+  its daemon stopped; `first-launch-2026-11-11`.
+- chain16: T-634 kernel MemAvailable formula against the sum on memhog 400 MB; `memavail-2026-11-11`.
+- chain17: T-632 the WebGL cube with the screen off; T-635's vm values; `screen-off-2026-11-11`.
+- chain18: T-628's prefs (decode 200000 bytes, GC slice 40 ms); `tff-prefs-2026-11-11`.
+- chain19: T-629 the first scoreboard (Jihad, Atlas, stock); `scoreboard-2026-11-11`.
 
 **Next:**
 - Read chains 10-12; keep only what is faster AND whose frames match the control at rest by eye; make the kept ones

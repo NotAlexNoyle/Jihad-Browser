@@ -24,6 +24,7 @@ LICENSE@@@ */
  *   ported from the Atlas Browser project (Herrie82, Apache-2.0). See ../../NOTICE. */
 
 #include <sys/time.h>
+#include <time.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -555,6 +556,8 @@ BrowserAdapter::BrowserAdapter(NPP instance, GMainContext *ctxt, int16_t argc, c
     , mMouseInFlashRect(false)
     , mFlashGestureLock(false)
     , m_lockKeyboardTimer(NULL)
+    , m_daemonRetryTimer(NULL)
+    , m_daemonRetries(0)
     , m_penDownLive(false)
     , m_lockNotifyPending(false)
     , mMouseInInteractiveRect(false)
@@ -659,6 +662,11 @@ BrowserAdapter::~BrowserAdapter()
         g_source_destroy(m_lockKeyboardTimer);
         g_source_unref(m_lockKeyboardTimer);
         m_lockKeyboardTimer = NULL;
+    }
+    if (m_daemonRetryTimer) {
+        g_source_destroy(m_daemonRetryTimer);
+        g_source_unref(m_daemonRetryTimer);
+        m_daemonRetryTimer = NULL;
     }
     destroyBufferLock();
 
@@ -960,6 +968,7 @@ bool BrowserAdapter::init()
 
         TRACEF("%s: unable to connect to BrowserServer.", __FUNCTION__);
 
+        jihadStartDaemonJob();
         serverDisconnected();
     }
 
@@ -983,6 +992,55 @@ bool BrowserAdapter::init()
     }
 
     return successful;
+}
+
+// T-613 (the owner, 2026-11-11: "jihad browsers daemons should start at first launch"): the jobs have no `start on`
+// (packaging/gen-variant-scripts.sh). This adapter runs inside the web app manager, as root, so when a card finds no
+// socket it starts its own shell's job, at most once in 20 s, and retries the connect every 500 ms for 30 s; the JS
+// side gets serverConnected as on any connect. Any failed connect starts it, socket file or not: a stopped daemon can
+// leave its socket behind, and `start` on a running or respawning job changes nothing. A daemon started by hand (the
+// device benches, tools/device/t502/gpu-spike-start.sh) holds <state>/hand-daemon so the job is never started under it.
+void BrowserAdapter::jihadStartDaemonJob()
+{
+    if (m_daemonRetryTimer)
+        return;
+    static time_t lastStart = 0;
+    if (access(JIHAD_STATE_DIR "/hand-daemon", F_OK) != 0) {
+        time_t now = time(NULL);
+        if (lastStart == 0 || now - lastStart >= 20 || now < lastStart) {
+            lastStart = now;
+            const char* job = strcmp(JIHAD_VARIANT, "enyo") == 0 ? "jihad" : strcmp(JIHAD_VARIANT, "mochi") == 0 ? "jihad-mochi" : "jihad-mojo";
+            gchar* argvStart[] = { (gchar*)"/sbin/start", (gchar*)job, NULL };
+            gchar* argvCtl[] = { (gchar*)"/sbin/initctl", (gchar*)"start", (gchar*)job, NULL };
+            gchar** argv = access("/sbin/start", X_OK) == 0 ? argvStart : argvCtl;
+            GError* err = NULL;
+            if (g_spawn_async("/", argv, NULL, (GSpawnFlags)(G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL), NULL, NULL, NULL, &err))
+                g_message("jihad: no daemon behind /tmp/yapserver.%s: job %s started (T-613)", JIHAD_YAP_NAME, job);
+            else {
+                g_warning("jihad: starting job %s failed: %s", job, err ? err->message : "?");
+                if (err) g_error_free(err);
+            }
+        }
+    }
+    m_daemonRetries = 0;
+    m_daemonRetryTimer = g_timeout_source_new(500);
+    g_source_set_callback(m_daemonRetryTimer, daemonRetryCb, this, NULL);
+    g_source_attach(m_daemonRetryTimer, g_main_loop_get_context(mMainLoop));
+}
+
+gboolean BrowserAdapter::daemonRetryCb(gpointer arg)
+{
+    BrowserAdapter* a = (BrowserAdapter*)arg;
+    if (!a->mBrowserServerConnected && ++a->m_daemonRetries <= 60)
+        a->init();   // a failure in there finds the timer set and does not arm another
+    if (a->mBrowserServerConnected || a->m_daemonRetries > 60) {
+        if (a->mBrowserServerConnected)
+            g_message("jihad: connected to the daemon after %d retries", a->m_daemonRetries);
+        g_source_unref(a->m_daemonRetryTimer);
+        a->m_daemonRetryTimer = NULL;
+        return FALSE;
+    }
+    return TRUE;
 }
 
 bool BrowserAdapter::initializeIpcBuffer()

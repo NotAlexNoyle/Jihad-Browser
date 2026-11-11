@@ -414,7 +414,11 @@ fi
 # still holds the replaced files open, so a bare `start` would fail and leave the old build
 # running. Only this variant's job name is used — never a glob, never another variant's job.
 set +e
-log "restarting the @@LABEL@@ daemon..."
+# T-613 (the owner, 2026-11-11: "jihad browsers daemons should start at first launch"): the job has no `start on`; the
+# shell's adapter starts it when a card first finds no socket. So the daemon comes back here only if it was running
+# (an upgrade under an open card); otherwise it stays down until the shell is launched.
+case "$(status @@JOB@@ 2>/dev/null)" in *"start/running"*|*"(start) running"*) WAS_UP=1 ;; *) WAS_UP=0 ;; esac
+log "stopping the @@LABEL@@ daemon (running before: $WAS_UP)..."
 stop @@JOB@@ 2>/dev/null
 # `stop` returns before upstart has finished tearing the job down, and a `start` issued into that
 # window is dropped ("Job not changed") — leaving the job STOPPED with no error anywhere. Measured
@@ -432,6 +436,7 @@ while [ $i -lt 10 ]; do
 	i=$((i + 1)); sleep 1
 done
 i=0
+[ "$WAS_UP" = 1 ] || i=3
 while [ $i -lt 3 ]; do
 	start @@JOB@@ 2>/dev/null
 	sleep 2
@@ -442,7 +447,7 @@ while [ $i -lt 3 ]; do
 done
 case "$(status @@JOB@@ 2>/dev/null)" in
 	*"start/running"*|*"(start) running"*) log "daemon job @@JOB@@ is running" ;;
-	*) log "WARNING: @@JOB@@ did not start; it will come up on the next boot" ;;
+	*) [ "$WAS_UP" = 1 ] && log "WARNING: @@JOB@@ did not start again; the shell's next launch starts it" || log "daemon job @@JOB@@ left stopped: the shell's first launch starts it" ;;
 esac
 # F-12: there is deliberately NO `killall LunaSysMgr` here. It tears down every card of every
 # app — including the OTHER Jihad variants' cards, which is precisely the cross-variant
@@ -731,7 +736,10 @@ emit_upstart() {
 # plugin child goes through the same loader (EngineHost.cpp). In the process's environment it
 # could only hurt: a crash makes the kernel's minicore replay that environment into busybox
 # tools, which then load glibc 2.23 and segfault (Atlas's whole-device lockup of 2026-07-12).
-start on stopped fontconfig_cache
+# NO `start on` (T-613, the owner, 2026-11-11: "jihad browsers daemons should start at first launch, global jihads
+# daemons should start at first boot"): an idle daemon holds ~34 MB that a user of one shell never uses. The shell's
+# adapter (render/adapter/BrowserAdapter.cpp, jihadStartDaemonJob) runs `start <job>` when a card finds no socket, and
+# upstart supervises it from then on (respawn below). Global Jihad's jobs will start at boot instead.
 stop on started start_update
 # ── AND stop when the system is going down, EARLY ────────────────────────────────────────────
 # Without this we are killed by the late generic sweep at reboot, which runs at the same moment

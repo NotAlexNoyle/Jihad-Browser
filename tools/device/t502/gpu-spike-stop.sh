@@ -42,6 +42,7 @@ fi
 rm -f /tmp/spike-prefs.txt /tmp/spike-prefs-orig.txt
 [ -f $HL/goanna.js.spike-orig ] && mv -f $HL/goanna.js.spike-orig $HL/goanna.js && echo "the bundle's goanna.js put back"
 rm -f /tmp/spike-gprefs.txt
+rm -f /var/palm/jihad/enyo/hand-daemon
 stop jihad >/dev/null 2>&1; sleep 1; start jihad >/dev/null 2>&1; sleep 4
 status jihad
 n=0; for p in /proc/[0-9]*; do c=$(tr '\0' ' ' < $p/cmdline 2>/dev/null); case "$c" in *jihad-browserserver*"$HL"*) n=$((n+1));; esac; done

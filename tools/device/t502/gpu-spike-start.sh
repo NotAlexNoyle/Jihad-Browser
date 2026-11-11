@@ -24,6 +24,8 @@ for pid in $(luna-send -n 1 palm://com.palm.applicationManager/running '{}' 2>/d
   luna-send -n 1 palm://com.palm.applicationManager/close '{"processId":"'"$pid"'"}' >/dev/null 2>&1; echo "closed card process $pid"
 done
 sleep 2
+# the adapter starts the job when a card finds no daemon (T-613): not while this hand daemon serves
+touch /var/palm/jihad/enyo/hand-daemon
 stop jihad >/dev/null 2>&1; sleep 2
 for p in /proc/[0-9]*; do
   c=$(tr '\0' ' ' 2>/dev/null < $p/cmdline)

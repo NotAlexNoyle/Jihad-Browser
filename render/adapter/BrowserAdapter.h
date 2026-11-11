@@ -544,6 +544,11 @@ private:
     void notifyFlashGestureLock(bool enabled);
     static gboolean lockKeyboardTimeoutCb(gpointer data);
     void startLockKeyboardTimer();
+    // T-613: the shell's daemon is started by the first card that finds no socket, then the connect is retried
+    GSource *m_daemonRetryTimer;
+    int m_daemonRetries;
+    void jihadStartDaemonJob();
+    static gboolean daemonRetryCb(gpointer data);
     typedef std::map<uintptr_t, BrowserRect> RectMap;
     typedef std::pair<uintptr_t, BrowserRect> RectMapItem;
     RectMap mFlashRects;

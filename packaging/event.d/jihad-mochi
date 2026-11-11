@@ -24,7 +24,10 @@
 # plugin child goes through the same loader (EngineHost.cpp). In the process's environment it
 # could only hurt: a crash makes the kernel's minicore replay that environment into busybox
 # tools, which then load glibc 2.23 and segfault (Atlas's whole-device lockup of 2026-07-12).
-start on stopped fontconfig_cache
+# NO `start on` (T-613, the owner, 2026-11-11: "jihad browsers daemons should start at first launch, global jihads
+# daemons should start at first boot"): an idle daemon holds ~34 MB that a user of one shell never uses. The shell's
+# adapter (render/adapter/BrowserAdapter.cpp, jihadStartDaemonJob) runs `start <job>` when a card finds no socket, and
+# upstart supervises it from then on (respawn below). Global Jihad's jobs will start at boot instead.
 stop on started start_update
 # ── AND stop when the system is going down, EARLY ────────────────────────────────────────────
 # Without this we are killed by the late generic sweep at reboot, which runs at the same moment

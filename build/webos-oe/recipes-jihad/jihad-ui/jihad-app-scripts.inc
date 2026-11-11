@@ -360,7 +360,11 @@ fi
 # still holds the replaced files open, so a bare `start` would fail and leave the old build
 # running. Only this variant's job name is used — never a glob, never another variant's job.
 set +e
-log "restarting the ${JIHAD_VARIANT} daemon..."
+# T-613 (the owner, 2026-11-11: "jihad browsers daemons should start at first launch"): the job has no `start on`; the
+# shell's adapter starts it when a card first finds no socket. So the daemon comes back here only if it was running
+# (an upgrade under an open card); otherwise it stays down until the shell is launched.
+case "$(status ${JIHAD_UPSTART_JOB} 2>/dev/null)" in *"start/running"*|*"(start) running"*) WAS_UP=1 ;; *) WAS_UP=0 ;; esac
+log "stopping the ${JIHAD_VARIANT} daemon (running before: $WAS_UP)..."
 stop ${JIHAD_UPSTART_JOB} 2>/dev/null
 # `stop` returns before upstart has finished tearing the job down, and a `start` issued into that
 # window is dropped ("Job not changed") — leaving the job STOPPED with no error anywhere. Measured
@@ -378,6 +382,7 @@ while [ $i -lt 10 ]; do
 	i=$((i + 1)); sleep 1
 done
 i=0
+[ "$WAS_UP" = 1 ] || i=3
 while [ $i -lt 3 ]; do
 	start ${JIHAD_UPSTART_JOB} 2>/dev/null
 	sleep 2
@@ -388,7 +393,7 @@ while [ $i -lt 3 ]; do
 done
 case "$(status ${JIHAD_UPSTART_JOB} 2>/dev/null)" in
 	*"start/running"*|*"(start) running"*) log "daemon job ${JIHAD_UPSTART_JOB} is running" ;;
-	*) log "WARNING: ${JIHAD_UPSTART_JOB} did not start; it will come up on the next boot" ;;
+	*) [ "$WAS_UP" = 1 ] && log "WARNING: ${JIHAD_UPSTART_JOB} did not start again; the shell's next launch starts it" || log "daemon job ${JIHAD_UPSTART_JOB} left stopped: the shell's first launch starts it" ;;
 esac
 # F-12: there is deliberately NO `killall LunaSysMgr` here. It tears down every card of every
 # app — including the OTHER Jihad variants' cards, which is precisely the cross-variant

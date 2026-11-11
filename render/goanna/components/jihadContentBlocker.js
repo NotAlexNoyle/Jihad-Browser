@@ -30,7 +30,7 @@
  * third_party/easylist/README.md). The package carries them raw in <GRE>/blocklists/. They are
  * compiled HERE, in JavaScript, in slices between timer ticks — one compiler for the bundled
  * snapshot and for updates — and the compiled form is cached in <profile>/jihad-blocklists/
- * (hosts.txt, tp.txt, exc.txt, cosmetic.css, meta.json), keyed by the lists' "! Version:" and
+ * (hosts.txt, tp.txt, exc.txt and their hash tables *.idx, cosmetic.css, meta.json), keyed by the lists' "! Version:" and
  * the compiler's version. Whichever of the
  * bundled snapshot and the profile's downloaded copy is NEWER is used. Updates come from
  * easylist.to at most every 4 days (plus jitter, so three daemons do not fetch together), newer
@@ -343,9 +343,11 @@ function fnv1a(str) {
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return h >>> 0;
 }
-function HostSet(blob) {
+// idx: the tables as readIndex() read them back for this very blob (T-646), so no name is hashed again
+function HostSet(blob, idx) {
   this.blob = blob || "";
   this.size = 0;
+  if (idx) { this.mask = idx.mask; this.size = idx.size; this.hashes = idx.hashes; this.offsets = idx.offsets; return; }
   let n = 0;
   for (let i = 0; i < this.blob.length; i++) if (this.blob.charCodeAt(i) === 10) n++;
   if (this.blob.length && this.blob[this.blob.length - 1] !== "\n") n++;
@@ -378,6 +380,50 @@ HostSet.prototype.has = function (name) {
   return false;
 };
 
+// The tables of a HostSet as a file beside its text (T-646): building them hashes every name, a second of the main
+// thread on the device at each load; read back, they are one native copy. 16 bytes of header ("JHS1", the text's
+// length, the count, the slots), then the hashes and the offsets, in the device's own byte order. A header that does
+// not match the text read with it (another list, a torn write) is ignored and the tables are built and written again.
+const IDX_MAGIC = 0x3153484a;   // "JHS1" little-endian
+function writeIndex(file, set) {
+  let cap = set.mask + 1, buf = new ArrayBuffer(16 + cap * 8);
+  new Uint32Array(buf, 0, 4).set([IDX_MAGIC, set.blob.length, set.size, cap]);
+  new Uint32Array(buf, 16, cap).set(set.hashes);
+  new Int32Array(buf, 16 + cap * 4, cap).set(set.offsets);
+  let fos = Cc["@mozilla.org/network/safe-file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
+  fos.init(file, 0x02 | 0x08 | 0x20, 0o644, 0);
+  let bos = Cc["@mozilla.org/binaryoutputstream;1"].createInstance(Ci.nsIBinaryOutputStream);
+  bos.setOutputStream(fos);
+  bos.writeByteArray(new Uint8Array(buf), buf.byteLength);
+  fos.QueryInterface(Ci.nsISafeOutputStream).finish();
+}
+function readIndex(file, blobLength) {
+  if (!file.exists()) return null;
+  let fis = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+  fis.init(file, -1, -1, 0);
+  try {
+    let bis = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+    bis.setInputStream(fis);
+    let total = fis.available();
+    if (total < 16) return null;
+    let head = new ArrayBuffer(16);
+    if (bis.readArrayBuffer(16, head) !== 16) return null;
+    let [magic, len, size, cap] = new Uint32Array(head);
+    if (magic !== IDX_MAGIC || len !== blobLength || !cap || (cap & (cap - 1)) || size * 2 > cap || total !== 16 + cap * 8) return null;
+    let body = new ArrayBuffer(cap * 8);
+    if (bis.readArrayBuffer(cap * 8, body) !== cap * 8) return null;
+    return {mask: cap - 1, size: size, hashes: new Uint32Array(body, 0, cap), offsets: new Int32Array(body, cap * 4, cap)};
+  } finally { fis.close(); }
+}
+// A set from the cache's text, its tables read back when they were written for this text, else built and written
+function cachedHostSet(name) {
+  let blob = readFileText(profileFile(name)), idxFile = profileFile(name.replace(/\.txt$/, ".idx")), idx = null;
+  try { idx = readIndex(idxFile, blob.length); } catch (e) { idx = null; }
+  let set = new HostSet(blob, idx);
+  if (!idx) { try { writeIndex(idxFile, set); } catch (e) { log("host index not written: " + e); } }
+  return set;
+}
+
 function mapToObj(m) { let o = {}; for (let [k, v] of m) o[k] = v; return o; }
 function objToMap(o) { let m = new Map(); for (let k in o) m.set(k, o[k]); return m; }
 // The cache: the three host blobs as their own files, read straight into the strings the HostSets
@@ -385,6 +431,7 @@ function objToMap(o) { let m = new Map(); for (let k in o) m.set(k, o[k]); retur
 // both: +13 MB resident on the device, 2026-10-15), and the small maps, the CSS and the counts in
 // meta.json.
 function writeCache(r, versions) {
+  for (let n of ["hosts.idx", "tp.idx", "exc.idx"]) { try { let f = profileFile(n); if (f.exists()) f.remove(false); } catch (e) {} }
   writeFileText(profileFile("hosts.txt"), Array.from(r.hosts).join("\n"));
   writeFileText(profileFile("tp.txt"), Array.from(r.tp).join("\n"));
   writeFileText(profileFile("exc.txt"), Array.from(r.excHosts).join("\n"));
@@ -403,8 +450,7 @@ function readCache(versions) {
   if (c.compiler !== COMPILER_VERSION || c.versions.easylist !== versions.easylist || c.versions.easyprivacy !== versions.easyprivacy) return null;
   for (let n of ["hosts.txt", "tp.txt", "exc.txt", "cosmetic.css"]) if (!profileFile(n).exists()) return null;
   let t1 = Date.now();
-  let hosts = new HostSet(readFileText(profileFile("hosts.txt"))), tp = new HostSet(readFileText(profileFile("tp.txt"))),
-      excHosts = new HostSet(readFileText(profileFile("exc.txt")));
+  let hosts = cachedHostSet("hosts.txt"), tp = cachedHostSet("tp.txt"), excHosts = cachedHostSet("exc.txt");
   let t2 = Date.now();
   let r = {hosts: hosts, tp: tp, excHosts: excHosts,
           typed: objToMap(c.typed || {}), paths: objToMap(c.paths || {}), excRules: objToMap(c.excRules || {}),

@@ -144,6 +144,7 @@ if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ] && [ -d "$DISTBIN/components" ]; then
   fi
   for f in jihad-prefsui.manifest prefsui/content/preferences.html prefsui/content/preferences.js \
            prefsui/content/preferences.css components/jihadAboutPreferences.js \
+           prefsui/content/jihadAboutReader.js prefsui/content/reader.html prefsui/content/jihadSiteMode.js \
            components/jihad-about-preferences.manifest; do
     [ -s "$DISTBIN/$f" ] || { echo "ERROR: prefs-ui file missing/empty in desktop dist: $f" >&2; exit 1; }
   done

@@ -66,6 +66,7 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
 - cavekit-finger-emulation.md — its tools run over novacom
 
 ## Changelog
+- 2026-11-10 (late): upstream re-read: no release after 0.4.1 (the newest tag `0.4.1-Release`); main (`755de99`, the same on GitHub and the Gitea mirror) is three untagged commits past the pin (2026-11-04/05), all in the SDK's own copies of the Enyo 1 and Mojo frameworks (`0.4.1/share/framework`, Lunacy's patches 0013-0015: the spinner as a ring at high density, scrolling at 120 Hz, a WebView in a frame hearing its own events and its views going with the frame). Weighed for Jihad: not applicable — the Enyo card runs on the device's own framework, the Mochi card on `third_party/mochi-sampler`, and nothing here builds from the SDK's copies; the TouchPad's screen is 60 Hz. R1 stays on the release.
 - 2026-11-10: R1 and R3 met (the owner's gitlink commit `5e4ace62`; T-550, the owner's two root steps: the installer and the novacomd swap). R2's stock 3.0.5 check waits for the stock TouchPad.
 - 2026-11-09: R1 met but for the gitlink (the owner's), R2 met on the bench (T-548, T-549); R3's root command handed over (T-550).
 - 2026-10-26: created from the owner's request and the day's research.

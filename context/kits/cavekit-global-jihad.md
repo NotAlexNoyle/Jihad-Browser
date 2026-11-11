@@ -13,7 +13,8 @@ built inside Jihad Browser before then. The owner set its scope:
 - 2026-11-11: "my goal is to replace webkit and chromium globally": every app runtime in the webOS family that renders
   with WebKit or Chromium.
 - 2026-11-11: "the aim should always be to replace the system engine rather than run beside it to save ram".
-- 2026-11-11: "no lunacy for global jihad".
+- 2026-11-11: "no lunacy for global jihad"; "drop lg tv support".
+- 2026-11-11: "global jihad should actively block ce ota updates (via the community checker) until its uninstalled".
 
 The TouchPad strategy (rebuilding the forked WebAppManager on Goanna, patching the frameworks in place at
 `/usr/palm/frameworks`, the `PalmSystem` and `PalmServiceBridge` objects, NPAPI hosting, the IME path) and the
@@ -31,11 +32,11 @@ on-device facts behind it are in `docs/PICKUP.md`, section "After Jihad Browser:
 - LuneOS (webOS-ports): Qt WebEngine (Chromium) behind the webOS OSE WebAppManager (WAM), and its browser. A Goanna
   backend for WAM.
 - webOS OSE: Chromium behind the same WAM. The same backend.
-- LG webOS TVs, rooted (webosbrew): Chromium/Blink behind WAM; LG's closed firmware limits it to rooted sets.
 
 **Won't support:**
 - Lunacy, on Android and iOS (the owner, 2026-11-11). Its source (webOSArchive/Lunacy at `9a7fca6`) runs every card in
   `android.webkit.WebView`, and on iOS in `WKWebView`.
+- LG webOS TVs, rooted or not (the owner, 2026-11-11).
 - Open webOS 1.x (HP, 2012, QtWebKit 2): no live users or devices.
 - Android and iOS in general: the system WebView cannot be swapped on stock Android, and iOS requires WebKit outside the
   EU.
@@ -55,8 +56,27 @@ on-device facts behind it are in `docs/PICKUP.md`, section "After Jihad Browser:
 **Acceptance Criteria:**
 - [ ] The TouchPad on stock 3.0.x and CE first, both (stock is untestable on the bench until the stock TouchPad
   arrives; the owner is asked before stock behaviour is claimed).
-- [ ] Then the phones (after the legacy port), then LuneOS, webOS OSE and rooted LG TVs (one WAM backend); the order
-  among these is the owner's call when the TouchPad is done.
+- [ ] Then the phones (after the legacy port), then LuneOS and webOS OSE (one WAM backend); the order among these is
+  the owner's call when the TouchPad is done.
+**Dependencies:** R1
+
+### R3: CE OTA updates blocked while Global Jihad is installed
+CE's community update path, as built at CE's main branch `b1d75e2`: the OTA Ready app `org.webosarchive.otaready`, its
+root daemon, and its reroute of the native "System Updates" app `com.palm.app.updates`. It asks the community server
+(`GET /api/updates/check`) what the device needs, stages the packages, and installs them through
+`make-update-uimage` and a reboot. A CE update replaces system files (CE 3.2.0 rewrites `libWebKitLuna.so` and
+WebAppMgr files), which would undo or break the engine replacement.
+**Acceptance Criteria:**
+- [ ] While Global Jihad is installed on CE, the community checker offers no CE update and stages none. The block is
+  active: it does not depend on the server, on timing, or on the user declining.
+- [ ] The user who opens the updater sees that CE updates are held because Global Jihad is installed, and that removing
+  Global Jihad releases them.
+- [ ] Nothing CE's updater already staged can be installed while Global Jihad is installed. The device boots and
+  works normally, with Global Jihad intact.
+- [ ] Uninstalling Global Jihad lifts the block completely: the next check reaches the server and offers what it offers
+  any CE device. No change to CE's own files is left behind.
+- [ ] Re-checked against each CE release that changes the checker, since CE's OTA client is still being built
+  (`Docs/OTA-STRATEGY.md`).
 **Dependencies:** R1
 
 ## Out of Scope
@@ -68,5 +88,6 @@ on-device facts behind it are in `docs/PICKUP.md`, section "After Jihad Browser:
 - cavekit-webos-sdk-update.md: the device tools the work runs on.
 
 ## Changelog
+- 2026-11-11: R3 (CE OTA updates blocked until Global Jihad is uninstalled); LG TVs dropped.
 - 2026-11-11: created from the owner's scope decisions of 2026-10-18 and 2026-11-11 (WebKit and Chromium globally,
   replace never beside, no Lunacy).

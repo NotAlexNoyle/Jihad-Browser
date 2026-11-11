@@ -32,7 +32,7 @@ Jihad Browser, and it starts when Jihad Browser is finished.
   `PalmSystem` members, `PalmServiceBridge` in 6 files. 41 apps installed: 39 web, 2 PDK
   (unaffected), 3 Mojo.
 
-**Scope (the owner, 2026-11-11):** "my goal is to replace webkit and chromium globally"; "no lunacy for global jihad".
+**Scope (the owner, 2026-11-11):** "my goal is to replace webkit and chromium globally"; "no lunacy for global jihad"; "drop lg tv support".
 The kit is `context/kits/cavekit-global-jihad.md`; the TouchPad comes first, and its plan is the strategy below.
 
 **Will support:**
@@ -43,11 +43,15 @@ The kit is `context/kits/cavekit-global-jihad.md`; the TouchPad comes first, and
 - webOS 1.x phones: Pre, Pre Plus, Pixi, Pixi Plus (after the legacy port; 256 MB; Pixi ARMv6 without NEON).
 - LuneOS: Qt WebEngine (Chromium) behind webOS OSE's WebAppManager (WAM), and its browser: a Goanna WAM backend.
 - webOS OSE: the same WAM backend.
-- LG webOS TVs, rooted (webosbrew): the same WAM backend.
 
 **Won't support:**
 - Lunacy, Android and iOS (the owner, 2026-11-11). Its source runs cards in `android.webkit.WebView` and `WKWebView`.
+- LG webOS TVs (the owner, 2026-11-11: "drop lg tv support").
 - Open webOS 1.x (HP, 2012, QtWebKit 2): no live users.
+
+**CE OTA updates blocked while installed (the owner, 2026-11-11):** "global jihad should actively block ce ota updates
+(via the community checker) until its uninstalled". CE's checker is OTA Ready (`org.webosarchive.otaready`, its root
+daemon and its reroute of `com.palm.app.updates`). The kit's R3 has the criteria.
 - Android and iOS generally: no system WebView swap on stock Android; iOS requires WebKit outside the EU.
 
 **Replace, never run beside (the owner, 2026-11-11):** "the aim should always be to replace the system engine rather

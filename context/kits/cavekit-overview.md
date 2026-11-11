@@ -72,6 +72,7 @@ what is next, is in the kit itself, `docs/PICKUP.md` (the current handoff) and `
 | Low-Power Engine Tuning | cavekit-lowpower-uxp.md | 6 | ⬜ 0 met / 0 partial / 19 open | Each candidate lever (JS helper threads for two cores, -O2, the allocator's retained memory, memory prefs, reduced motion, lazy images, decoders, omni.ja) measured on the TouchPad against one baseline, kept only where it gains |
 | The Engine's Next Release | cavekit-engine-release-2026-10.md | 4 | 🟢 11 met / 1 partial / 0 open | The engine moved to UXP's next release with the update procedure: the queue rebased, the roots re-audited, the device re-checked where the new commits touch |
 | The webOS SDK at Its Latest | cavekit-webos-sdk-update.md | 3 | ⬜ 0 met / 0 partial / 7 open | The SDK submodule and its novacom built from it at the latest release, proven on the bench; the machine's own SDK refreshed |
+| Global Jihad (after Jihad Browser) | cavekit-global-jihad.md | 2 | ⬜ 0 met / 0 partial / 5 open | Goanna in place of WebKit and Chromium for every app across the webOS family, replacing the system engine, never beside it. Will support: TouchPad (stock 3.0.x, CE), the 1.x/2.x phones, LuneOS, webOS OSE, rooted LG TVs. Won't: Lunacy, Open webOS, Android/iOS generally |
 | The Atlas References, Current | cavekit-atlas-references.md | 3 | ⬜ 0 met / 0 partial / 9 open | The Atlas reference checkouts tracking their real upstreams, one update command, what moved weighed for Jihad |
 
 ### Driving the device

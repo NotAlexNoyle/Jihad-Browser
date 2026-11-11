@@ -32,19 +32,23 @@ Jihad Browser, and it starts when Jihad Browser is finished.
   `PalmSystem` members, `PalmServiceBridge` in 6 files. 41 apps installed: 39 web, 2 PDK
   (unaffected), 3 Mojo.
 
-**Scope, widened by the owner on 2026-11-11:** "my goal is to replace webkit and chromium globally". Global Jihad puts
-Goanna under every app runtime in the webOS family that renders with WebKit or Chromium, not only the TouchPad's. In
-order (the TouchPad first; the strategy below is its plan):
+**Scope (the owner, 2026-11-11):** "my goal is to replace webkit and chromium globally"; "no lunacy for global jihad".
+The kit is `context/kits/cavekit-global-jihad.md`; the TouchPad comes first, and its plan is the strategy below.
 
-| Family | Runtime replaced | Route, and what decides it |
-|---|---|---|
-| TouchPad / TouchPad Go, stock 3.0.x and CE 3.1.0 | Palm's WebKit 534.6 (`libWebKitLuna.so`, the forked `LunaSysMgr -s`) | the strategy below. CE 3.2.0's OTAs rewrite `libWebKitLuna.so` and WebAppMgr files: coordinate or re-check after each |
-| webOS 2.x phones (Pre 2, Pre 3, Veer, 2.2.4) | Palm's WebKit, WebAppMgr, Mojo | after the legacy engine port below. 512 MB RAM: a much leaner Goanna in the system engine's place |
-| webOS 1.x phones (Pre, Pre Plus, Pixi, Pixi Plus) | Palm's older WebKit, Mojo | the same, harder: 256 MB; Pixi is ARMv6 without NEON (a separate engine build) |
-| LuneOS (webOS-ports; TouchPad, Pinephone, emulator) | Qt WebEngine (Chromium) behind the webOS OSE WebAppManager (WAM), and its browser | open source: a Goanna backend for WAM in place of Qt WebEngine; no NPAPI there |
-| Lunacy (legacy webOS apps on Android and iOS; webOSArchive/Lunacy, read at `9a7fca6`, 2026-11-11) | Android: the system WebView (`android.webkit.WebView`: every card is `AppWindow : WebView`, `enyo.WebView`'s pages too in `BrowserViews.kt`, `LunacyNative` by `addJavascriptInterface`). iOS (`iOSLuna`): `WKWebView`, Apple's WebKit | Android: Goanna embedded in Lunacy's host in WebView's place (UXP has no Android target today: a port). A system-wide WebView swap is not possible on stock Android. iOS: App Store rules require WebKit outside the EU (EU: BrowserEngineKit, entitlement-gated), so a Goanna card there is an EU-only or sideload question. Lunacy's modernized Enyo 1 and Mojo are input for the framework patching |
-| webOS OSE, and LG webOS TV where rooted (webosbrew) | Chromium/Blink behind WAM | the same WAM backend as LuneOS; LG's closed firmware limits it to rooted sets |
-| Open webOS 1.x (HP, 2012) | QtWebKit 2 | only if revived; no live users |
+**Will support:**
+- HP TouchPad and TouchPad Go, stock webOS 3.0.x (Palm WebKit 534.6, `libWebKitLuna.so`).
+- HP TouchPad, webOS CE 3.1.0 and later (the same WebKit, byte-patched; CE 3.2.0's OTAs rewrite `libWebKitLuna.so`
+  and WebAppMgr files, so each is checked).
+- webOS 2.x phones: Pre 2, Pre 3, Veer, on 2.2.4 (after the legacy port; 512 MB).
+- webOS 1.x phones: Pre, Pre Plus, Pixi, Pixi Plus (after the legacy port; 256 MB; Pixi ARMv6 without NEON).
+- LuneOS: Qt WebEngine (Chromium) behind webOS OSE's WebAppManager (WAM), and its browser: a Goanna WAM backend.
+- webOS OSE: the same WAM backend.
+- LG webOS TVs, rooted (webosbrew): the same WAM backend.
+
+**Won't support:**
+- Lunacy, Android and iOS (the owner, 2026-11-11). Its source runs cards in `android.webkit.WebView` and `WKWebView`.
+- Open webOS 1.x (HP, 2012, QtWebKit 2): no live users.
+- Android and iOS generally: no system WebView swap on stock Android; iOS requires WebKit outside the EU.
 
 **Replace, never run beside (the owner, 2026-11-11):** "the aim should always be to replace the system engine rather
 than run beside it to save ram". On every row above, Goanna takes the system engine's place: the system's WebKit or

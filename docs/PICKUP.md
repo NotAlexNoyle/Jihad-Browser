@@ -32,6 +32,23 @@ Jihad Browser, and it starts when Jihad Browser is finished.
   `PalmSystem` members, `PalmServiceBridge` in 6 files. 41 apps installed: 39 web, 2 PDK
   (unaffected), 3 Mojo.
 
+**Scope, widened by the owner on 2026-11-11:** "my goal is to replace webkit and chromium globally". Global Jihad puts
+Goanna under every app runtime in the webOS family that renders with WebKit or Chromium, not only the TouchPad's. In
+order (the TouchPad first; the strategy below is its plan):
+
+| Family | Runtime replaced | Route, and what decides it |
+|---|---|---|
+| TouchPad / TouchPad Go, stock 3.0.x and CE 3.1.0 | Palm's WebKit 534.6 (`libWebKitLuna.so`, the forked `LunaSysMgr -s`) | the strategy below. CE 3.2.0's OTAs rewrite `libWebKitLuna.so` and WebAppMgr files: coordinate or re-check after each |
+| webOS 2.x phones (Pre 2, Pre 3, Veer, 2.2.4) | Palm's WebKit, WebAppMgr, Mojo | after the legacy engine port below. 512 MB RAM: a much leaner Goanna, the system's engine replaced rather than run beside it |
+| webOS 1.x phones (Pre, Pre Plus, Pixi, Pixi Plus) | Palm's older WebKit, Mojo | the same, harder: 256 MB; Pixi is ARMv6 without NEON (a separate engine build) |
+| LuneOS (webOS-ports; TouchPad, Pinephone, emulator) | Qt WebEngine (Chromium) behind the webOS OSE WebAppManager (WAM), and its browser | open source: a Goanna backend for WAM in place of Qt WebEngine; no NPAPI there |
+| Lunacy (legacy webOS apps on Android) | Android's WebView (Chromium), as believed (read its source before relying on it) | Goanna embedded in Lunacy's host in place of WebView (UXP has no Android target today: a port); a system-wide WebView swap is not possible on stock Android |
+| webOS OSE, and LG webOS TV where rooted (webosbrew) | Chromium/Blink behind WAM | the same WAM backend as LuneOS; LG's closed firmware limits it to rooted sets |
+| Open webOS 1.x (HP, 2012) | QtWebKit 2 | only if revived; no live users |
+
+**Also planned (the owner, 2026-11-11):** the Jihad Browser and its engine ported to legacy webOS 1.x-3.x, i.e. the
+phones too. That legacy engine port is the base the phone rows above build on.
+
 **The strategy (the owner's):**
 
 1. **Rebuild the forked WebAppManager instance from the webOS CE source on Goanna**, in place of

@@ -174,33 +174,55 @@ pool, -O2, reduced motion, lazy images, Skia, the VP9 decoder) should read the s
 
 Each is re-read on the stock device by the same script (`lowpower-bench.sh`, interleaved) when it arrives.
 
-## 7. PGO on a cross build (R2: the owner's "try it", 2026-11-10)
+## 7. PGO on a cross build (R2: the owner's "try it", 2026-11-10; "-O2 + PGO, redone", 2026-11-11)
 
-GCC 9.4 cross, no profiling server on the host: the profile is made on the TouchPad by the engine itself.
+GCC 9.4 cross, no profiling server on the host: the profile is made on the TouchPad by the engine itself. The plan and
+its evidence: `docs/research/pgo-review-2026-11-11.md` (section 3).
 
-1. **Generate:** `build/webos-oe/build-goanna-arm.sh all "" mozconfig.goanna-arm-pgo-gen` — the shipped options (-Os)
-   plus `-fprofile-generate=/media/internal/jihad-pgo` in an objdir of its own (`/out/obj-jihad-goanna-arm-pgo`). GCC 9
-   names each `.gcda` after its object's absolute path with `/` as `#`, so the generate and use phases share that one
-   objdir path.
-2. **Profile:** the instrumented libxul, stripped, to `<app>/deviceroot/hl-pgo/` and run through the bench's own pages with
-   `XULDIR=<app>/deviceroot/hl-pgo` (desktop Wikipedia's load, rest and pan; jsbench; the long page's pan; the lazy page;
-   the colours page's start): the representative mix of this kit's measurements. The daemon writes the counters at exit
-   (SIGTERM → `exit(0)` → libgcov's dump): every run is stopped with a wait long enough for thousands of files (the
-   stop's 30 s is not), and `/media/internal/jihad-pgo` is read for their count before the next.
-   **Two traps, found by the first try (2026-11-10, 0 profile files):** the instrumented libxul takes libgcov's
-   profilers (`__gcov_indirect_call`, the `*_atomic` ones: `-pthread` makes GCC pick atomic counter updates) from the
-   instrumented libraries it was linked against (libnspr4, liblgpllibs, libmozsqlite3, ...), which export them, not
-   from libgcov.a — so `hl-pgo` holds every instrumented library of the objdir's `dist/bin`, not libxul alone ("symbol
-   lookup error: ... undefined symbol: __gcov_indirect_call" otherwise). And the daemon gives its teardown 8 s before
-   it `_exit`s (the shutdown that once bricked the device, `Main.cpp`), which an instrumented engine can overrun and
-   lose every counter: `JIHAD_TEARDOWN_SEC=300` (the daemon, hand-started runs only) lengthens it.
-3. **Pull:** `/media/internal/jihad-pgo/*.gcda` to `build/webos-oe/out-arm/pgo-data/` (`/out/pgo-data`).
-4. **Use:** `build-goanna-arm.sh all "" mozconfig.goanna-arm-pgo-use` — the same objdir, `-fprofile-use=/out/pgo-data
-   -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch` (counters from threads race without atomic updates:
-   the correction tolerates it).
-5. **Measure:** the used libxul stripped into its own copied directory and read against a copy of the shipped one (the
-   alternate-directory penalty, §5's second correction) on the bench's interleaved rows: jsbench, Wikipedia's load and
+**Why -O2:** GCC 9 uses a profile only to optimise for speed, and under -Os every function is optimised for size: -Os +
+PGO changes block order and nothing else (verified with the cross compiler: a trained hot loop stays byte-identical).
+Under -O2 + PGO, trained code gets -O2 with feedback and never-run code compiles -Os-like into `.text.unlikely`, so
+most of plain -O2's speed comes with little of its +42 % text.
+
+1. **One mozconfig, two phases:** `build/webos-oe/mozconfig.goanna-arm-pgo` = the shipped options, its own objdir
+   (`/out/obj-jihad-goanna-arm-pgo`), `--enable-optimize=-O2`, and the phase-invariant flags
+   `-fprofile-update=single -fno-profile-values -fdevirtualize-speculatively -Wno-error=coverage-mismatch`. The phase
+   comes from UXP's own make-time switches, `build-goanna-arm.sh`'s 4th argument:
+   `in-container.sh --arm build/webos-oe/build-goanna-arm.sh all "" mozconfig.goanna-arm-pgo gen` sets
+   `MOZ_PROFILE_GENERATE=1` (config/config.mk adds `-fprofile-generate`; objects come out as `.i_o`; libraries are
+   relinked), and `... build "" mozconfig.goanna-arm-pgo use` sets `MOZ_PROFILE_USE=1` (`-fprofile-use
+   -fprofile-correction`, objects as `.o`). Configure sees the same flags in both phases, so nothing has to be cleared
+   between them.
+2. **Profile** (`tools/device/pgo-profile.sh` does all of it and starts the use build): the daemon with the `pgo-dump` inject
+   command (`JihadBrowserServer.cpp`: `__gcov_flush` from the main loop); every instrumented library of the objdir's
+   `dist/bin`, stripped, to `<app>/deviceroot/hl-pgo`; the daemon's environment
+   `XULDIR=<app>/deviceroot/hl-pgo GCOV_PREFIX=<app>/pgo-prof GCOV_PREFIX_STRIP=0 JIHAD_TEARDOWN_SEC=300`;
+   `/tmp/spike-pgo-dump` makes `gpu-spike-stop.sh` send `pgo-dump` and wait for "profile written" before it stops the
+   daemon, and `gpu-spike-start.sh` launches the card once the engine is up; `lowpower-bench.sh` with `WAIT_SCALE=4`.
+   Workload: the bench's pages twice (Wikipedia load, rest and pan; jsbench; the long page's pan; start cold and warm),
+   then lazy images, image decode, CSS animation, transitions, a form, modern-web, apple.com, animate.style and a
+   YouTube watch page once each. libgcov merges every dump into the files.
+3. **Pull:** tar `<app>/pgo-prof/out` and extract it over `build/webos-oe/out-arm` with `--strip-components=1`, so
+   each `.gcda` lands beside its `.i_o` object, where `-fprofile-use` looks.
+4. **Use**, on the same objdir, then count in its log: "does not match its profile data", "not found in profile
+   data", "profile count data file not found".
+5. **Measure:** the used libxul, stripped, in its own copied directory, against a copy of the shipped one (the
+   alternate-directory penalty, §5's second correction), on the bench's interleaved rows: jsbench, Wikipedia's load and
    pan, the start, libxul's size.
+
+**The -Os try of 2026-11-10/11, and what it taught** (all fixed by the above): `-fprofile-generate=<device path>` in
+CFLAGS put the profile in one flat FAT directory (2 172 files) and baked the path in. The daemon's 8 s teardown, then
+the stop's SIGKILL, cut dumps (unequal `runs` across directories). The instrumented engine ran 10x slow: an
+indirect-call probe through `__tls_get_addr` at every function entry, atomic 64-bit counters (`-pthread` picks
+`-fprofile-update=prefer-atomic`), lost inlining. Every page row timed out, because the card launched 6 s after a start
+that took 29-51 s, so the profile was start-up only (6.1 % of functions). Two traps hit the use build:
+- the gen phase's objects survived it, because make does not track flags;
+- `js/src/config.status` kept `-fprofile-generate`. old-configure is autoconf 2.13, which writes no `ac_cv_env_*`
+  entries, so `subconfigure.py` never notices an environment-only CFLAGS change. The whole JS engine was rebuilt
+  instrumented, and libxul did not link.
+
+The first try also found that the instrumented libxul takes libgcov's profilers from the other instrumented libraries
+of `dist/bin` (they export them), so all of them go to the device.
 
 ## Sources
 

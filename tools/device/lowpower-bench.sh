@@ -28,6 +28,7 @@
 #   ONLY="wiki jsbench long start"          a subset
 #   LEVER=<name> EXTRA_ENV="<env words>"    a lever's rows (R2-R5): the name in the rows' lever column, the words
 #                                           added to the daemon's environment (and PREF=/GPREF= words for prefs)
+#   WAIT_SCALE=3                            every wait and ceiling times 3, for a slow engine (a PGO gen build, T-556)
 #   LEVER_B=<name> EXTRA_ENV_B="<words>"    a second setting run in the same pass, the two alternating run by run
 #                                           (an interleaved control: LEVER_B=baseline EXTRA_ENV_B="" — the levers
 #                                           of 2026-11-09 measured after the baseline read 2.5 s slower loads
@@ -51,6 +52,7 @@ LEVER=${LEVER:-baseline}   # the rows' lever column: baseline, or the switch wor
 LEVER_A=$LEVER; ENV_A=$ENV
 WIKI=${PAGE:-https://en.wikipedia.org/wiki/HP_TouchPad}   # PAGE=<url>: another page through the "wiki" measurement (R4's animated sites)
 ONLY=${ONLY:-wiki jsbench long start}
+WS=${WAIT_SCALE:-1}
 SCR=${TMPDIR:-/tmp}/lpb.$$; mkdir -p "$SCR"; trap 'rm -rf "$SCR"' EXIT
 STATE=/var/palm/jihad/enyo
 LOG=$STATE/daemon-gpu.log
@@ -134,6 +136,8 @@ LOG=/var/palm/jihad/enyo/daemon-gpu.log
 t=0; while [ $t -lt 150 ]; do grep -aq 'jihad-jsbench: ' $LOG && break; sleep 1; t=$((t+1)); done
 grep -a 'jihad-jsbench: ' $LOG | tail -n 1 | sed 's/.*jihad-jsbench: //; s/\].*//'
 EOS
+# a slow engine's waits (WAIT_SCALE): the load, the jsbench title
+sed -i "s/-lt 90 ]/-lt $((90 * WS)) ]/" "$SCR/idle.sh"; sed -i "s/-lt 150 ]/-lt $((150 * WS)) ]/" "$SCR/title.sh"
 cat > "$SCR/drop.sh" <<'EOS'
 sync; echo 3 > /proc/sys/vm/drop_caches; echo "page cache dropped"
 EOS
@@ -151,13 +155,13 @@ ready() {   # the device on novacom, and the Connected alert closed by LOOKING (
 }
 spike() {   # spike <url> -> the hand-started daemon with the timeline, the card on the page
 	ready || return 1
-	dev_out=$(build/webos-oe/dev-sh.sh -t 90 $T/gpu-spike-start.sh "$1" $ENV 2>&1)
+	dev_out=$(build/webos-oe/dev-sh.sh -t $((90 * WS)) $T/gpu-spike-start.sh "$1" $ENV 2>&1)
 	echo "$dev_out" | grep 'screenshot at\|FATAL\|daemon started' | head -3
 }
 collect() {   # collect <file>: the daemon log to the host, the device's dumps removed
 	build/webos-oe/dev-sh.sh -t 40 $T/gpu-spike-collect.sh 2>/dev/null | sed -n '/=== LOG BEGIN/,/=== LOG END/p' | grep -v 'Fontconfig warning' > "$1"
 }
-stopspike() { build/webos-oe/dev-sh.sh -t ${STOP_T:-60} $T/gpu-spike-stop.sh 2>&1 | grep 'enyo daemons running\|FATAL' ; }   # STOP_T: a long exit (PGO)
+stopspike() { build/webos-oe/dev-sh.sh -t ${STOP_T:-60} $T/gpu-spike-stop.sh 2>&1 | grep 'enyo daemons running\|FATAL\|pgo-dump' ; }   # STOP_T: a long exit (PGO)
 panrate() {   # panrate <log> -> "frames ms fps"
 	python3 tools/host/gap-trace.py "$1" 2>/dev/null | sed -n 's/^the pan: \([0-9]*\) frames over \([0-9]*\) ms.*/\1 \2/p' | awk '{ if ($2 > 0) printf "%d %d %.1f\n", $1, $2, $1 * 1000 / $2; else print "NA NA NA" }' | head -1
 }
@@ -175,7 +179,7 @@ for r in $(seq 1 "$RUNS"); do
 	case " $ONLY " in *" wiki "*)
 	say "run $r: wiki"
 	spike "$WIKI"
-	idle=$(dev "$SCR/idle.sh" 140 | tail -n 1); echo "   $idle"
+	idle=$(dev "$SCR/idle.sh" $((140 * WS)) | tail -n 1); echo "   $idle"
 	mem1=$(dev "$SCR/mem.sh" 20 | tail -n 1)
 	sleep 30
 	mem2=$(dev "$SCR/mem.sh" 20 | tail -n 1)
@@ -189,7 +193,7 @@ for r in $(seq 1 "$RUNS"); do
 	case " $ONLY " in *" jsbench "*)
 	say "run $r: jsbench"
 	spike "http://$HOST/jihad-jsbench.html"
-	res=$(dev "$SCR/title.sh" 170 | tail -n 1)
+	res=$(dev "$SCR/title.sh" $((170 * WS)) | tail -n 1)
 	collect "$D/lp-r$r-$LV-jsbench.log"
 	nums=$(echo "$res" | grep -oE '[0-9]+ ms' | awk '{printf "%s ", $1}')
 	row "$r" jsbench "loop50M_ms objects2M_ms strings200k_ms regex100k_ms dom20k_ms" ${nums:-NA NA NA NA NA}
@@ -198,7 +202,7 @@ for r in $(seq 1 "$RUNS"); do
 	case " $ONLY " in *" long "*)
 	say "run $r: long page pan"
 	spike "http://$HOST/jihad-long-static.html"
-	dev "$SCR/idle.sh" 140 | tail -n 1 >/dev/null
+	dev "$SCR/idle.sh" $((140 * WS)) | tail -n 1 >/dev/null
 	dev "$SCR/pan.sh" 40 | tail -n 1 >/dev/null
 	collect "$D/lp-r$r-$LV-long.log"
 	rate=$(panrate "$D/lp-r$r-$LV-long.log"); pipe=$(tl pipe "$D/lp-r$r-$LV-long.log")

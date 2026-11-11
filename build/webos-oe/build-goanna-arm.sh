@@ -13,7 +13,7 @@
 #   /cfg      build/desktop (for patches/)      /armcfg  build/webos-oe (mozconfig-arm)
 #   /out      ARM object dir + artifacts
 #
-# Usage: /armcfg/build-goanna-arm.sh [configure|build|all]
+# Usage: /armcfg/build-goanna-arm.sh [configure|build|all] [jobs] [mozconfig] [gen|use]
 set -euo pipefail
 SRC=/src/uxp
 STAGE=${1:-all}
@@ -23,6 +23,14 @@ JOBS=${2:+-j$2}
 # $3: another mozconfig in build/webos-oe (default mozconfig.goanna-arm): a build variant in an objdir of its own —
 # cavekit-lowpower-uxp.md R2's -O2 against -Os (mozconfig.goanna-arm-O2, T-556) — without touching the main one.
 export MOZCONFIG=/armcfg/${3:-mozconfig.goanna-arm}
+# $4: gen|use, the PGO phase for mozconfig.goanna-arm-pgo (T-556): UXP's own switches, read by config/config.mk at
+# make time, so configure is the same in both phases (gen: -fprofile-generate, objects as .i_o; use: -fprofile-use)
+case "${4:-}" in
+  gen) export MOZ_PROFILE_GENERATE=1 ;;
+  use) export MOZ_PROFILE_USE=1 ;;
+  "") ;;
+  *) echo "unknown PGO phase: $4 (gen or use)" >&2; exit 2 ;;
+esac
 OBJDIR=$(sed -n 's/^mk_add_options MOZ_OBJDIR=//p' "$MOZCONFIG" | head -1)
 OBJDIR=${OBJDIR:-/out/obj-jihad-goanna-arm}
 

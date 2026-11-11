@@ -1,7 +1,16 @@
-# The PGO gen phase of mozconfig.goanna-arm (T-556, the owner's "try it" of 2026-11-10): the same build in one objdir
-# for both phases (GCC 9 names a .gcda after its object's absolute path, '/' as '#'), -Os as shipped.
-# Phase 1: instrumented; its daemon writes the profile under /media/internal/jihad-pgo on the device at exit.
-# Procedure: docs/research/lowpower-uxp.md §7. Kept in step with the main mozconfig by hand; generated 2026-11-10.
+# The PGO build of mozconfig.goanna-arm (T-556; the owner's "-O2 + PGO, redone", 2026-11-11). One file for both
+# phases, so configure sees the same flags in each and no stale config.status or object can carry one phase into the
+# other (the -Os try's two traps). The phase comes from UXP's own switches at make time, through
+# build-goanna-arm.sh's 4th argument: gen sets MOZ_PROFILE_GENERATE=1 (config/config.mk adds -fprofile-generate, objects
+# come out as .i_o), use sets MOZ_PROFILE_USE=1 (-fprofile-use -fprofile-correction, objects as .o). The profile is made
+# on the TouchPad (docs/research/lowpower-uxp.md section 7, docs/research/pgo-review-2026-11-11.md section 3).
+# Differences from mozconfig.goanna-arm: its own objdir, -O2 (GCC 9 makes speed-only use of a profile: under -Os
+# PGO changes nothing; under -O2 untrained code still compiles -Os-like and goes cold), and the phase-invariant flags:
+#   -fprofile-update=single       plain counter updates, not ldrexd/strexd loops (-pthread picks atomic)
+#   -fno-profile-values           no value or indirect-call profilers: no TLS call at every function entry
+#   -fdevirtualize-speculatively  -fprofile-use turns it off expecting indirect-call profiles; there are none
+#   -Wno-error=coverage-mismatch  a function that no longer matches its profile loses it, with a warning
+# Kept in step with mozconfig.goanna-arm by hand.
 # Jihad Browser — cross mozconfig: libxul for the webOS-3 TouchPad.
 #
 # Target: ARMv7-A + NEON, SOFTFP/armel (verified on-device: loader ld-linux.so.3,
@@ -70,7 +79,7 @@ export LDFLAGS="-L/sysroot/usr/lib/arm-linux-gnueabi -L/sysroot/lib/arm-linux-gn
 # what forced it, and folding (--icf=safe) needs it.
 ac_add_options --enable-release
 ac_add_options --enable-gold
-ac_add_options --enable-optimize=-Os
+ac_add_options --enable-optimize=-O2
 ac_add_options --disable-debug
 ac_add_options --disable-warnings-as-errors
 ac_add_options --disable-tests
@@ -128,6 +137,5 @@ ac_add_options --disable-necko-wifi
 # mach REFUSES to build and tells you to clobber by hand. Left off, that surfaced as a build
 # that looked like it ran and produced a stale libxul.
 mk_add_options AUTOCLOBBER=1
-export CFLAGS="$CFLAGS -fprofile-generate=/media/internal/jihad-pgo"
-export CXXFLAGS="$CXXFLAGS -fprofile-generate=/media/internal/jihad-pgo"
-export LDFLAGS="$LDFLAGS -fprofile-generate=/media/internal/jihad-pgo"
+export CFLAGS="$CFLAGS -fprofile-update=single -fno-profile-values -fdevirtualize-speculatively -Wno-error=coverage-mismatch"
+export CXXFLAGS="$CXXFLAGS -fprofile-update=single -fno-profile-values -fdevirtualize-speculatively -Wno-error=coverage-mismatch"

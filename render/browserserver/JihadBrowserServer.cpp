@@ -12,6 +12,7 @@ namespace jihad { void jihadTimelineMain(const char* what, long ms); }   // Brow
 namespace jihad { void JihadNotifyClients(bool connected, int clients); }
 #include "JihadLunaService.h"              // LunaServiceReadWebosProxy (a card opened)
 #include "../goanna/JihadFrameLock.h"      // T-515: the express lane's frame lock
+#include <dlfcn.h>
 #include <YapDefs.h>                       // kMaxMsgLen (the inject pan's packets)
 #include <thread>
 #include <mutex>
@@ -384,6 +385,15 @@ void JihadBrowserServer::processInjectFile() {
   for (auto& c : cmds) {
     if (c.compare(0, 12, "target focus") == 0) { mInjectFocus = true; printf("[jihad-bs] inject: commands go to the focused card\n"); }
     else if (c.compare(0, 11, "target last") == 0) { mInjectFocus = false; printf("[jihad-bs] inject: commands go to the newest card\n"); }
+    else if (c.compare(0, 8, "pgo-dump") == 0) {
+      // T-556: a -fprofile-generate engine writes its profile now, from the main loop (libgcov is not
+      // async-signal-safe), and resets it, so one daemon life covers a whole workload and no kill can cut a dump
+      typedef void (*GcovFlush)(void);
+      GcovFlush flush = reinterpret_cast<GcovFlush>(dlsym(RTLD_DEFAULT, "__gcov_flush"));
+      if (flush) { flush(); printf("[jihad-bs] inject: pgo-dump: profile written\n"); }
+      else printf("[jihad-bs] inject: pgo-dump: not an instrumented engine\n");
+      fflush(stdout);
+    }
   }
   jihad::BrowserPageGoanna* p = mInjectFocus ? pageFor(mFocusProxy) : nullptr;
   if (!p) p = pageFor(mLastProxy);
@@ -681,7 +691,7 @@ void JihadBrowserServer::processInjectFile() {
           sent = true;
         }
         if (!sent) p->setZoomAndScroll(z, x, y);
-      } else if (c.compare(0, 7, "target ") != 0) printf("[jihad-bs] inject: bad cmd: %s", c.c_str());
+      } else if (c.compare(0, 7, "target ") != 0 && c.compare(0, 8, "pgo-dump") != 0) printf("[jihad-bs] inject: bad cmd: %s", c.c_str());
     }
   }
 }

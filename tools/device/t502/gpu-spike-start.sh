@@ -33,9 +33,11 @@ done
 # them (2026-10-19: the spike's followOverflow=false was lost that way, T-499 on in a spike). SIGTERM
 # had 30 s, then SIGKILL; one still there and the run does not start.
 gone() { for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *jihad-browserserver*"$HL"*) return 1;; esac; done; return 0; }
-i=0; while [ $i -lt 30 ] && ! gone; do sleep 1; i=$((i+1)); done
+# /tmp/spike-stop-wait lengthens it, as in gpu-spike-stop.sh: an instrumented engine writes its profile at exit
+W=30; [ -s /tmp/spike-stop-wait ] && W=$(cat /tmp/spike-stop-wait)
+i=0; while [ $i -lt $W ] && ! gone; do sleep 1; i=$((i+1)); done
 if ! gone; then
-  echo "an Enyo daemon outlived SIGTERM by 30 s: SIGKILL"
+  echo "an Enyo daemon outlived SIGTERM by $W s: SIGKILL"
   for p in /proc/[0-9]*; do case "$(tr '\0' ' ' 2>/dev/null < $p/cmdline)" in *jihad-browserserver*"$HL"*) kill -9 ${p#/proc/} 2>/dev/null;; esac; done
   i=0; while [ $i -lt 5 ] && ! gone; do sleep 1; i=$((i+1)); done
 fi
@@ -83,7 +85,11 @@ nohup env LD_LIBRARY_PATH="$HL" ICU_DATA="$HL" HOME="$STATE" \
   $GPUENV $LOGENV JIHAD_GPU_DUMP=/tmp/frame.raw JIHAD_GPU_DUMP_SEQ=/tmp/frames.raw $EXTRA \
   ./ld-2.23.so --library-path "${XULDIR:+$XULDIR:}$HL" ./jihad-browserserver "$HL" >> "$LOG" 2>&1 &
 echo "daemon started by hand (pid $!)${XULDIR:+, libxul from $XULDIR}"
-sleep 6
+# the card once the engine is up (6 s at least, as before): an instrumented PGO engine takes far longer, and a card
+# launched before it connects and leaves with no page (2026-11-10: every profiling row came back empty)
+t=0; while [ $t -lt 240 ] && ! grep -aq 'engine up' "$LOG"; do sleep 1; t=$((t+1)); done
+[ $t -lt 6 ] && sleep $((6 - t))
+if [ $t -ge 240 ]; then echo "!! the engine is not up after 240 s"; elif [ $t -ge 6 ]; then echo "engine up after $t s"; fi
 luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"net.riverstonerelay.jihad-browser","params":{"target":"'"$URL"'"}}' 2>&1 | head -2
 # the screenshot once the daemon has published three content frames (the fit zoom comes late on
 # this path and the frames before it are empty), 45 s at most

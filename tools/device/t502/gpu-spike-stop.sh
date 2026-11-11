@@ -1,6 +1,15 @@
 # T-502 spike: kill the hand-started Enyo daemon and put the upstart job back.
 APP=/media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser
 HL=$APP/deviceroot/hl
+STATE=/var/palm/jihad/enyo
+# T-556: with /tmp/spike-pgo-dump, a PGO gen engine first writes its profile on the inject command "pgo-dump"
+# (JihadBrowserServer.cpp), while it is idle, so no SIGTERM or SIGKILL can cut the dump; then it is stopped
+if [ -f /tmp/spike-pgo-dump ]; then
+  L=$STATE/daemon-gpu.log; before=$(grep -ac 'pgo-dump: profile written' $L)
+  (umask 077; echo pgo-dump > $STATE/inject.cmd)
+  i=0; while [ $i -lt 300 ] && [ "$(grep -ac 'pgo-dump: profile written' $L)" -le "$before" ]; do sleep 1; i=$((i+1)); done
+  if [ $i -lt 300 ]; then echo "pgo-dump: profile written in $i s"; else echo "!! pgo-dump: no profile written in 300 s"; fi
+fi
 for p in /proc/[0-9]*; do
   c=$(tr '\0' ' ' < $p/cmdline 2>/dev/null)
   case "$c" in *jihad-browserserver*"$HL"*) kill ${p#/proc/} 2>/dev/null; echo "killed ${p#/proc/}";; esac

@@ -88,6 +88,13 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 **State:** main after this morning's commit, NOT pushed (the owner pushes: `bash .cavekit/handoff-2026-11-08/push.sh`).
 UXP gitlink `073c723996` (the owner's `868e823b`), queue 0095.
 
+**The owner's goal (2026-11-11, standing):** "focus not just on performance but also page rendering correctness, our
+goal is to beat both webkit and chromium in such a way that users will pick jihad browser and global jihad over atlas
+and webkit + chromium". Every change is kept only if it is measured faster AND its frames are verified right. The
+head-to-head against Atlas and the stock browser is T-629. The optimisation research of 2026-11-11 (seven agents:
+XP forks, Mac/PPC forks, webOS projects with Atlas, codepoet80, Herrie's LuneOS, nizovn, Pale Moon for Android) became
+T-608 to T-628: each item built behind a switch, measured, and kept or dropped.
+
 **novacomd (T-607, cavekit-webos-sdk-update.md R4; the owner, 2026-11-11: "use NotAlexNoyle/novacomd 1.2.1"; the fork
 itself belongs to the agent on the owner's server, the PC session does not message it):** `tools/host/build-novacom.sh`
 builds novacomd from the fork's 1.2.1 tag (checked against `b8c48ef`), novacom from the SDK as before, and refuses the

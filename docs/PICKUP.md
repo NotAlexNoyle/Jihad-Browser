@@ -117,26 +117,29 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 **Settled since (build-site has the numbers):**
 - NOT ADOPTED: T-620 compression, T-621 bidi skip, T-623 GC timers, T-630 tickle hold (chain 8), T-637 565 drags
   (engine 0104), T-641 cache cap (chain 9: the engine never stored the 15.6 MB images, so nothing to cut), T-640
-  preload, T-622 bwarm2 and ion2000. The switches stay in the engine, off.
+  preload, T-622 bwarm2 and ion2000; then (chains 10-12) T-608 `-mtune=cortex-a9` (PGO gives more on every row),
+  T-622 ion500 (7 runs: even), T-624 propflags and T-625 inline-domstr (5 runs: no gain), T-626 video queue (up to
+  17 MB more RSS for 11 fewer drops in 900), T-639 paint delay 300 (frames match, but pan -10 % and a later first
+  frame), T-636 NPixmap tiles (the page never finished, pan stopped after 4 s: each pixmap costs 2.5-49 ms to make
+  and none is reused). The switches stay in the engine, off.
+- **KEPT: PGO** (T-556, `docs/rounds/pgo-2026-11-11/`): Wikipedia 13.7 s against 17.0, jsbench dom 4.0 s against 6.2,
+  the card's frame cold 5.9 s against 7.0 and warm 4.4 against 5.7, RSS -14 MB, pan even, frames at rest identical;
+  costs: the daemon's cold start +1.2 s and paint +0.4 s. That build predates 0097-0105, so the use build is redone
+  incrementally on today's engine (`in-container.sh --arm build/webos-oe/build-goanna-arm.sh build ""
+  mozconfig.goanna-arm-pgo use`, about 10 min; changed functions lose their profile with a warning) to become the
+  bundle's default.
+- T-646 first fix (commit d0d0c2da): the blocker's three host sets cache their hash tables as `<name>.idx` beside
+  the text (chain 12's phases: meta.json 370 ms, host sets 1000 ms, install 175 ms, the sheet 170 ms, all on the first
+  card's connect). Measure on the device with the PGO bundle; meta.json's parse is the next piece.
 - Built and committed: T-642 Reader View + T-645 Desktop Site (about:reader, about:desktopsite, the three shells'
-  menus); T-636 NPixmap tiles as engine 0105 (`JIHAD_GPU_NPIXMAP_TILES=1`, off). The PGO use build and the A9 build
-  are made (obj-jihad-goanna-arm-pgo, -a9).
-- Candidates waiting for 5 runs + rest shots: T-639 paint delay 300 (6 runs: 16.1 s against 16.5, paint 1.7 s against
-  4.9, pan 12.2 against 13.5 fps), ion500 (T-622), T-624 propflags, T-625 inline-domstr.
+  menus). The engine's 0105 is on the device (chain 12).
 
 **Trap of 2026-11-11 evening:** the host's /tmp is a 16 GB tmpfs. Research clones in the session scratchpad filled it
 and chain 10's copy of the unstripped 1.1 GB PGO libxul ran it out; its strip failed silently and it went on toward
 the device. chain10.sh now strips with `-o` from the build and refuses a libxul over 150 MB. Check `df /tmp` before
 staging engine copies there.
 
-**Running at the time of writing (one background run, chains in order):**
-- chain10: PGO, then A9, each against the shipped engine from `$APPD/hl-<name>` (XULDIR), rest shots, 3 runs of
-  wiki/jsbench/long/start; rounds `docs/rounds/{pgo,a9}-2026-11-11`.
-- chain11: rest shots for control, propflags, inline-domstr, tickle, ion500, paint300; ion500, propflags and
-  inline-domstr x5; the video queue RSS.
-- chain12: engine 0105 pushed; NPixmap tiles against the control (rest shots, 3 runs wiki + long);
-  `docs/rounds/npixmap-2026-11-11`. Its daemon carries the new timeline marks (doc start/transferring/stop) and the
-  blocker's load phases (T-646).
+**Running at the time of writing (chains in order; 10-12 are read above):**
 - chain13: T-618 Mochi minified against the debug loader (LunaSysMgr restarted before each cold launch, launch to
   `[JIHAD-START]` timed on the device, 5 runs, screenshots); `docs/rounds/mochi-minify-2026-11-11`.
 - chain14: T-638 Flash SetWindow dedup against the control (lowpower-bench's new `flash` measure); `flash-dedup-2026-11-11`.
@@ -148,8 +151,8 @@ staging engine copies there.
 - chain19: T-629 the first scoreboard (Jihad, Atlas, stock); `scoreboard-2026-11-11`.
 
 **Next:**
-- Read chains 10-12; keep only what is faster AND whose frames match the control at rest by eye; make the kept ones
-  defaults (prefs in packaging/prefs or make-device-bundle.sh, engine switches turned on).
+- Read chains 13-19 the same way (faster AND frames match at rest by eye); make the PGO use build the bundle's default
+  and push it with the T-646 blocker change; read its connect timings.
 - Push the card JS to the three shells and test the T-642/T-645 menus and the T-643/T-644 zoom pages with the finger
   tool (jihad-touch.html needs `jihad.zoom.allowEveryPage` false).
 - T-638 Flash A/B, then the Mochi minify A/B.

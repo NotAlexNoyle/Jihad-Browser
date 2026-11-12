@@ -199,7 +199,7 @@
 					win.setTimeout(function () { xfire("mousedown", 2); xfire("mouseup", 2); xfire("click", 2); xfire("dblclick", 2); }, 120);
 					log(name, "double tap " + st.slice(1));
 					wait = 3000;
-				} else if (st.charAt(0) === "D") {    // DX,Y,DX,DY: a one-finger drag on the plugin node from X,Y by DX,DY (eight moves)
+				} else if (st.charAt(0) === "D" && st.length > 1) {    // DX,Y,DX,DY (a bare "D" is the Desktop Site step below): a one-finger drag on the plugin node from X,Y by DX,DY (eight moves)
 					var dp = st.slice(1).split(","), dnode = plugin(), drect = dnode ? dnode.getBoundingClientRect() : {left: 0, top: 0};
 					var dx0 = drect.left + parseInt(dp[0], 10), dy0 = drect.top + parseInt(dp[1], 10), ddx = parseInt(dp[2], 10), ddy = parseInt(dp[3], 10), dn = 0;
 					var dfire = function (type, x, y) {
@@ -322,6 +322,9 @@
 					(function (want) {
 						readClipboard(function (t) { log(name, "clipboard is the expected text: " + (String(t) === want) + " (length " + String(t).length + ", expected " + want.length + ")"); });
 					})(st.slice(2));
+				} else if (st.charAt(0) === "Y") {    // Y<up|down|left|right>: the card's window turned that way (PalmSystem.setWindowOrientation)
+					if (window.PalmSystem && window.PalmSystem.setWindowOrientation) { window.PalmSystem.setWindowOrientation(st.slice(1)); }
+					log(name, "asked for " + st.slice(1) + ": window " + window.innerWidth + "x" + window.innerHeight);
 				} else if (st === "R" || st === "D") {   // T-642 / T-645: the app menu's command, as its row runs it
 					log(name, (st === "R" ? "reader" : "desktop site") + " toggled from url=" + app.url);
 					if (st === "R") { app.toggleReader(); } else { app.toggleDesktopSite(); }

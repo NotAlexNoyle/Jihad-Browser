@@ -533,6 +533,15 @@
 	// T-642 / T-645: pagetool:<letters> — R Reader View, D Desktop Site, each as the app menu's entry runs it
 	// (JihadBrowser.menuReader / menuDesktopSite), 15 s apart, starting 10 s in; before each and at the end the
 	// committed url and what the menu offers (pageToolState). The screenshot shows the last step's page.
+	// orient:<up|down|left|right>[:<s>]   the card's window turned that way 3 s in (PalmSystem.setWindowOrientation,
+	//                                    no accelerometer needed) and held <s> s (40 by default), then up again
+	scenarios.orient = function(app, name) {
+		var parts = String(name).split(":"), dir = parts[1] || "right", hold = parseInt(parts[2] || "40", 10) * 1000;
+		var ps = window.PalmSystem;
+		if (!ps || typeof ps.setWindowOrientation !== "function") { log(name, "no PalmSystem.setWindowOrientation DONE"); return; }
+		later(3000, function() { ps.setWindowOrientation(dir); log(name, "asked for " + dir); });
+		later(3000 + hold, function() { log(name, "held: window " + window.innerWidth + "x" + window.innerHeight); ps.setWindowOrientation("up"); log(name, "up again DONE"); });
+	};
 	scenarios.pagetool = function(app, name, arg) {
 		var seq = String(arg || "R").split(""), i = 0, b = app;
 		function st(tag) { log(name, tag + ": url=" + b._committedUrl + " tools=" + j(b.pageToolState())); }

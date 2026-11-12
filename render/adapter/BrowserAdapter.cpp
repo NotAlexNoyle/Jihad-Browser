@@ -1015,7 +1015,7 @@ void BrowserAdapter::jihadStartDaemonJob()
             gchar** argv = access("/sbin/start", X_OK) == 0 ? argvStart : argvCtl;
             GError* err = NULL;
             if (g_spawn_async("/", argv, NULL, (GSpawnFlags)(G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL), NULL, NULL, NULL, &err))
-                g_message("jihad: no daemon behind /tmp/yapserver.%s: job %s started (T-613)", JIHAD_YAP_NAME, job);
+                g_message("jihad: [%s] no daemon behind /tmp/yapserver.%s: job %s started (T-613)", JIHAD_VARIANT, JIHAD_YAP_NAME, job);
             else {
                 g_warning("jihad: starting job %s failed: %s", job, err ? err->message : "?");
                 if (err) g_error_free(err);
@@ -1035,7 +1035,7 @@ gboolean BrowserAdapter::daemonRetryCb(gpointer arg)
         a->init();   // a failure in there finds the timer set and does not arm another
     if (a->mBrowserServerConnected || a->m_daemonRetries > 60) {
         if (a->mBrowserServerConnected)
-            g_message("jihad: connected to the daemon after %d retries", a->m_daemonRetries);
+            g_message("jihad: [%s] connected to the daemon after %d retries", JIHAD_VARIANT, a->m_daemonRetries);
         g_source_unref(a->m_daemonRetryTimer);
         a->m_daemonRetryTimer = NULL;
         return FALSE;

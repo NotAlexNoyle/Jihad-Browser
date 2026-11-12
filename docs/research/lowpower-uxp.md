@@ -182,6 +182,7 @@ Wikipedia's load reads ~14 s or ~17 s by the hour on both sides alike, so a 2-ru
 | a deeper video queue (T-626) | 3 + 2 | 15 drops against 26 of 900 at 480p; the daemon's RSS during play up to 17 MB more | dropped: the RAM goes to pages |
 | media preload prefs (T-640) | 3 | YouTube's pan 2.2 fps against 4.2, RSS +10 MB | dropped |
 | Flash SetWindow dedup (T-638) | 5 | the movies 114.5 fps against 115.6, during the pan 82.6 against 80.3, the page pan 12.0 against 12.3 | dropped: even |
+| the guard on the kernel's MemAvailable formula (T-634) | 3 | 50 MB under the sum at every poll: a threshold shift; the hog stopped 7-27 MB sooner, swap lower in 2 runs of 3, higher in 1 | dropped: the thresholds tuned on the sum stay |
 | a 2 MB disk-cache cap (T-641) | 2 | nothing to cut: cache2 held about 1 MB either way | dropped |
 | lock_surface readback (T-610) | bench | 28.4 ms a frame against 16.6 + 18.0, and ABGR | dropped |
 | the blocker's host-set index (T-646) | built | three hash tables written beside their text and read back in one copy (desktop: 10 ms against 64); on the device the load took meta.json 370 ms + host sets 1 000 ms on the first card's connect | measured next, with the PGO bundle |

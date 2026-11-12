@@ -21,8 +21,9 @@ D=${ROUND_DIR:-docs/rounds/scoreboard-$(date +%Y-%m-%d)}; mkdir -p "$D"
 TSV=$D/scoreboard.tsv
 [ -s "$TSV" ] || printf 'when\tbrowser\tpage\trun\tfirst_ms\tsettled_ms\tpan_fps\tpan_moved\tgrowth_kb\n' > "$TSV"
 # Real sites (the owner, 2026-11-12: "use real websites for the scoreboard"): a reference article, a light text page, a
-# heavy news page, an app-like page and a CSS-heavy docs page. A browser that cannot load one gets its row anyway (NA).
-PAGES=${PAGES:-"https://en.wikipedia.org/wiki/HP_TouchPad https://news.ycombinator.com/ https://www.bbc.com/news https://github.com/webOS-ports/org.webosports.app.atlas https://developer.mozilla.org/en-US/docs/Web/CSS/display"}
+# heavy news page, an app-like page, a CSS-heavy docs page and a Flash page ("include a flash player page": Orisinal's
+# Winterbells, real Flash in the three shells by T-574). A browser that cannot load one gets its row anyway (NA).
+PAGES=${PAGES:-"https://en.wikipedia.org/wiki/HP_TouchPad https://news.ycombinator.com/ https://www.bbc.com/news https://github.com/webOS-ports/org.webosports.app.atlas https://developer.mozilla.org/en-US/docs/Web/CSS/display http://www.ferryhalim.com/orisinal/g3/bells.htm"}
 BROWSERS=${BROWSERS:-"jihad atlas stock"}
 idof() { case $1 in jihad) echo net.riverstonerelay.jihad-browser;; atlas) echo org.webosports.app.atlas;; stock) echo net.riverstonerelay.stockbench;; esac; }
 say() { echo; echo "##### $(date +%H:%M:%S) $*"; }

@@ -30,6 +30,8 @@
 #include "JihadLunaService.h"              // this variant's own palm:// service (IPC R4)
 #include "../goanna/DialogService.h"       // SetWebosProxyReader (webOS's proxy setting)
 #include "../goanna/JihadCrashGuard.h"     // a clean exit clears the crash guard's note
+#include "../goanna/GoannaRenderPage.h"   // T-619: the warm-up page
+#include <vector>
 
 static JihadBrowserServer* g_server = nullptr;
 
@@ -264,6 +266,40 @@ static gboolean log_cap_cb(gpointer) {
   return TRUE;
 }
 
+// T-619 (cavekit-lowpower-uxp.md R5; after Lunacy's FontWarmer): JIHAD_WARMUP=1 lays out and paints one small page
+// of the kinds of text and boxes most pages carry (sans, serif and mono faces, bold and italic, a table, a list,
+// rounded and shadowed boxes, a few lines of script) before the YAP server starts, so the first real page does not pay
+// for the font lists, the glyph caches, the style system's first rules and the JIT's first code. The page is gone
+// before a card can connect. Off unless measured faster (the first page's time to its first frame, with and without).
+static void jihadWarmup(jihad::EngineHost& host) {
+  static const char kWarm[] =
+    "data:text/html;charset=utf-8,<!doctype html><meta name=viewport content='width=device-width'>"
+    "<style>body{font:16px sans-serif;margin:8px}h1{font:bold 28px serif}h2{font:italic 20px serif}"
+    "code,pre{font:13px monospace}.b{display:flex;gap:8px}.b div{flex:1;border:1px solid %23ccc;border-radius:6px;"
+    "box-shadow:0 1px 3px rgba(0,0,0,.3);padding:6px;background:linear-gradient(%23fff,%23eee)}"
+    "table{border-collapse:collapse}td,th{border:1px solid %23aaa;padding:2px 6px}a{color:%2306c}</style>"
+    "<h1>Jihad Browser</h1><h2>Warm-up</h2><p>The quick brown fox jumps over the lazy dog. <b>Bold</b> "
+    "<i>italic</i> <b><i>both</i></b> <a href=%23>a link</a> <small>small</small> <sup>1</sup> &copy; &mdash; "
+    "&ldquo;quotes&rdquo; 0123456789</p><div class=b><div>One</div><div>Two</div><div>Three</div></div>"
+    "<ul><li>first</li><li>second</li></ul><table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table>"
+    "<pre>for (var i = 0; i &lt; 10; i++) {}</pre><input type=text value=field><button>Button</button>"
+    "<script>var s=0;for(var i=0;i<20000;i++){s+=i*7&255;}document.title='w'+s;"
+    "document.body.appendChild(document.createElement('p')).textContent=JSON.stringify({a:[1,2,3]});</script>";
+  struct timeval t0, t1; gettimeofday(&t0, nullptr);
+  bool loaded = false, painted = false;
+  {
+    jihad::GoannaRenderPage page(host);
+    if (page.Create(1024, 768)) {
+      loaded = page.LoadUrlAndWait(kWarm, 10);
+      std::vector<unsigned char> px((size_t)1024 * 768 * 4);
+      painted = page.RenderRegion(px.data(), 1024 * 4, 1024, 768, 0, 0, 1.0);
+    }
+  }
+  gettimeofday(&t1, nullptr);
+  printf("[jihad-bs] T-619 warm-up page: loaded %d, painted %d, %ld ms\n", (int)loaded, (int)painted,
+         (long)((t1.tv_sec - t0.tv_sec) * 1000 + (t1.tv_usec - t0.tv_usec) / 1000));
+}
+
 int main(int argc, char** argv) {
   setvbuf(stdout, nullptr, _IONBF, 0);
   // T-555 (cavekit-lowpower-uxp.md R1): with the device rounds' timeline on, the first line is the process's own
@@ -378,6 +414,7 @@ int main(int argc, char** argv) {
   }
   static jihad::EngineHost host;
   if (!host.Init(greDir)) { fprintf(stderr, "[jihad-bs] engine init FAILED\n"); return 1; }
+  if (const char* w = getenv("JIHAD_WARMUP")) { if (w[0] == '1') jihadWarmup(host); }   // T-619
 
   // Scoped: the server owns every BrowserPage (and therefore every nsIWebBrowser), and
   // XRE_TermEmbedding tears down the process-wide runtime — running it while a page is

@@ -58,6 +58,7 @@ case "$1" in
   close)   /usr/bin/luna-send -n 1 palm://com.palm.applicationManager/close "{\"processId\":\"$2\"}" 2>&1 ;;
   launch)  /usr/bin/luna-send -n 1 palm://com.palm.applicationManager/launch "{\"id\":\"$2\"}" 2>&1 ;;
   md5)     md5sum "$2" 2>&1 ;;
+  minified) grep -c 'build/app.js' "$2/index.html" 2>&1 ;;
   logsize)  wc -c < /var/log/messages ;;
   logsince) tail -c +"$2" /var/log/messages | grep "$3" ;; # short call; host loops
   wake)
@@ -109,6 +110,19 @@ for f in "${FILES[@]}"; do
   [ "$h" = "$d" ] || die "md5 mismatch on $f (host $h device $d)"
   echo "pushed $f (md5 ok, stamp $STAMP)"
 done
+
+# --- 1b. Mochi ships minified (T-618): its index.html loads build/app.js, not source/, so a pushed source file reaches
+# the card only through a rebuilt build/app.js (+ app.css). Staged by build-mochi-ipk.sh itself, the stamp sed'd in.
+if [ "$VARIANT" = mochi ] && [ "$(dev minified "$DEV_APP" | tr -dc 0-9)" != 0 ]; then
+  bash build/webos-oe/build-mochi-ipk.sh --stage-only "$TMP/stage" > "$TMP/stage.log" 2>&1 || { tail -20 "$TMP/stage.log"; die "Mochi minified stage"; }
+  for f in build/app.js build/app.css; do
+    sed "s/@DEV@/$STAMP/g" "$TMP/stage/$f" > "$TMP/payload"
+    novacom put "file://$DEV_APP/$f" < "$TMP/payload" || die "push $f"
+    h=$(md5sum "$TMP/payload" | cut -d' ' -f1); d=$(dev md5 "$DEV_APP/$f" | cut -d' ' -f1)
+    [ "$h" = "$d" ] || die "md5 mismatch on $f (host $h device $d)"
+    echo "pushed $f, rebuilt from the working tree (md5 ok, stamp $STAMP)"
+  done
+fi
 
 # --- 2. close the running card by its real processid ---
 RUNNING=$(dev running) || die "running query returned nothing after retries"

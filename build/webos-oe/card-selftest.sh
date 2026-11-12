@@ -14,7 +14,7 @@
 #                                          whether or not the scenario has finished: give the
 #                                          steps time, or read the marks.
 #   card-selftest.sh [mochi|enyo|mojo] restore  put the shipped manifest back, delete the hook,
-#                                          restart LunaSysMgr
+#                                          (Mochi: the minified index.html + build/ too), restart LunaSysMgr
 #
 # The shell defaults to mochi.
 # The hook is never packaged: it exists on the device only between `push` and `restore` (or
@@ -110,6 +110,14 @@ restore)
   put $APPDIR/$MANIFEST "$DEV/$MANIFEST"
   "${NOVACOM[@]}" run file://bin/rm -- -f "$DEV/$HOOK"
   echo "shipped $MANIFEST restored, test hook deleted"
+  if [ "$SHELL_NAME" = mochi ]; then
+    # `push` put the debug loader's index.html in (the hook loads through source/package.js); the shipped Mochi is
+    # minified (T-618): its index.html and build/ from this working tree go back
+    bash "$(dirname "$0")/build-mochi-ipk.sh" --stage-only "$TMP/stage" > "$TMP/stage.log" 2>&1 || { tail -20 "$TMP/stage.log"; exit 1; }
+    "${NOVACOM[@]}" run file://bin/mkdir -- -p "$DEV/build" < /dev/null
+    for f in index.html build/enyo.js build/enyo.css build/app.js build/app.css; do put "$TMP/stage/$f" "$DEV/$f"; done
+    echo "minified index.html + build/ restored"
+  fi
   restart_sysmgr
   ;;
 *) sed -n 2,17p "$0"; exit 2;;

@@ -66,10 +66,8 @@ APP_ID="net.riverstonerelay.jihad-browser-mochi"
 # Dev-only dirs pruned from the bundled frameworks: never loaded at runtime (no
 # package.js depends on them) and they carry the bulk (enyo tools/node_modules,
 # per-lib .git and samples). Runtime code, css, fonts, images, and LICENSE stay.
-# KNOWN DEBT (codex F-369): the trees ship unminified and their root package.js
-# graphs load every module (~200 JS files). A minify/tree-shake pass (enyo
-# deploy tooling, or pruning to the app's real depends() closure once T-053
-# fixes the final control set) is deferred until the parity port lands.
+# The module trees still ship (the minified CSS's url()s point into lib/), but index.html loads the
+# four minified build/ files (MOCHI_MINIFY, below; codex F-369 closed by T-618).
 PRUNE=(--exclude=.git --exclude=node_modules --exclude=tools
        --exclude=docs --exclude=samples --exclude=minify)
 
@@ -147,12 +145,13 @@ install -m 0644 "$REPO/NOTICE"  "$STAGE/NOTICE"
 } > "$STAGE/BUNDLED-VERSIONS"
 cat "$STAGE/BUNDLED-VERSIONS"
 
-# --- MOCHI_MINIFY=1 (T-618, an experiment): Enyo 2's own deploy tool concatenates and minifies the
+# --- MOCHI_MINIFY (T-618, default 1 since 2026-11-11: cold launch 3.2 s against 4.7 s through the debug loader, 5 runs
+# each, the frames the same; docs/rounds/mochi-minify-2026-11-11; MOCHI_MINIFY=0 builds the debug loader): Enyo 2's own deploy tool concatenates and minifies the
 # framework, the two libraries and the app into build/{enyo,app}.{js,css}, and index.html loads those
 # four files instead of ~230 modules through the debug loader (codepoet's bootplate does the same with
 # deploy.sh -w). It needs node and the unpruned Enyo tree (its tools/ and minify/). The module sources
 # stay staged: the CSS's url()s point into lib/, and the debug build stays one setting away.
-if [ "${MOCHI_MINIFY:-0}" = 1 ]; then
+if [ "${MOCHI_MINIFY:-1}" = 1 ]; then
 	command -v node >/dev/null || die "MOCHI_MINIFY=1 needs node"
 	W=$(mktemp -d)
 	cp -a "$STAGE/lib" "$STAGE/source" "$STAGE/index.html" "$W/" && cp -a "$ENYO_SRC" "$W/enyo"

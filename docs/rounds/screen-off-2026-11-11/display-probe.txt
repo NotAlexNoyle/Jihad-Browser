@@ -1,0 +1,13 @@
+backlight file: /sys/class/leds/lcd-backlight/brightness
+bl on: 136
+{ "returnValue": true, "onWhenConnected": true, "timeout": 3600 }
+{"returnValue":true}
+bl after off: 136
+{"returnValue":true}
+bl after dimmed: 18
+{"returnValue":true}
+bl after on: 140
+== events
+{"returnValue":true,"event":"request","state":"on","timeout":3600,"blockDisplay":"true","active":false,"subscribed":true}
+{"returnValue":true,"event":"displayDimmed"}
+{"returnValue":true,"event":"displayOn"}

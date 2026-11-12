@@ -8,7 +8,7 @@
 # for each: the screen itself (fbstream), a finger's drags, every process's memory, a screenshot at rest for the eye.
 # Rows in $ROUND_DIR/scoreboard.tsv: browser, page, run, first_ms, settled_ms, pan_fps, pan_moved, growth_kb.
 #
-#   RUNS=3 (default) ROUND_DIR=docs/rounds/scoreboard-<date> PAGES="<url> ..." BROWSERS="jihad atlas stock"
+#   RUNS=3 (default) ROUND_DIR=docs/rounds/scoreboard-<date> PAGES="<url> ..." (default: five real sites, below) BROWSERS="jihad atlas stock"
 # The browsers alternate within each run, so each is read in the same hour as the others. The stock copy is removed at
 # the end. One novacom session at a time; the owner not at the device (/tmp/jihad-owner-testing refuses the round).
 set -u
@@ -20,7 +20,9 @@ HOST=${HOST:-192.168.1.245:8077}
 D=${ROUND_DIR:-docs/rounds/scoreboard-$(date +%Y-%m-%d)}; mkdir -p "$D"
 TSV=$D/scoreboard.tsv
 [ -s "$TSV" ] || printf 'when\tbrowser\tpage\trun\tfirst_ms\tsettled_ms\tpan_fps\tpan_moved\tgrowth_kb\n' > "$TSV"
-PAGES=${PAGES:-"https://en.wikipedia.org/wiki/HP_TouchPad http://$HOST/jihad-long-static.html"}
+# Real sites (the owner, 2026-11-12: "use real websites for the scoreboard"): a reference article, a light text page, a
+# heavy news page, an app-like page and a CSS-heavy docs page. A browser that cannot load one gets its row anyway (NA).
+PAGES=${PAGES:-"https://en.wikipedia.org/wiki/HP_TouchPad https://news.ycombinator.com/ https://www.bbc.com/news https://github.com/webOS-ports/org.webosports.app.atlas https://developer.mozilla.org/en-US/docs/Web/CSS/display"}
 BROWSERS=${BROWSERS:-"jihad atlas stock"}
 idof() { case $1 in jihad) echo net.riverstonerelay.jihad-browser;; atlas) echo org.webosports.app.atlas;; stock) echo net.riverstonerelay.stockbench;; esac; }
 say() { echo; echo "##### $(date +%H:%M:%S) $*"; }

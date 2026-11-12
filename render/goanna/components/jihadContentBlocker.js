@@ -30,7 +30,8 @@
  * third_party/easylist/README.md). The package carries them raw in <GRE>/blocklists/. They are
  * compiled HERE, in JavaScript, in slices between timer ticks — one compiler for the bundled
  * snapshot and for updates — and the compiled form is cached in <profile>/jihad-blocklists/
- * (hosts.txt, tp.txt, exc.txt and their hash tables *.idx, cosmetic.css, meta.json), keyed by the lists' "! Version:" and
+ * (hosts.txt, tp.txt, exc.txt and their hash tables *.idx; the per-host rule tables paths.kv, excrules.kv, site.kv and
+ * theirs *.kidx; cosmetic.css; meta.json), keyed by the lists' "! Version:" and
  * the compiler's version. Whichever of the
  * bundled snapshot and the profile's downloaded copy is NEWER is used. Updates come from
  * easylist.to at most every 4 days (plus jitter, so three daemons do not fetch together), newer
@@ -424,6 +425,57 @@ function cachedHostSet(name) {
   return set;
 }
 
+// The per-host rule tables (paths, exceptions, site selectors: 750 KB of meta.json, a 300-420 ms parse on the device's
+// first connect, T-646) as "host\tjson" lines, indexed like a HostSet by the part before the tab: get(host) finds the
+// line in place and parses that host's rules alone, once (kept in a Map: a page asks the same few hosts many times).
+function KeyedBlob(blob, idx) {
+  this.blob = blob || ""; this.size = 0; this._parsed = new Map();
+  if (idx) { this.mask = idx.mask; this.size = idx.size; this.hashes = idx.hashes; this.offsets = idx.offsets; return; }
+  let n = 0;
+  for (let i = 0; i < this.blob.length; i++) if (this.blob.charCodeAt(i) === 10) n++;
+  if (this.blob.length && this.blob[this.blob.length - 1] !== "\n") n++;
+  let cap = 1; while (cap < n * 2 + 8) cap <<= 1;
+  this.mask = cap - 1;
+  this.hashes = new Uint32Array(cap);
+  this.offsets = new Int32Array(cap).fill(-1);
+  let start = 0, len = this.blob.length;
+  while (start < len) {
+    let nl = this.blob.indexOf("\n", start); if (nl < 0) nl = len;
+    let tab = this.blob.indexOf("\t", start);
+    if (tab > start && tab < nl) {
+      let h = fnv1a(this.blob.slice(start, tab)), slot = h & this.mask;
+      while (this.offsets[slot] !== -1) slot = (slot + 1) & this.mask;
+      this.hashes[slot] = h; this.offsets[slot] = start; this.size++;
+    }
+    start = nl + 1;
+  }
+}
+KeyedBlob.prototype.get = function (key) {
+  if (!this.size) return undefined;
+  if (this._parsed.has(key)) return this._parsed.get(key);
+  let h = fnv1a(key), slot = h & this.mask, off, v;
+  while ((off = this.offsets[slot]) !== -1) {
+    if (this.hashes[slot] === h && this.blob.startsWith(key, off) && this.blob.charCodeAt(off + key.length) === 9) {
+      let s0 = off + key.length + 1, nl = this.blob.indexOf("\n", s0);
+      try { v = JSON.parse(this.blob.slice(s0, nl < 0 ? this.blob.length : nl)); } catch (e) { v = undefined; }
+      break;
+    }
+    slot = (slot + 1) & this.mask;
+  }
+  this._parsed.set(key, v);
+  return v;
+};
+function kvText(o) { let a = []; for (let k in o) a.push(k + "\t" + JSON.stringify(o[k])); return a.join("\n"); }
+// A table from the cache, its index read back when it was written for this text, else built and written
+function cachedKeyed(name) {
+  let blob = readFileText(profileFile(name)), idxFile = profileFile(name.replace(/\.kv$/, ".kidx")), idx = null;
+  try { idx = readIndex(idxFile, blob.length); } catch (e) { idx = null; }
+  let t = new KeyedBlob(blob, idx);
+  if (!idx) { try { writeIndex(idxFile, t); } catch (e) { log("rule index not written: " + e); } }
+  return t;
+}
+const KV_TABLES = [["paths", "paths.kv"], ["excRules", "excrules.kv"], ["site", "site.kv"]];
+
 function mapToObj(m) { let o = {}; for (let [k, v] of m) o[k] = v; return o; }
 function objToMap(o) { let m = new Map(); for (let k in o) m.set(k, o[k]); return m; }
 // The cache: the three host blobs as their own files, read straight into the strings the HostSets
@@ -431,13 +483,16 @@ function objToMap(o) { let m = new Map(); for (let k in o) m.set(k, o[k]); retur
 // both: +13 MB resident on the device, 2026-10-15), and the small maps, the CSS and the counts in
 // meta.json.
 function writeCache(r, versions) {
-  for (let n of ["hosts.idx", "tp.idx", "exc.idx"]) { try { let f = profileFile(n); if (f.exists()) f.remove(false); } catch (e) {} }
+  for (let n of ["hosts.idx", "tp.idx", "exc.idx", "paths.kidx", "excrules.kidx", "site.kidx"]) { try { let f = profileFile(n); if (f.exists()) f.remove(false); } catch (e) {} }
+  writeFileText(profileFile("paths.kv"), kvText(mapToObj(r.paths)));
+  writeFileText(profileFile("excrules.kv"), kvText(mapToObj(r.excRules)));
+  writeFileText(profileFile("site.kv"), kvText(r.site || {}));
   writeFileText(profileFile("hosts.txt"), Array.from(r.hosts).join("\n"));
   writeFileText(profileFile("tp.txt"), Array.from(r.tp).join("\n"));
   writeFileText(profileFile("exc.txt"), Array.from(r.excHosts).join("\n"));
   writeFileText(profileFile("cosmetic.css"), r.css);
   writeFileText(profileFile("meta.json"), JSON.stringify({compiler: COMPILER_VERSION, versions: versions,
-    typed: mapToObj(r.typed), paths: mapToObj(r.paths), excRules: mapToObj(r.excRules), site: r.site, excSel: r.excSel || {}, gh: r.gh || {hosts: [], prefixes: []}, counts: r.counts}));
+    typed: mapToObj(r.typed), kv: true, excSel: r.excSel || {}, gh: r.gh || {hosts: [], prefixes: []}, counts: r.counts}));
 }
 // null when there is no cache for these versions and this compiler
 // The load's phases on the main thread (T-631's split: the first card's connect waited 1.7 s on this), logged once a load
@@ -449,12 +504,21 @@ function readCache(versions) {
   let c = JSON.parse(readFileText(mf));
   if (c.compiler !== COMPILER_VERSION || c.versions.easylist !== versions.easylist || c.versions.easyprivacy !== versions.easyprivacy) return null;
   for (let n of ["hosts.txt", "tp.txt", "exc.txt", "cosmetic.css"]) if (!profileFile(n).exists()) return null;
+  // a cache written before the tables moved out of meta.json (T-646): written out once from it, meta.json rewritten small
+  if (!c.kv || KV_TABLES.some(([k, f]) => !profileFile(f).exists())) {
+    if (c.kv) return null;   // a table file is missing: compile again
+    for (let [k, f] of KV_TABLES) writeFileText(profileFile(f), kvText(c[k] || {}));
+    for (let [k] of KV_TABLES) delete c[k];
+    c.kv = true;
+    writeFileText(mf, JSON.stringify(c));
+    log("cache: the rule tables moved out of meta.json");
+  }
   let t1 = Date.now();
   let hosts = cachedHostSet("hosts.txt"), tp = cachedHostSet("tp.txt"), excHosts = cachedHostSet("exc.txt");
   let t2 = Date.now();
   let r = {hosts: hosts, tp: tp, excHosts: excHosts,
-          typed: objToMap(c.typed || {}), paths: objToMap(c.paths || {}), excRules: objToMap(c.excRules || {}),
-          css: null, site: c.site || {}, excSel: c.excSel || {}, gh: c.gh || {hosts: [], prefixes: []}, counts: c.counts};
+          typed: objToMap(c.typed || {}), paths: cachedKeyed("paths.kv"), excRules: cachedKeyed("excrules.kv"),
+          css: null, site: cachedKeyed("site.kv"), excSel: c.excSel || {}, gh: c.gh || {hosts: [], prefixes: []}, counts: c.counts};
   gLoadTimes = {meta: t1 - t0, sets: t2 - t1, maps: Date.now() - t2};
   return r;
 }
@@ -468,7 +532,7 @@ function JihadContentBlocker() {
   this._extra = parseExtra((function () { try { return Services.prefs.getCharPref(PREF_EXTRA); } catch (e) { return ""; } })());
   this._noDisk = parseExtra((function () { try { return Services.prefs.getCharPref(PREF_NODISK); } catch (e) { return ""; } })());
   this._hosts = null; this._tp = null; this._excHosts = null;
-  this._typed = new Map(); this._paths = new Map(); this._excRules = new Map(); this._site = {};
+  this._typed = new Map(); this._paths = new Map(); this._excRules = new Map(); this._site = new Map();
   this._excSel = {}; this._gh = {hosts: [], prefixes: []};   // T-522: the site-excepted generic selectors, the generic-hide hosts
   this._versions = {easylist: "", easyprivacy: ""};
   this._counts = null;
@@ -696,7 +760,7 @@ JihadContentBlocker.prototype = {
     try { c = readCache(versions); } catch (e) { log("cache unreadable after writing: " + e); }
     if (!c) {   // keep working from the compile's own sets, as a last resort
       c = {hosts: new HostSet(Array.from(r.hosts).join("\n")), tp: new HostSet(Array.from(r.tp).join("\n")), excHosts: new HostSet(Array.from(r.excHosts).join("\n")),
-           typed: r.typed, paths: r.paths, excRules: r.excRules, css: null, site: r.site, excSel: r.excSel || {}, gh: r.gh || {hosts: [], prefixes: []}, counts: r.counts};
+           typed: r.typed, paths: r.paths, excRules: r.excRules, css: null, site: objToMap(r.site || {}), excSel: r.excSel || {}, gh: r.gh || {hosts: [], prefixes: []}, counts: r.counts};
     }
     r = null;
     this._loading = false;
@@ -729,7 +793,7 @@ JihadContentBlocker.prototype = {
   _unload: function () {
     if (!this._hosts) return;
     this._hosts = null; this._tp = null; this._excHosts = null;
-    this._typed = new Map(); this._paths = new Map(); this._excRules = new Map(); this._site = {};
+    this._typed = new Map(); this._paths = new Map(); this._excRules = new Map(); this._site = new Map();
     this._excSel = {}; this._gh = {hosts: [], prefixes: []};
     this._applySheet();
     log("idle ten minutes with no card: the lists dropped (they load again with the next card)");
@@ -800,7 +864,7 @@ JihadContentBlocker.prototype = {
       if (!win) return;
       let host = uri.asciiHost.toLowerCase(), h = host, sels = [];
       for (;;) {
-        let a = this._site[h];
+        let a = this._site.get(h);
         if (a) sels.push(...a);
         let dot = h.indexOf("."); if (dot < 0) break; h = h.slice(dot + 1); if (h.indexOf(".") < 0) break;
       }

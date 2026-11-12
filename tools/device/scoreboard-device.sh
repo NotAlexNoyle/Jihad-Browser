@@ -6,7 +6,7 @@
 # whatever it is made of; the card closed at the end.
 ID=$1; URL=$2; TAG=$3
 SD=/media/internal/jihad-stream; mkdir -p $SD; rm -f $SD/sb-$TAG.*
-[ -x /tmp/finger ] && [ -x /tmp/fbstream ] || { echo "FATAL: /tmp/finger or /tmp/fbstream missing"; exit 1; }
+[ -x /tmp/finger ] && [ -x /tmp/fbstream ] || { echo "FATAL: /tmp/finger or /tmp/fbstream missing"; touch $SD/sb-$TAG.done; exit 1; }
 closeit() {
   for p in $(luna-send -n 1 palm://com.palm.applicationManager/running '{}' 2>&1 | grep -oE "\"id\": \"$ID\", \"processid\": \"[0-9]+\"" | grep -oE '[0-9]+$'); do
     luna-send -n 1 palm://com.palm.applicationManager/close "{\"processId\":\"$p\"}" >/dev/null 2>&1
@@ -26,7 +26,8 @@ snap > /tmp/sb-m1.txt
 sleep 2
 i=0; while [ $i -lt 6 ]; do FINGER_TRACE=$SD/sb-$TAG.fin /tmp/finger drag 480 900 480 250 1000; sleep 1; i=$((i + 1)); done
 wait $SP
-cat /tmp/sb-fbs.out | tail -2
+echo "fbstream exit $?"; cat /tmp/sb-fbs.out | tail -2; ls -la $SD/sb-$TAG.fbs $SD/sb-$TAG.fin 2>&1
 awk 'NR == FNR { a[$1] = $2; next } { d = $2 - (($1 in a) ? a[$1] : 0); if (d > 2048) { s += d; $2 = ""; printf "  +%d kB%s\n", d, $0 } } END { print "growth " s + 0 " kB" }' /tmp/sb-m0.txt /tmp/sb-m1.txt
 closeit
 rm -f /tmp/sb-m0.txt /tmp/sb-m1.txt /tmp/sb-fbs.out
+touch $SD/sb-$TAG.done

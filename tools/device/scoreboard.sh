@@ -30,6 +30,7 @@ out=$(printf '[ -e /tmp/jihad-owner-testing ] && echo LOCKED || echo free\nls -d
 case "$out" in *LOCKED*) echo "REFUSED: the owner is testing (/tmp/jihad-owner-testing)"; exit 3;; esac
 case "$out" in *"no atlas"*) echo "Atlas is not installed: left out"; BROWSERS=$(echo $BROWSERS | sed 's/atlas//');; esac
 TC=build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/bin/arm-webos-linux-gnueabi-gcc
+novacom put file:///tmp/scoreboard-device.sh < tools/device/scoreboard-device.sh
 for b in fbstream finger; do
   "$TC" -O2 -march=armv7-a -mfpu=neon -mfloat-abi=softfp -std=gnu99 -o "$T/$b" tools/device/finger/$b.c && novacom put file:///tmp/$b < "$T/$b"
 done
@@ -43,11 +44,25 @@ for r in $(seq 1 "$RUNS"); do
       say "run $r: $b on $pn"
       tools/device/close-usb-alert.sh 300 >/dev/null
       tag=$b-$pn-r$r
-      res=$(build/webos-oe/dev-sh.sh -t 150 tools/device/scoreboard-device.sh "$(idof $b)" "$page" "$tag" 2>&1)
-      echo "$res" | grep -a 'growth\|FATAL\|samples' | tail -3
+      # Detached on the device, its output to a file and a done marker beside it: the first round (chain 19) lost every
+      # row whose novacom session dropped under a heavy page (no fbstream line, no growth, no stream), so the host only
+      # starts it and then polls the marker, a short session at a time.
+      printf 'rm -f /media/internal/jihad-stream/sb-%s.done; (trap "" HUP; exec sh /tmp/scoreboard-device.sh %s %s %s > /media/internal/jihad-stream/sb-%s.log 2>&1 < /dev/null) &\necho started\n' \
+        "$tag" "$(idof $b)" "$page" "$tag" "$tag" > "$T/go.sh"
+      build/webos-oe/dev-sh.sh -t 20 "$T/go.sh" >/dev/null 2>&1
+      w=0; while [ $w -lt 24 ]; do
+        sleep 10; w=$((w + 1))
+        printf '[ -e /media/internal/jihad-stream/sb-%s.done ] && echo DONE || echo running\n' "$tag" > "$T/p.sh"
+        case "$(build/webos-oe/dev-sh.sh -t 20 "$T/p.sh" 2>/dev/null)" in *DONE*) break;; esac
+      done
+      tools/device/close-usb-alert.sh 300 >/dev/null
+      novacom get file:///media/internal/jihad-stream/sb-$tag.log > "$T/s.log" 2>/dev/null
+      res=$(cat "$T/s.log"); [ $w -lt 24 ] || echo "   !! no done marker after 240 s"
+      echo "$res" | grep -a 'growth\|FATAL\|samples\|fbstream' | tail -3
       novacom get file:///media/internal/jihad-stream/sb-$tag.fbs > "$T/s.fbs" 2>/dev/null
       novacom get file:///media/internal/jihad-stream/sb-$tag.fin > "$T/s.fin" 2>/dev/null
       novacom get file:///tmp/sb-$tag.png > "$D/rest-$tag.png" 2>/dev/null
+      cp "$T/s.log" "$D/device-$tag.log" 2>/dev/null
       printf 'rm -f /media/internal/jihad-stream/sb-%s.* /tmp/sb-%s.png\n' "$tag" "$tag" > "$T/rm.sh"; build/webos-oe/dev-sh.sh -t 20 "$T/rm.sh" >/dev/null 2>&1
       m=$(python3 tools/host/scoreboard-read.py "$T/s.fbs" --trace "$T/s.fin" 2>&1 | tail -1); echo "   $m"
       g=$(echo "$res" | sed -n 's/^growth \([0-9]*\) kB/\1/p' | tail -1)

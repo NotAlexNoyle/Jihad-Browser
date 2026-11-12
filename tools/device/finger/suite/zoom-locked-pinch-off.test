@@ -1,0 +1,12 @@
+id: zoom-locked-pinch-off
+section: Scrolling and gestures
+item: T-644: with "Allow zoom on every page" off, the zoom-locked page keeps the scale it asks for under a pinch
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-locked.html
+prefs: jihad.zoom.allowEveryPage=false
+kit: cavekit-input-bridging.md R5
+wait rect 'sel:h1' 30
+calibrate 'sel:h1'
+pinch 384 500 150 400
+wait settled 6
+expect zoom 1.0 0.05

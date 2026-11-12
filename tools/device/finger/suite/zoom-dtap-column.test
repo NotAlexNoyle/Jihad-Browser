@@ -1,0 +1,14 @@
+id: zoom-dtap-column
+section: Scrolling and gestures
+item: T-643: a double tap on a narrow column of a desktop-width page zooms to the column (chosen by its computed display), and the column stays under the finger
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-dtap.html
+kit: cavekit-input-bridging.md R5
+wait rect 'sel:#col' 30
+calibrate 'sel:h1'
+dtap 512 420
+wait zoom 10
+wait settled 6
+expect zoom-min 1.5
+expect element-at 'sel:#col' 384 420
+expect content 0,100,756,700 'sel:#col'

@@ -32,6 +32,7 @@
 #   fl_wait_pref T NAME OLD [BOUND] a pref read until it differs from OLD; fl_wait_rect SEL [BOUND]: an element present
 #   fl_check_scroll NAME EY KY TOL  the engine's and the card's scroll y within TOL; fl_check_card_scroll NAME KY TOL
 #   fl_check_zoom NAME Z TOL        the zoom (the last frame's mZoom); fl_check_zoom_min NAME Z; fl_check_card_scroll_min NAME MIN
+#   fl_check_zoom_max NAME Z        the zoom at most Z
 #   fl_check_visible NAME SEL       the element on the screen within the finger's reach (above the keyboard while it is up)
 #   fl_check_hit NAME SEL           the last tap's clickAt landed inside the element's rect
 #   fl_check_top NAME SEL [TOL]     the page top the model has now against a tap's clickAt (after a gesture)
@@ -742,6 +743,11 @@ fl_check_zoom_min() { # NAME Z: the zoom at least Z
   local z ok
   z=$(fl_zoom); ok=$(awk -v z=$z -v w=$2 'BEGIN { print (z >= w) ? 1 : 0 }')
   if [ "$ok" = 1 ]; then fl_check ok "$1" "zoom $z (at least $2)"; else fl_check FAIL "$1" "zoom $z (want at least $2)"; fi
+}
+fl_check_zoom_max() { # NAME Z: the zoom at most Z (T-643: a fit-zoomed page not zoomed onto a field)
+  local z ok
+  z=$(fl_zoom); ok=$(awk -v z=$z -v w=$2 'BEGIN { print (z <= w) ? 1 : 0 }')
+  if [ "$ok" = 1 ]; then fl_check ok "$1" "zoom $z (at most $2)"; else fl_check FAIL "$1" "zoom $z (want at most $2)"; fi
 }
 fl_check_visible() { # NAME SEL: the element's screen rect inside what a finger can reach (above the keyboard while it is up)
   local r lim

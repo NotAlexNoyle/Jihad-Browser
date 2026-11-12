@@ -1,0 +1,12 @@
+id: zoom-locked-pinch
+section: Scrolling and gestures
+item: T-644: on a page that locks its zoom (user-scalable=no, maximum-scale=1), a pinch zooms it while "Allow zoom on every page" is on (the default)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-locked.html
+kit: cavekit-input-bridging.md R5
+wait rect 'sel:h1' 30
+calibrate 'sel:h1'
+pinch 384 500 150 400
+wait zoom 10
+wait settled 6
+expect zoom-min 1.3

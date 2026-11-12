@@ -1,0 +1,14 @@
+id: zoom-field-kept
+section: Keyboard and fields
+item: T-643: a field low on a page fit-zoomed below 1, tapped: the keyboard comes up, the field is moved above it, and the zoom stays where it was (no zoom onto the field)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-dtap.html
+kit: cavekit-input-bridging.md R5
+wait rect 'sel:#f' 30
+calibrate 'sel:h1'
+expect zoom-max 0.8
+tap 'sel:#f'
+expect keyboard up 8
+wait settled 6
+expect visible 'sel:#f'
+expect zoom-max 0.8

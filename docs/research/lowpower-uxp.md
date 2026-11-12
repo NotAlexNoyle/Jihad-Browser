@@ -181,6 +181,7 @@ Wikipedia's load reads ~14 s or ~17 s by the hour on both sides alike, so a 2-ru
 | initial paint delay 300 ms (T-639) | 6 | load 16.1 s against 16.5 (within the spread), paint 1.7 s against 4.9, RSS -7 MB, **the pan 12.2 fps against 13.5**, the first frame 200 ms later by design; frames at rest match | dropped: 100 ms stays |
 | a deeper video queue (T-626) | 3 + 2 | 15 drops against 26 of 900 at 480p; the daemon's RSS during play up to 17 MB more | dropped: the RAM goes to pages |
 | media preload prefs (T-640) | 3 | YouTube's pan 2.2 fps against 4.2, RSS +10 MB | dropped |
+| Flash SetWindow dedup (T-638) | 5 | the movies 114.5 fps against 115.6, during the pan 82.6 against 80.3, the page pan 12.0 against 12.3 | dropped: even |
 | a 2 MB disk-cache cap (T-641) | 2 | nothing to cut: cache2 held about 1 MB either way | dropped |
 | lock_surface readback (T-610) | bench | 28.4 ms a frame against 16.6 + 18.0, and ABGR | dropped |
 | the blocker's host-set index (T-646) | built | three hash tables written beside their text and read back in one copy (desktop: 10 ms against 64); on the device the load took meta.json 370 ms + host sets 1 000 ms on the first card's connect | measured next, with the PGO bundle |

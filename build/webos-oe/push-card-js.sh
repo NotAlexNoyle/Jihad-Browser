@@ -127,7 +127,7 @@ fi
 # --- 2. close the running card by its real processid ---
 RUNNING=$(dev running) || die "running query returned nothing after retries"
 echo "$RUNNING" | grep -q '"returnValue": true' || die "running query bad reply: $RUNNING"
-PID=$(echo "$RUNNING" | grep -oE "\"id\": \"$APPID\", \"processid\": \"[0-9]+\"" | grep -oE '[0-9]+$' | head -1)
+PID=$(echo "$RUNNING" | grep -oE "\"id\": \"$APPID\", \"processid\": \"[0-9]+\"" | grep -oE '"[0-9]+"$' | tr -d '"' | head -1)
 if [ -n "${PID:-}" ]; then
   echo "closing $APPID (processid $PID)"
   CLOSED=$(dev close "$PID") || die "close returned nothing"

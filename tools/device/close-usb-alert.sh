@@ -54,6 +54,13 @@ PY
 }
 shot "$TMP/a.png"
 if up "$TMP/a.png"; then
+	# /tmp/finger is gone after a reboot (the device rebooted itself on 2026-11-12 and both taps went nowhere): build it
+	if ! { echo '[ -x /tmp/finger ] && echo HAVE'; sleep 3; } | novacom run file://bin/sh 2>/dev/null | grep -q HAVE; then
+		TC=$R/build/webos-oe/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi/bin/arm-webos-linux-gnueabi-gcc
+		"$TC" -O2 -march=armv7-a -mfpu=neon -mfloat-abi=softfp -std=gnu99 -o "$TMP/finger" "$R/tools/device/finger/finger.c" &&
+			novacom put file:///tmp/finger < "$TMP/finger" && { echo 'chmod +x /tmp/finger'; sleep 2; } | novacom run file://bin/sh >/dev/null 2>&1
+		echo "usb-alert: /tmp/finger was missing, pushed"
+	fi
 	for try in 1 2; do   # a second tap when the first met the alert while it was still sliding in
 		{ echo '/tmp/finger tap 583 232'; sleep 3; } | novacom run file://bin/sh >/dev/null 2>&1
 		sleep 2; shot "$TMP/b.png"

@@ -28,6 +28,8 @@
 //   tX,Y         a tap at card X,Y (device y - 28), as one click pair on the plugin node
 //   H            the open submenu's colours: a plain row's, and a "selected" row's (the class added and removed)
 //   ?            report url, secure flag, open popups
+//   R / D        T-642 Reader View / T-645 Desktop Site toggled as the app menu's row does it
+//   M            the committed url and title, and the app menu's rows as they stand
 (function () {
 	function log(name, text) { Mojo.Log.error("[JIHAD-TEST] " + name + ": " + text); }
 
@@ -320,6 +322,13 @@
 					(function (want) {
 						readClipboard(function (t) { log(name, "clipboard is the expected text: " + (String(t) === want) + " (length " + String(t).length + ", expected " + want.length + ")"); });
 					})(st.slice(2));
+				} else if (st === "R" || st === "D") {   // T-642 / T-645: the app menu's command, as its row runs it
+					log(name, (st === "R" ? "reader" : "desktop site") + " toggled from url=" + app.url);
+					if (st === "R") { app.toggleReader(); } else { app.toggleDesktopSite(); }
+				} else if (st === "M") {
+					var mi = app.appMenuItems(), ml = [];
+					for (var q = 0; q < mi.length; q++) { ml.push(mi[q].label); }
+					log(name, "url=" + app.url + " title=" + app.title + " menu=[" + ml.join(", ") + "]");
 				} else if (st === "p") {
 					log(name, "paste (as the menu does it)");
 					app.pasteIntoPage();

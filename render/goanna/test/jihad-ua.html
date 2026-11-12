@@ -1,0 +1,17 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0. -->
+<!-- T-645 device test: the user agent the page sees, large enough to read on a screenshot, and the viewport width
+     the page was laid out at (a desktop tab gets jihad.ua.modern; its layout is the page's own business). -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>UA</title>
+<style>body{font:28px sans-serif;margin:16px;background:#fff;color:#000}#m{font-size:40px;font-weight:bold}</style>
+</head><body>
+<div id="m"></div><p id="ua"></p><p id="w"></p>
+<script>
+var ua = navigator.userAgent;
+document.getElementById('m').textContent = /Mobile|webOS|hpwOS|Tablet/i.test(ua) ? 'MOBILE UA' : 'DESKTOP UA';
+document.getElementById('ua').textContent = ua;
+document.getElementById('w').textContent = 'innerWidth ' + window.innerWidth;
+document.title = (/Mobile|webOS|hpwOS|Tablet/i.test(ua) ? 'MOBILE ' : 'DESKTOP ') + ua.slice(0, 60);
+</script>
+</body></html>

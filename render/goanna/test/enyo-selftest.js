@@ -412,6 +412,22 @@
 	// (BrowserApp.gotMediaKey, the one the keys service's subscription calls) 8 s after the launch, the next key 6 s
 	// later. The daemon's "media key <k> -> ok" lines and the page's own status are the evidence.
 	//   mediakey:pause-play   pause, then play (keys joined by "-")
+	// T-642 / T-645: pagetool:<letters> — R Reader View, D Desktop Site, each as the app menu's entry runs it
+	// (Browser.toggleReader / toggleDesktopSite), 15 s apart, starting 10 s in; before each and at the end the
+	// committed url and what the menu offers (pageToolState). The screenshot shows the last step's page.
+	scenarios.pagetool = function(app, name, arg) {
+		var seq = String(arg || "R").split(""), i = 0, b = app.$.browser;
+		function st(tag) { log(name, tag + ": url=" + b._committedUrl + " tools=" + j(b.pageToolState())); }
+		function next() {
+			st(i ? "after " + seq[i - 1] : "before");
+			if (i >= seq.length) { log(name, "DONE"); return; }
+			var s = seq[i++];
+			if (s === "R") { b.toggleReader(); } else if (s === "D") { b.toggleDesktopSite(); }
+			log(name, "ran " + s);
+			later(15000, next);
+		}
+		later(10000, next);
+	};
 	scenarios.mediakey = function(app, name, arg) {
 		var keys = String(arg || "pause-play").split("-"), i = 0;
 		function next() {

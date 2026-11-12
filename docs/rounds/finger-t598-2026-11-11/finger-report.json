@@ -1,0 +1,91 @@
+{
+ "date": "2026-11-12T12:02:20",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "media-scrub-drag",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "The video's sliders by finger: a drag on the volume slider changes the volume and a drag of the scrubber's thumb seeks (the page reads them back); a slider is XUL scale content inside the video's anonymous controls, which the adapter's interactive-rect answer does not name, so the drag pans instead (T-598)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect v",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 102 landed on document y 25)",
+    "WAIT ok 12-text status = [playing]",
+    "WAIT ok 14-text status = [paused t=24.2]",
+    "WAIT ok 15-rect anon:#v|controlBar",
+    "WAIT ok 16-rect anon:#v|volumeControl",
+    "WAIT ok 20-text vol = [volume=0.16 muted=false]",
+    "WAIT ok 24-settled: the card's scroll 0 0",
+    "WAIT ok 25-text seek = [60]"
+   ],
+   "kept": [
+    "kept/enyo-media-scrub-drag-seek_.jpg"
+   ],
+   "seconds": 103,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1: connected at +2 s, load done at +9 s, 17 content frames at +9 s; the GPU path, frames off the main thread (the ex",
+   "restore": "enyo: (27079/860692382) jihad (start) running, process 15188; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "media-scrub-drag",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "The video's sliders by finger: a drag on the volume slider changes the volume and a drag of the scrubber's thumb seeks (the page reads them back); a slider is XUL scale content inside the video's anonymous controls, which the adapter's interactive-rect answer does not name, so the drag pans instead (T-598)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect v",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 98 landed on document y 25)",
+    "WAIT ok 12-text status = [playing]",
+    "WAIT ok 14-text status = [paused t=24.6]",
+    "WAIT ok 15-rect anon:#v|controlBar",
+    "WAIT ok 16-rect anon:#v|volumeControl",
+    "WAIT ok 20-text vol = [volume=0.16 muted=false]",
+    "WAIT ok 24-settled: the card's scroll 0 0",
+    "WAIT ok 25-text seek = [60]"
+   ],
+   "kept": [
+    "kept/mochi-media-scrub-drag-seek_.jpg"
+   ],
+   "seconds": 107,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1: connected at +1 s, load done at +8 s, 9 content frames at +8 s; the GPU path, frames off the main thread (the ex",
+   "restore": "mochi: (27186/254475028) jihad-mochi (start) running, process 19409; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "media-scrub-drag",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "The video's sliders by finger: a drag on the volume slider changes the volume and a drag of the scrubber's thumb seeks (the page reads them back); a slider is XUL scale content inside the video's anonymous controls, which the adapter's interactive-rect answer does not name, so the drag pans instead (T-598)",
+   "section": "Media and sound",
+   "verdict": "known",
+   "checks": [
+    "WAIT ok 10-rect v",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 93 landed on document y 25)",
+    "WAIT ok 12-text status = [playing]",
+    "WAIT ok 14-text status = [paused t=13.2]",
+    "WAIT ok 15-rect anon:#v|controlBar",
+    "WAIT ok 16-rect anon:#v|volumeControl",
+    "WAIT ok 20-text vol = [volume=0.16 muted=false]",
+    "WAIT ok 24-settled: the card's scroll 0 0",
+    "CHECK FAIL 25-wait-text: seek never read 60 within the bound"
+   ],
+   "kept": [
+    "kept/mojo-media-scrub-drag-25-wait-text_.jpg",
+    "kept/mojo-media-scrub-drag-seek_.jpg"
+   ],
+   "seconds": 83,
+   "note": "the open defect T-598: CHECK FAIL 25-wait-text: seek never read 60 within the bound",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1: connected at +1 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off the main thread (the exp",
+   "restore": "mojo: (27269/474715753) jihad-mojo (start) running, process 23681; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (27269/562279457) jihad (start) running, process 15188\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (27274/935005381) jihad-mochi (start) running, process 19409\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (27279/711820639) jihad-mojo (start) running, process 23681\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/closed.png /tmp/hang-1-stalled.png /tmp/hang-2-colours.png /tmp/hang-4-newcard.png /tmp/hang-A-colours.png /tmp/hang-A-newcard.png /tmp/hang-B-colours.png /tmp/open1.png /tmp/page-a.png /tmp/page-b.png /tmp/page-c.png /tmp/reopen.png /tmp/sb-atlas-HP_TouchPad_-r3.png /tmp/st-rest.png /tmp/t613-enyo-12.png /tmp/t613-enyo-24.png /tmp/t613-enyo-4.png /tmp/t613-mochi-12.png /tmp/t613-mochi-24.png /tmp/t613-mochi-4.png /tmp/t613-mojo-12.png /tmp/t613-mojo-24.png /tmp/t613-mojo-4.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 10% of /tmp used\nnovacom: unexpected EOF from server",
+ "seconds": 310
+}

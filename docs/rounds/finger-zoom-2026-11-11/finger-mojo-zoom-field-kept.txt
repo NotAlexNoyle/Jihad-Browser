@@ -1,0 +1,11 @@
+WAIT ok 7-rect sel:#f
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 105 landed on document y 50)
+CHECK ok 9-zoom-max: zoom 0.6400 (at most 0.8)
+  tap at 194,455 -> clickAt 304 1087
+CHECK FAIL 11-keyboard: the keyboard is not up within 8 s (its last reading: focused 1 wanted, 0 read)
+  frame kept: /media/internal/jihad-finger/11-keyboard_.last.raw
+WAIT ok 12-settled: the card's scroll 0 420
+CHECK ok 13-visible: sel:#f on the screen at 64,440-324,469 (the reach ends at 1024, keyboard 0)
+CHECK ok 14-zoom-max: zoom 0.6400 (at most 0.8)
+CHECKS 4 FAILS 1
+novacom: unexpected EOF from server

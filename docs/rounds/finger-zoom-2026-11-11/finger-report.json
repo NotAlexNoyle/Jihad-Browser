@@ -1,0 +1,270 @@
+{
+ "date": "2026-11-12T11:44:13",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "zoom-dtap-column",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-643: a double tap on a narrow column of a desktop-width page zooms to the column (chosen by its computed display), and the column stays under the finger",
+   "section": "Scrolling and gestures",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 7-rect sel:#col",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 114 landed on document y 50)",
+    "WAIT ok 10-zoom",
+    "WAIT ok 11-settled: the card's scroll 590 272",
+    "CHECK ok 12-zoom-min: zoom 1.8286 (at least 1.5)",
+    "CHECK FAIL 13-element-at: sel:#col on the screen at 507,31-1239,2226 does not hold 384,420",
+    "CHECK ok 14-content: region 0,100-756,700: colours 438 hash 2976668a rows 600 uniform 0 light 100-699 blue none; sel:#col on the screen at 507,31-1239,2226"
+   ],
+   "kept": [
+    "kept/enyo-zoom-dtap-column-13-element-at_.jpg"
+   ],
+   "seconds": 67,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-dtap.html: connected at +2 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU",
+   "restore": "enyo: (25957/748404599) jihad (start) running, process 21827; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "zoom-field-kept",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-643: a field low on a page fit-zoomed below 1, tapped: the keyboard comes up, the field is moved above it, and the zoom stays where it was (no zoom onto the field)",
+   "section": "Keyboard and fields",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 7-rect sel:#f",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 114 landed on document y 50)",
+    "CHECK ok 9-zoom-max: zoom 0.6400 (at most 0.8)",
+    "CHECK FAIL 11-keyboard: the keyboard is not up within 8 s (its last reading: focused 1 wanted, 0 read)",
+    "WAIT ok 12-settled: the card's scroll 0 430",
+    "CHECK ok 13-visible: sel:#f on the screen at 64,484-324,513 (the reach ends at 1024, keyboard 0)",
+    "CHECK ok 14-zoom-max: zoom 0.6400 (at most 0.8)"
+   ],
+   "kept": [
+    "kept/enyo-zoom-field-kept-11-keyboard_.jpg"
+   ],
+   "seconds": 98,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-dtap.html: connected at +2 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU",
+   "restore": "enyo: (26055/665509469) jihad (start) running, process 25932; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "zoom-locked-pinch-off",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-644: with \"Allow zoom on every page\" off, the zoom-locked page keeps the scale it asks for under a pinch",
+   "section": "Scrolling and gestures",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 8-rect sel:h1",
+    "CALIBRATION FAIL (enyo): the tap on sel:h1 aimed with the page top 82 reached no clickAt \u2014 the round stops"
+   ],
+   "kept": [
+    "kept/enyo-zoom-locked-pinch-off-calibration_.jpg"
+   ],
+   "seconds": 57,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-locked.html: connected at +2 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "enyo: (26112/165056421) jihad (start) running, process 29211; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "zoom-locked-pinch",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-644: on a page that locks its zoom (user-scalable=no, maximum-scale=1), a pinch zooms it while \"Allow zoom on every page\" is on (the default)",
+   "section": "Scrolling and gestures",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 7-rect sel:h1",
+    "CALIBRATION FAIL (enyo): the tap on sel:h1 aimed with the page top 82 reached no clickAt \u2014 the round stops"
+   ],
+   "kept": [
+    "kept/enyo-zoom-locked-pinch-calibration_.jpg"
+   ],
+   "seconds": 56,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-locked.html: connected at +2 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "enyo: (26167/796899818) jihad (start) running, process 32489; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "zoom-dtap-column",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-643: a double tap on a narrow column of a desktop-width page zooms to the column (chosen by its computed display), and the column stays under the finger",
+   "section": "Scrolling and gestures",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 7-rect sel:#col",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 110 landed on document y 50)",
+    "WAIT ok 10-zoom",
+    "WAIT ok 11-settled: the card's scroll 590 271",
+    "CHECK ok 12-zoom-min: zoom 1.8286 (at least 1.5)",
+    "CHECK FAIL 13-element-at: sel:#col on the screen at 507,28-1239,2223 does not hold 384,420",
+    "CHECK ok 14-content: region 0,100-756,700: colours 402 hash 6c6a1b91 rows 600 uniform 0 light 100-699 blue none; sel:#col on the screen at 507,28-1239,2223"
+   ],
+   "kept": [
+    "kept/mochi-zoom-dtap-column-13-element-at_.jpg"
+   ],
+   "seconds": 64,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-dtap.html: connected at +2 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP",
+   "restore": "mochi: (26232/138939804) jihad-mochi (start) running, process 3628; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "zoom-field-kept",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-643: a field low on a page fit-zoomed below 1, tapped: the keyboard comes up, the field is moved above it, and the zoom stays where it was (no zoom onto the field)",
+   "section": "Keyboard and fields",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 7-rect sel:#f",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 110 landed on document y 50)",
+    "CHECK ok 9-zoom-max: zoom 0.6400 (at most 0.8)",
+    "CHECK FAIL 11-keyboard: the keyboard is not up within 8 s (its last reading: focused 1 wanted, 0 read)",
+    "WAIT ok 12-settled: the card's scroll 0 425",
+    "CHECK ok 13-visible: sel:#f on the screen at 64,485-324,514 (the reach ends at 1024, keyboard 0)",
+    "CHECK ok 14-zoom-max: zoom 0.6400 (at most 0.8)"
+   ],
+   "kept": [
+    "kept/mochi-zoom-field-kept-11-keyboard_.jpg"
+   ],
+   "seconds": 104,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-dtap.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP",
+   "restore": "mochi: (26335/690027193) jihad-mochi (start) running, process 8043; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "zoom-locked-pinch-off",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-644: with \"Allow zoom on every page\" off, the zoom-locked page keeps the scale it asks for under a pinch",
+   "section": "Scrolling and gestures",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 8-rect sel:h1",
+    "CALIBRATION FAIL (mochi): the tap on sel:h1 aimed with the page top 78 reached no clickAt \u2014 the round stops"
+   ],
+   "kept": [
+    "kept/mochi-zoom-locked-pinch-off-calibration_.jpg"
+   ],
+   "seconds": 57,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-locked.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_",
+   "restore": "mochi: (26393/137481256) jihad-mochi (start) running, process 11457; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "zoom-locked-pinch",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-644: on a page that locks its zoom (user-scalable=no, maximum-scale=1), a pinch zooms it while \"Allow zoom on every page\" is on (the default)",
+   "section": "Scrolling and gestures",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 7-rect sel:h1",
+    "CALIBRATION FAIL (mochi): the tap on sel:h1 aimed with the page top 78 reached no clickAt \u2014 the round stops"
+   ],
+   "kept": [
+    "kept/mochi-zoom-locked-pinch-calibration_.jpg"
+   ],
+   "seconds": 55,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-locked.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_",
+   "restore": "mochi: (26448/424069393) jihad-mochi (start) running, process 14648; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "zoom-dtap-column",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-643: a double tap on a narrow column of a desktop-width page zooms to the column (chosen by its computed display), and the column stays under the finger",
+   "section": "Scrolling and gestures",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 7-rect sel:#col",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 105 landed on document y 50)",
+    "WAIT ok 10-zoom",
+    "WAIT ok 11-settled: the card's scroll 590 277",
+    "CHECK ok 12-zoom-min: zoom 1.8286 (at least 1.5)",
+    "CHECK FAIL 13-element-at: sel:#col on the screen at 507,17-1239,2212 does not hold 384,420",
+    "CHECK ok 14-content: region 0,100-756,700: colours 325 hash 735e4dc6 rows 600 uniform 0 light 100-699 blue none; sel:#col on the screen at 507,17-1239,2212"
+   ],
+   "kept": [
+    "kept/mojo-zoom-dtap-column-13-element-at_.jpg"
+   ],
+   "seconds": 76,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-dtap.html: connected at +3 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU",
+   "restore": "mojo: (26524/850367453) jihad-mojo (start) running, process 18382; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "zoom-field-kept",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-643: a field low on a page fit-zoomed below 1, tapped: the keyboard comes up, the field is moved above it, and the zoom stays where it was (no zoom onto the field)",
+   "section": "Keyboard and fields",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 7-rect sel:#f",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 105 landed on document y 50)",
+    "CHECK ok 9-zoom-max: zoom 0.6400 (at most 0.8)",
+    "CHECK FAIL 11-keyboard: the keyboard is not up within 8 s (its last reading: focused 1 wanted, 0 read)",
+    "WAIT ok 12-settled: the card's scroll 0 420",
+    "CHECK ok 13-visible: sel:#f on the screen at 64,440-324,469 (the reach ends at 1024, keyboard 0)",
+    "CHECK ok 14-zoom-max: zoom 0.6400 (at most 0.8)"
+   ],
+   "kept": [
+    "kept/mojo-zoom-field-kept-11-keyboard_.jpg"
+   ],
+   "seconds": 112,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-dtap.html: connected at +1 s, load done at +5 s, 3 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU",
+   "restore": "mojo: (26637/112538838) jihad-mojo (start) running, process 22917; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "zoom-locked-pinch-off",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-644: with \"Allow zoom on every page\" off, the zoom-locked page keeps the scale it asks for under a pinch",
+   "section": "Scrolling and gestures",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 8-rect sel:h1",
+    "CALIBRATION FAIL (mojo): the tap on sel:h1 aimed with the page top 73 reached no clickAt \u2014 the round stops"
+   ],
+   "kept": [
+    "kept/mojo-zoom-locked-pinch-off-calibration_.jpg"
+   ],
+   "seconds": 67,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-locked.html: connected at +1 s, load done at +5 s, 4 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "mojo: (26703/998428010) jihad-mojo (start) running, process 26390; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "zoom-locked-pinch",
+   "kit": "cavekit-input-bridging.md R5",
+   "item": "T-644: on a page that locks its zoom (user-scalable=no, maximum-scale=1), a pinch zooms it while \"Allow zoom on every page\" is on (the default)",
+   "section": "Scrolling and gestures",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 7-rect sel:h1",
+    "CALIBRATION FAIL (mojo): the tap on sel:h1 aimed with the page top 73 reached no clickAt \u2014 the round stops"
+   ],
+   "kept": [
+    "kept/mojo-zoom-locked-pinch-calibration_.jpg"
+   ],
+   "seconds": 66,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-locked.html: connected at +1 s, load done at +5 s, 4 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "mojo: (26769/661626367) jihad-mojo (start) running, process 29988; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (26769/753157478) jihad (start) running, process 32489\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (26777/957450958) jihad-mochi (start) running, process 14648\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (26787/289884883) jihad-mojo (start) running, process 29988\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/closed.png /tmp/hang-1-stalled.png /tmp/hang-2-colours.png /tmp/hang-4-newcard.png /tmp/hang-A-colours.png /tmp/hang-A-newcard.png /tmp/hang-B-colours.png /tmp/open1.png /tmp/page-a.png /tmp/page-b.png /tmp/page-c.png /tmp/reopen.png /tmp/sb-atlas-HP_TouchPad_-r3.png /tmp/st-rest.png /tmp/t613-enyo-12.png /tmp/t613-enyo-24.png /tmp/t613-enyo-4.png /tmp/t613-mochi-12.png /tmp/t613-mochi-24.png /tmp/t613-mochi-4.png /tmp/t613-mojo-12.png /tmp/t613-mojo-24.png /tmp/t613-mojo-4.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 10% of /tmp used\nnovacom: unexpected EOF from server",
+ "seconds": 904
+}

@@ -1,0 +1,11 @@
+WAIT ok 7-rect sel:#col
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 105 landed on document y 50)
+  double tap 512 420
+WAIT ok 10-zoom
+WAIT ok 11-settled: the card's scroll 590 277
+CHECK ok 12-zoom-min: zoom 1.8286 (at least 1.5)
+CHECK FAIL 13-element-at: sel:#col on the screen at 507,17-1239,2212 does not hold 384,420
+  frame kept: /media/internal/jihad-finger/13-element-at_.last.raw
+CHECK ok 14-content: region 0,100-756,700: colours 325 hash 735e4dc6 rows 600 uniform 0 light 100-699 blue none; sel:#col on the screen at 507,17-1239,2212
+CHECKS 3 FAILS 1
+novacom: unexpected EOF from server

@@ -372,6 +372,7 @@ MainAssistant.prototype.bindHandlers = function () {
 	this.handleCreatePage = this.handleCreatePage.bind(this);
 	this.handleMimeUnsupported = this.handleMimeUnsupported.bind(this);
 	this.handleServerDisconnect = this.handleServerDisconnect.bind(this);
+	this.handleServerConnect = this.handleServerConnect.bind(this);
 	this.handleAddressTap = this.handleAddressTap.bind(this);
 	this.handleAddressSubmit = this.handleAddressSubmit.bind(this);
 	this.handleRetry = this.handleRetry.bind(this);
@@ -403,7 +404,8 @@ MainAssistant.prototype.webViewEvents = function () {
 		// that was in fact under way.
 		[Mojo.Event.webViewMimeHandoff, this.handleMimeHandoff],
 		[Mojo.Event.webViewDownloadFinished, this.handleDownloadFinished],
-		[Mojo.Event.webViewServerDisconnect, this.handleServerDisconnect]
+		[Mojo.Event.webViewServerDisconnect, this.handleServerDisconnect],
+		[Mojo.Event.webViewServerConnect, this.handleServerConnect]
 	];
 };
 
@@ -1913,6 +1915,7 @@ MainAssistant.prototype.handleCreatePage = function (event) {
 // --- load state -------------------------------------------------------------
 
 MainAssistant.prototype.handleLoadStarted = function () {
+	this._serverSeen = true;   // a load event comes from a daemon: an engine is up (handleServerDisconnect's wording)
 	this.loadFailed = false;
 	this.updateLock();
 	this.hideError();
@@ -1951,10 +1954,36 @@ MainAssistant.prototype.handleLoadFailed = function (event) {
 };
 
 MainAssistant.prototype.handleServerDisconnect = function () {
-	// The daemon went away (restart or crash). Say so instead of leaving a card that
-	// silently stops responding; the widget reconnects on its own timer.
+	// The daemon went away (restart or crash), or (T-613) it is not up yet: the first launch starts its job, and the
+	// widget's first connect fails while the engine comes up (about 10 s on the TouchPad). Say which instead of
+	// leaving a card that silently stops responding; the widget reconnects on its own 3 s timer.
 	this.setLoading(false);
-	this.showError(null, $L("Lost the connection to the browser engine. Reconnecting..."));
+	this._serverLost = true;
+	if (!this._serverSeen) {
+		this.showError(null, $L("Starting the browser engine..."));
+		this.setText("jihad-error-title", $L("One moment"));
+	} else {
+		this.showError(null, $L("Lost the connection to the browser engine. Reconnecting..."));
+	}
+};
+
+//* The widget reconnected (Mojo.Event.webViewServerConnect, after its own retry timer). The widget opened the
+//* scene's url once, when the adapter came up, and that load went nowhere while no daemon answered (found on the
+//* device 2026-11-11, T-613: the panel stayed up and the launch target was lost), so the panel goes and the page
+//* the card should show is opened again: the last failed or committed url, else the launch target or the start
+//* page. A page the engine created (pageIdentifier) died with the old daemon: nothing to reopen.
+MainAssistant.prototype.handleServerConnect = function () {
+	this._serverSeen = true;
+	if (!this._serverLost) {
+		return;
+	}
+	this._serverLost = false;
+	this.hideError();
+	var url = this.failedUrl || this.url ||
+		(this.params.pageIdentifier ? "" : (JihadUrl.normalize(this.params.url) || this.startPageUrl()));
+	if (url) {
+		this.openUrl(url);
+	}
 };
 
 MainAssistant.prototype.handleMimeUnsupported = function (event) {
@@ -2166,6 +2195,7 @@ MainAssistant.prototype.syncCommandMenu = function () {
 //* shows an error panel with the reason and a retry button instead.
 MainAssistant.prototype.showError = function (code, message) {
 	var text = this.errorText(code, message);
+	this.setText("jihad-error-title", $L("Can't load this page"));
 	var panel = this.controller.get("jihad-error");
 	this.setText("jihad-error-message", text);
 	this.lastErrorCode = code;

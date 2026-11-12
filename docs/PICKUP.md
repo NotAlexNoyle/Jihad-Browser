@@ -88,8 +88,7 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 **State:** main ahead of Gitea, NOT pushed (the owner: `bash .cavekit/handoff-2026-11-08/push.sh`, which now also stores
 the Gitea access token in the libsecret keyring: step 0 says none/token/other, never the value; the account goes
 Staff-Auth-only, so the token must be what is stored). Engine branch `jihad/uxp-RB_20261027` at `c2f9aa810c`; **the
-gitlink is the owner's to bump**. An early push was made at the owner's request (to store the token); everything below
-marked IN FLIGHT goes in the next one.
+gitlink is the owner's to bump**. An early push was made at the owner's request (to store the token); what settled after it goes in this milestone's push.
 
 **Settled (committed):**
 - **T-646 done:** first connect 0.46 s against 1.7. **T-633 not adopted** (GCC 12 slower than GCC 9 at -O2). **T-628:**
@@ -108,30 +107,37 @@ marked IN FLIGHT goes in the next one.
   its own log (every row lost its memory growth). close-usb-alert.sh pushes /tmp/finger when a reboot wiped it.
 - **The night's "novacomd hang" was the TouchPad** (frozen under swap, rebooted); novacomd 1.2.2 recovered by itself.
 
-**IN FLIGHT (not committed yet; tests queued on the TouchPad):**
-- **The GPU-hang fix (Atlas issue #3's class).** Test (`docs/rounds/gpu-hang-2026-11-12`): the compositor held in a
-  "GPU call" (new `JIHAD_GPU_TEST_STALL_S`), the daemon falls back to software at 3 s, then the next page load blocks
-  the main thread for good: `nsViewManager::Refresh` -> `ClientLayerManager::FlushRendering` ->
-  `PCompositorBridgeChild::SendFlushRendering` (sync), stack read by a ptrace grabber. Fix (engine, uncommitted in
-  third_party/uxp): `layers::gJihadCompositorAbandoned`, set by `jihad_offscreen_gpu_given_up()`; then no synchronous
-  bridge message, no layer transaction (`ShadowLayerForwarder::IPCOpen`), a card's bridge closed without its
-  compositor (leaked), new cards on software layers. Backstop in the daemon (Main.cpp): a hang watchdog,
-  `JIHAD_HANG_EXIT_S` (60 by default, 0 off): tick silent that long AND the main thread in a futex wait 3 checks 5 s
-  apart -> exit 70, upstart respawns. The PGO use build with the fix is made; the fix test (A: load, close, new card
-  survive; B: the watchdog ends the unfixed hang) is queued. Then: engine commit + `patch-queue.sh --add` for
-  `c2f9aa810c` (the GCC 12 ICU commit, harmless under GCC 9) and the fix, `update-engine.sh --pins`, `--check`.
-- **The screen lock's place (from the Atlas app's e71fea8, the owner's "port it, all 3 shells"):** halfway down the
-  right edge in landscape, top right in portrait. Enyo and Mojo verified (`docs/rounds/screen-lock-2026-11-12`); Mochi
-  lost the lock in landscape: all three shells dropped it when the card left the front and never brought it back on
-  return with a video still playing (fixed in the three activate handlers; Mochi retest queued). The self-test hooks
-  gained orientation steps (`orient:<dir>[:s]` Enyo/Mochi, `Y<dir>` Mojo).
-- **PGO re-trained at every major milestone (the owner, 2026-11-12):** the gen build is running; the TouchPad training
-  run (`tools/device/pgo-profile.sh`, 3-4 h) follows chains 27-29; then the use build, the push, and the clean
-  scoreboard (chain 30, moved after the push so it measures the milestone engine).
-- **Atlas:** our `atlas-sensord` fix (sensors open only while a client is connected: sensord ~11 % of a core at idle
-  -> ~2 %) is PR #6 on Herrie82/atlas-wpe-env (the owner's, via NotAlexNoyle/atlas-wpe-env on Gitea + its GitHub fork);
-  the fixed binary goes into Atlas on the TouchPad after chain 26 (`atlas-sensord.orig` kept). An Atlas reinstall puts
-  the stock one back.
+**Settled after the early push (all committed; this milestone's push carries them):**
+- **T-647 GPU hang (Atlas issue #3's class): DONE.** Engine 0107 (`JIHAD_GPU_TEST_STALL_S`) and 0108
+  (`layers::gJihadCompositorAbandoned`, set by `jihad_offscreen_gpu_given_up()`: no synchronous bridge message, no layer
+  transaction, a card's bridge left in place on close, new cards on software layers); 0106 the GCC 12 ICU commit. Pin
+  `c5cc9dd468`, `patch-queue.sh --check` 108 patches exact; **the gitlink is the owner's to bump**. Daemon: the hang
+  watchdog (`JIHAD_HANG_EXIT_S`, 60 s silent + 3 futex checks 5 s apart -> exit 70, upstart respawns). On the TouchPad
+  (`docs/rounds/gpu-hang-2026-11-12`): fixed = load, close, new card all through, pages right; unfixed = the watchdog
+  exits it after 70 s. How it was found: a ptrace stack grabber (scratch `hang/stackgrab.c`, PDK gcc) + addr2line on
+  the unstripped O2 libxul.
+- **PGO re-trained on the frozen engine** (the owner: at every milestone, right before it; memory
+  `feedback-jihad-pgo-retrain-at-milestones`): gen build 12:30, training 12:41-13:30 (`docs/rounds/pgo-2026-11-12`,
+  2078 .gcda), use build clean (mismatch 0, not in profile 0, no data file 8). TRAP met: builds stopped mid-way leave
+  objects of the other phase: four `xpcom/base/*.o` carried `__gcov_*` and the use link failed (deleted, relinked).
+  Pushed to the three shells (`make-device-bundle.sh` first), Wikipedia right in each by eye
+  (`docs/rounds/milestone-2026-11-12`). The shells' JS pushed (`push-card-js.sh`, stamps seen).
+- **T-627 KEPT** (jsbench 7-14 % faster, Wikipedia load 11 % faster, pan +14 %). **T-628 NEON scan NOT ADOPTED**
+  (1.3-1.7x micro, ~0.4 ms a page). **T-632 DONE** (display off: 0 frames, 0 jobs; 25 fps before). **T-648 DONE** (the
+  screen lock mid-right in landscape in the three shells; back on activate with a video playing). **T-643, T-644 DONE**
+  (12 finger runs pass; the first run's failures were fingerlib's: the card's scroll is in page units). **T-596 DONE.**
+  **T-649 DONE** (Atlas sensord: PR #6, the fixed binary in Atlas on the TouchPad, `atlas-sensord.orig` kept).
+- **The Gitea token** is in the libsecret keyring (`.cavekit/handoff-2026-11-08/gitea-token.sh` swapped the password
+  push.sh first stored); pushes ask nothing; the server session has the dry-run times for the password's removal.
+- **The host:** earlyoom killed cc1plus (and the owner's browser's WebExtensions) under two parallel engine builds:
+  engine builds at 4 jobs (`build-goanna-arm.sh build 4 ...`).
+
+**Next, after the milestone pause (in this order):**
+1. The scoreboard on real sites (`tools/device/scoreboard.sh`'s new default: Wikipedia, Hacker News, BBC News, a GitHub
+   page, an MDN page, Orisinal's Winterbells for Flash), 3 runs, `docs/rounds/scoreboard-2026-11-12`; ~2.5-3 h.
+2. The whole finger suite again: fingerlib's unit fix changes every zoomed mapping.
+3. T-598: Mojo's scrubber drag still reads no seek (Enyo and Mochi pass).
+4. screen-lock.test: a card switch during a video (the activate path's return of the lock).
 
 ## 2026-11-11 (late) — chains 13-19 read, Mochi minified, PGO the bundle's default, GCC 12 built, the scoreboard detached (READ FIRST)
 

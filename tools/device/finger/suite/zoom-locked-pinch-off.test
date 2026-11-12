@@ -6,7 +6,8 @@ page: http://192.168.1.245:8077/jihad-locked.html
 prefs: jihad.zoom.allowEveryPage=false
 kit: cavekit-input-bridging.md R5
 wait rect 'sel:h1' 30
-calibrate 'sel:h1'
+# no calibrate: a page that says user-scalable=no and fits the card gets the finger's input as mouse events
+# (BrowserAdapter::shouldPassInputEvents, the stock rule for maps and games), so a tap logs no clickAt; the pinch needs none
 pinch 384 500 150 400
 wait settled 6
 expect zoom 1.0 0.05

@@ -273,9 +273,11 @@ fl_last_hit() { fl_since | grep -a 'clickAt x=' | tail -1 | sed -n 's/.*clickAt 
 # the screen point of a document point: X = docX * zoom - cardX; Y = top + docY * zoom - cardY - header, the header
 # Mojo's address bar while it is scrolled away (FL_HDR)
 fl_hdr() { [ "$FL_HDR" = 1 ] && echo $FL_HEADER || echo 0; }
+# the card's scroll comes in page units (the daemon's debugCardScroll divides by the zoom), so it is scaled with the page:
+# x*z - kx put a zoomed column 490 px right of where it stood (T-643's first run, 2026-11-12); at zoom 1 the two agree
 fl_to_screen() { # docX docY cardX cardY
   awk -v x=$1 -v y=$2 -v kx=$3 -v ky=$4 -v z=$(fl_zoom) -v top=$FL_TOP -v h=$(fl_hdr) \
-    'BEGIN { printf "%d %d\n", x * z - kx + 0.5, top + y * z - ky - h + 0.5 }'
+    'BEGIN { printf "%d %d\n", (x - kx) * z + 0.5, top + (y - ky) * z - h + 0.5 }'
 }
 fl_screen() { set -- $(fl_rect "$1") || return 1; fl_to_screen $9 ${10} $5 $6; }
 # "X0 Y0 X1 Y1": the element's screen rect
@@ -295,7 +297,7 @@ fl_measure_top() {
   l=$(fl_wait 'clickAt x=' 4) || return 1
   got=$(echo "$l" | sed -n 's/.*clickAt x=\(-*[0-9]*\) y=\(-*[0-9]*\).*/\2/p')
   set -- $p
-  awk -v ty=$2 -v got=$got -v ky=$ky -v z=$(fl_zoom) -v h=$(fl_hdr) 'BEGIN { printf "%d %d %d\n", ty - got * z + ky + h + 0.5, ty, got }'
+  awk -v ty=$2 -v got=$got -v ky=$ky -v z=$(fl_zoom) -v h=$(fl_hdr) 'BEGIN { printf "%d %d %d\n", ty - (got - ky) * z + h + 0.5, ty, got }'
 }
 # the page top as the model has it now, against a tap: the header rule and the card's scroll checked after a gesture
 fl_check_top() { # NAME SEL [TOL]
@@ -331,7 +333,8 @@ fl_bring() {
   p=$(fl_to_screen $9 ${10} $5 $6); set -- $p $6
   if [ "$(fl_kb)" = 1 ]; then lim=600; mid=350; else lim=880; mid=500; fi   # the keyboard's reach: Mojo's took a tap at 673
   if [ $2 -lt 120 ] || [ $2 -gt $lim ]; then
-    want=$(( $3 + $2 - mid )); [ $want -lt 0 ] && want=0
+    # the card's scroll reads in page units, cardscroll takes screen px: scaled by the zoom (2026-11-12)
+    want=$(awk -v ky=$3 -v sy=$2 -v mid=$mid -v z=$(fl_zoom) 'BEGIN { printf "%d", ky * z + sy - mid + 0.5 }'); [ $want -lt 0 ] && want=0
     fl_card_to $want
   fi
 }
@@ -626,7 +629,7 @@ fl_pick() { # SEL INDEX [ROWS]: the select brought mid-screen (an Enyo/Mochi lis
   local n p rx ry reg
   set -- "$1" "$2" "${3:-}" $(fl_rect "$1") || return 1; [ -n "${13:-}" ] || { echo "  pick: no element $1"; return 1; }
   p=$(fl_to_screen ${12} ${13} $8 $9); set -- "$1" "$2" "$3" $p $9
-  if [ $5 -lt 200 ] || [ $5 -gt 420 ]; then n=$(( $6 + $5 - 350 )); [ $n -lt 0 ] && n=0; fl_card_to $n; fi
+  if [ $5 -lt 200 ] || [ $5 -gt 420 ]; then n=$(awk -v ky=$6 -v sy=$5 -v z=$(fl_zoom) 'BEGIN { printf "%d", ky * z + sy - 350 + 0.5 }'); [ $n -lt 0 ] && n=0; fl_card_to $n; fi
   fl_tap "$1" || return 1
   fl_wait 'popupMenuShow id=' 4 >/dev/null || { echo "  pick: the tap on $1 opened no picker"; return 1; }
   if [ $FL_PICK_CX -gt 0 ]; then

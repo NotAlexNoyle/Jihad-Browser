@@ -10,5 +10,6 @@ expect zoom-max 0.8
 tap 'sel:#f'
 expect keyboard up 8
 wait settled 6
-expect visible 'sel:#f'
+# above the keyboard's top (T-643's criterion), not within fl_bring's 600-row reach for taps
+expect above-keyboard 'sel:#f'
 expect zoom-max 0.8

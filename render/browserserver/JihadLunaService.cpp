@@ -112,6 +112,8 @@ typedef bool (*LSFilterFunc)(LSHandle*, LSMessage*, void*);
 typedef bool (*fn_LSCallOneReply)(LSHandle*, const char*, const char*, LSFilterFunc, void*,
                                   unsigned long*, void*);
 typedef LSHandle* (*fn_LSPalmServiceGetPrivateConnection)(LSPalmService*);
+// LSCall: the subscribing form of LSCallOneReply, the same arguments (T-632's display status).
+typedef bool (*fn_LSCall)(LSHandle*, const char*, const char*, LSFilterFunc, void*, unsigned long*, void*);
 
 struct LunaApi {
   void* lib = nullptr;
@@ -132,6 +134,7 @@ struct LunaApi {
   fn_LSMessageGetPayload           MessageGetPayload           = nullptr;
   fn_LSCallOneReply                CallOneReply                = nullptr;
   fn_LSPalmServiceGetPrivateConnection PalmServiceGetPrivateConnection = nullptr;
+  fn_LSCall                        Call                        = nullptr;
 };
 
 LunaApi        gApi;
@@ -450,6 +453,7 @@ bool onPrintPage(LSHandle* sh, LSMessage* msg, void*) {
 // mediaKey — T-601: {"key":"play"|"pause"|"playpause"|"stop"|"next"|"prev"} from this variant's own card (the
 // Bluetooth headset's buttons, palm://com.palm.keys/media), for the media of the page the user is in.
 jihad::LunaMediaKeyFn gMediaKeyFn = nullptr;
+jihad::LunaDisplayFn gDisplayFn = nullptr;
 bool onMediaKey(LSHandle* sh, LSMessage* msg, void*) {
   const bool allowed = callerIsOwnCard(msg);
   const char* pl = (allowed && gApi.MessageGetPayload) ? gApi.MessageGetPayload(msg) : nullptr;
@@ -635,6 +639,7 @@ bool loadApi() {
   gApi.MessageGetPayload = (fn_LSMessageGetPayload) dlsym(gApi.lib, "LSMessageGetPayload");
   // Optional: without them webOS's proxy setting cannot be read, and Jihad says so.
   gApi.CallOneReply = (fn_LSCallOneReply) dlsym(gApi.lib, "LSCallOneReply");
+  gApi.Call = (fn_LSCall) dlsym(gApi.lib, "LSCall");
   gApi.PalmServiceGetPrivateConnection = (fn_LSPalmServiceGetPrivateConnection)
                                            dlsym(gApi.lib, "LSPalmServiceGetPrivateConnection");
   if (!gApi.SubscriptionAdd || !gApi.SubscriptionReply) {
@@ -792,6 +797,7 @@ int         gRetryAttempt = 0;
 const int   kRetryMaxAttempts = 14;          // 5+10+20+40+60*10 s ≈ 11 min
 
 gboolean retryRegister(gpointer);
+void subscribeDisplay();   // T-632, below
 void scheduleRetry() {
   int delay = 5 << (gRetryAttempt < 4 ? gRetryAttempt : 4);
   if (delay > 60) delay = 60;
@@ -805,6 +811,7 @@ gboolean retryRegister(gpointer) {
   if (jihad::startOnce(gRetryName, gRetryLoop, /*verbose*/false)) {
     printf("[jihad-bs] luna: registered on retry %d — the hub has the role now\n", gRetryAttempt);
     LunaServiceReadWebosProxy();
+    subscribeDisplay();
   } else if (gRetryAttempt >= kRetryMaxAttempts) {
     printf("[jihad-bs] luna: still not registered after %d retries — giving up; no Luna service "
            "(clear cache/cookies and toasts are OFF) until this daemon is restarted\n",
@@ -821,6 +828,7 @@ void LunaServiceSetThumbnailFn(LunaThumbnailFn fn) { gThumbnailFn = fn; }
 void LunaServiceSetPrintFn(LunaPrintFn fn) { gPrintFn = fn; }
 void LunaServiceSetCertificateFn(LunaCertificateFn fn) { gCertificateFn = fn; }
 void LunaServiceSetMediaKeyFn(LunaMediaKeyFn fn) { gMediaKeyFn = fn; }
+void LunaServiceSetDisplayFn(LunaDisplayFn fn) { gDisplayFn = fn; }
 
 // ── webOS's proxy setting (cavekit-proxies-certs.md R1) ──────────────────────────────────────
 // One read of com.palm.connectionmanager/getNwProxiesConfig on the private bus, answered to
@@ -837,6 +845,43 @@ bool onWebosProxy(LSHandle*, LSMessage* msg, void*) {
   jihad::NotifyChromeGlobal("jihad-webos-proxy",
                             pl ? pl : "{\"returnValue\":false,\"errorText\":\"empty reply\"}");
   return true;
+}
+}  // namespace
+
+// ── the display's state (T-632) ─────────────────────────────────────────────────────────────
+// com.palm.display/control/status with {"subscribe":true} answers at once with the state and then pushes an "event" on
+// every change: displayOn, displayOff, displayDimmed (still lit), displayInactive. Only a change between lit and off
+// reaches the server. A subscription that cannot be made leaves the pages painting as before.
+namespace {
+int gDisplayOn = -1;
+bool onDisplayStatus(LSHandle*, LSMessage* msg, void*) {
+  const char* pl = gApi.MessageGetPayload ? gApi.MessageGetPayload(msg) : nullptr;
+  if (!pl) return true;
+  int on = -1;
+  if (strstr(pl, "\"displayOff\"") || strstr(pl, "\"state\":\"off\"") || strstr(pl, "\"state\": \"off\"")) on = 0;
+  else if (strstr(pl, "\"displayOn\"") || strstr(pl, "\"displayDimmed\"") || strstr(pl, "\"state\":\"on\"") ||
+           strstr(pl, "\"state\": \"on\"") || strstr(pl, "\"state\":\"dimmed\"") || strstr(pl, "\"state\": \"dimmed\"")) on = 1;
+  if (on < 0 || on == gDisplayOn) return true;
+  gDisplayOn = on;
+  printf("[jihad-bs] display: %s\n", on ? "on" : "off");
+  if (gDisplayFn) gDisplayFn(on == 1);
+  return true;
+}
+void subscribeDisplay() {
+  LSHandle* h = gHandle;
+  if (!h && gPalm && gApi.PalmServiceGetPrivateConnection) h = gApi.PalmServiceGetPrivateConnection(gPalm);
+  if (!h || !gApi.Call || !gApi.MessageGetPayload) {
+    printf("[jihad-bs] display: no subscription (%s); pages paint with the screen off\n", !h ? "not on the bus" : "liblunaservice.so lacks LSCall");
+    return;
+  }
+  LSErrorBuf e; memset(&e, 0, sizeof e);
+  if (gApi.ErrorInit) gApi.ErrorInit(&e);
+  unsigned long token = 0;
+  if (!gApi.Call(h, "palm://com.palm.display/control/status", "{\"subscribe\":true}", onDisplayStatus, nullptr, &token, &e))
+    printf("[jihad-bs] display: the status subscription failed (code=%d); pages paint with the screen off\n", errCode(e));
+  else
+    printf("[jihad-bs] display: subscribed to com.palm.display's status\n");
+  if (gApi.ErrorFree) gApi.ErrorFree(&e);
 }
 }  // namespace
 
@@ -863,7 +908,7 @@ void LunaServiceReadWebosProxy() {
 }
 
 bool LunaServiceStart(const std::string& serviceName, GMainLoop* loop) {
-  if (startOnce(serviceName, loop, /*verbose*/true)) { LunaServiceReadWebosProxy(); return true; }
+  if (startOnce(serviceName, loop, /*verbose*/true)) { LunaServiceReadWebosProxy(); subscribeDisplay(); return true; }
   // Retry only when there is a bus library to retry with; "no liblunaservice.so" (the desktop
   // build) is permanent.
   if (loop && gApi.lib && (gApi.RegisterPalmService || gApi.Register)) {

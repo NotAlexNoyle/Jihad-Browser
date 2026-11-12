@@ -1165,6 +1165,11 @@ bool JihadBrowserServer::mediaKeyForActivePage(const std::string& key) {
   return p && p->mediaKey(key);
 }
 
+void JihadBrowserServer::setDisplayOn(bool on) {
+  for (auto& kv : mPages) if (kv.second.page) kv.second.page->setDisplayOn(on);
+  if (on && mWakeHook) mWakeHook();
+}
+
 // A thumbnail of the page the user is in, written to `path` at that page's next paint. The
 // card sends pageFocused(true) immediately before asking, so this is its own page even with
 // several cards open; with no such card it falls back to the newest connection.

@@ -1294,6 +1294,24 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   mNeedsPaint = true;
 }
 
+// T-632: with the screen off nothing this page paints can be seen (chain 17: the WebGL cube composed and published 25
+// fps to a dark screen). The page is throttled as a background tab is (timers and animation frames at a second; its
+// media plays on) and paints nothing; with the screen back the whole frame is painted again, as after a thaw. A card
+// frozen meanwhile stays frozen.
+void BrowserPageGoanna::setDisplayOn(bool on) {
+  if (mDisplayOff == !on) return;
+  FrameLockGuard frameLock;
+  mDisplayOff = !on;
+  if (!on) {
+    if (mPage && !mFrozen) mPage->SetActive(false);
+    return;
+  }
+  mBufFull[0].valid = mBufFull[1].valid = mBufFull[2].valid = false;
+  mDamageValid = false; mDamageForceFull = true;
+  if (mPage && !mFrozen) mPage->SetActive(true);
+  mNeedsPaint = true;
+}
+
 bool BrowserPageGoanna::findString(const char* text, bool forward) {
   return mPage && text && mPage->Find(text, forward);
 }
@@ -1307,7 +1325,7 @@ void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
   int s = slotForKey(sharedBufferKey);
   if (s >= 0 && mXConsumed[s] > 0) --mXConsumed[s];   // T-515: the express hook applied this return already
   else if (s >= 0) mInFlight[s] = false;
-  if (mNeedsPaint && !mFrozen) maybePaint();
+  if (mNeedsPaint && !mFrozen && !mDisplayOff) maybePaint();
 }
 
 // Every navigation lands at the top, on BOTH sides of the YAP boundary. Stock isis reset via the
@@ -1619,7 +1637,7 @@ void BrowserPageGoanna::gpuCriticalEnd(const char* why) {
 void BrowserPageGoanna::zoomBackKeep(double newZoom) {
   FrameLockGuard frameLock;
   static const bool sOff = getenv("JIHAD_GPU_NO_ZOOM_BACK") != nullptr;
-  if (sOff || !mPage || !mPage->GpuPath() || mFrozen || !mShownKey || !mXSnap.ok) return;
+  if (sOff || !mPage || !mPage->GpuPath() || mFrozen || mDisplayOff || !mShownKey || !mXSnap.ok) return;
   if (mZoomBack.ok && mZoomBack.pubSeq == mPubSeq) return;   // this very frame is kept already
   // the shown frame from the express lane's snapshot of the segments (attached once, sized without the trailer)
   const XSnap& S = mXSnap;
@@ -1879,7 +1897,7 @@ __attribute__((optimize("O2"))) bool BrowserPageGoanna::overviewStep(int64_t now
   if (!zb.ok) return false;
   const bool fresh = o.forSeq != zb.pubSeq;
   if (!fresh && o.tried) return false;   // posted, or given up, for this kept frame
-  if (!mPage->GpuPath() || !mPage->OverviewReady() || mFrozen || !S.ok || S.popups || mXFailures >= 3 || mGpuRootless) return false;
+  if (!mPage->GpuPath() || !mPage->OverviewReady() || mFrozen || mDisplayOff || !S.ok || S.popups || mXFailures >= 3 || mGpuRootless) return false;
   // the tree is the zoom in's old one only until the paint at the new resolution: once that is in, no job
   if (mXTreeRes > 1.0005) { o = Overview(); o.forSeq = zb.pubSeq; o.tried = true; return false; }
   // the card is zoomed in past a resolution of 1 (else nothing will replace the tiles, and no zoom back needs it)
@@ -5066,7 +5084,7 @@ void BrowserPageGoanna::maybePaint() {
               (long)(jihadNowMs() - mGpuZoomHoldMs), (int)mFrozen, (int)mNeedsPaint, mGpuJobs.size(),
               (int)(mPage && mPage->PaintingSuppressed()), (int)mInFlight[0], (int)mInFlight[1], (int)mInFlight[2]);
   }
-  if (mFrozen) return;                       // card backgrounded: don't paint
+  if (mFrozen || mDisplayOff) return;       // card backgrounded or the screen off (T-632): don't paint
   if (jihadDrag565On()) {
     // T-637: the drag's end (no position for the hold), then the frame at rest in full colour: as a popup's close
     // and T-513's late write, every slot painted whole again, once, when 565 rows were read since the last time
@@ -5791,7 +5809,7 @@ void BrowserPageGoanna::expressReturn(int sharedBufferKey) {
 // then only fills the main thread's stalls).
 bool BrowserPageGoanna::xLeads(int64_t now) {
   static const long sLead = getenv("JIHAD_GPU_EXPRESS_LEAD_MS") ? atol(getenv("JIHAD_GPU_EXPRESS_LEAD_MS")) : 120;
-  if (sLead <= 0 || !mPage || !mPage->GpuPath() || !mPage->ExpressReady() || mFrozen || !mXSnap.ok || mXSnap.popups ||
+  if (sLead <= 0 || !mPage || !mPage->GpuPath() || !mPage->ExpressReady() || mFrozen || mDisplayOff || !mXSnap.ok || mXSnap.popups ||
       mXFailures >= 3 || !mXMainPubMs)
     return false;
   int64_t wantMs;
@@ -5822,7 +5840,7 @@ bool BrowserPageGoanna::expressStep(int64_t now) {
     }
     return true;
   }
-  if (!mPage || !mPage->GpuPath() || !mPage->ExpressReady() || mFrozen || !mXSnap.ok || mXSnap.popups || mXFailures >= 3) {
+  if (!mPage || !mPage->GpuPath() || !mPage->ExpressReady() || mFrozen || mDisplayOff || !mXSnap.ok || mXSnap.popups || mXFailures >= 3) {
     jihadXNote("not ready (no snapshot, popups, frozen or failed)");
     return false;
   }
@@ -6495,7 +6513,7 @@ bool BrowserPageGoanna::isBusy() const {
   if (jihad_pulse_active_streams && jihad_pulse_active_streams() > 0) return true;
   // A backgrounded card paints nothing (maybePaint returns early), and mNeedsPaint can stay set
   // for as long as it is frozen — which must not hold the fast tick for a card nobody can see.
-  if (mFrozen) return false;
+  if (mFrozen || mDisplayOff) return false;
   if (mNeedsPaint || mDirtyPending || mGeometryDirty || mBlankRetryAtMs) return true;
   // T-502: the compositor asked for a composite that has not been pulled yet (a layer update,
   // an animation): the fast tick, or an animated page pulls once a second.

@@ -221,6 +221,7 @@ public:
   // is deleted now and this page perhaps only at the tick's end
   void expressDetach();
   void freeze();                           // YAP: freeze (card backgrounded — pause paint)
+  void setDisplayOn(bool on);              // T-632: the screen off throttles the page and paints nothing
   void thaw(int key1, int key2, int size); // YAP: thaw (reattach buffers, resume)
   // Re-thaw onto the buffers we already hold. The inject channel called thaw(0,0,0), and
   // thaw's own guard is `ok = key1 && ...`, so that could never un-freeze — injected `freeze`
@@ -785,6 +786,7 @@ private:
   int64_t            mLastTitleEmitMs = 0;     // when a title last went to the card
   std::string        mLastTitleSent;           // and which (a repeat is not sent)
   bool               mFrozen;           // card backgrounded: skip painting
+  bool               mDisplayOff = false;   // T-632: the screen is off: skip painting, the page throttled
   bool               mHadContent;       // a non-blank frame has been produced (suppress blanks over it)
   bool               mWasSuppressed = false;   // the engine held its first paint at the last look
   int64_t            mSuppressedSinceMs = 0;   // since when (frames are held at most 1 s of it)

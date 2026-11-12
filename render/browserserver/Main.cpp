@@ -460,6 +460,9 @@ int main(int argc, char** argv) {
   jihad::LunaServiceSetMediaKeyFn([](const std::string& key) -> bool {   // T-601
     return sThumbServer && sThumbServer->mediaKeyForActivePage(key);
   });
+  jihad::LunaServiceSetDisplayFn([](bool on) {   // T-632
+    if (sThumbServer) sThumbServer->setDisplayOn(on);
+  });
   // webOS's proxy setting is read on this connection; a component asks for it again through
   // DialogService (cavekit-proxies-certs.md R1).
   jihad::SetWebosProxyReader(&jihad::LunaServiceReadWebosProxy);

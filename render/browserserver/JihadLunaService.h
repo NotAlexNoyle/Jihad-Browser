@@ -74,6 +74,12 @@ void LunaServiceSetCertificateFn(LunaCertificateFn fn);
 typedef bool (*LunaMediaKeyFn)(const std::string& key);
 void LunaServiceSetMediaKeyFn(LunaMediaKeyFn fn);
 
+// T-632: the display going off and on (palm://com.palm.display/control/status, subscribed once the service is up):
+// with the screen off the pages are throttled and paint nothing (chain 17: the WebGL cube composed 25 fps to a dark
+// screen). Set by the server before LunaServiceStart.
+typedef void (*LunaDisplayFn)(bool on);
+void LunaServiceSetDisplayFn(LunaDisplayFn fn);
+
 // Read webOS's own proxy setting (com.palm.connectionmanager/getNwProxiesConfig) once; the
 // answer, or a returnValue:false saying why there is none, is raised to the components as the
 // observer topic "jihad-webos-proxy" (cavekit-proxies-certs.md R1). Main loop only.

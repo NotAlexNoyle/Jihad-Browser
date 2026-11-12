@@ -83,6 +83,52 @@ phones too. That legacy engine port is the base the phone rows above build on.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## 2026-11-11 (late) — chains 13-19 read, Mochi minified, PGO the bundle's default, GCC 12 built, the scoreboard detached (READ FIRST)
+
+**State:** main ahead of Gitea, NOT pushed (the owner: `bash .cavekit/handoff-2026-11-08/push.sh`). Engine branch
+`jihad/uxp-RB_20261027` at `c2f9aa810c`; **the gitlink is the owner's to bump**.
+
+**Settled since the section below (build-site has every number):**
+- **KEPT: T-618 Mochi minified** (chain 13b, `docs/rounds/mochi-minify-2026-11-11`): cold launch 3.2 s against 4.7,
+  frames the same. `build-mochi-ipk.sh` minifies by default (`MOCHI_MINIFY=0` = debug loader). `push-card-js.sh mochi`
+  rebuilds and pushes build/app.js; `card-selftest.sh mochi push` puts the debug index in (the hook loads through
+  source/package.js) and `restore` puts the minified one back.
+- **PGO is the bundle's default:** `build/webos-oe/engine-dist.sh` (`jihad_engine_dist`) picks the PGO dist unless a
+  plain libxul is newer (warns); make-device-bundle.sh and push-engine-update.sh source it, and the latter strips with
+  `$STRIP -o` straight from the build. The use build was redone on today's engine (18:43).
+- NOT ADOPTED: T-638 SetWindow dedup (even), T-634 the kernel's MemAvailable (a constant 50 MB threshold shift),
+  T-628 decode 200000. T-635: nothing to adopt (the vm writeback values are already the kernel defaults; chatthreader
+  is not running).
+- **T-646:** the host sets' tables cached as `.idx` (device: 66-92 ms against 930-1050), then paths.kv / excrules.kv /
+  site.kv as KeyedBlob (`.kidx`), meta.json 775 KB to 24 KB; old caches migrate on first read. Desktop xpcshell
+  passed; the device connect timings are chain 15b's blocker-load round.
+- **T-632:** the daemon subscribes to `palm://com.palm.display/control/status` and stops painting with the screen
+  off (chain 17 had shown 25 fps published to a dark screen). Built; chain 15b verifies it.
+- **T-613:** adapter log lines carry `[variant]`. Chain 15: the Enyo first launch started the job and connected after
+  10 retries (~8 s); Mochi/Mojo inconclusive (a stale log read). If 15b confirms a slow first start, a "starting the
+  engine" card state replaces the error panel.
+- **T-633 GCC 12:** `build/webos-oe/toolchain/out-toolchain-gcc12` (GCC 12.3.0, glibc 2.23, crosstool-ng 1.26.0;
+  build.sh takes CTNG_SRC, DEFCONFIG=jihad-gcc12.defconfig, ALLOW_DOWNLOAD=1, TOOLCHAIN_OUT), engine
+  `mozconfig.goanna-arm-gcc12` (-O2). Its first link failed on a hidden `std::type_info::operator==` in ICU; fixed by
+  engine `c2f9aa810c`. Stripped libxul 42.2 MB against 42.1; it needs GLIBCXX_3.4.30, so the gcc12 libstdc++.so.6 and
+  libgcc_s.so.1 ship with it. Chain 20 compares it with GCC 9 -O2; a win needs its own PGO before it can face the
+  shipped PGO build.
+- **T-629 scoreboard:** round 1 (chain 19) lost 14 of 18 rows: the novacom session dropped under heavy pages. Now
+  `scoreboard.sh` starts `scoreboard-device.sh` detached on the device, polls its `.done` marker (240 s max) and keeps
+  each row's device log. Round 1's TSV is `scoreboard-round1.tsv` (Atlas long page: first 8.2 s, settled 21.5 s, pan
+  18.9 fps, +216 MB; stock: 3.4 / 10.7 s, 6.6 fps, +36 MB).
+
+**Device chain queue at the time of writing (sequential, background waiters in the session):**
+- chain15b: adapters pushed, first launch ×3 shells; the daemon update (T-646 kv + T-632); Wikipedia ×2 for the
+  blocker's timings (`blocker-load-2026-11-11`); WebGL screen on/off/on ×2 (`screen-off-2026-11-11/gated-run*.txt`).
+- chain18b: T-628 GC slice 40 ms, Wikipedia ×5 (`tff-prefs-2026-11-11`).
+- chain20: GCC 12 against GCC 9 -O2 via XULDIR, 4 runs of wiki/jsbench/long/start (`gcc12-2026-11-11`).
+- chain19b: the scoreboard, 3 runs.
+
+**Next:** read each chain (faster AND frames right by eye); T-627 (needs an engine without its patch); T-614 awaits the
+owner listening; T-612; T-611/T-594 (the device OMX probe); push the card JS and test the T-642/T-645 menus and the
+T-643/T-644 zoom pages (jihad-touch.html needs `jihad.zoom.allowEveryPage` false).
+
 ## 2026-11-11 (later) — the research picks built as switches (0097-0103), the audio fix, three readback paths measured, Pale Moon's items queued (READ FIRST)
 
 **What changed today (after the early section):**

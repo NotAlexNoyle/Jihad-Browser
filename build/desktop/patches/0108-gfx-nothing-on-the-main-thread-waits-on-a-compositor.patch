@@ -1,0 +1,205 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Thu, 12 Nov 2026 11:43:21 -0500
+Subject: [PATCH] gfx: nothing on the main thread waits on a compositor the
+ daemon gave up
+
+Atlas issue #3's class on Jihad (2026-11-12): with the compositor thread held in a
+"GPU call" that never returns (JIHAD_GPU_TEST_STALL_S=3600), the daemon gave the GPU
+path up at 3 s and painted in software, but the next page load blocked the main thread
+for good: nsViewManager::Refresh -> ClientLayerManager::FlushRendering ->
+PCompositorBridgeChild::SendFlushRendering, a synchronous message to the stuck thread
+(stack read with ptrace on the TouchPad). The card's close (WillClose) and a new card's
+compositor would block the same way: every card of the shell dead, SIGTERM ignored.
+
+layers::gJihadCompositorAbandoned, set by jihad_offscreen_gpu_given_up(). Once set:
+- CompositorBridgeChild's synchronous sends (FlushRendering, MakeSnapshot, Pause,
+  Resume, NotifyChildCreated, AdoptChild, WillClose, the shmem SyncWithCompositor)
+  return without sending;
+- ShadowLayerForwarder::IPCOpen() is false: no layer transaction, sync or queued;
+- a bridge's Destroy leaves it in place (its textures, transactions, WillClose and the
+  channel's close all wait on the compositor thread): those objects leak, the daemon
+  goes on;
+- PuppetWidget makes a new card's layers in software, never a compositor.
+
+On the TouchPad (docs/rounds/gpu-hang-2026-11-12): held 3600 s at job 40, then a page
+load, the card's close and a new card all went through, the main thread in poll, both
+pages painted right.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ gfx/layers/ipc/CompositorBridgeChild.cpp | 27 ++++++++++++++++++------
+ gfx/layers/ipc/CompositorBridgeChild.h   |  8 +++++++
+ gfx/layers/ipc/ShadowLayers.cpp          |  3 ++-
+ widget/PuppetWidget.cpp                  |  3 +++
+ 4 files changed, 33 insertions(+), 8 deletions(-)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeChild.cpp b/gfx/layers/ipc/CompositorBridgeChild.cpp
+index ed5c3d52c5..62adfe1e1c 100644
+--- a/gfx/layers/ipc/CompositorBridgeChild.cpp
++++ b/gfx/layers/ipc/CompositorBridgeChild.cpp
+@@ -52,6 +52,8 @@ using mozilla::gfx::GPUProcessManager;
+ namespace mozilla {
+ namespace layers {
+ 
++std::atomic<bool> gJihadCompositorAbandoned(false);
++
+ static int sShmemCreationCounter = 0;
+ 
+ static void ResetShmemCounter()
+@@ -62,7 +64,7 @@ static void ResetShmemCounter()
+ static void ShmemAllocated(CompositorBridgeChild* aProtocol)
+ {
+   sShmemCreationCounter++;
+-  if (sShmemCreationCounter > 256) {
++  if (sShmemCreationCounter > 256 && !gJihadCompositorAbandoned) {
+     aProtocol->SendSyncWithCompositor();
+     ResetShmemCounter();
+     MOZ_PERFORMANCE_WARNING("gfx", "The number of shmem allocations is too damn high!");
+@@ -116,6 +118,14 @@ CompositorBridgeChild::Destroy()
+     return;
+   }
+ 
++  // Jihad: the compositor was given up: the textures, the layer transactions, WillClose and the
++  // channel's close all wait on its thread, which may never answer. The bridge is left as it is.
++  if (gJihadCompositorAbandoned) {
++    mCanSend = false;
++    fprintf(stderr, "[jihad-gpu] compositor bridge %p closed without its compositor (given up): left in place\n", (void*)this);
++    return;
++  }
++
+   for (size_t i = 0; i < mTexturePools.Length(); i++) {
+     mTexturePools[i]->Destroy();
+   }
+@@ -745,13 +755,16 @@ bool
+ CompositorBridgeChild::SendWillClose()
+ {
+   MOZ_RELEASE_ASSERT(mCanSend);
++  if (gJihadCompositorAbandoned) {
++    return false;
++  }
+   return PCompositorBridgeChild::SendWillClose();
+ }
+ 
+ bool
+ CompositorBridgeChild::SendPause()
+ {
+-  if (!mCanSend) {
++  if (!mCanSend || gJihadCompositorAbandoned) {
+     return false;
+   }
+   return PCompositorBridgeChild::SendPause();
+@@ -760,7 +773,7 @@ CompositorBridgeChild::SendPause()
+ bool
+ CompositorBridgeChild::SendResume()
+ {
+-  if (!mCanSend) {
++  if (!mCanSend || gJihadCompositorAbandoned) {
+     return false;
+   }
+   return PCompositorBridgeChild::SendResume();
+@@ -769,7 +782,7 @@ CompositorBridgeChild::SendResume()
+ bool
+ CompositorBridgeChild::SendNotifyChildCreated(const uint64_t& id)
+ {
+-  if (!mCanSend) {
++  if (!mCanSend || gJihadCompositorAbandoned) {
+     return false;
+   }
+   return PCompositorBridgeChild::SendNotifyChildCreated(id);
+@@ -778,7 +791,7 @@ CompositorBridgeChild::SendNotifyChildCreated(const uint64_t& id)
+ bool
+ CompositorBridgeChild::SendAdoptChild(const uint64_t& id)
+ {
+-  if (!mCanSend) {
++  if (!mCanSend || gJihadCompositorAbandoned) {
+     return false;
+   }
+   return PCompositorBridgeChild::SendAdoptChild(id);
+@@ -787,7 +800,7 @@ CompositorBridgeChild::SendAdoptChild(const uint64_t& id)
+ bool
+ CompositorBridgeChild::SendMakeSnapshot(const SurfaceDescriptor& inSnapshot, const gfx::IntRect& dirtyRect)
+ {
+-  if (!mCanSend) {
++  if (!mCanSend || gJihadCompositorAbandoned) {
+     return false;
+   }
+   return PCompositorBridgeChild::SendMakeSnapshot(inSnapshot, dirtyRect);
+@@ -796,7 +809,7 @@ CompositorBridgeChild::SendMakeSnapshot(const SurfaceDescriptor& inSnapshot, con
+ bool
+ CompositorBridgeChild::SendFlushRendering()
+ {
+-  if (!mCanSend) {
++  if (!mCanSend || gJihadCompositorAbandoned) {
+     return false;
+   }
+   return PCompositorBridgeChild::SendFlushRendering();
+diff --git a/gfx/layers/ipc/CompositorBridgeChild.h b/gfx/layers/ipc/CompositorBridgeChild.h
+index 55b8d37c2d..bc26a52678 100644
+--- a/gfx/layers/ipc/CompositorBridgeChild.h
++++ b/gfx/layers/ipc/CompositorBridgeChild.h
+@@ -18,6 +18,7 @@
+ #include "nsISupportsImpl.h"            // for NS_INLINE_DECL_REFCOUNTING
+ #include "ThreadSafeRefcountingWithMainThreadDestruction.h"
+ #include "nsWeakReference.h"
++#include <atomic>                       // Jihad: gJihadCompositorAbandoned
+ 
+ namespace mozilla {
+ 
+@@ -31,6 +32,13 @@ class CompositorWidget;
+ 
+ namespace layers {
+ 
++// Jihad (Atlas issue #3's class, 2026-11-12): set when the daemon gives the GPU path up
++// (jihad_offscreen_gpu_given_up). The compositor thread may be stuck in a GPU call that never
++// returns, so from then on nothing on the main thread waits on it: no synchronous message
++// (FlushRendering, WillClose, MakeSnapshot, SyncWithCompositor...), no layer transaction, and a
++// card's bridge closes without talking to it (its objects leak, the daemon goes on).
++extern std::atomic<bool> gJihadCompositorAbandoned;
++
+ using mozilla::dom::TabChild;
+ 
+ class IAPZCTreeManager;
+diff --git a/gfx/layers/ipc/ShadowLayers.cpp b/gfx/layers/ipc/ShadowLayers.cpp
+index 7b49838ffb..1d15034691 100644
+--- a/gfx/layers/ipc/ShadowLayers.cpp
++++ b/gfx/layers/ipc/ShadowLayers.cpp
+@@ -764,7 +764,8 @@ ShadowLayerForwarder::SetLayerObserverEpoch(uint64_t aLayerObserverEpoch)
+ bool
+ ShadowLayerForwarder::IPCOpen() const
+ {
+-  return HasShadowManager() && mShadowManager->IPCOpen();
++  // Jihad: no layer transaction to a compositor given up (gJihadCompositorAbandoned)
++  return HasShadowManager() && mShadowManager->IPCOpen() && !gJihadCompositorAbandoned;
+ }
+ 
+ /**
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 81416a6a70..8998f4a9e4 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -38,6 +38,7 @@
+ #include "mozilla/gfx/JihadGpuLog.h"   // Jihad (T-512): JIHAD_GPU_LOG
+ namespace mozilla { namespace gl { extern std::atomic<uint32_t> gJihadUploads; extern std::atomic<uint64_t> gJihadUploadUs; } }   // T-517, GLUploadHelpers.cpp
+ namespace mozilla { namespace layers { extern std::atomic<uint32_t> gJihadLateWrites; } }   // T-513, CompositorOGL.cpp
++namespace mozilla { namespace layers { extern std::atomic<bool> gJihadCompositorAbandoned; } }   // CompositorBridgeChild.cpp
+ #include "base/task.h"
+ // Jihad offscreen render-document support:
+ #include "gfxContext.h"
+@@ -660,6 +661,7 @@ PuppetWidget::GetLayerManager(PLayerTransactionChild* aShadowManager,
+   if (!mLayerManager) {
+     if (JihadOffscreen()) {
+       if (JihadGpuCompositor() && !mJihadCompositorTried && !mTabChild &&
++          !mozilla::layers::gJihadCompositorAbandoned &&   // a new card after the give-up: software layers
+           gfxPlatform::UsesOffMainThreadCompositing()) {
+         // Jihad T-502: an in-process compositor behind a ClientLayerManager. Tried once: on
+         // failure CreateCompositor leaves mLayerManager null and the software path below
+@@ -1529,6 +1531,7 @@ MOZ_EXPORT void
+ jihad_offscreen_gpu_given_up()
+ {
+   sJihadGpuGivenUp = true;
++  mozilla::layers::gJihadCompositorAbandoned = true;   // nothing on the main thread waits on the compositor again
+ }
+ // T-513 (review): how many reads of a given-up frame had already written into its slot (a GPU stall
+ // inside glReadPixels outlasting the daemon's bound); the daemon repaints in software when it moves

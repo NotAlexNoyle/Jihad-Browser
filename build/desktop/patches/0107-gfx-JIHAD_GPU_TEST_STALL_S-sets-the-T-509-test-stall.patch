@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Thu, 12 Nov 2026 11:43:21 -0500
+Subject: [PATCH] gfx: JIHAD_GPU_TEST_STALL_S sets the T-509 test stall's
+ length
+
+JIHAD_GPU_TEST_STALL=<n> held the compositor thread 6 s at the nth job. The hold's
+length now comes from JIHAD_GPU_TEST_STALL_S (6 by default); a large one stands for a
+GPU driver call that never returns (Atlas issue #3's class), which the 6 s test could
+not show. The stall's line goes to stderr whatever JIHAD_GPU_LOG says.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ gfx/layers/ipc/CompositorBridgeParent.cpp | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index b06687bada..fa7a05ecf5 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -2674,9 +2674,11 @@ CompositorBridgeParent::JihadComposeAndRead(JihadFrameRequest* aReq, float aScal
+   {
+     static const int sStallAt = getenv("JIHAD_GPU_TEST_STALL") ? atoi(getenv("JIHAD_GPU_TEST_STALL")) : 0;
+     static int sJobsSeen = 0;
++    // JIHAD_GPU_TEST_STALL_S=<s>: the hold's length (6 s by default); a large one stands for a driver call that never returns
++    static const int sStallS = getenv("JIHAD_GPU_TEST_STALL_S") ? atoi(getenv("JIHAD_GPU_TEST_STALL_S")) : 6;
+     if (sStallAt > 0 && aReq && ++sJobsSeen == sStallAt) {
+-      JIHAD_GPU_LOG("[jihad-gpu] JIHAD_GPU_TEST_STALL: job %d holds the compositor thread 6 s\n", sJobsSeen);
+-      sleep(6);
++      fprintf(stderr, "[jihad-gpu] JIHAD_GPU_TEST_STALL: job %d holds the compositor thread %d s\n", sJobsSeen, sStallS);
++      sleep(sStallS);
+     }
+   }
+   if (aReq && aReq->cancelled) {

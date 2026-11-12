@@ -32,6 +32,10 @@
 #include "../goanna/JihadCrashGuard.h"     // a clean exit clears the crash guard's note
 #include "../goanna/GoannaRenderPage.h"   // T-619: the warm-up page
 #include <vector>
+#include <atomic>                // the main thread's heartbeat (the hang watchdog)
+#include <pthread.h>
+#include <sys/syscall.h>         // SYS_gettid: the main thread's /proc entry
+#include <time.h>
 
 static JihadBrowserServer* g_server = nullptr;
 
@@ -137,6 +141,47 @@ static int           g_tickFastMs = 8;
 static int           g_tickArmedMs = 0;
 static gboolean tick_cb(gpointer);
 
+// The hang watchdog (Atlas issue #3's class, 2026-11-12). A synchronous call from the main thread
+// into a thread that never answers (a GPU driver call that never returns, under the compositor)
+// leaves the daemon alive and deaf: every card of this shell dead, no restart, SIGTERM ignored.
+// The tick stamps a heartbeat; a watchdog thread exits the daemon (status 70, upstart respawns it,
+// the cards reconnect) once the tick has been silent for JIHAD_HANG_EXIT_S (60 s by default; 0 = off)
+// AND the main thread has sat in a futex wait for three checks 5 s apart. A modal dialog's nested
+// loop waits in poll and a long script runs: neither is a futex wait, neither trips it.
+static std::atomic<long> g_mainBeatMs(0);
+static std::atomic<bool> g_hangWatchOff(false);
+static pid_t g_mainTid = 0;
+static long hangNowMs() { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec * 1000L + ts.tv_nsec / 1000000; }
+static void* hangWatch(void* aLimitS) {
+  const long limitMs = (long)(intptr_t)aLimitS * 1000L;
+  char path[64]; snprintf(path, sizeof path, "/proc/self/task/%d/wchan", (int)g_mainTid);
+  int futexChecks = 0;
+  for (;;) {
+    sleep(5);
+    if (g_hangWatchOff.load()) return nullptr;
+    const long silent = hangNowMs() - g_mainBeatMs.load();
+    if (silent < limitMs) { futexChecks = 0; continue; }
+    char w[64] = "";
+    FILE* f = fopen(path, "r");
+    if (f) { if (!fgets(w, sizeof w, f)) w[0] = 0; fclose(f); }
+    if (strncmp(w, "futex", 5) == 0) ++futexChecks; else futexChecks = 0;
+    if (futexChecks >= 3) {
+      fprintf(stderr, "[jihad-bs] hang watchdog: the main thread has been in a futex wait with no tick for %ld s: exiting so the job restarts the daemon\n", silent / 1000);
+      fflush(stderr);
+      _exit(70);
+    }
+  }
+}
+static void hangWatchStart() {
+  const char* e = getenv("JIHAD_HANG_EXIT_S");
+  const long limitS = e ? atol(e) : 60;
+  if (limitS <= 0) return;
+  g_mainTid = (pid_t)syscall(SYS_gettid);
+  g_mainBeatMs.store(hangNowMs());
+  pthread_t t;
+  if (pthread_create(&t, nullptr, hangWatch, (void*)(intptr_t)limitS) == 0) pthread_detach(t);
+}
+
 static void arm_tick(int ms) {
   if (g_tickSrc) { g_source_destroy(g_tickSrc); g_source_unref(g_tickSrc); }
   g_tickSrc = g_timeout_source_new(ms);
@@ -169,6 +214,7 @@ static void jihadWakeTick() {
 }
 
 static gboolean tick_cb(gpointer) {
+  g_mainBeatMs.store(hangNowMs());   // the hang watchdog's heartbeat
   if (g_termSignal) {
     if (g_server && g_server->mainLoop()) g_main_loop_quit(g_server->mainLoop());
     return FALSE;
@@ -510,7 +556,9 @@ int main(int argc, char** argv) {
     struct timeval tv; gettimeofday(&tv, nullptr);
     fprintf(stderr, "[jihad-tl] t=%lld engine up\n", (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000);
   }
+  hangWatchStart();
   server.run();   // GLib main loop (patched YapServer::run)
+  g_hangWatchOff.store(true);   // the teardown below has its own bailout (SIGALRM)
   if (g_termSignal)
     printf("[jihad-bs] signal %d — shutting the engine down cleanly\n", (int)g_termSignal);
   // Leaving on purpose: whatever was loading is not to blame for this exit.

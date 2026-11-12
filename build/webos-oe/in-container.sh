@@ -74,7 +74,10 @@ if [ "$ARM" = 0 ]; then
 	exec "$ENGINE" run "${RUNOPTS[@]}" "${USERNS_HOST[@]}" -v "$REPO:$REPO" -w "$WD" jihad-host-tools bash "$SCRIPT" "$@"
 fi
 
-TC="$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi"
+# JIHAD_ARM_TC=<dir in the repository>: another cross toolchain at /tc (T-633's GCC 12, toolchain/jihad-gcc12.defconfig)
+TC="${JIHAD_ARM_TC:-$HERE/toolchain/out-toolchain/x-tools/arm-webos-linux-gnueabi}"
+case "$TC" in /*) ;; *) TC="$REPO/$TC" ;; esac
+case "$TC" in "$REPO"/*) ;; *) echo "!! JIHAD_ARM_TC=$TC is outside the repository" >&2; exit 2 ;; esac
 [ -x "$TC/bin/arm-webos-linux-gnueabi-gcc" ] || { echo "!! no toolchain: build/webos-oe/toolchain/build.sh" >&2; exit 2; }
 [ -d "$HERE/arm-sysroot/root/usr" ] || { echo "!! no ARM sysroot: build/webos-oe/gen-sysroot-manifest.sh --fetch, --fetch-device-libs, --assemble" >&2; exit 2; }
 [ -f "$REPO/third_party/uxp/mach" ] || { echo "!! third_party/uxp is not checked out: git submodule update --init third_party/uxp" >&2; exit 2; }

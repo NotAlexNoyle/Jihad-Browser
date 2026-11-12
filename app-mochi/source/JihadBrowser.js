@@ -1149,6 +1149,7 @@ enyo.kind({
 	jihadStageActivated: function() {
 		this._cardInFront = true;
 		if (this._mediaOn || this._videoOn) { this.setScreenHold(true); }
+		if (this._videoOn) { this.$.lockButton.show(); }   // the lock dropped on the way out comes back with a video still playing
 	},
 	jihadStageDeactivated: function() {
 		this._cardInFront = false;

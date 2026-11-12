@@ -163,6 +163,7 @@ enyo.kind({
 	resize: function() {
 		this.$.actionbar.resize();
 		this.$.view.resize();
+		if (this.$.lockButton.showing) { this.placeLockParts(); }   // a rotation during a film moves the lock with the view
 	},
 	showingChanged: function() {
 		this.inherited(arguments);
@@ -770,7 +771,11 @@ enyo.kind({
 	placeLockParts: function() {
 		var b = this.$.view.hasNode() ? this.$.view.getBounds() : null;
 		if (!b) { return; }
-		this.$.lockButton.applyStyle("top", (b.top + 12) + "px");
+		// From the Atlas app's e71fea8: players keep Exit Fullscreen and their settings in the top right corner, so in
+		// landscape the lock sits halfway down the view's right edge, its notice beside it; portrait keeps the corner.
+		var land = window.innerWidth > window.innerHeight;
+		this.$.lockButton.applyStyle("top", (land ? b.top + Math.round((b.height - 48) / 2) : b.top + 12) + "px");
+		this.$.lockNotice.applyStyle("top", (land ? Math.round((b.height - 34) / 2) : 18) + "px");
 		this.$.lockShield.applyStyle("top", b.top + "px");
 		this.$.lockShield.applyStyle("height", b.height + "px");
 	},

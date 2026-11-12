@@ -400,6 +400,7 @@ enyo.kind({
 		this.refreshDownloads();
 		this._cardInFront = true;
 		if (this._mediaOn || this._videoOn) { this.setScreenHold(true); }
+		if (this._videoOn) { this.$.browser.setVideoPlaying(true); }   // the lock dropped on the way out comes back with a video still playing
 	},
 	windowDeactivatedHandler: function() {
 		if (this.isBrowserShowing()) {

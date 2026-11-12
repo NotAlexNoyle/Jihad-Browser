@@ -592,3 +592,9 @@ input.jihad-address {
 .jihad-lock-shield { position: absolute; top: 52px; left: 0; right: 0; bottom: 0; z-index: 45; background: transparent; }
 .jihad-lock-notice { position: absolute; top: 18px; right: 72px; padding: 8px 14px; border-radius: 16px; color: #fff;
 	font-size: 16px; background: rgba(0, 0, 0, 0.7); }
+/* From the Atlas app's e71fea8: players keep Exit Fullscreen and their settings in the top right corner, so in landscape
+   the lock sits halfway down the view's right edge (the view starts 52px down), its notice beside it */
+@media (orientation: landscape) {
+	.jihad-lock-button { top: 50%; margin-top: 2px; }
+	.jihad-lock-notice { top: 50%; margin-top: -17px; }
+}

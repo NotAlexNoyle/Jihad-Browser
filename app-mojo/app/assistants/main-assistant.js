@@ -437,6 +437,7 @@ MainAssistant.prototype.activate = function (result) {
 	this.subscribeMediaKeys();
 	this.setupScreenLock();
 	if (this.mediaOn || this.videoOn) { this.setScreenHold(true); }
+	if (this.videoOn) { this.lockPart("jihad-lock-button", true); }   // the lock dropped on the way out comes back with a video still playing
 	this.adoptViewportModel();
 	if (result && result.url) {
 		this.openUrl(result.url);

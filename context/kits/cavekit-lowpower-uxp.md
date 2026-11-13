@@ -126,9 +126,12 @@ the queue).
 
 ### R6: Every result recorded, nothing kept unmeasured
 **Acceptance Criteria:**
-- [ ] `docs/research/lowpower-uxp.md` has, per lever, the numbers and the decision (kept / dropped / owner's call)
-- [ ] Every kept lever is in the build or the device prefs with a comment pointing at its measurement; every engine
-  change is a patch in the queue (cavekit-engine-update.md R1)
+- [x] `docs/research/lowpower-uxp.md` has, per lever, the numbers and the decision (kept / dropped / owner's call)
+  *(2026-11-13: §5 opens with every lever's decision and where it lives; the numbers in the chains' rows)*
+- [x] Every kept lever is in the build or the device prefs with a comment pointing at its measurement; every engine
+  change is a patch in the queue (cavekit-engine-update.md R1) *(2026-11-13: the helper pool in the jobs, -O2 and PGO in
+  `mozconfig.goanna-arm-pgo`, reduced motion and the decoder split in the platform prefs, each with its numbers; 0093 and
+  0109-0111 in the queue, `patch-queue.sh --check` 111 exact)*
 - [x] Stock webOS 3.0.5 is not on the bench: any lever whose effect may differ there is named for the owner
   *(2026-11-09: `docs/research/lowpower-uxp.md` §6 — the memory levers, the start levers, the rest-time lever)*
 **Dependencies:** R2, R3, R4, R5

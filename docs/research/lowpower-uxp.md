@@ -96,6 +96,31 @@ run to run (the ondemand governor's ramp): every CPU lever is read on the median
 
 ## 5. The levers, measured (2026-11-09 →; R2-R5)
 
+**Every lever and its decision (R6; the numbers are in the rows below, under the chain that measured them).**
+
+| lever | kit | decision | where it lives / why not |
+|---|---|---|---|
+| JS helper pool for two cores (2 helpers, 1 Ion, 1 parse) | R2 | **kept** | the three jobs (`packaging/gen-variant-scripts.sh`); the parse cap live only since engine 0111 (2026-11-13), which also keeps parses below the pool |
+| helpers at nice 5 | R2 | dropped | no effect |
+| -O2 | R2 | **kept** (the owner's "-O2 + PGO") | `mozconfig.goanna-arm-pgo` |
+| PGO | R2 | **kept**, the bundle's default | `mozconfig.goanna-arm-pgo`, §7, `tools/device/pgo-profile.sh`; retrained at every milestone |
+| `-mtune=cortex-a9` (T-608) | R2 | dropped | PGO gives more on every row |
+| GCC 12.3 (T-633) | R2 | dropped | GCC 9.4 + PGO ahead |
+| jemalloc `nnff`, `ff`, `nn` | R3 | dropped | `nnff` and `nn` slow Wikipedia's pan; `ff` gains nothing |
+| purge 5 s after a load | R3 | dropped | paint +38 %, no PSS gain |
+| predictor off, GC empty chunks 4, surface expiry 30 s | R3 | dropped | nothing beyond the spread / PSS +2.4 % |
+| image cache 8 MB, decode chunk 64 KB, parser flush 250 ms | R3 | dropped | a first-round gain gone in chain 5's second |
+| reduced motion | R4 | **kept**, on with a setting (the owner) | `packaging/prefs/jihad-platform-prefs.js` (`ui.prefersReducedMotion`), the Settings page's "Page animations" row |
+| lazy images | R4 | not carried (the owner) | load +17 %, PSS +7 % on the long page |
+| `image/jxl` in the Accept headers | R4 | **kept** | the engine decodes JPEG XL on the device |
+| VP8/VP9 on libvpx, FLAC on ffvpx | R4 | **kept** | engine 0093 + `media.ffvpx.vpx.enabled=false` in the platform prefs; finger test `codecs-play` |
+| omni.ja | R5 | dropped | no start gain once the copy is counted |
+| no accessibility, no devtools server (the lean engine) | R5 | not taken | within the spread |
+| Skia content backend | R5 | dropped | paint +30 %, nothing gained; Cairo stays |
+| chains 7-12's research picks (Ion warm-ups, text flags, inline strings, compression, bidi, GC timers, tickle, 565 express, NPixmap tiles, paint delay, video queue, preload, Flash dedup, MemAvailable guard, cache cap, lock_surface, GC slices) | — | dropped | each row below |
+| Mochi minified (T-618), the blocker's indexed cache (T-646) | — | **kept** | `build-mochi-ipk.sh`; the blocker's `.idx`/`.kv` caches |
+
+
 Each lever alone, by `lowpower-bench.sh LEVER=<name> EXTRA_ENV="<words>"`, five runs, read against §4's medians; kept
 only where it gains without a loss elsewhere beyond the spread. A run a USB drop interrupted (run 5 of the first
 lever) comes out NA and is left out. **The hour matters:** the first two levers, measured in the hour after the

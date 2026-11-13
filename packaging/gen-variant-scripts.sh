@@ -850,7 +850,8 @@ script
 	# The JS helper pool for two cores (cavekit-lowpower-uxp.md R2, T-556; docs/research/lowpower-uxp.md §5): two
 	# helpers, one Ion compile and one off-thread parse at a time instead of upstream's cores + 4. Two interleaved
 	# rounds on desktop Wikipedia: the load -10 % / -4 %, the main thread's sum over it -10 % / -5 %, jsbench's loop
-	# -14 % both times. Unset (delete the three words) for upstream's pool.
+	# -14 % both times. Unset (delete the three words) for upstream's pool. The parse cap is live only since engine 0111
+	# (2026-11-13; before it the engine returned 2 for under four cores), which keeps parses below the pool: GitHub's deadlock.
 	exec env ICU_DATA="$HL" HOME="$STATE" \
 	         JIHAD_BS_NAME=@@YAP@@ JIHAD_OFFSCREEN=1 JIHAD_DISABLE_OMTC=1 \
 	         JIHAD_GPU_COMPOSITOR=1 JIHAD_GPU_EXPRESS=1 JIHAD_GPU_CPU_SCALE=1 \

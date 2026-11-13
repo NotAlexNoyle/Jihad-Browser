@@ -83,6 +83,17 @@ phones too. That legacy engine port is the base the phone rows above build on.
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
 
+## THE ORDER OF WORK (the owner, 2026-11-13) — READ FIRST
+
+- **Finish the browser, then optimise.** "if the browser is not done, finish implementing it, then optimize after.
+  otherwise youre just gonna have to optimize over and over". Implementation, correctness and defect rows first;
+  optimisation rows are DEFERRED on the build site (T-505, T-592, T-604, T-628, T-629, T-652), not dropped.
+- **PGO the same**: no retrain at milestones until the browser is done. Engine changes build incrementally in
+  `obj-jihad-goanna-arm-pgo` on the existing profile (trained on fac2b0f814); a changed function loses its profile
+  with a warning.
+- **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
+  2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
+
 ## 2026-11-13 — GitHub's hang fixed for good (engine 0109-0111), T-598 done, Atlas leak PR staged, milestone PGO under way (READ FIRST)
 
 - **Engine 0110 + 0111 (pin fac2b0f814, queue 111 exact).** 0109 alone still hung GitHub in 6 of 12 loads: the GC

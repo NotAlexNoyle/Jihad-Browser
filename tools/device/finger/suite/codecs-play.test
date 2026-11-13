@@ -2,7 +2,7 @@
 # ffvpx, MP3 through the platform; each clip plays to `ended` (jihad-codecs.html: one row per format, #r<k>)
 id: codecs-play
 section: Media and sound
-item: VP8 and VP9 video and FLAC and MP3 audio play to their end on the shipped prefs (libvpx for VP8/VP9, ffvpx kept for FLAC)
+item: VP8 and VP9 video and FLAC, MP3 and AAC audio play to their end on the shipped prefs (libvpx for VP8/VP9, ffvpx kept for FLAC)
 shells: enyo
 page: http://192.168.1.245:8077/jihad-codecs.html
 kit: cavekit-lowpower-uxp.md R4
@@ -17,3 +17,5 @@ wait text r8 'flac canPlay=' 3
 wait text r8 'result=ended' 3
 wait text r9 'mp3 canPlay=' 3
 wait text r9 'result=ended' 3
+wait text r10 'aac canPlay=' 3
+wait text r10 'result=ended' 3

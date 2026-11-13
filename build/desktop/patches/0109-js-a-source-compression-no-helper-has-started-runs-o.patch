@@ -1,0 +1,72 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Thu, 12 Nov 2026 19:58:28 -0500
+Subject: [PATCH] js: a source compression no helper has started runs on the
+ thread that waits for it
+
+The daemon deadlocked on GitHub's module scripts (2026-11-12, on the TouchPad, stacks read
+with ptrace): the main thread in BytecodeCompiler::maybeCompleteCompressSource waiting for
+its source's compression, and both helper threads the same, each in an off-thread module
+parse (ModuleParseTask -> CompileModule) waiting for its own. Compression runs on a helper,
+and the job's pool is two threads (JIHAD_JS_HELPER_THREADS=2): with every helper waiting
+that way, nothing was left to run the compressions. Upstream's default pool (cores + 4)
+leaves slack; any pool can run out.
+
+SourceCompressionTask::complete() now takes a task no helper has started off the worklist
+and runs it here; only one a helper is already running is waited for.
+
+On the TouchPad, the job's caps and the watchdog off: the shipped engine hung on the first
+GitHub load; with this, 12 loads in two rounds, none hung.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ js/src/vm/HelperThreads.cpp | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/js/src/vm/HelperThreads.cpp b/js/src/vm/HelperThreads.cpp
+index 6ead1d32de..0b765a9e23 100644
+--- a/js/src/vm/HelperThreads.cpp
++++ b/js/src/vm/HelperThreads.cpp
+@@ -1769,6 +1769,12 @@ SourceCompressionTask::complete()
+     if (!active())
+         return true;
+ 
++    // Jihad (2026-11-12): a task no helper has started is taken off the list and run here, on this
++    // thread; only one a helper is already running is waited for. Tasks on the helpers wait for their
++    // own sources' compression too (an off-thread module parse), so with every helper busy that way
++    // nothing was left to run the compressions: GitHub's module scripts deadlocked the daemon on the
++    // job's two-thread pool (JIHAD_JS_HELPER_THREADS=2), the main thread and both helpers waiting here.
++    bool runHere = false;
+     {
+         AutoLockHelperThreadState lock;
+         JihadCompressMode mode = JihadJsCompressMode();
+@@ -1784,9 +1790,17 @@ SourceCompressionTask::complete()
+                 }
+             }
+         }
++        auto& queued = HelperThreadState().compressionWorklist(lock);
++        for (size_t i = 0; i < queued.length(); i++) {
++            if (queued[i] == this) {
++                queued.erase(&queued[i]);
++                runHere = true;
++                break;
++            }
++        }
+         int64_t start = mode == JihadCompressMode::Log ? PRMJ_Now() : 0;
+         bool waited = false;
+-        while (HelperThreadState().compressionInProgress(this, lock)) {
++        while (!runHere && HelperThreadState().compressionInProgress(this, lock)) {
+             waited = true;
+             HelperThreadState().wait(lock, GlobalHelperThreadState::CONSUMER);
+         }
+@@ -1796,6 +1810,9 @@ SourceCompressionTask::complete()
+         }
+     }
+ 
++    if (runHere)
++        result = work();
++
+     if (result == Success) {
+         MOZ_ASSERT(resultString);
+         ss->setCompressedSource(mozilla::Move(*resultString), ss->length());

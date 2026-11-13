@@ -105,9 +105,10 @@ the queue).
 - [x] The GRE packed into `omni.ja` tried: start to first frame, cold and warm; kept if faster *(2026-11-10: not faster —
   cold +60 % against the loose GRE in place, of which +51 % is any copied directory's; the card's first frame -8 % cold;
   dropped)*
-- [ ] The content backend A/B (Skia vs the current) measured for paint time on Wikipedia and judged by eye for text
-  *(2026-11-10: not yet measured — set as a profile pref it never took effect (the eye frames are pixel-identical); runs
-  again as a default pref)*
+- [x] The content backend A/B (Skia vs the current) measured for paint time on Wikipedia and judged by eye for text
+  *(chain 5, 2026-11-10, as a default pref (GPREF) so it took effect: Skia's frame differs from Cairo's in 21 888 pixels,
+  anti-aliasing only, both right by eye (`docs/rounds/lowpower-2026-11-10/eye-wiki-g-*.png`); paint 4.5 s against 3.4
+  (+30 %), nothing gained: Cairo stays, by the owner's rule that a change is kept only if it is faster)*
 - [x] Removing accessibility and the devtools server tried only if no shipped feature or supported add-on needs them
   (checked against cavekit-addons-extensions.md), with libxul size and start time *(2026-11-10: the add-ons kit names
   neither; the lean libxul is 419 KB smaller stripped and starts cold 8 % sooner, within the spread, warm the same: not

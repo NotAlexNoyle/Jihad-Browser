@@ -1,0 +1,19 @@
+# The decoders on the shipped prefs: VP8 and VP9 through libvpx (media.ffvpx.vpx.enabled=false, engine 0093), FLAC through
+# ffvpx, MP3 through the platform; each clip plays to `ended` (jihad-codecs.html: one row per format, #r<k>)
+id: codecs-play
+section: Media and sound
+item: VP8 and VP9 video and FLAC and MP3 audio play to their end on the shipped prefs (libvpx for VP8/VP9, ffvpx kept for FLAC)
+shells: enyo
+page: http://192.168.1.245:8077/jihad-codecs.html
+kit: cavekit-lowpower-uxp.md R4
+# the page plays each clip by itself, with sound: the shipped default refuses that (T-603), so this test turns it on
+prefs: jihad.media.autoplayWithSound=true
+wait text state 'DONE' 240
+wait text r0 'vp8 canPlay=' 3
+wait text r0 'result=ended' 3
+wait text r1 'vp9 canPlay=' 3
+wait text r1 'result=ended' 3
+wait text r8 'flac canPlay=' 3
+wait text r8 'result=ended' 3
+wait text r9 'mp3 canPlay=' 3
+wait text r9 'result=ended' 3

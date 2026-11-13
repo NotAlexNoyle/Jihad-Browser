@@ -127,14 +127,32 @@ static const char* const kJihadAudioOffScript =
 // Runs repeatedly WHILE media plays. audiod moves a pulse volume that our forced pcm_output->speaker
 // route bypasses, so the level would otherwise freeze at its playback-start value; mirror the live
 // system media volume onto the speaker output level (numid 74/86) so volume-button presses track.
+// The amp too (T-614): the three variants' daemons share it, and one whose card closed mutes it when its
+// plugin exits, seconds later, while another variant plays (2026-11-13: amp off under a running Flash tone).
 static const char* const kJihadAudioVolScript =
   "#!/bin/sh\n"
   "A=\"/usr/bin/amixer -c 0\"; L=\"/usr/bin/luna-send -n 1\"\n"
+  "$A cset numid=87 on >/dev/null 2>&1\n"
   "V=$($L palm://com.palm.audio/media/getVolume '{}' 2>/dev/null | sed -n 's/.*\"volume\":\\([0-9]*\\).*/\\1/p')\n"
   "[ -z \"$V\" ] && exit 0\n"
   "lvl=$((V*63/100))\n"
   "$A cset numid=74 $lvl >/dev/null 2>&1\n"
   "$A cset numid=86 $lvl >/dev/null 2>&1\n"
+  "exit 0\n";
+
+// T-614: webOS's audio policy opens a stream from a process it does not know at 0 % (-inf dB), and the plugin runs as
+// ld-2.23.so: Flash's stream sat on pcm_output at 0 % with the amp and the route on, silent (the owner, 2026-11-13,
+// heard the tone once its stream was raised by hand). The engine's own streams are named "Jihad Browser"
+// (pulse.props) and keep their volume; the plugin's, through ALSA's pulse plugin, are "ALSA plug-in [ld-2.23.so]".
+// Run once a second while a plugin has a pulse stream: each sound a movie opens can be a new stream at 0 %.
+static const char* const kJihadFlashVolScript =
+  "#!/bin/sh\n"
+  "# Written by the daemon. Raises the plugin's pulse streams from the audio policy's 0 % to 100 % (the speaker level\n"
+  "# itself follows the media volume through audio-on.sh / audio-vol.sh).\n"
+  "/usr/bin/pactl list 2>/dev/null | awk '/^[^ \\t]/ {i=\"\"} /^Sink Input #/ {i=substr($3,2)}\n"
+  "  i != \"\" && /application.name = \"ALSA plug-in \\[ld-2.23.so\\]\"/ {print i}' | sort -u | while read i; do\n"
+  "  /usr/bin/pactl set-sink-input-volume \"$i\" 65536 >/dev/null 2>&1\n"
+  "done\n"
   "exit 0\n";
 
 static void jihadWriteFile(const std::string& path, const char* content, mode_t mode) {
@@ -217,11 +235,15 @@ static void* jihadAudioPollThread(void*) {
   const std::string onp = sd + "/audio-on.sh";
   const std::string offp = sd + "/audio-off.sh";
   const std::string volp = sd + "/audio-vol.sh";
+  const std::string flashp = sd + "/flash-vol.sh";
   int prev = 0, tick = 0, flash = 0, scan = 0;
   for (;;) {
     usleep(200 * 1000);
     if (!jihad_pulse_active_streams) { continue; }
-    if ((scan++ % 5) == 0) flash = jihadFlashAudioStreams();   // once a second: a /proc scan
+    if ((scan++ % 5) == 0) {   // once a second: a /proc scan, and the plugin's streams raised while it has any
+      flash = jihadFlashAudioStreams();
+      if (flash > 0) jihadRunAudioScript(flashp.c_str());
+    }
     int n = jihad_pulse_active_streams() + flash;
     gJihadMediaPlaying = n > 0 ? 1 : 0;
     if (n > 0 && prev == 0) { jihadRunAudioScript(onp.c_str()); tick = 0; }
@@ -247,6 +269,7 @@ static void jihadStartAudioPoll() {
   jihadWriteFile(sd + "/pulse.props", kJihadPulseProps, 0644);
   jihadWriteFile(sd + "/audio-on.sh", kJihadAudioOnScript, 0755);
   jihadWriteFile(sd + "/audio-vol.sh", kJihadAudioVolScript, 0755);
+  jihadWriteFile(sd + "/flash-vol.sh", kJihadFlashVolScript, 0755);
   const std::string offp = sd + "/audio-off.sh";
   jihadWriteFile(offp, kJihadAudioOffScript, 0755);
   jihadRunAudioScript(offp.c_str());

@@ -200,7 +200,10 @@ for v in $VARIANTS; do
     esac
     push_verified "$BUNDLE/$f" "$HL/$f" "$(md5sum "$BUNDLE/$f" | cut -c1-32)"
   done
-  say "[$v] starting $J"
+  # Stop, then start: an open card respawns the job mid-push (the card reconnects; 2026-11-13 the Enyo job came back
+  # at 10:53:03, before the daemon's rename), and a plain start is then a no-op that leaves the OLD daemon running.
+  say "[$v] (re)starting $J"
+  novacom run file://sbin/stop -- "$J" >/dev/null 2>&1 || true
   novacom run file://sbin/start -- "$J" >/dev/null 2>&1 || true
   trap 'rm -rf "$TMP"' EXIT           # variant done: back to plain temp cleanup
 done

@@ -5,6 +5,6 @@ shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-audio-long.swf
 kit: cavekit-flash.md R2
 wait rect m 30
-expect audio running 10
+expect audio audible 10
 launch http://192.168.1.245:8077/jihad-long-static.html
 expect audio closed 15

@@ -1,0 +1,18 @@
+# A real Flash game's sound reaches the speaker: Orisinal's Winterbells, tapped into from its intro (T-614: the owner's
+# "Flash games silent"; the audio policy held the plugin's stream at 0 % until the daemon raised it)
+id: flash-game-sound
+section: Media and sound
+item: A Flash game's sound is audible: Winterbells tapped into, its stream above 0 % and the speaker amp on
+shells: enyo mochi mojo
+page: http://www.ferryhalim.com/orisinal/g3/bells.htm
+needs: internet
+kit: cavekit-flash.md R9
+wait rect 'sel:embed' 40
+# a tap on the movie goes to the plugin, so no clickAt comes back: dismiss is the raw tap (the embed's centre)
+dismiss 384 295
+pause 4000
+dismiss 384 295
+pause 4000
+dismiss 384 295
+expect audio audible 20
+shoot game

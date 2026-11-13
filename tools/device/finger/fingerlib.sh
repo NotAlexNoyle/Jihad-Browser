@@ -596,18 +596,24 @@ fl_check_plugin() { # NAME [SECONDS] [want]: alive (it uses the CPU over the bou
   [ "$v" = "${3:-alive}" ] && fl_check ok "$1" "plugin-container ${p:-none}: $v (state ${s1:-?}, cpu ticks ${c0:-?} to ${c1:-?})" || fl_check FAIL "$1" "plugin-container ${p:-none}: $v, wanted ${3:-alive} (state ${s1:-?}, cpu ticks ${c0:-?} to ${c1:-?})"
 }
 # the movie's audio: a stream of the player's process open on the device's playback device, and running
-fl_audio_state() { # -> "open running|open|closed": the player's stream on PulseAudio (the ALSA plug-in's), the codec's PCM
-  local p f st
+fl_audio_state() { # -> "open running audible|open running|open|closed": the player's stream on PulseAudio (the ALSA
+  # plug-in's), the codec's PCM, and whether a person can hear it: the stream above 0 % and the speaker amp on. "open
+  # running" alone passed while the owner heard nothing (T-614, 2026-11-13: the audio policy had the stream at 0 %)
+  local p f st v
   p=$(fl_plugin_pid)
   st=closed
   if [ -n "$p" ] && pactl list 2>/dev/null | grep -q "application.process.id = \"$p\""; then st=open; fi
   for f in /proc/asound/card*/pcm*p/sub*/status; do grep -q 'state: RUNNING' $f 2>/dev/null && { [ $st = open ] && st="open running"; break; }; done
+  if [ "$st" = "open running" ]; then
+    v=$(pactl list 2>/dev/null | awk -v p="\"$p\"" '/^[^ \t]/ {i=0; vol=""} /^Sink Input #/ {i=1} i && /^\tVolume: 0:/ {vol=$3} i && /application.process.id = / && $3 == p && vol != "0%" {print "up"; exit}')
+    [ "$v" = up ] && amixer -c 0 cget numid=87 2>/dev/null | grep -q 'values=on' && st="open running audible"
+  fi
   echo "$st"
 }
-fl_check_audio() { # NAME open|running|closed [BOUND]
+fl_check_audio() { # NAME open|running|audible|closed [BOUND]
   local n s
   n=$(( ${3:-6} * 2 ))
-  while [ $n -gt 0 ]; do s=$(fl_audio_state); case "$2:$s" in open:open*|running:*running|closed:closed) fl_check ok "$1" "the movie's audio: $s"; return 0;; esac; usleep 500000; n=$((n-1)); done
+  while [ $n -gt 0 ]; do s=$(fl_audio_state); case "$2:$s" in open:open*|running:*running*|audible:*audible|closed:closed) fl_check ok "$1" "the movie's audio: $s"; return 0;; esac; usleep 500000; n=$((n-1)); done
   fl_check FAIL "$1" "the movie's audio: $s, wanted $2"
 }
 fl_wait_content() { # REGION [BOUND]: 8+ colours in the region (a slow page's first picture)

@@ -94,7 +94,8 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **T-598 done.** fingerlib counted Mojo's header gone after every drag; only a gesture that scrolled the card does now.
 - **PGO:** pgo-profile.sh deletes every .o still carrying `__gcov_init` before the use build (the gen phase left four
   xpcom/base objects under use-phase names; the use link failed). The milestone retrain (gen, TouchPad training, use)
-  runs on fac2b0f814; after it: push to the 3 shells, frame check, owner's push. The gitlink is the owner's to bump.
+  ran on fac2b0f814 (2078 profiles, use build: mismatch 0, not in profile 0) and is on the 3 shells (libxul md5 f4736d73);
+  GitHub 6 of 6 on one daemon in Enyo, rendered right in all three. The gitlink is the owner's to bump.
 - **T-651 Atlas shared-memory leak:** fix staged (not committed) on `shm-leaks` in ~/eclipse-workspace/atlas-wpe-backend,
   origin = Gitea NotAlexNoyle/atlas-wpe-backend (GitHub fork mirrors it); PR text in the session scratchpad
   `atlas-up/PR-backend.md`; not build-tested (Atlas does not rebuild from its public repos). The owner commits, pushes,

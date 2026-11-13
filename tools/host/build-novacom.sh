@@ -3,7 +3,7 @@
 #
 # Build novacom (the client) and novacomd (the USB daemon that talks to a TouchPad) into tools/host/bin/ (git-ignored).
 # novacom comes from webOS Archive's SDK (release 0.4.1), the submodule third_party/webos-sdk-redux. novacomd comes
-# from the owner's fork, NotAlexNoyle/novacomd at release 1.2.1 (the owner, 2026-11-11), fetched from Gitea at that tag
+# from the owner's fork, NotAlexNoyle/novacomd at release 1.2.2 (the owner, 2026-11-11; 1.2.2 on 2026-11-13: no novacomd older than it on the host), fetched from Gitea at that tag
 # and checked against the tag's commit. build/webos-oe/host-path.sh puts tools/host/bin first on PATH for every script
 # here, so nothing has to be installed system-wide (cavekit-device-build.md R11).
 #
@@ -53,8 +53,8 @@ fi
 # SDK's GCC15-C23-BOOL.md names -std=gnu17 as the fix, and every gcc back to 4.x takes it.
 # The fork's novacomd builds at the compiler's own default standard.
 NOVACOMD_URL=https://git.trueog.net/NotAlexNoyle/novacomd.git
-NOVACOMD_TAG=1.2.1
-NOVACOMD_COMMIT=b8c48efe9e3dfa9f3b8e7f9194cc4d41a36f3d82
+NOVACOMD_TAG=1.2.2
+NOVACOMD_COMMIT=5f2ea3e47d00debcf0e59440906a06659a01355d
 command -v git >/dev/null || { echo "!! no git (novacomd is fetched from $NOVACOMD_URL)" >&2; exit 2; }
 
 # Build in a work directory, so the submodule's checkout stays clean.

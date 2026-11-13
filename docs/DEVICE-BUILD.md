@@ -161,7 +161,7 @@ backgrounded cards. Deeper memory tuning is Phase 3.
 
 ```bash
 git clone --recurse-submodules <repo> && cd Jihad-Browser
-tools/host/build-novacom.sh                                     # novacom (the SDK 0.4.1 submodule) and novacomd (NotAlexNoyle/novacomd 1.2.1, fetched)
+tools/host/build-novacom.sh                                     # novacom (the SDK 0.4.1 submodule) and novacomd (NotAlexNoyle/novacomd 1.2.2, fetched)
 sudo -b tools/host/bin/novacomd                                 # its USB daemon, in the background
 build/webos-oe/build-all-device.sh                               # TouchPad plugged in the first time
 ```

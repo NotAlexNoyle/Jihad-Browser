@@ -61,10 +61,11 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
 *(The owner, 2026-11-11: "at the next milestone where nothing is running on the touchpad I want to use
 NotAlexNoyle/novacomd 1.2.1"; "current novacomd is installed at /usr/local/bin/novacomd and also exists in jihad browser
 build make sure those get removed or replaced".)* The daemon comes from https://git.trueog.net/NotAlexNoyle/novacomd
-(release 1.2.1, tag at `b8c48ef`). The client, novacom, stays the SDK's.
+(release 1.2.1, tag at `b8c48ef`; since 2026-11-13 release 1.2.2, tag at `5f2ea3e` — the owner: "there shouldnt even be
+a novacomd <1.2.2 binary on my system"). The client, novacom, stays the SDK's.
 **Acceptance Criteria:**
-- [x] `tools/host/build-novacom.sh` builds novacomd from the fork at tag 1.2.1, stopping if the tag is not at
-  `b8c48ef`, stamped `novacomd-1.2.1`; novacom from the SDK submodule as before; each binary moved into `tools/host/bin/`
+- [x] `tools/host/build-novacom.sh` builds novacomd from the fork at tag 1.2.2, stopping if the tag is not at
+  `5f2ea3e`, stamped `novacomd-1.2.2` (1.2.1 / `b8c48ef` until 2026-11-13); novacom from the SDK submodule as before; each binary moved into `tools/host/bin/`
   by rename, so a running script never finds it missing *(2026-11-11)*
 - [x] The host's daemon is 1.2.1 on libusb-compat: `/opt/nova/bin/novacomd` (which `/usr/local/bin/novacomd` links to)
   is novacomd 1.2.1 linked against libusb-compat; the older novacomd copies in `/usr/local/bin` removed. A root step for

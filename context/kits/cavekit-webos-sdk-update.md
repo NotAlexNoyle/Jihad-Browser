@@ -67,7 +67,8 @@ a novacomd <1.2.2 binary on my system"). The client, novacom, stays the SDK's.
 - [x] `tools/host/build-novacom.sh` builds novacomd from the fork at tag 1.2.2, stopping if the tag is not at
   `5f2ea3e`, stamped `novacomd-1.2.2` (1.2.1 / `b8c48ef` until 2026-11-13); novacom from the SDK submodule as before; each binary moved into `tools/host/bin/`
   by rename, so a running script never finds it missing *(2026-11-11)*
-- [x] The host's daemon is 1.2.1 on libusb-compat: `/opt/nova/bin/novacomd` (which `/usr/local/bin/novacomd` links to)
+- [x] The host's daemon is 1.2.1 on libusb-compat (since 2026-11-13: the release's 1.2.2, libusb-compat 0.1.9 built in, at
+  `/opt/nova/bin/novacomd` from 13:21; every novacomd older than 1.2.2 removed from the host, none kept): `/opt/nova/bin/novacomd` (which `/usr/local/bin/novacomd` links to)
   is novacomd 1.2.1 linked against libusb-compat; the older novacomd copies in `/usr/local/bin` removed. A root step for
   the owner, run while nothing is running on the TouchPad *(2026-11-11: the release's `novacomd-1.2.1-linux-x86_64`
   installed at 04:29 and the two backups removed; at 04:36, under the Enyo self-test, it hit a USB timeout and never

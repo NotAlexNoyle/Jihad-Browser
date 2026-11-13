@@ -75,6 +75,10 @@ tar xf $S/jihad-pgo2.tar -C build/webos-oe/out-arm --strip-components=1 && echo 
 cleanup_device
 tools/device/close-usb-alert.sh 300
 if [ "$(find $O -name '*.gcda' | wc -l)" -gt 100 ]; then
+	# The gen phase writes some objects under the use phase's .o name (xpcom/base: LinuxUtils, SystemMemoryReporter, its
+	# two unified units, every round of 2026-11-12/13), and make then takes them as current: the use link failed on
+	# __gcov_init. Any .o that carries the profiler is deleted so the use phase compiles it again.
+	for f in $(find $O -name '*.o' -size +0 -print0 | xargs -0 grep -l -a '__gcov_init' 2>/dev/null); do echo "instrumented .o removed: ${f#$O/}"; rm -f "$f"; done
 	bash build/webos-oe/in-container.sh --arm build/webos-oe/build-goanna-arm.sh build 4 mozconfig.goanna-arm-pgo use > $S/use-build.log 2>&1
 	echo "pgo2-use rc=$?"
 	echo "use-phase profile notes: mismatch $(grep -ac 'does not match its profile data' $S/use-build.log), not in profile $(grep -ac 'not found in profile data' $S/use-build.log), no data file $(grep -ac 'profile count data file not found' $S/use-build.log)"

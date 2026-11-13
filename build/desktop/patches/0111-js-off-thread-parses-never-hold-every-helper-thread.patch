@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Fri, 13 Nov 2026 03:52:21 -0500
+Subject: [PATCH] js: off-thread parses never hold every helper thread
+
+checkTaskThreadLimit keeps one helper idle for anything but a parse (isMaster), but only when the
+parse limit is below the pool size: with the job's pool of two (JIHAD_JS_HELPER_THREADS=2) and
+two parse threads, it returned early and both helpers could be parsing. A parse waits for the
+exclusive-access lock, which the GC holds through a slice while it waits for its own helper
+tasks (GCHelperState's background sweep was next, after the sweep-task fix), so a pool of parses
+alone deadlocks. Upstream's pool (cores + 4) never meets it.
+
+maxParseThreads() is now at most the pool size less one. The cpuCount < 4 return of 2 is gone:
+it made JIHAD_JS_PARSE_THREADS dead on the TouchPad; its default is the same 2.
+
+On the TouchPad, GitHub's page: with only the sweep-task fix, 6 of 12 loads hung; with both, 12 of 12 finished within 75 s on one daemon (no watchdog exit, no restart).
+---
+ js/src/vm/HelperThreads.cpp | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/js/src/vm/HelperThreads.cpp b/js/src/vm/HelperThreads.cpp
+index bd5b231970..756a53bfc3 100644
+--- a/js/src/vm/HelperThreads.cpp
++++ b/js/src/vm/HelperThreads.cpp
+@@ -969,15 +969,15 @@ GlobalHelperThreadState::maxParseThreads() const
+ {
+     if (IsHelperThreadSimulatingOOM(js::oom::THREAD_TYPE_PARSE))
+         return 1;
+-    // Use the number of logical processors in a system.
+-    if (cpuCount < 4)
+-        return 2;
+-    //return cpuCount - 2;
+     // XXX Issue #3172 XXX
+     // For the time being, return a hard-coded value of 2 on all targets and CPUs.
+     // It's unclear where the contention happens, but it has shown to be detrimental
+     // especially on *nixes and older hardware. 
+     static const size_t sJihadParse = JihadEnvCount("JIHAD_JS_PARSE_THREADS", 2, 1);   // Jihad T-556
++    // Parses never hold every helper: one waits for the exclusive-access lock, which the GC holds
++    // through a slice while it waits for its own helper tasks, so a pool of parses alone deadlocks.
++    if (threadCount > 1 && sJihadParse >= threadCount)
++        return threadCount - 1;
+     return sJihadParse;
+ }
+ 

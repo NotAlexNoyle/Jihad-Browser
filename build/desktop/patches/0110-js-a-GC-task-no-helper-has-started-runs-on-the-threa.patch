@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Fri, 13 Nov 2026 03:52:21 -0500
+Subject: [PATCH] js: a GC task no helper has started runs on the thread that
+ joins it
+
+GitHub still hung the daemon with 0109 in (2026-11-13, TouchPad, stacks read with ptrace): the
+main thread in GCRuntime::beginSweepingZoneGroup -> joinTask(sweepAtomsTask) waiting, both
+helper threads in off-thread parses blocked in AutoLockForExclusiveAccess, which the GC holds
+through the slice. The sweep task sat on the worklist with no helper free to take it.
+
+GCParallelTask::joinWithLockHeld now takes its task off the worklist when no helper has started
+it and runs it on the joining thread (never on a helper); only a task a helper is running is
+waited for.
+---
+ js/src/vm/HelperThreads.cpp | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/js/src/vm/HelperThreads.cpp b/js/src/vm/HelperThreads.cpp
+index 0b765a9e23..bd5b231970 100644
+--- a/js/src/vm/HelperThreads.cpp
++++ b/js/src/vm/HelperThreads.cpp
+@@ -1151,6 +1151,26 @@ js::GCParallelTask::joinWithLockHeld(AutoLockHelperThreadState& locked)
+     if (state == NotStarted)
+         return;
+ 
++    // A task no helper has started runs here: the GC joins its sweep tasks while it holds the
++    // exclusive-access lock, and off-thread parses on every helper can be waiting for that lock.
++    if (!CurrentHelperThread()) {
++        GlobalHelperThreadState::GCParallelTaskVector& worklist = HelperThreadState().gcParallelWorklist(locked);
++        for (size_t i = 0; i < worklist.length(); i++) {
++            if (worklist[i] != this)
++                continue;
++            worklist.erase(&worklist[i]);
++            {
++                AutoUnlockHelperThreadState unlock(locked);
++                uint64_t timeStart = PRMJ_Now();
++                runTask();
++                duration_ = PRMJ_Now() - timeStart;
++            }
++            state = NotStarted;
++            cancel_ = false;
++            return;
++        }
++    }
++
+     while (state != Finished)
+         HelperThreadState().wait(locked, GlobalHelperThreadState::CONSUMER);
+     state = NotStarted;

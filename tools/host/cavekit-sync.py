@@ -55,9 +55,10 @@ def site_tasks():
         status = None
         if st:
             u = st.upper()
-            # The site's own words over four months: DONE / BUILT / SHIPPED / WITHDRAWN close a task;
+            # The site's own words over four months: DONE / BUILT / SHIPPED / WITHDRAWN close a task, and so does
+            # a lever's decision (KEPT / NOT ADOPTED / DROPPED / NOT TAKEN / NOT CARRIED); MEASURED alone does not;
             # PARTIAL and IN PROGRESS are under way; BLOCKED and "owner" (waiting on the owner) wait.
-            status = ("complete" if re.match(r"(DONE|BUILT|SHIPPED|WITHDRAWN|MET|VERIFIED)", u)
+            status = ("complete" if re.match(r"(DONE|BUILT|SHIPPED|WITHDRAWN|MET|VERIFIED|KEPT|NOT ADOPTED|DROPPED|NOT TAKEN|NOT CARRIED)", u)
                       else "in_progress" if re.match(r"(IN PROGRESS|PARTIAL|STARTED)", u)
                       else "blocked" if ("BLOCK" in u or u.startswith("OWNER") or u.startswith("DEFERRED")) else "pending")
         elif reason.strip():

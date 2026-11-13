@@ -157,6 +157,8 @@ Every lever interleaved with a control of its hour, the profile checked clean af
 | surface cache expiry 30 s | 3 | PSS +2.4 % | dropped |
 | `decode_bytes_at_a_time` 64 KB | 3 | **load 16 467 [16 109..16 586] against 17 514 [17 374..17 800] (-6 %)**, PSS 30 s after -3 % | a second round (chain 5) |
 | the parser's flush timer 250 ms | 3 | **load -16.5 %**, the main thread's sum -13 %, PSS after the load -5.6 % | a second round (chain 5) |
+| chain 5's second rounds (`ff` alone, flush 250 ms, decode 64 KB, image cache 8 MB) | 3-4 | no gain on any | dropped |
+| jemalloc `nn` (arenas /4) confirming round, 2026-11-13, PGO engine fac2b0f814 | 5 | PSS after the load 270.2 against 271.0 MB, 30 s after 260.7 against 268.3 (-2.8 %, spreads overlap); **Wikipedia's pan 12.0 fps [6.1..13.4] against 14.5 [14.4..14.9]**, pipeline 10.5 against 13.6; jsbench strings 708 against 372 ms; the long page even | **dropped**: every nn pan below the control's slowest; chain 5's 37 MB did not return (`docs/rounds/malloc-nn-2026-11-13/`) |
 
 ### 2026-11-11: the research picks, Pale Moon's items, PGO and the CPU tuning (chains 7-12)
 

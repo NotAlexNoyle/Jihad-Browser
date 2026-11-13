@@ -66,14 +66,17 @@ the queue).
 ### R3: The memory levers measured
 **Description:** The levers that trade resident memory (research rows 3, 4).
 **Acceptance Criteria:**
-- [~] The allocator's arena count and dirty-page cap set for the daemon (environment, no rebuild) and a purge after a
+- [x] The allocator's arena count and dirty-page cap set for the daemon (environment, no rebuild) and a purge after a
   load goes idle: resident memory after Wikipedia and a long article, and the script and pan numbers, against the
-  baseline *(2026-11-10: nnff saves 9-12 % PSS twice but costs Wikipedia's pipeline rate twice; the arena count and
-  the dirty cap are measured apart next; the purge dropped)*
-- [~] Each memory pref of research row 4 tried alone (predictor off, empty GC chunks, image cache size, surface-cache
+  baseline *(all dropped: nnff saved 9-12 % PSS twice but cost Wikipedia's pipeline twice; apart, `ff` gave nothing
+  (chain 5) and `nn`'s confirming round (2026-11-13, 5 interleaved runs) saved 2.8 % at 30 s within the spread while
+  every Wikipedia pan fell below the control's slowest (12.0 against 14.5 fps); the purge dropped 2026-11-10;
+  `docs/research/lowpower-uxp.md` §5)*
+- [x] Each memory pref of research row 4 tried alone (predictor off, empty GC chunks, image cache size, surface-cache
   expiry): its memory and time effect recorded; the kept ones in the device prefs with a comment naming the
-  measurement *(2026-11-10: all six measured on the clean profile; predictor, GC chunks, surface expiry dropped; the
-  image cache, decode chunk and parser flush timer go to a second round)*
+  measurement *(all six measured on the clean profile 2026-11-10: predictor, GC chunks, surface expiry dropped; the
+  image cache 8 MB, decode chunk 64 KB and parser flush 250 ms gained in one round and nothing in chain 5's second:
+  dropped; none kept, so none in the prefs)*
 - [ ] Three daemons running at once (one per variant) with the kept levers stay inside the memory budget of
   cavekit-device-build.md R5
 **Dependencies:** R1

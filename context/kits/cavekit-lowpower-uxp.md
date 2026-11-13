@@ -47,15 +47,20 @@ the queue).
   beyond the spread *(2026-11-10: kept — two interleaved rounds on the clean profile gain on the load, the main thread's
   sum and jsbench, nothing lost beyond the spread; `JIHAD_JS_HELPER_THREADS=2 JIHAD_JS_ION_THREADS=1
   JIHAD_JS_PARSE_THREADS=1` in the three jobs (`packaging/gen-variant-scripts.sh`); the helpers' nice value dropped,
-  no effect)*
-- [~] -O2 (whole tree, or js/src + layout + gfx) tried against -Os: script and paint times, libxul size, start time,
-  resident memory; the choice recorded with the numbers *(2026-11-09/10: measured, §5; the owner, 2026-11-10: decided
-  after PGO's numbers, -Os with PGO against -O2)*
-- [~] PGO is either tried (with the on-device profiling run's procedure written down) or declined by the owner
-  *(2026-11-10: the owner's "try it"; the procedure is §7 of the research document, its first profiling run found two
-  traps (written there) and runs again)*
-- [ ] GCC's tuning for the Scorpion cores measured: the default (Cortex-A8, as `-march=armv7-a` gives) against
-  `-mtune=cortex-a9` (`mozconfig.goanna-arm-a9`), interleaved, from copied directories
+  no effect. 2026-11-13: maxParseThreads() returned 2 for cpuCount < 4 before reading the switch, so the parse cap was
+  never live on the TouchPad; engine 0111 makes it live and keeps parses below the pool, which ended GitHub's
+  deadlock)*
+- [x] -O2 (whole tree, or js/src + layout + gfx) tried against -Os: script and paint times, libxul size, start time,
+  resident memory; the choice recorded with the numbers *(2026-11-09/10: measured, §5; the owner, 2026-11-11: "-O2 +
+  PGO, redone"; -Os + PGO cannot speed anything with GCC 9, `docs/research/pgo-review-2026-11-11.md`)*
+- [x] PGO is either tried (with the on-device profiling run's procedure written down) or declined by the owner
+  *(tried and KEPT 2026-11-11, `docs/rounds/pgo-2026-11-11/`: Wikipedia 13.7 s against 17.0, jsbench dom 4.0 s against
+  6.2; the procedure is §7 and `tools/device/pgo-profile.sh`; the bundle's default; retrained at every milestone,
+  last on engine fac2b0f814, `docs/rounds/pgo-2026-11-13/`)*
+- [x] GCC's tuning for the Scorpion cores measured: the default (Cortex-A8, as `-march=armv7-a` gives) against
+  `-mtune=cortex-a9` (`mozconfig.goanna-arm-a9`), interleaved, from copied directories *(T-608: Wikipedia 14.1 s
+  against 17.4, jsbench even, the pan 31.9 against 32.7 fps, the cold start 7.3 s against 5.0; dropped, PGO gives more
+  on every row; `docs/research/lowpower-uxp.md` §5)*
 **Dependencies:** R1, cavekit-engine-update.md R1
 
 ### R3: The memory levers measured

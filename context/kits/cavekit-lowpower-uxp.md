@@ -94,12 +94,15 @@ the queue).
   false)*
 - [x] `image/jxl` dropped from the Accept headers, or kept with the reason *(2026-11-09, T-558: kept — on the device JPEG XL
   decodes the same 1600x1200 picture in 204 ms against WebP's 304 and JPEG's 226, `docs/research/lowpower-uxp.md` §5)*
-- [~] The VP9/WebM decoder A/B (ffvpx vs libvpx, MSE WebM) measured at 360p and 480p (dropped frames), and the faster
+- [x] The VP9/WebM decoder A/B (ffvpx vs libvpx, MSE WebM) measured at 360p and 480p (dropped frames), and the faster
   path chosen without losing FLAC/MP3 playback *(2026-11-10, T-558: measured clean — at 480p ffvpx drops 855-891 of 900
   frames, libvpx 45-87; at 360p 37-78 against 0-23. Chosen: libvpx for VP8/VP9 and ffvpx for FLAC, by engine patch 0093
   (`media.ffvpx.vpx.enabled`, false in the platform prefs); on the device with the next deploy, where the A/B runs again
   and FLAC and MP3 play on the shipped prefs. MSE WebM stays on: YouTube, the MSE site this device meets, already plays
-  H.264 here (formats 160/133/134, `docs/rounds/headroom-2026-11-07/README.md`) and `jihadWebCompat.js` refuses it VP8/VP9/AV1)*
+  H.264 here (formats 160/133/134, `docs/rounds/headroom-2026-11-07/README.md`) and `jihadWebCompat.js` refuses it VP8/VP9/AV1.
+  On the device: chain 5 confirmed libvpx (480p: ffvpx dropped 858 and 889 of 900, libvpx 28 and 64); 2026-11-13 the
+  shipped prefs play VP8 and VP9 to the end with 0 of 149 frames dropped, FLAC and MP3 to the end (finger test
+  `codecs-play`, `docs/rounds/codecs-2026-11-13/`))*
 **Dependencies:** R1, cavekit-gre-widgets.md R1
 
 ### R5: The build and startup levers measured

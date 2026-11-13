@@ -1,0 +1,36 @@
+{
+ "date": "2026-11-13T09:07:12",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "codecs-play",
+   "kit": "cavekit-lowpower-uxp.md R4",
+   "item": "VP8 and VP9 video and FLAC and MP3 audio play to their end on the shipped prefs (libvpx for VP8/VP9, ffvpx kept for FLAC)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-text state = [DONE 11 rows]",
+    "WAIT ok 12-text r0 = [vp8 canPlay=probably result=ended t=10.00/10.00 err=0 frames=149/0 vw=320x240]",
+    "WAIT ok 13-text r0 = [vp8 canPlay=probably result=ended t=10.00/10.00 err=0 frames=149/0 vw=320x240]",
+    "WAIT ok 14-text r1 = [vp9 canPlay=probably result=ended t=10.00/10.00 err=0 frames=149/0 vw=320x240]",
+    "WAIT ok 15-text r1 = [vp9 canPlay=probably result=ended t=10.00/10.00 err=0 frames=149/0 vw=320x240]",
+    "WAIT ok 16-text r8 = [flac canPlay=maybe result=ended t=10.00/10.00 err=0]",
+    "WAIT ok 17-text r8 = [flac canPlay=maybe result=ended t=10.00/10.00 err=0]",
+    "WAIT ok 18-text r9 = [mp3 canPlay=maybe result=ended t=10.06/10.06 err=0]",
+    "WAIT ok 19-text r9 = [mp3 canPlay=maybe result=ended t=10.06/10.06 err=0]"
+   ],
+   "kept": [],
+   "seconds": 184,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-codecs.html: connected at +2 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "enyo: (103051/712910555) jihad (start) running, process 13228; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (103051/807687739) jihad (start) running, process 13228\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (103064/66177662) jihad-mochi (start) running, process 17229\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (103076/37172771) jihad-mojo (start) running, process 18492\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/sb-probe.png /tmp/sb-probe2.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 4% of /tmp used\nnovacom: unexpected EOF from server",
+ "seconds": 218
+}

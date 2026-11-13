@@ -1,0 +1,15 @@
+WAIT ok 7-rect sel:#header-search
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 119 landed on document y 47)
+  tap at 608,119 -> clickAt 777 47
+CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  typed [pale] on the keyboard
+WAIT ok 12-still sel:#header-search
+  chrome kb-hide tapped at 732 993
+CHECK ok 14-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+WAIT ok 15-still sel:#header-search
+  sample field of sel:#header-search: hash 1f1e36f6
+WAIT ok 17-still sel:#header-search
+CHECK ok 18-region-equal: region 470,103-746,134: colours 100 hash 1f1e36f6 rows 31 uniform 0 light 103-133 blue none = the sample's hash
+  tap at 608,119 -> clickAt 777 47
+CHECK ok 20-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+CHECKS 4 FAILS 0

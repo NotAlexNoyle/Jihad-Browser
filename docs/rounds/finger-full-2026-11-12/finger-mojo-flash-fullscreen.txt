@@ -1,0 +1,14 @@
+WAIT ok 8-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]
+WAIT ok 9-text kid = [kid w=376]
+  flash tap on stage 200,150 (showAll) at 240 263
+WAIT ok 11-text fs = [fs fullScreen]
+  frame kept: /media/internal/jihad-finger/fullscreen_.last.raw
+  a tap to dismiss at 384,400
+WAIT ok 14-text fs = [fs normal]
+  pause 3000 ms (the slow human)
+  a tap to dismiss at 384,400
+WAIT ok 17-text fs = [fs fullScreen]
+WAIT ok 18-launch: load done
+WAIT ok 19-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+CHECK ok 20-flash-behind: the colour 00ff00 in 192 of 192 cells (wanted yes)
+CHECKS 1 FAILS 0

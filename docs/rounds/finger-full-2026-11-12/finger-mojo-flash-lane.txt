@@ -1,0 +1,12 @@
+WAIT ok 7-rect toggle
+  dwell 3000 ms (does it still hold?)
+CHECK ok 9-flash-rate: content 40,114-440,412: 3.0 s, flips 42 (14.0/s), changes 40 (13.3/s), reads 44, distinct 41, spacing median 67 p90 108 max 205 ms (wanted 8..100/s)
+  tap at 190,463 -> clickAt 191 390
+CHECK ok 11-flash-rate: content 40,114-440,412: 3.0 s, flips 40 (13.3/s), changes 0 (0.0/s), reads 41, distinct 1, spacing median 66 p90 156 max 179 ms (wanted 0..4/s)
+  tap at 190,463 -> clickAt 191 390
+CHECK ok 13-flash-rate: content 40,114-440,412: 3.0 s, flips 41 (13.7/s), changes 39 (13.0/s), reads 42, distinct 40, spacing median 68 p90 107 max 192 ms (wanted 8..100/s)
+WAIT ok 15-settled: the card's scroll 0 93
+CHECK ok 16-flash-rate: content 40,0-440,275: 3.0 s, flips 43 (14.3/s), changes 41 (13.7/s), reads 44, distinct 42, spacing median 67 p90 81 max 145 ms (wanted 8..100/s)
+  tap at 190,325 -> clickAt 191 390
+CHECK ok 18-flash-rate: content 40,0-440,275: 3.0 s, flips 40 (13.3/s), changes 0 (0.0/s), reads 41, distinct 1, spacing median 68 p90 147 max 201 ms (wanted 0..4/s)
+CHECKS 5 FAILS 0

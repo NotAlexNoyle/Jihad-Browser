@@ -1,0 +1,20 @@
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)
+  inject url data:application/octet-stream;base64,SGVsbG8gZnJvbSBKaWhhZAo=
+WAIT ok 9-line: [jihad-dl] finished data:application/octet-stream;base64,SGVsbG8gZnJvbSBKaWhhZAo= -> /media/internal/downloads/jihad-download-35
+CHECK ok 10-file: /media/internal/downloads/jihad-download-35 (17 bytes) holds [Hello from Jihad]
+  sample page of 0,100,756,960: hash d444a2dc
+WAIT ok 12-differs 0,100,756,960
+  chrome dialog-ok tapped at 612 193
+WAIT ok 14-still 0,100,756,960
+  sample page2 of 0,100,756,960: hash b319a87d
+  chrome history tapped at 738 52
+WAIT ok 17-differs 0,100,756,960
+WAIT ok 18-still 0,100,756,960
+  frame kept: /media/internal/jihad-finger/panel_.last.raw
+  sample list of 450,80,768,400: hash 214f23e6
+  chrome downloads-tab tapped at 650 206
+WAIT ok 22-differs 450,80,768,400
+WAIT ok 23-still 450,80,768,400
+WAIT ok 25-content 460,90,760,300
+  frame kept: /media/internal/jihad-finger/downloads_.last.raw
+CHECKS 1 FAILS 0

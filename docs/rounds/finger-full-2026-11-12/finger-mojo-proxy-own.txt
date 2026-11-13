@@ -1,0 +1,23 @@
+WAIT ok 8-rect page-title
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 108 landed on document y 35)
+  tap at 539,190 -> clickAt 540 117
+WAIT ok 11-rect sel:button.pane-tab.on[data-pane='advanced']
+  tap at 587,678 -> clickAt 588 1166
+  pick: Mojo's popup at rows 369-691, row 4 at 598
+WAIT ok 13-rect sel:.row[data-pref='network.proxy.http'] input
+  tap at 576,796 -> clickAt 577 1284
+CHECK ok 15-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  kb-backspace held 4000 ms
+  typed [192.168.1.245] on the keyboard
+  tap at 576,350 -> clickAt 577 1367
+  kb-backspace held 2000 ms
+  typed [3129] on the keyboard
+  chrome kb-hide tapped at 732 993
+CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  tap at 107,721 -> clickAt 108 1959
+WAIT ok 24-pref network.proxy.http = [192.168.1.245]
+  inject url http://example.com/jihad-proxy-own-check
+CHECK ok 26-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+  chrome auth-cancel tapped at 383 699
+CHECK ok 28-dialog: [jihad-bs] dialog auth -> cancel (answer=0)
+CHECKS 4 FAILS 0

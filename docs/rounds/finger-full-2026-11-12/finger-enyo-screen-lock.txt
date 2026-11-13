@@ -1,0 +1,23 @@
+WAIT ok 9-rect v
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 102 landed on document y 25)
+WAIT ok 11-text status = [playing]
+  pause 2500 ms (the slow human)
+  frame kept: /media/internal/jihad-finger/lock-button_.last.raw
+  chrome lock-button tapped at 732 116
+  pause 800 ms (the slow human)
+  frame kept: /media/internal/jihad-finger/locked_.last.raw
+  a tap to dismiss at 384,360
+WAIT ok 20-text status = [playing]
+  dwell 2000 ms (does it still hold?)
+CHECK ok 22-text: status = [playing]
+  chrome lock-notice tapped at 630 116
+  pause 600 ms (the slow human)
+  chrome lock-notice tapped at 630 116
+  pause 600 ms (the slow human)
+  frame kept: /media/internal/jihad-finger/ask_.last.raw
+  chrome lock-notice tapped at 630 116
+  pause 600 ms (the slow human)
+  frame kept: /media/internal/jihad-finger/unlocked_.last.raw
+  tap at 301,389 -> clickAt 385 391
+WAIT ok 34-text status = [paused t=29.2]
+CHECKS 1 FAILS 0

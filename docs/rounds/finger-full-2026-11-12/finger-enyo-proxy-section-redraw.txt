@@ -1,0 +1,10 @@
+WAIT ok 7-rect page-title
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 117 landed on document y 35)
+  tap at 547,199 -> clickAt 548 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='advanced']
+WAIT ok 11-rect sel:.row[data-pref='network.proxy.type'] select
+  tap at 587,679 -> clickAt 588 1166
+WAIT ok 13-rect sel:.row[data-pref='network.proxy.http'] input
+  tap at 587,350 -> clickAt 588 1166
+WAIT ok 15-gone sel:.row[data-pref='network.proxy.http'] input
+CHECKS 0 FAILS 0

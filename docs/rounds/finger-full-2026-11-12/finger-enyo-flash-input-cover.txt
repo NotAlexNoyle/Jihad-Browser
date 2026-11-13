@@ -1,0 +1,15 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 240 752
+CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  pause 800 ms (the slow human)
+  double tap 240 682
+CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: the movie moved 229 px up for the keyboard, the page at 229
+WAIT ok 14-settled: the card's scroll 0 0
+CHECK FAIL 16-above-keyboard: m on the screen at 40,602-440,902, under the keyboard
+  frame kept: /media/internal/jihad-finger/16-above-keyboard_.last.raw
+  flash tap on stage 200,150 (showAll) at 240 752
+CHECK FAIL 18-flash-at: the movie reported down 201,80 for stage 200,150 (more than 3 off)
+  frame kept: /media/internal/jihad-finger/18-flash-at_.last.raw
+CHECKS 4 FAILS 2
+novacom: unexpected EOF from server

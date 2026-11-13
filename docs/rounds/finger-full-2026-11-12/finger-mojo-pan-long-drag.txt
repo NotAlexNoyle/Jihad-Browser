@@ -1,0 +1,14 @@
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
+CHECK ok 8-zoom: zoom 1.0000 (want 1.0 within 0.01)
+CHECK ok 9-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html
+CHECK ok 10-content: region 0,150-768,400: colours 374 hash 85b98daf rows 250 uniform 0 light 150-399 blue none; sel:#content p on the screen at 16,145-748,201, text holds [quick brown]
+  sample header of header: hash eeaac7d6
+  sample content of 0,300,756,900: hash 39f383a9
+CHECK ok 14-card-scroll: the card's scroll y 605 (want 650 within 100); the engine's 605
+WAIT ok 15-still header
+CHECK ok 16-region-equal: region 0,29-756,83: colours 185 hash eeaac7d6 rows 54 uniform 33 light none blue none = the sample's hash
+CHECK ok 17-region-changed: region 0,300-756,900: colours 738 hash fc61b043 rows 600 uniform 226 light 300-895 blue none against the sample's hash 39f383a9
+CHECK ok 18-top: the page's top measured 73 (the tap at y 203 landed on document y 780), the model says 73 (header hidden: 1)
+  tap at 382,271 -> clickAt 383 848
+CHECK ok 20-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56
+CHECKS 8 FAILS 0

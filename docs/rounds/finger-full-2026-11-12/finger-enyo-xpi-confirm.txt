@@ -1,0 +1,15 @@
+WAIT ok 8-rect effect
+calibrated (enyo): the page's top on the screen 83 (the table said 82, the tap at y 129 landed on document y 59)
+  tap at 168,177 -> clickAt 215 121
+CHECK ok 11-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+  frame kept: /media/internal/jihad-finger/xpi-prompt_.last.raw
+  chrome dialog-ok tapped at 384 531
+CHECK ok 14-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 15-text r = [r: callback status=0 Jihad Effect Test]
+WAIT ok 16-launch: load done
+WAIT ok 17-rect sel:#category-extension
+  tap at 118,259 -> clickAt 151 225
+WAIT ok 19-rect sel:#category-extension[selected='true']
+  frame kept: /media/internal/jihad-finger/extensions-pane_.last.raw
+WAIT ok 21-rect sel:richlistitem[value='jihad-effect@riverstonerelay.net']
+CHECKS 2 FAILS 0

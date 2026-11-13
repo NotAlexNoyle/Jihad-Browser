@@ -1,0 +1,10 @@
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
+  inject url http://192.168.1.245:8077/jihad-busy.html
+CHECK ok 9-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+  frame kept: /media/internal/jihad-finger/busy-dialog_.last.raw
+  chrome dialog-cancel tapped at 384 990
+CHECK ok 12-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+WAIT ok 13-rect sel:h1
+  tap at 384,104 -> clickAt 491 39
+CHECK ok 15-hit: clickAt 491,39 inside sel:h1 at 8,21 964x36
+CHECKS 3 FAILS 0

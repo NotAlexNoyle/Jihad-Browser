@@ -1,0 +1,27 @@
+WAIT ok 9-rect v
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 98 landed on document y 25)
+WAIT ok 11-text status = [playing]
+  pause 2500 ms (the slow human)
+  frame kept: /media/internal/jihad-finger/lock-button_.last.raw
+  chrome lock-button tapped at 732 116
+  pause 800 ms (the slow human)
+  frame kept: /media/internal/jihad-finger/locked_.last.raw
+  a tap to dismiss at 384,360
+CHECK FAIL 20-wait-text: status never read playing within the bound
+  frame kept: /media/internal/jihad-finger/20-wait-text_.last.raw
+  dwell 2000 ms (does it still hold?)
+CHECK FAIL 22-text: status = [paused t=24.9], want [playing]
+  frame kept: /media/internal/jihad-finger/22-text_.last.raw
+  chrome lock-notice tapped at 630 116
+  pause 600 ms (the slow human)
+  chrome lock-notice tapped at 630 116
+  pause 600 ms (the slow human)
+  frame kept: /media/internal/jihad-finger/ask_.last.raw
+  chrome lock-notice tapped at 630 116
+  pause 600 ms (the slow human)
+  frame kept: /media/internal/jihad-finger/unlocked_.last.raw
+  tap at 301,385 -> clickAt 385 391
+CHECK FAIL 34-wait-text: status never read paused within the bound
+  frame kept: /media/internal/jihad-finger/34-wait-text_.last.raw
+CHECKS 3 FAILS 3
+novacom: unexpected EOF from server

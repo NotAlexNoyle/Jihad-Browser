@@ -1,0 +1,14 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 240 268
+  pause 800 ms (the slow human)
+  double tap 240 272
+CHECK ok 11-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+  pause 1500 ms (the slow human)
+  typed [a] on the keyboard
+WAIT ok 14-text keyup = [keyup 65 97]
+CHECK ok 15-number: keyheldms = 242 (wanted 60..2000)
+WAIT ok 17-text keyup = [keyup 39 0]
+CHECK ok 18-number: keyheldms = 80 (wanted 60..2000)
+  tap at 600,500 -> clickAt 601 422
+CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+CHECKS 4 FAILS 0

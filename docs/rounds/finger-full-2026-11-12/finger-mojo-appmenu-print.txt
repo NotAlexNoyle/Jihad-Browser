@@ -1,0 +1,17 @@
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 104 landed on document y 31)
+  sample page of 0,200,756,960: hash aaad466f
+  sample before-menu of 0,30,300,180: hash 5b74f3f9
+  chrome appmenu tapped at 50 14
+WAIT ok 11-differs 0,30,300,180
+WAIT ok 12-still 0,30,300,180
+  chrome appmenu-print tapped at 36 153
+CHECK FAIL 14-wait-line: no line luna: findPrinters within the bound
+  frame kept: /media/internal/jihad-finger/14-wait-line_.last.raw
+CHECK FAIL 15-wait-differs: 0,200,756,960 still shows the sample page after the bound
+  frame kept: /media/internal/jihad-finger/15-wait-differs_.last.raw
+CHECK FAIL 16-wait-log: no line print: mdns: .* -> [0-9.]*:[0-9]* in the daemon log within the bound
+  frame kept: /media/internal/jihad-finger/16-wait-log_.last.raw
+WAIT ok 17-still 0,200,756,960
+  frame kept: /media/internal/jihad-finger/print-dialog_.last.raw
+CHECKS 3 FAILS 3
+novacom: unexpected EOF from server

@@ -1,0 +1,15 @@
+WAIT ok 7-rect page-title
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 108 landed on document y 35)
+  tap at 250,190 -> clickAt 251 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='content']
+  tap at 576,673 -> clickAt 577 1979
+CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  typed [x] on the keyboard
+  chrome kb-hide tapped at 732 993
+CHECK ok 15-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+WAIT ok 16-pref browser.display.foreground_color = [#000000x]
+WAIT ok 17-still sel:.row[data-pref='browser.display.foreground_color'] input
+  sample field of sel:.row[data-pref="browser.display.foreground_color"] input: hash c1c06359
+WAIT ok 19-still sel:.row[data-pref='browser.display.foreground_color'] input
+CHECK ok 20-region-equal: region 416,643-735,703: colours 38 hash c1c06359 rows 60 uniform 0 light 643-702 blue none = the sample's hash
+CHECKS 3 FAILS 0

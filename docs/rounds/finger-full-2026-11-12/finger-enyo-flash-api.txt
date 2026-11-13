@@ -1,0 +1,21 @@
+WAIT ok 7-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]
+WAIT ok 8-text vars = [vars a=hello]
+WAIT ok 9-text so = [so n=1]
+WAIT ok 10-text echoback = [echoback back hi]
+CHECK ok 11-text: echo = [echo hi]
+WAIT ok 12-text geturl = [geturl ok]
+WAIT ok 13-text fscommand = [fscommand jcmd jarg]
+WAIT ok 14-text data = [data true x=42]
+WAIT ok 15-text kid = [kid w=376]
+  restart: closed card process 1105
+  restart: enyo daemon started by hand (pid 28563)
+  restart: enyo daemon serving YAP at +3 s
+  restart: tail: short write
+  restart: enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+WAIT ok 17-text so = [so n=2]
+WAIT ok 18-launch: load done
+WAIT ok 19-rect m
+CHECK ok 20-text: count = [0]
+  dwell 5000 ms (does it still hold?)
+CHECK ok 22-text: count = [0]
+CHECKS 3 FAILS 0

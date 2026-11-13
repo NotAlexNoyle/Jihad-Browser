@@ -1,0 +1,21 @@
+WAIT ok 8-rect sel:#mine .card
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 280 landed on document y 198)
+  tap at 112,500 -> clickAt 113 1609
+WAIT ok 11-rect sel:#files button
+  tap at 382,561 -> clickAt 383 1670
+CHECK ok 13-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+  chrome dialog-ok tapped at 384 541
+CHECK ok 15-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 16-pref lightweightThemes.isThemeSelected = [true]
+WAIT ok 17-rect sel:#mine .card:nth-child(2) button
+CHECK ok 18-text-has: sel:#mine .card:nth-child(2) = [Carbon Light 2.0Author unknownTake offRemove] holds [Carbon]
+  tap at 564,434 -> clickAt 565 352
+WAIT ok 20-text status-text = [Persona taken off.]
+  tap at 686,434 -> clickAt 687 352
+WAIT ok 22-text sel:#mine .card:nth-child(2) = [Carbon Light 2.0Author unknownWearRemove it?]
+CHECK ok 23-text-has: sel:#mine .card:nth-child(2) = [Carbon Light 2.0Author unknownWearRemove it?] holds [Remove it?]
+  dwell 4000 ms (does it still hold?)
+CHECK ok 25-text-has: sel:#mine .card:nth-child(2) = [Carbon Light 2.0Author unknownWearRemove it?] holds [Remove it?]
+  tap at 673,434 -> clickAt 674 352
+WAIT ok 27-text status-text = [Removing Carbon Light…]
+CHECKS 5 FAILS 0

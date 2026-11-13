@@ -1,0 +1,12 @@
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
+CHECK ok 9-card-scroll-min: the card's scroll y 583 (at least 400)
+  pinch 384 500 100 400
+WAIT ok 11-zoom
+CHECK ok 12-zoom-min: zoom 2.6497 (at least 1.5)
+CHECK ok 13-content: region 0,150-756,600: colours 337 hash ffd1b832 rows 450 uniform 215 light 176-599 blue none; sel:body on the screen at -635,-2292-1388,51994
+  pinch 384 500 400 100
+WAIT ok 15-zoom
+  pinch 384 500 400 100
+WAIT ok 17-zoom
+CHECK ok 18-zoom: zoom 1.0000 (want 1.0 within 0.15)
+CHECKS 4 FAILS 0

@@ -1,0 +1,40 @@
+{
+ "date": "2026-11-13T00:52:12",
+ "shells": [
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "mojo",
+   "id": "flash-tags",
+   "kit": "cavekit-flash.md R4",
+   "item": "An embed, an object with data, an object with a movie param, nested objects and a direct navigation to a movie each draw and take a tap; the detection script reads 10.3",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [10.3]",
+    "CHECK ok 11-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [mime yes]",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 23-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 24-launch: load done",
+    "CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 45 (15.0/s), changes 38 (12.7/s), reads 46, distinct 39, spacing median 69 p90 82 max 129 ms (wanted 5..100/s)"
+   ],
+   "kept": [],
+   "seconds": 68,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "mojo: (73236/249015144) jihad-mojo (start) running, process 1261; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (73236/334322996) jihad (start) running, process 27923\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (73242/726474106) jihad-mochi (start) running, process 10992\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (73247/280092771) jihad-mojo (start) running, process 1261\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/sb-probe.png /tmp/sb-probe2.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 4% of /tmp used\nnovacom: unexpected EOF from server",
+ "seconds": 85
+}

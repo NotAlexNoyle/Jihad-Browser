@@ -1,0 +1,23 @@
+WAIT ok 9-rect v
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 98 landed on document y 25)
+WAIT ok 11-text status = [playing]
+  tap at 301,385 -> clickAt 385 391
+WAIT ok 13-text status = [paused t=21.7]
+  measure anon:#v|controlBar: 20 637 728 28 0 0 0 0 384 651 (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
+  measure anon:#v|muteButton: 675 637 33 28 0 0 0 0 692 651 (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
+  measure anon:#v|scrubber: 26 637 642 28 0 0 0 0 347 651 (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
+  measure anon:#v|volumeControl: 708 637 32 28 0 0 0 0 724 651 (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
+WAIT ok 18-rect anon:#v|controlBar
+WAIT ok 19-rect anon:#v|muteButton
+  frame kept: /media/internal/jihad-finger/controls_.last.raw
+  touch anon:#v|muteButton at 542 588
+WAIT ok 22-text vol = [volume=1.00 muted=false]
+  touch anon:#v|muteButton at 542 588
+WAIT ok 24-text vol = [volume=1.00 muted=true]
+  touch anon:#v|muteButton at 542 588
+WAIT ok 26-text vol = [volume=1.00 muted=false]
+  frame kept: /media/internal/jihad-finger/bar_.last.raw
+CHECK ok 28-visible: anon:#v|controlBar on the screen at 16,577-586,599 (the reach ends at 1024, keyboard 0)
+  dwell 3000 ms (does it still hold?)
+CHECK ok 30-visible: anon:#v|controlBar on the screen at 16,577-586,599 (the reach ends at 1024, keyboard 0)
+CHECKS 2 FAILS 0

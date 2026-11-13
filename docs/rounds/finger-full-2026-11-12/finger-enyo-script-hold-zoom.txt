@@ -1,0 +1,11 @@
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 110 landed on document y 28)
+  pinch 384 500 150 400
+WAIT ok 9-zoom
+CHECK ok 10-zoom-min: zoom 1.9326 (at least 1.3)
+CHECK ok 12-card-scroll-min: the card's scroll y 461 (at least 200)
+  pinch 384 500 400 150
+WAIT ok 14-zoom
+  pinch 384 500 400 150
+WAIT ok 16-zoom
+CHECK ok 17-zoom: zoom 1.0000 (want 1.0 within 0.2)
+CHECKS 3 FAILS 0

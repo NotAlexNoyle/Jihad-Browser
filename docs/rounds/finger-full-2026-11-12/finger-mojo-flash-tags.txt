@@ -1,0 +1,22 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 240 263
+CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+CHECK ok 10-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [10.3]
+CHECK ok 11-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [mime yes]
+WAIT ok 12-launch: load done
+WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 240 263
+CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+WAIT ok 16-launch: load done
+WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 240 263
+CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+WAIT ok 20-launch: load done
+WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 240 263
+CHECK ok 23-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+WAIT ok 24-launch: load done
+CHECK FAIL 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 8 (2.7/s), changes 4 (1.3/s), reads 20, distinct 5, spacing median 107 p90 319 max 319 ms (wanted 5..100/s)
+  frame kept: /media/internal/jihad-finger/25-flash-rate_.last.raw
+CHECKS 7 FAILS 1
+novacom: unexpected EOF from server

@@ -1,0 +1,10 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  hold 240 272 2000
+WAIT ok 9-text up = [up 201 159]
+CHECK ok 10-number: heldms = 2386 (wanted 1500..3200)
+CHECK ok 11-number: n-down = 1 (wanted 1..1)
+CHECK ok 12-number: n-up = 1 (wanted 1..1)
+WAIT ok 14-text up = [up 361 287]
+CHECK ok 15-flash-el: the movie's move at 334,269 for 360,277 (within 30)
+CHECK ok 16-press-rate: 22.5 moves a second sent on (at least 20): ] a press of 1491 ms: 34 moves from the card in 1380 ms, 31 sent on, 547 ms in sending them
+CHECKS 5 FAILS 0

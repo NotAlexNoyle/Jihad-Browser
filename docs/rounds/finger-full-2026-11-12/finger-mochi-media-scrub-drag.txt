@@ -1,0 +1,16 @@
+WAIT ok 10-rect v
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 98 landed on document y 25)
+WAIT ok 12-text status = [playing]
+  tap at 301,385 -> clickAt 385 391
+WAIT ok 14-text status = [paused t=22.3]
+WAIT ok 15-rect anon:#v|controlBar
+WAIT ok 16-rect anon:#v|volumeControl
+  measure anon:#v|volumeControl: 708 637 32 28 0 0 0 0 724 651 (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
+  measure anon:#v|scrubber: 26 637 642 28 0 0 0 0 347 651 (x y w h card-x card-y scroll-x scroll-y center-x center-y, document px)
+  drag on anon:#v|volumeControl from 577 586 to 558 586 (800 ms)
+WAIT ok 20-text vol = [volume=0.16 muted=false]
+  drag on anon:#v|scrubber from 83 585 to 522 585 (1000 ms)
+WAIT ok 24-settled: the card's scroll 0 0
+WAIT ok 25-text seek = [60]
+  frame kept: /media/internal/jihad-finger/seek_.last.raw
+CHECKS 0 FAILS 0

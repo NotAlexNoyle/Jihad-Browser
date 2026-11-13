@@ -1,0 +1,7 @@
+WAIT ok 10-rect sel:#mine .card
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 276 landed on document y 198)
+  stream on for 16 s (-c 0-756 -U 48)
+  stream: fbstream: 102 samples in 6.83 s (14.9/s, asked 15), read median~4.6 ms max 55.6 ms (mmap, stride 8: 96 rows of 768), 144 flips (frames shown, 21.1/s), 3963 poll
+  (the stream's uniform checked on the host)
+CHECK ok 16-content: region 0,100-768,900: colours 4096 hash 5c9da272 rows 800 uniform 0 light 102-647 blue 107-655; sel:body on the screen at 0,-418-764,2441
+CHECKS 1 FAILS 0

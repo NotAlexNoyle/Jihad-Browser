@@ -1,0 +1,14 @@
+WAIT ok 7-rect page-title
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 108 landed on document y 35)
+  tap at 155,190 -> clickAt 156 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='general']
+  tap at 720,736 -> clickAt 721 663
+WAIT ok 12-pref general.smoothScroll = [true]
+  restart: closed card process 1027
+  restart: mojo daemon started by hand (pid 854)
+  restart: mojo daemon serving YAP at +3 s
+  restart: mojo card on about:settings: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+WAIT ok 14-rect page-title
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 108 landed on document y 35)
+WAIT ok 16-pref general.smoothScroll = [true]
+CHECKS 0 FAILS 0

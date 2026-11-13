@@ -1,0 +1,22 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+WAIT ok 9-settled: the card's scroll 0 52
+CHECK ok 10-card-scroll-min: the card's scroll y 52 (at least 30)
+CHECK ok 11-number: n-move = 0 (wanted 0..0)
+WAIT ok 13-settled: the card's scroll 0 0
+  flash tap on stage 200,150 (showAll) at 240 218
+CHECK ok 15-number: n-down = 1 (wanted 1..1)
+CHECK ok 16-number: n-up = 1 (wanted 1..1)
+CHECK ok 17-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  pause 800 ms (the slow human)
+WAIT ok 20-settled: the card's scroll 0 0
+CHECK ok 21-card-scroll: the card's scroll y 0 (want 0 within 10); the engine's 0
+CHECK ok 22-number: n-move = 16 (wanted 5..400)
+  double tap 240 272
+CHECK ok 24-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  pause 2500 ms (the slow human)
+  tap at 650,500 -> clickAt 651 472
+CHECK ok 27-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  pause 800 ms (the slow human)
+WAIT ok 30-settled: the card's scroll 0 100
+CHECK ok 31-card-scroll-min: the card's scroll y 100 (at least 30)
+CHECKS 10 FAILS 0

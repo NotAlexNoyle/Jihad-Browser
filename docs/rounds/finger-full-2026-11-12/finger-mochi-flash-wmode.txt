@@ -1,0 +1,25 @@
+WAIT ok 7-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]
+CHECK ok 8-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)
+  flash tap on stage 200,150 (showAll) at 240 268
+CHECK ok 10-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+WAIT ok 11-launch: load done
+WAIT ok 12-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]
+CHECK ok 13-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)
+  flash tap on stage 200,150 (showAll) at 240 268
+CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+WAIT ok 16-launch: load done
+WAIT ok 17-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]
+CHECK ok 18-flash-behind: the colour 00ff00 in 188 of 192 cells (wanted yes)
+  flash tap on stage 200,150 (showAll) at 240 268
+CHECK ok 20-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+WAIT ok 21-launch: load done
+WAIT ok 22-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]
+CHECK ok 23-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)
+  flash tap on stage 200,150 (showAll) at 240 268
+CHECK ok 25-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+WAIT ok 26-launch: load done
+WAIT ok 27-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]
+CHECK ok 28-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)
+  flash tap on stage 200,150 (showAll) at 240 268
+CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+CHECKS 10 FAILS 0

@@ -152,8 +152,10 @@ fl_chrome() {
     # Mojo's sheet rises from the bottom: a tap while it slides lands on the wrong button (Cancel answered ACCEPT, 2026-11-05)
     mojo:dialog-ok) fl_dialog_mojo >/dev/null; echo 384 935;; mojo:dialog-cancel) fl_dialog_mojo >/dev/null; echo 384 990;;
     # the system's app menu (the app's name at the top left; measured 2026-11-05 on Mochi and Mojo, the same menu
-    # in every shell): Find on Page, Settings, Print
-    *:appmenu) echo 50 14;; *:appmenu-find) echo 70 57;; *:appmenu-settings) echo 51 105;; *:appmenu-print) echo 36 153;;
+    # in every shell), rows 48 px apart: on an http(s) page Find on Page, Reader View, Desktop Site, Settings, Print
+    # (T-642/T-645 added the two on 2026-11-11, moving Settings and Print down two rows)
+    *:appmenu) echo 50 14;; *:appmenu-find) echo 70 57;; *:appmenu-reader) echo 70 105;; *:appmenu-desktop) echo 70 153;;
+    *:appmenu-settings) echo 51 201;; *:appmenu-print) echo 36 249;;
     # T-602's screen lock while a video plays: the button at the view's top right and the notice beside it (placed by
     # each shell's CSS, 2026-11-09; checked on the screen-lock script's shots)
     enyo:lock-button|mochi:lock-button) echo 732 116;; mojo:lock-button) echo 732 124;;

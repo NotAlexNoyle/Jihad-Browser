@@ -77,8 +77,11 @@ the queue).
   measurement *(all six measured on the clean profile 2026-11-10: predictor, GC chunks, surface expiry dropped; the
   image cache 8 MB, decode chunk 64 KB and parser flush 250 ms gained in one round and nothing in chain 5's second:
   dropped; none kept, so none in the prefs)*
-- [ ] Three daemons running at once (one per variant) with the kept levers stay inside the memory budget of
-  cavekit-device-build.md R5
+- [x] Three daemons running at once (one per variant) with the kept levers stay inside the memory budget of
+  cavekit-device-build.md R5 *(2026-11-13, no memory lever kept: Enyo 119, Mochi 132, Mojo 127 MB RSS at once on Hacker
+  News, inside R5's GPU-path budget (~130 MB, re-baselined by the owner), swap unchanged, no OOM kill. The first round
+  ran with Atlas's leak holding 396 MB of shared memory (swap 127 MB free); its server restarted and the orphans
+  removed, swap 433 MB free)*
 **Dependencies:** R1
 
 ### R4: The page-content levers, owner's choices

@@ -343,6 +343,12 @@ crossed most, because a device NPAPI plugin drags the whole webOS WebKit stack i
 **Description:** The renderer runs within the constraints of a 1 GB device.
 **Acceptance Criteria:**
 - [x] On a typical page, render-process memory stays within a documented budget. *(2026-08-04, device: the budget is ~90 MB RSS, and a typical page above 150 MB is a regression to investigate. 86.5 MB after an eight-site session, 87.9 MB on a simple page, 105 MB on a large Wikipedia article, of 940 MB total. The engine's stock settings are overridden (the surfacecache default alone is 1 GB). CE 3.1.0: R4's sweep box (64 MB simple page, 126 MB after the scenario).)*
+  *(2026-11-13, re-baselined for the GPU path, the owner's choice: the budget is **~130 MB RSS a daemon on a typical
+  page** (Hacker News), 150 MB stays the regression line. Measured with the three variants open at once on the PGO
+  engine fac2b0f814: Enyo 119, Mochi 132, Mojo 127 MB RSS (PSS 111-124), swap unchanged at 433 MB free, no OOM kill
+  (`docs/rounds/three-daemons-2026-11-13/hn-after-atlas-reclaim.txt`). Of Enyo's: 51 MB anonymous (JS heap, malloc),
+  16 MB libxul, ~31 MB the GPU path's shared buffers (three 6 MB frame slots, fifty 256 KB tiles). The 90 MB figure
+  predates the GPU path; the cuts toward it are T-652.)*
 - [x] `freeze`/`purgePage` reclaim memory for backgrounded cards. *(2026-08-04, device: `freeze`, which a card sends when backgrounded, drops RSS 105,156 → 99,236 kB (5.9 MB: the shm attachments are released; the segments are IPC_RMID-marked, so a held attach keeps them alive), and `thaw` restores the page. There is no `purgePage` in the frozen contract (`BrowserServerBase` has none); `freeze`/`thaw` is the whole backgrounding surface, driven here by the `freeze`/`thaw` inject commands.)*
 - [x] No out-of-memory crash during a defined browsing scenario. *(2026-08-04, the scenario: example.com, BBC News, two Wikipedia articles, Reddit, Hacker News, CNN, wikipedia.org, ~14 s each, one daemon lifetime. No crash, no fault report, no OOM-killer activity in `dmesg`, still painting at the end, available memory 441 → 406 MB; the same with the memory-pressure guardrail firing five times.)*
 **Dependencies:** cavekit-ipc-contract.md (R3)

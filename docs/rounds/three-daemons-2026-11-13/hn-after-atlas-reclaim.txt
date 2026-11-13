@@ -1,0 +1,32 @@
+== before
+MemTotal: 918 MB  MemFree: 314 MB  Buffers: 58 MB  Cached: 240 MB  SwapTotal: 511 MB  SwapFree: 433 MB  
+   daemon 13228 jihad-browser/ RSS 48 MB PSS 45 MB
+   daemon 17229 jihad-browser-mochi/ RSS 54 MB PSS 51 MB
+   daemon 18492 jihad-browser-mojo/ RSS 54 MB PSS 50 MB
+== three cards on https://news.ycombinator.com/, 30 s after the last launch
+MemTotal: 918 MB  MemFree: 48 MB  Buffers: 50 MB  Cached: 296 MB  SwapTotal: 511 MB  SwapFree: 433 MB  
+   daemon 13228 jihad-browser/ RSS 119 MB PSS 111 MB
+   daemon 17229 jihad-browser-mochi/ RSS 132 MB PSS 124 MB
+   daemon 18492 jihad-browser-mojo/ RSS 126 MB PSS 118 MB
+== 60 s after
+MemTotal: 918 MB  MemFree: 49 MB  Buffers: 50 MB  Cached: 296 MB  SwapTotal: 511 MB  SwapFree: 433 MB  
+   daemon 13228 jihad-browser/ RSS 119 MB PSS 111 MB
+   daemon 17229 jihad-browser-mochi/ RSS 132 MB PSS 124 MB
+   daemon 18492 jihad-browser-mojo/ RSS 127 MB PSS 119 MB
+== Enyo daemon 13228 by mapping (RSS kB, top 14)
+50940 [anon]
+33128 zero
+16112 libxul.so
+3688 SYSVd8000002
+3688 SYSV5b000002
+3688 SYSV14000002
+2888 libGLESv2.so
+736 libstdc++.so.6
+700 startupCache.4.little
+592 jihad-browserserver
+572 libc.so.6
+496 libmozsqlite3.so
+368 libnssckbi.so
+304 libnss3.so
+== closed
+MemTotal: 918 MB  MemFree: 284 MB  Buffers: 50 MB  Cached: 248 MB  SwapTotal: 511 MB  SwapFree: 433 MB  

@@ -1,0 +1,90 @@
+{
+ "date": "2026-11-13T01:05:44",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "media-scrub-drag",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "The video's sliders by finger: a drag on the volume slider changes the volume and a drag of the scrubber's thumb seeks (the page reads them back); a slider is XUL scale content inside the video's anonymous controls, which the adapter's interactive-rect answer does not name, so the drag pans instead (T-598)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect v",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 102 landed on document y 25)",
+    "WAIT ok 12-text status = [playing]",
+    "WAIT ok 14-text status = [paused t=9.7]",
+    "WAIT ok 15-rect anon:#v|controlBar",
+    "WAIT ok 16-rect anon:#v|volumeControl",
+    "WAIT ok 20-text vol = [volume=0.16 muted=false]",
+    "WAIT ok 24-settled: the card's scroll 0 0",
+    "WAIT ok 25-text seek = [60]"
+   ],
+   "kept": [
+    "kept/enyo-media-scrub-drag-seek_.jpg"
+   ],
+   "seconds": 78,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1: connected at +3 s, load done at +10 s, 26 content frames at +10 s; the GPU path, frames off the main thread (the ",
+   "restore": "enyo: (74057/89136763) jihad (start) running, process 13413; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "media-scrub-drag",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "The video's sliders by finger: a drag on the volume slider changes the volume and a drag of the scrubber's thumb seeks (the page reads them back); a slider is XUL scale content inside the video's anonymous controls, which the adapter's interactive-rect answer does not name, so the drag pans instead (T-598)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect v",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 98 landed on document y 25)",
+    "WAIT ok 12-text status = [playing]",
+    "WAIT ok 14-text status = [paused t=8.3]",
+    "WAIT ok 15-rect anon:#v|controlBar",
+    "WAIT ok 16-rect anon:#v|volumeControl",
+    "WAIT ok 20-text vol = [volume=0.16 muted=false]",
+    "WAIT ok 24-settled: the card's scroll 0 0",
+    "WAIT ok 25-text seek = [60]"
+   ],
+   "kept": [
+    "kept/mochi-media-scrub-drag-seek_.jpg"
+   ],
+   "seconds": 75,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1: connected at +3 s, load done at +10 s, 11 content frames at +10 s; the GPU path, frames off the main thread (the",
+   "restore": "mochi: (74131/825529340) jihad-mochi (start) running, process 17430; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "media-scrub-drag",
+   "kit": "cavekit-gre-widgets.md R1",
+   "item": "The video's sliders by finger: a drag on the volume slider changes the volume and a drag of the scrubber's thumb seeks (the page reads them back); a slider is XUL scale content inside the video's anonymous controls, which the adapter's interactive-rect answer does not name, so the drag pans instead (T-598)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect v",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 93 landed on document y 25)",
+    "WAIT ok 12-text status = [playing]",
+    "WAIT ok 14-text status = [paused t=16.8]",
+    "WAIT ok 15-rect anon:#v|controlBar",
+    "WAIT ok 16-rect anon:#v|volumeControl",
+    "WAIT ok 20-text vol = [volume=0.16 muted=false]",
+    "WAIT ok 24-settled: the card's scroll 0 0",
+    "WAIT ok 25-text seek = [60]"
+   ],
+   "kept": [
+    "kept/mojo-media-scrub-drag-seek_.jpg"
+   ],
+   "seconds": 84,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1: connected at +1 s, load done at +8 s, 19 content frames at +8 s; the GPU path, frames off the main thread (the ex",
+   "restore": "mojo: (74216/229992584) jihad-mojo (start) running, process 21679; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (74216/313472733) jihad (start) running, process 13413\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (74222/377866064) jihad-mochi (start) running, process 17430\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (74228/268973618) jihad-mojo (start) running, process 21679\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/sb-probe.png /tmp/sb-probe2.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 4% of /tmp used\nnovacom: unexpected EOF from server",
+ "seconds": 254
+}

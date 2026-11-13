@@ -221,7 +221,8 @@ fl_drag_off() { # SEL DX0 DY0 DX1 DY1 [MS]: a drag between two offsets in docume
   r=$(fl_screen_rect "$1") || return 1; set -- "$1" "$2" "$3" "$4" "$5" "${6:-600}" $r
   p0=$(awk -v x=$7 -v y=$8 -v dx=$2 -v dy=$3 -v z=$(fl_zoom) 'BEGIN { printf "%d %d", x + dx * z + 0.5, y + dy * z + 0.5 }')
   p1=$(awk -v x=$7 -v y=$8 -v dx=$4 -v dy=$5 -v z=$(fl_zoom) 'BEGIN { printf "%d %d", x + dx * z + 0.5, y + dy * z + 0.5 }')
-  echo "  drag on $1 from $p0 to $p1 ($6 ms)"; /tmp/finger drag $p0 $p1 $6; FL_HDR=1; fl_wait_settled 6
+  local b; b=$(fl_card_scroll)
+  echo "  drag on $1 from $p0 to $p1 ($6 ms)"; /tmp/finger drag $p0 $p1 $6; fl_wait_settled 6; fl_moved "$b"
 }
 fl_rect() {
   local l r
@@ -350,13 +351,16 @@ fl_wait_settled() { # the card's scroll read twice the same, BOUND s at most
 # the bar stayed after "cardscroll 0 0" on an unscrolled page, went after "cardscroll 0 300" and stayed away after the
 # "cardscroll 0 0" that followed)
 fl_card_to() { set -- $1 $(fl_card_scroll); [ "$1" != "${3:-}" ] && FL_HDR=1; fl_inject "cardscroll 0 $1"; usleep 300000; fl_wait_settled 5; }
-fl_drag() { /tmp/finger drag $1 $2 $3 $4 ${5:-600}; FL_HDR=1; fl_wait_settled 6; }
-fl_flick() { /tmp/finger flick $1 $2 $3 $4 ${5:-160}; FL_HDR=1; fl_wait_settled 10; }
+# Mojo's address bar goes with the page only when the card scrolls: a drag that stays on a control (a slider) leaves it
+# showing, and counting it gone put the scrubber's drag 46 px above the control bar (T-598, 2026-11-13)
+fl_moved() { [ "$(fl_card_scroll)" != "$1" ] && FL_HDR=1; return 0; }   # BEFORE: the card's scroll before the gesture
+fl_drag() { local b; b=$(fl_card_scroll); /tmp/finger drag $1 $2 $3 $4 ${5:-600}; fl_wait_settled 6; fl_moved "$b"; }
+fl_flick() { local b; b=$(fl_card_scroll); /tmp/finger flick $1 $2 $3 $4 ${5:-160}; fl_wait_settled 10; fl_moved "$b"; }
 # the slow human's drags (T-565): a slow drag at 2 px a scan (the panel's 100 Hz: 200 px a second), a jittered path
 # (+-2 px each way on every scan), a drag that pauses mid-way (PAUSE ms, 700 by default); each settled after
-fl_drag_slow() { /tmp/finger drag $1 $2 $3 $4 $(( ( ($4 - $2) < 0 ? ($2 - $4) : ($4 - $2) ) * 5 )); FL_HDR=1; fl_wait_settled 8; }
-fl_drag_jitter() { FINGER_JITTER=2 /tmp/finger drag $1 $2 $3 $4 ${5:-600}; FL_HDR=1; fl_wait_settled 6; }
-fl_drag_paused() { FINGER_PAUSE_MS=${5:-700} /tmp/finger drag $1 $2 $3 $4 ${6:-600}; FL_HDR=1; fl_wait_settled 6; }
+fl_drag_slow() { local b; b=$(fl_card_scroll); /tmp/finger drag $1 $2 $3 $4 $(( ( ($4 - $2) < 0 ? ($2 - $4) : ($4 - $2) ) * 5 )); fl_wait_settled 8; fl_moved "$b"; }
+fl_drag_jitter() { local b; b=$(fl_card_scroll); FINGER_JITTER=2 /tmp/finger drag $1 $2 $3 $4 ${5:-600}; fl_wait_settled 6; fl_moved "$b"; }
+fl_drag_paused() { local b; b=$(fl_card_scroll); FINGER_PAUSE_MS=${5:-700} /tmp/finger drag $1 $2 $3 $4 ${6:-600}; fl_wait_settled 6; fl_moved "$b"; }
 # the frame sampler over the gestures that follow (T-565, R6: the stream's numbers in the report): the stream under
 # /media/internal/jihad-finger/stream.fbs, the finger's trace joined; fl_stream_stop waits for it
 fl_stream_start() { # [SECONDS] [fbstream options...]

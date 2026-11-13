@@ -7,7 +7,7 @@
 # app's own volume (not the FAT media partition), and libgcov merges each dump into the files. Then the tree is pulled
 # beside the gen objects and the use build starts. docs/research/lowpower-uxp.md section 7 is the procedure.
 #
-#   build/webos-oe/in-container.sh --arm build/webos-oe/build-goanna-arm.sh all "" mozconfig.goanna-arm-pgo gen
+#   build/webos-oe/in-container.sh --arm build/webos-oe/build-goanna-arm.sh all 4 mozconfig.goanna-arm-pgo gen   # 4 jobs: earlyoom killed cc1plus at 8 (2026-11-12)
 #   tools/device/pgo-profile.sh            (the TouchPad on novacom, nothing else running on it; 3-4 hours)
 #   ROUND_DIR=docs/rounds/<dir>            where the rows and logs go (default docs/rounds/pgo-<date>)
 #   PGO_WORK=<dir>                         the stripped libraries, the pulled tar, the use build's log
@@ -75,7 +75,7 @@ tar xf $S/jihad-pgo2.tar -C build/webos-oe/out-arm --strip-components=1 && echo 
 cleanup_device
 tools/device/close-usb-alert.sh 300
 if [ "$(find $O -name '*.gcda' | wc -l)" -gt 100 ]; then
-	bash build/webos-oe/in-container.sh --arm build/webos-oe/build-goanna-arm.sh build "" mozconfig.goanna-arm-pgo use > $S/use-build.log 2>&1
+	bash build/webos-oe/in-container.sh --arm build/webos-oe/build-goanna-arm.sh build 4 mozconfig.goanna-arm-pgo use > $S/use-build.log 2>&1
 	echo "pgo2-use rc=$?"
 	echo "use-phase profile notes: mismatch $(grep -ac 'does not match its profile data' $S/use-build.log), not in profile $(grep -ac 'not found in profile data' $S/use-build.log), no data file $(grep -ac 'profile count data file not found' $S/use-build.log)"
 else echo "!! too few profile files: no use build"; fi

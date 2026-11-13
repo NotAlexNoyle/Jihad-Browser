@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-12 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-13 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -82,6 +82,23 @@ phones too. That legacy engine port is the base the phone rows above build on.
 
 Memory: `global-jihad-project.md`. The workspace `CLAUDE.md` carries the pointer and the corrected
 target line (both webOS 3.0.5 and CE 3.1.0).
+
+## 2026-11-13 — GitHub's hang fixed for good (engine 0109-0111), T-598 done, Atlas leak PR staged, milestone PGO under way (READ FIRST)
+
+- **Engine 0110 + 0111 (pin fac2b0f814, queue 111 exact).** 0109 alone still hung GitHub in 6 of 12 loads: the GC
+  waits for its own helper tasks while holding the exclusive-access lock, and with the job's pool of two
+  (JIHAD_JS_HELPER_THREADS=2) both helpers could be parses blocked on that lock. 0110 runs a GC task no helper took on
+  the joining thread; 0111 caps parses at the pool less one (checkTaskThreadLimit skipped its isMaster idle-helper
+  reservation when the limit reached the pool size). 12 of 12 loads in 75 s on one daemon. Any future cap on helper
+  threads must keep parses below the pool.
+- **T-598 done.** fingerlib counted Mojo's header gone after every drag; only a gesture that scrolled the card does now.
+- **PGO:** pgo-profile.sh deletes every .o still carrying `__gcov_init` before the use build (the gen phase left four
+  xpcom/base objects under use-phase names; the use link failed). The milestone retrain (gen, TouchPad training, use)
+  runs on fac2b0f814; after it: push to the 3 shells, frame check, owner's push. The gitlink is the owner's to bump.
+- **T-651 Atlas shared-memory leak:** fix staged (not committed) on `shm-leaks` in ~/eclipse-workspace/atlas-wpe-backend,
+  origin = Gitea NotAlexNoyle/atlas-wpe-backend (GitHub fork mirrors it); PR text in the session scratchpad
+  `atlas-up/PR-backend.md`; not build-tested (Atlas does not rebuild from its public repos). The owner commits, pushes,
+  opens the PR.
 
 ## 2026-11-12 — results since the late 11-11 section, the GPU-hang fix in test, PGO retrain under way (READ FIRST)
 

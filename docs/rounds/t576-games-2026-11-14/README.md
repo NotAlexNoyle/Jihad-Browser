@@ -25,3 +25,13 @@ the optimisation rows until the browser is done.
 By hand (Mochi, the round's points): the first drag reached Flash as 20 moves and panned the game's camera; the drag
 back came as a press of 88 ms with no moves from the card. The test page does not show it (`flash-input-kbdrag`, two
 drags after the keyboard, passes in all three shells): Raft Wars only, not yet explained.
+
+## Super Mario Flash: the round's keys, not Jihad (closed)
+
+The 11-13 round read 0 of 12 windows reacting in Jihad against 12 of 12 in stock. Both play pictures show Mario on the
+same map square: stock's "reaction" was not Mario moving (its arrows reach no Flash movie at all, T-575's notes; and
+with no gesture lock its nub drags reach the page). The keys reach the movie in Jihad (`palm key … raw=146 handled=1`;
+the AVM1 test movie reads keydown 39 and 38 from the nub). The map's start square has a path only downwards, and the
+round never pressed down: by the kernel keyboard (new `hold CODE MS` in uinput_kbd), a held right moved nothing, a held
+or a 30 ms down moved Mario, up brought him back. With `down, left, space, right, right, up` (flash-games.json):
+6 of 6 windows react, 13.0 frames a second, Mario plays level 1 (`mochi-super-mario-flash-windows.jpg`, `mochi-mario.log`).

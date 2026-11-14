@@ -90,8 +90,12 @@ sleep {load}
     # a tap that reaches an ad's link takes the card off the game (2026-11-07: Learn to Fly 3's sponsor, then a YouTube page
     # that starved the device): after each window the shell's last top-level address is read, and a card that left its
     # game is closed at once and the rest skipped (the stock browser keeps no such file)
-    away = "" if "stockbench" in app else f"""if [ -f $D/last-load ] && ! sed -n 2p $D/last-load | grep -q '/title/{t['id']}'; then echo "AWAY $(sed -n 2p $D/last-load | cut -c1-150)"; AWAY=1; close_all; fi\n"""
-    s.append("AWAY=\n")
+    # since 2026-11-14 a movie's tapped link to a new window opens a NEW card (a sponsor's logo): the game's own card stays,
+    # the new one is named and closed, and the round goes on (the shell's last-load then names the new card's page)
+    away = "" if "stockbench" in app else f"""P=$(luna-send -n 1 palm://com.palm.applicationManager/running '{{}}' 2>/dev/null | tr ',' '\\n' | grep -A1 '"{app}"' | grep processid | sed 's/.*"processid": *"\\([^"]*\\)".*/\\1/' | sort -n)
+if [ $(echo $P | wc -w) -gt 1 ]; then for x in $(echo $P | tr ' ' '\\n' | tail -n +2); do luna-send -n 1 palm://com.palm.applicationManager/close '{{"processId":"'"$x"'"}}' >/dev/null 2>&1; done; LL0=$(sed -n 2p $D/last-load); echo "NEWCARD $(echo "$LL0" | cut -c1-150)"; sleep 2
+elif [ -f $D/last-load ] && [ "$(sed -n 2p $D/last-load)" != "$LL0" ] && ! sed -n 2p $D/last-load | grep -q '/title/{t['id']}'; then echo "AWAY $(sed -n 2p $D/last-load | cut -c1-150)"; AWAY=1; close_all; fi\n"""
+    s.append("AWAY=; LL0=\n")
     for w_i in range(n):
         s.append(f"""if [ -z "$AWAY" ]; then
 /tmp/fbstream /tmp/fl-ctl -C {R} -s {win} -P 2000 >/dev/null 2>&1
@@ -163,7 +167,7 @@ def main():
         r = {"ref": float((re.search(r"^REF ([\d.]+)", out, re.M) or [None, -1])[1]), "windows": len(wins), "reacted": sum(1 for a, b, c, d in wins if b and a * 2 >= b), "changed": sum(1 for a, b, c, d in wins if c >= 1),
              "content": med([c for a, b, c, d in wins]), "p90": med([d for a, b, c, d in wins if d]), "rates": [c for a, b, c, d in wins],
              "same_player": bool(p0) and p0 == p1, "rss": int((re.search(r"^RSS (\d+)", out, re.M) or [None, 0])[1]), "faults": int((re.search(r"^FAULTS (-?\d+)", out, re.M) or [None, -1])[1]), "colours": int((re.search(r"^SHOWN (\d+)", out, re.M) or [None, 0])[1]), "card": int((re.search(r"^CARD (\d+)", out, re.M) or [None, 0])[1]) > 0,
-             "stale": re.findall(r"^STALE (\d+)", out, re.M), "orphan": re.findall(r"^ORPHAN (\d+)", out, re.M), "fault_lines": re.findall(r"^FAULTLINE (.*)", out, re.M), "away": (re.search(r"^AWAY (.*)", out, re.M) or [None, ""])[1], "events": [int(x) for x in ((re.search(r"^EVENTS (\d+) (\d+)", out, re.M) or None) and re.search(r"^EVENTS (\d+) (\d+)", out, re.M).groups() or (0, 0))], "secs": round(time.time() - t0)}
+             "stale": re.findall(r"^STALE (\d+)", out, re.M), "orphan": re.findall(r"^ORPHAN (\d+)", out, re.M), "fault_lines": re.findall(r"^FAULTLINE (.*)", out, re.M), "away": (re.search(r"^AWAY (.*)", out, re.M) or [None, ""])[1], "new_cards": re.findall(r"^NEWCARD (.*)", out, re.M), "events": [int(x) for x in ((re.search(r"^EVENTS (\d+) (\d+)", out, re.M) or None) and re.search(r"^EVENTS (\d+) (\d+)", out, re.M).groups() or (0, 0))], "secs": round(time.time() - t0)}
         results[id_] = r; json.dump(results, open(out_path, "w"), indent=1)
         print("%-24s ref %5.1f reacted %2d/%2d changed %2d content %5.1f p90 %4d player %-5s rss %6d faults %2d (%d s) ev %d/%d%s%s" % (id_, r["ref"], r["reacted"], r["windows"], r["changed"], r["content"], r["p90"], r["same_player"], r["rss"], r["faults"], r["secs"], r["events"][1], r["events"][0], " STALE" if r["stale"] else "", " ORPHAN" if r["orphan"] else ""), flush=True)
 

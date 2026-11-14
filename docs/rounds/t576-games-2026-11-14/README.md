@@ -35,3 +35,21 @@ the AVM1 test movie reads keydown 39 and 38 from the nub). The map's start squar
 round never pressed down: by the kernel keyboard (new `hold CODE MS` in uinput_kbd), a held right moved nothing, a held
 or a 30 ms down moved Mario, up brought him back. With `down, left, space, right, right, up` (flash-games.json):
 6 of 6 windows react, 13.0 frames a second, Mario plays level 1 (`mochi-super-mario-flash-windows.jpg`, `mochi-mario.log`).
+
+## Sponsor links open a new card (engine 0113); Achievement Unlocked and Duck Life 4
+
+Both 11-13 "card closed" games were a tap on the sponsor's splash (armorgames.com, wixgames.co.uk): the movie's
+getURL(url, "_blank") loaded in the game's own card, because this embedding answers a link with a target with the
+window that asked. Engine 0113 sends a movie's _blank GET to a web address, within a second of the user's pen event
+on it, to a new card (the daemon takes it as it takes window.open's address); anything else a movie asks for in a new
+window is refused. Enyo and Mochi open the sponsor in a second card and the game's card stays on the game; Mojo pushes
+it as a scene over the game in the same card (its stage assistant's design for new pages; back returns to the game).
+game-round.py now closes such a new card, records it (`new_cards`) and goes on.
+
+- **Achievement Unlocked**: its second start tap came during the splash; with 14 s after the title's Play it reaches
+  the menu's Play: 12 of 12 windows react in Enyo, Mochi and Mojo, the card alive (`*-au.log`, `*-au.json`).
+- **Duck Life 4**: START, the Wix splash, PLAY (its right half: the round's tap was on its edge), then "How fast is your
+  computer?". After any choice (SLOW and AVERAGE tried) the player computes for over 45 s, ~90 % of samples in one
+  list search in libflashplayer.so (0x1c30d0..0x1c3104, `pcsample`), the daemon's main thread waiting on it; the
+  engine's plugin hang timeout (dom.ipc.plugins.timeoutSecs 45) ends the player. With the timeout off the daemon's own
+  watchdog fired at 72 s. The stock round never reached this screen (its card left for the sponsor): no comparison yet.

@@ -4434,6 +4434,12 @@ bool GoannaRenderPage::FocusedEditableBox(int* top, int* bottom) {
 }
 
 bool GoannaRenderPage::TakeNewWindowUrl(std::string* url) {
+  // T-576: a movie's tapped link to a new window (a game's sponsor) goes the same way as window.open's address
+  if (mChrome && mChrome->mNewWindowUrl.IsEmpty() && jihad_plugin_take_new_window && mChrome->mBrowser) {
+    nsCOMPtr<nsIDocShell> ds = GetDocShell(mChrome->mBrowser);
+    char buf[2048];
+    if (ds && jihad_plugin_take_new_window(ds, buf, sizeof buf)) mChrome->mNewWindowUrl.Assign(buf);
+  }
   if (!mChrome || mChrome->mNewWindowUrl.IsEmpty()) return false;
   if (url) *url = mChrome->mNewWindowUrl.get();
   mChrome->mNewWindowUrl.Truncate();

@@ -86,6 +86,8 @@ extern "C" {
   int jihad_plugin_lane_copy(unsigned char* aDest, int aDestStride, int aX, int aY, int aW, int aH,
                              int* aFullW, int* aFullH) __attribute__((weak));
   void jihad_plugin_key_char(int aChar, int aRaw) __attribute__((weak));
+  // OPTIONAL (T-576): a movie's link to a new window, tapped, waiting for this page (its root docshell)
+  int jihad_plugin_take_new_window(nsIDocShell* aRootShell, char* aBuf, int aLen) __attribute__((weak));
   int jihad_plugin_lane_proof(nsIDocShell* aDocShell, int* aX, int* aY, int* aW, int* aH) __attribute__((weak));
   int jihad_offscreen_popups_open() __attribute__((weak));
   void jihad_plugin_lane_set(int aMode, const unsigned char* aRows, int aStride) __attribute__((weak));

@@ -128,7 +128,8 @@ Tap a movie to click it. Double-tap it to lock it, and drags and holds go to the
 scrolling the page; the on-screen keyboard comes up with the lock, arrow keys and all, so keyboard
 games play with no keyboard attached. A set of 57 real titles (37 games, 10 apps, 10 videos) is
 played on the device by a scripted finger in all three interfaces and checked against the stock
-browser on the same files. The games round is still going.
+browser on the same files. The games round is still going. A sponsor link tapped in a game opens in a new card,
+so the game stays where it was.
 
 <br clear="right">
 

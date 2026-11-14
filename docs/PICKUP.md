@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-13 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-14 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -94,6 +94,25 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## HANDOFF 2026-11-14 (end of session) — where a new agent starts (READ FIRST)
+
+- **Pushed:** main at `eeb52904` is on Gitea (the owner, 2026-11-14). Nothing of this session is unpushed but this
+  handoff commit. The `third_party/uxp` gitlink in the working tree points at engine `05bfdf099b` (queue 113 exact) and
+  is NOT committed: bumping it is the owner's (never commit a gitlink yourself).
+- **Device (TouchPad, CE 3.1.0, USB/novacom):** all three shells on engine 0113 (libxul md5 c0412009, daemon 1de90826)
+  with the committed prefs (goanna.js 4629ba17: `dom.ipc.plugins.timeoutSecs` back to 45 after the Duck Life 4 trial);
+  adapter = the committed build; kernel keyboard fixture down; no extra cards; USB alert closed.
+- **Start prompt:** `.cavekit/handoff-2026-11-14/next-agent-prompt.md` (local, gitignored). Push script unchanged:
+  `bash .cavekit/handoff-2026-11-08/push.sh` (the owner runs it).
+- **Open rows** (`.cavekit/task-status.json`): in progress T-576 (games), T-594 (hardware H.264 probe), T-605, T-606,
+  T-651 (Atlas leak, staged for the owner); pending T-577..T-583 (Flash apps, videos, sound life, movie life, page
+  gestures, corpus suite, finish), T-611; blocked on the owner at the device T-566, T-584; DEFERRED optimisation rows
+  (finish first): T-505, T-592, T-604, T-628, T-629, T-652.
+- **T-576 next, in order:** Bejeweled 2, Hobo 2, Wonderputt start taps (never leave their menus, all shells); Raft Wars'
+  second drag lost (88 ms press, no moves; Raft Wars only); Duck Life 4 (> 45 s in the player after its speed screen:
+  decide by a stock reading whether it is ours); then R6's keyboard games on the system keyboard and the four 15 minute
+  soaks. Then T-577 onward in build-site order.
+
 ## 2026-11-14 — Flash pen events without the wait (engine 0112), T-576 continues (READ FIRST)
 
 - **Engine 0112 (pin 6331ef3f87, queue 112 exact):** pen down/move/up go to the plugin as one async message
@@ -130,8 +149,8 @@ target line (both webOS 3.0.5 and CE 3.1.0).
   ran on fac2b0f814 (2078 profiles, use build: mismatch 0, not in profile 0) and is on the 3 shells (libxul md5 f4736d73);
   GitHub 6 of 6 on one daemon in Enyo, rendered right in all three. The gitlink is the owner's to bump.
 - **T-651 Atlas shared-memory leak:** fix staged (not committed) on `shm-leaks` in ~/eclipse-workspace/atlas-wpe-backend,
-  origin = Gitea NotAlexNoyle/atlas-wpe-backend (GitHub fork mirrors it); PR text in the session scratchpad
-  `atlas-up/PR-backend.md`; not build-tested (Atlas does not rebuild from its public repos). The owner commits, pushes,
+  origin = Gitea NotAlexNoyle/atlas-wpe-backend (GitHub fork mirrors it); PR text in .cavekit/handoff-2026-11-14/atlas-PR-backend.md (copied from the session scratchpad
+  `atlas-up/PR-backend.md`); not build-tested (Atlas does not rebuild from its public repos). The owner commits, pushes,
   opens the PR.
 
 ## 2026-11-12 — results since the late 11-11 section, the GPU-hang fix in test, PGO retrain under way (READ FIRST)

@@ -4,6 +4,9 @@ last_edited: "2026-08-03"
 status: HANDOFF — read this first, then context/kits/cavekit-overview.md
 ---
 
+> **2026-11-14: this file is HISTORICAL (2026-08).** The current handoff is `docs/PICKUP.md` (top sections) and the
+> start prompt `.cavekit/handoff-2026-11-14/next-agent-prompt.md`.
+
 > **2026-08-03 (second session) — the two big blockers below are RESOLVED:**
 > **(0) the card JS dev loop is RESTORED** — `build/webos-oe/push-card-js.sh`, reloads
 > proven by a per-push runtime stamp in the device log; the freeze had TWO layers:

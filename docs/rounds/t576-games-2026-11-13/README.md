@@ -13,3 +13,15 @@
 - **Scripts to fix** (same in all three shells since 11-06): Bejeweled 2, Hobo 2 and Wonderputt never leave their menu
   (the start taps miss); Super Mario Flash reaches its map but its keys read no reaction; Duck Life 4's card goes away;
   Achievement Unlocked and Wonderputt end after one window in Mojo.
+
+## The stock round (all 37, same day) and the verdicts against its bar (`report.md`)
+
+- Pass in both shells: Crimson Room, Impossible Quiz. Limits: the six above (Samorost's was recorded before).
+- **Super Mario Flash**: stock reacts in 12 of 12 windows to the same keys, Jihad in 0: the keys do not reach the movie
+  in Jihad, a defect.
+- **Content rate far under stock's** on many games, Mochi: Raft Wars 0.6/s against 24.2, Ragdoll Cannon 2 0.6 against
+  21.0, Paper Airplane 4.6 against 18.2, Effing Meteors 4.4 against 11.0, Indestructo-copter 5.0 against 14.4,
+  Motherload 15.0 against 29.4. At 0.6/s a game is unplayable, so the worst are treated as defects (frames not
+  delivered), not as optimisation.
+- Achievement Unlocked: the card closed in Mochi and Mojo (stock 9 of 12, Enyo 10 of 12 on 11-06).
+- Run 3: stock read 10 of 12 windows at 9/s while its pictures are black (mean 0.0): its limit needs an eye check.

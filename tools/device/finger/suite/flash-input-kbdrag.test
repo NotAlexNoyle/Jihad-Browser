@@ -1,0 +1,23 @@
+id: flash-input-kbdrag
+section: Flash
+item: With the keyboard up for an engaged movie (the double tap), the movie still takes touches: a drag on it reaches it as moves, a tap as a down and an up
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2
+kit: cavekit-flash.md R5
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 150
+expect number n-down 1 1
+pause 800
+dtap 240 272
+expect keyboard up
+pause 2500
+# T-576 (2026-11-14): the games round double-taps a drag game, and no drag after it reached the daemon
+drag 120 300 360 200 600
+wait settled 5
+expect number n-move 5 400
+# and the drag back right after it (Raft Wars by hand, 2026-11-14: the second came as a press of 88 ms, no moves)
+drag 360 200 120 300 500
+wait settled 5
+expect number n-move 14 800
+flash-tap m 400 300 showAll 300 100
+expect flash-at 300 100 8

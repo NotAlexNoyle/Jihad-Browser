@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-14T10:14:02
+# Finger suite report — 2026-11-14T11:19:03
 
 First run 2026-11-14T09:01:57; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 1. 4450 s.
+Shells: enyo, mochi, mojo. Scripts: 1. 4690 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -51,11 +51,14 @@ Shells: enyo, mochi, mojo. Scripts: 1. 4450 s.
 | mojo | flash-sound | **a person's** | 0 ok, 0 failed | hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route) | cavekit-engine-update.md R8 |
 | mojo | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 46 (15.3/s), changes 41 (13.7/s), reads 47, distinct 42, spacing median 69 p90 77 max 126 ms (wanted 5..100/s) | cavekit-flash.md R4 |
 | mojo | flash-wmode | **pass** | 19 ok, 0 failed | CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
+| enyo | flash-input-kbdrag (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8) | cavekit-flash.md R5 |
+| mochi | flash-input-kbdrag (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8) | cavekit-flash.md R5 |
+| mojo | flash-input-kbdrag (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8) | cavekit-flash.md R5 |
 
 ## The device at the end
 
 ```
-DEVICE ok job-enyo: (193408/786431719) jihad (start) running, process 26882
+DEVICE ok job-enyo: (197397/729074946) jihad (start) running, process 16588
 DEVICE ok daemons-enyo: one daemon
 DEVICE ok hand-daemon-enyo: none
 DEVICE ok hooks-enyo: none
@@ -65,7 +68,7 @@ DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
 DEVICE ok cards-enyo: none
 DEVICE ok audio-lib-enyo: the device's own
 DEVICE ok look-enyo: {"returnValue":true,"theme":null}
-DEVICE ok job-mochi: (193414/39171421) jihad-mochi (start) running, process 16201
+DEVICE ok job-mochi: (197403/712131981) jihad-mochi (start) running, process 20197
 DEVICE ok daemons-mochi: one daemon
 DEVICE ok hand-daemon-mochi: none
 DEVICE ok hooks-mochi: none
@@ -75,7 +78,7 @@ DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
 DEVICE ok cards-mochi: none
 DEVICE ok audio-lib-mochi: the device's own
 DEVICE ok look-mochi: {"returnValue":true,"theme":null}
-DEVICE ok job-mojo: (193419/334040902) jihad-mojo (start) running, process 1248
+DEVICE ok job-mojo: (197409/356977166) jihad-mojo (start) running, process 24007
 DEVICE ok daemons-mojo: one daemon
 DEVICE ok hand-daemon-mojo: none
 DEVICE ok hooks-mojo: none
@@ -93,9 +96,9 @@ DEVICE ok test-pads-mochi: none
 DEVICE ok dialog-pipes-mochi: none
 DEVICE ok test-pads-mojo: none
 DEVICE ok dialog-pipes-mojo: none
-DEVICE FAIL tmp-dumps: /tmp/rw.png /tmp/sb-probe.png /tmp/sb-probe2.png /tmp/wb.png 
+DEVICE FAIL tmp-dumps: /tmp/r3-a.png /tmp/r3-b.png /tmp/r3-c.png /tmp/rw.png /tmp/sb-probe.png /tmp/sb-probe2.png /tmp/wb.png 
 DEVICE ok media-scratch: none
-DEVICE FAIL overall: 16% of /tmp used
+DEVICE FAIL overall: 18% of /tmp used
 novacom: unexpected EOF from server
 ```
 
@@ -739,4 +742,40 @@ novacom: unexpected EOF from server
     WAIT ok 27-text ready = [ready avm1 ver=WEB 10,3,185,65 stage=400x300]
     CHECK ok 28-flash-behind: the colour 00ff00 in 0 of 192 cells (wanted no)
     CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
+
+### enyo / flash-input-kbdrag — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (t
+    WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+    CHECK ok 9-number: n-down = 1 (wanted 1..1)
+    CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    WAIT ok 16-settled: the card's scroll 0 0
+    CHECK ok 17-number: n-move = 11 (wanted 5..400)
+    WAIT ok 20-settled: the card's scroll 0 0
+    CHECK ok 21-number: n-move = 17 (wanted 14..800)
+    CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8)
+
+### mochi / flash-input-kbdrag — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (
+    WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+    CHECK ok 9-number: n-down = 1 (wanted 1..1)
+    CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    WAIT ok 16-settled: the card's scroll 0 0
+    CHECK ok 17-number: n-move = 11 (wanted 5..400)
+    WAIT ok 20-settled: the card's scroll 0 0
+    CHECK ok 21-number: n-move = 19 (wanted 14..800)
+    CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8)
+
+### mojo / flash-input-kbdrag — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +7 s, 10 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (
+    WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+    CHECK ok 9-number: n-down = 1 (wanted 1..1)
+    CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 16-settled: the card's scroll 0 0
+    CHECK ok 17-number: n-move = 12 (wanted 5..400)
+    WAIT ok 20-settled: the card's scroll 0 0
+    CHECK ok 21-number: n-move = 20 (wanted 14..800)
+    CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8)
 

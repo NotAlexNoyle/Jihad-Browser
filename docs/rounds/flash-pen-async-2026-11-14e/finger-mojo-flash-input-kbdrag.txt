@@ -1,0 +1,14 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 240 263
+CHECK ok 9-number: n-down = 1 (wanted 1..1)
+  pause 800 ms (the slow human)
+  double tap 240 272
+CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  pause 2500 ms (the slow human)
+WAIT ok 16-settled: the card's scroll 0 0
+CHECK ok 17-number: n-move = 12 (wanted 5..400)
+WAIT ok 20-settled: the card's scroll 0 0
+CHECK ok 21-number: n-move = 20 (wanted 14..800)
+  flash tap on stage 300,100 (showAll) at 340 213
+CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8)
+CHECKS 5 FAILS 0

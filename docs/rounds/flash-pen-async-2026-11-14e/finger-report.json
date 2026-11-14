@@ -1,5 +1,5 @@
 {
- "date": "2026-11-14T10:14:02",
+ "date": "2026-11-14T11:19:03",
  "shells": [
   "enyo",
   "mochi",
@@ -1147,9 +1147,81 @@
    "note": "",
    "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm1&bg=00ff00&wmode=window: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main threa",
    "restore": "mojo: (193022/728628385) jihad-mojo (start) running, process 19864; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-input-kbdrag",
+   "kit": "cavekit-flash.md R5",
+   "item": "With the keyboard up for an engaged movie (the double tap), the movie still takes touches: a drag on it reaches it as moves, a tap as a down and an up",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 16-settled: the card's scroll 0 0",
+    "CHECK ok 17-number: n-move = 11 (wanted 5..400)",
+    "WAIT ok 20-settled: the card's scroll 0 0",
+    "CHECK ok 21-number: n-move = 17 (wanted 14..800)",
+    "CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8)"
+   ],
+   "kept": [],
+   "seconds": 73,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "enyo: (197249/206840604) jihad (start) running, process 16588; daemons running: 1",
+   "rerun": "2026-11-14T11:19:03"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-input-kbdrag",
+   "kit": "cavekit-flash.md R5",
+   "item": "With the keyboard up for an engaged movie (the double tap), the movie still takes touches: a drag on it reaches it as moves, a tap as a down and an up",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 16-settled: the card's scroll 0 0",
+    "CHECK ok 17-number: n-move = 11 (wanted 5..400)",
+    "WAIT ok 20-settled: the card's scroll 0 0",
+    "CHECK ok 21-number: n-move = 19 (wanted 14..800)",
+    "CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8)"
+   ],
+   "kept": [],
+   "seconds": 71,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (",
+   "restore": "mochi: (197319/994229184) jihad-mochi (start) running, process 20197; daemons running: 1",
+   "rerun": "2026-11-14T11:19:03"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-input-kbdrag",
+   "kit": "cavekit-flash.md R5",
+   "item": "With the keyboard up for an engaged movie (the double tap), the movie still takes touches: a drag on it reaches it as moves, a tap as a down and an up",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-number: n-down = 1 (wanted 1..1)",
+    "CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 16-settled: the card's scroll 0 0",
+    "CHECK ok 17-number: n-move = 12 (wanted 5..400)",
+    "WAIT ok 20-settled: the card's scroll 0 0",
+    "CHECK ok 21-number: n-move = 20 (wanted 14..800)",
+    "CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8)"
+   ],
+   "kept": [],
+   "seconds": 78,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +7 s, 10 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (",
+   "restore": "mojo: (197397/636760576) jihad-mojo (start) running, process 24007; daemons running: 1",
+   "rerun": "2026-11-14T11:19:03"
   }
  ],
- "end_check": "DEVICE ok job-enyo: (193408/786431719) jihad (start) running, process 26882\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (193414/39171421) jihad-mochi (start) running, process 16201\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (193419/334040902) jihad-mojo (start) running, process 1248\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/rw.png /tmp/sb-probe.png /tmp/sb-probe2.png /tmp/wb.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 16% of /tmp used\nnovacom: unexpected EOF from server",
- "seconds": 4450,
+ "end_check": "DEVICE ok job-enyo: (197397/729074946) jihad (start) running, process 16588\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (197403/712131981) jihad-mochi (start) running, process 20197\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (197409/356977166) jihad-mojo (start) running, process 24007\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/r3-a.png /tmp/r3-b.png /tmp/r3-c.png /tmp/rw.png /tmp/sb-probe.png /tmp/sb-probe2.png /tmp/wb.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 18% of /tmp used\nnovacom: unexpected EOF from server",
+ "seconds": 4690,
  "first_date": "2026-11-14T09:01:57"
 }

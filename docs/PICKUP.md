@@ -103,8 +103,18 @@ target line (both webOS 3.0.5 and CE 3.1.0).
   `JIHAD_PLUGIN_PEN_ASYNC=0`. Flash finger suite 44 of 45 (Mochi flash-input-cover failed before too); R5 moves sent on
   25-28/s against 11-14. Rounds a-e and what each showed: `docs/rounds/flash-pen-async-2026-11-14e/README.md`.
   A daemon-side move cap was tried and reverted (11.6/s). The gitlink is the owner's to bump.
-- **Next:** Raft Wars and T-576's games re-measured on 0112; then super-mario-flash keys, achievement-unlocked's card
-  close, duck-life-4's card, T-577..T-583.
+- **Engine 0113 (pin 05bfdf099b, queue 113 exact):** a movie's getURL(url, "_blank") to a web address, within a second
+  of a pen event on it, opens a NEW card (daemon: jihad_plugin_take_new_window, the window.open path); anything else a
+  movie asks for in a new window is refused. It used to load in the game's own card (sponsor splashes).
+- **T-576 games** (`docs/rounds/t576-games-2026-11-14/README.md`): Raft Wars 0.6 → 3.8 frames a second under drags;
+  the 11-13 stock verdicts for Raft Wars, Ragdoll Cannon 2 and Paper Airplane are VOID (stock stayed in their menus).
+  Super Mario Flash plays (the round never pressed down, the only way off the start square: not a defect).
+  Achievement Unlocked 12 of 12 windows in all three shells. Duck Life 4: reaches its speed screen, then the player
+  computes > 45 s (one list search in libflashplayer.so) and the plugin hang timeout ends it: recorded, open.
+  Where stock and Jihad show the same screen the gap is drawing speed (Effing Meteors 5.0 vs 11.0): parked.
+  New test `flash-input-kbdrag`. game-round.py closes a sponsor's new card and goes on (`new_cards`).
+- **Next:** T-577..T-583 (apps, videos, sound life, movie life, corpus suite), T-605/T-606, T-594/T-611; Duck Life 4's
+  45 s if a stock reading shows the stock player gets through it.
 
 ## 2026-11-13 — GitHub's hang fixed for good (engine 0109-0111), T-598 done, Atlas leak PR staged, milestone PGO under way (READ FIRST)
 

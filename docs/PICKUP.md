@@ -94,6 +94,18 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## 2026-11-14 — Flash pen events without the wait (engine 0112), T-576 continues (READ FIRST)
+
+- **Engine 0112 (pin 6331ef3f87, queue 112 exact):** pen down/move/up go to the plugin as one async message
+  (JihadPenEvent); the child queues them and a loop task delivers them (never on receipt: inside the movie's own call
+  to the host a release, then a down, was lost); the parent returns the movie's last answer per kind
+  (JihadPenHandled; an AVM2 movie answers 1, and a fixed 0 lost Enyo's drag after a hold). Switch
+  `JIHAD_PLUGIN_PEN_ASYNC=0`. Flash finger suite 44 of 45 (Mochi flash-input-cover failed before too); R5 moves sent on
+  25-28/s against 11-14. Rounds a-e and what each showed: `docs/rounds/flash-pen-async-2026-11-14e/README.md`.
+  A daemon-side move cap was tried and reverted (11.6/s). The gitlink is the owner's to bump.
+- **Next:** Raft Wars and T-576's games re-measured on 0112; then super-mario-flash keys, achievement-unlocked's card
+  close, duck-life-4's card, T-577..T-583.
+
 ## 2026-11-13 — GitHub's hang fixed for good (engine 0109-0111), T-598 done, Atlas leak PR staged, milestone PGO under way (READ FIRST)
 
 - **Engine 0110 + 0111 (pin fac2b0f814, queue 111 exact).** 0109 alone still hung GitHub in 6 of 12 loads: the GC

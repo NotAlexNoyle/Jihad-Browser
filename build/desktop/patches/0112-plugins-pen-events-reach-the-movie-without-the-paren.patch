@@ -1,0 +1,237 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Sat, 14 Nov 2026 10:16:53 -0500
+Subject: [PATCH] plugins: pen events reach the movie without the parent
+ waiting for its frame
+
+NPP_HandleEvent is an intr call that returns when the movie's frame has ended. On the TouchPad
+a game whose frame takes 80-150 ms (Raft Wars) held the daemon's main thread for the length of
+every pen move, so under a drag nothing was published for seconds and moves reached Flash at
+11-14 a second (cavekit-flash.md R5 asks for 20).
+
+Pen down, move and up now go as one async message, JihadPenEvent, so they stay in order. The
+child queues them and a loop task delivers them, as DoAsyncSetWindow is delivered: the message
+is dispatched whenever the channel is read, also while the movie waits on a call of its own to
+the host, and a pen event delivered inside the movie's own code was lost (a release, then a
+tap's down). Events that arrive during an event call wait for its end. The parent returns the
+movie's last answer to each kind, which the child sends (JihadPenHandled) only when it changes:
+an AVM2 movie answers 1 to a down, and a fixed 0 let the page's default run, after which the
+Enyo card lost the drag that followed a hold. JIHAD_PLUGIN_PEN_ASYNC=0 waits as before.
+
+On the TouchPad, the 15 Flash finger tests in three shells: 44 of 45 pass (the one left,
+flash-input-cover in Mochi, failed before this too); moves sent on 25-28 a second against 11-14.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfP34fXBdsc76E8YSzR
+---
+ dom/plugins/ipc/PPluginInstance.ipdl     | 11 ++++
+ dom/plugins/ipc/PluginInstanceChild.cpp  | 65 +++++++++++++++++++++++-
+ dom/plugins/ipc/PluginInstanceChild.h    | 15 ++++++
+ dom/plugins/ipc/PluginInstanceParent.cpp | 23 +++++++++
+ dom/plugins/ipc/PluginInstanceParent.h   |  6 +++
+ 5 files changed, 119 insertions(+), 1 deletion(-)
+
+diff --git a/dom/plugins/ipc/PPluginInstance.ipdl b/dom/plugins/ipc/PPluginInstance.ipdl
+index 33ac1cb043..6978a78e33 100644
+--- a/dom/plugins/ipc/PPluginInstance.ipdl
++++ b/dom/plugins/ipc/PPluginInstance.ipdl
+@@ -151,6 +151,14 @@ child:
+   // The parent has taken its copy of a frame sent by JihadShow: that surface is the child's again.
+   async JihadShowDone();
+ 
++  // Jihad (T-576): a pen down, move or up, delivered without waiting. intr NPP_HandleEvent waits for
++  // the movie's frame to end, and a game whose frame takes 80-150 ms (Raft Wars) held the daemon's
++  // main thread for seconds under a drag: nothing was published while the finger moved. All three
++  // kinds go this way so they stay in order. The parent answers each with the movie's last answer to
++  // that kind (JihadPenHandled; Flash's answer depends on the movie, not on the event: an AVM2 movie
++  // takes downs and ups, 1, an older one 0).
++  async JihadPenEvent(NPRemoteEvent event);
++
+   // ********************** Async plugins rendering
+   // see https://wiki.mozilla.org/Gecko:AsyncPluginPainting
+   // **********************
+@@ -273,6 +281,9 @@ parent:
+   // frame. Answered by JihadShowDone.
+   async JihadShow(NPRect updatedRect, SurfaceDescriptor newSurface);
+ 
++  // Jihad (T-576): the movie's answer to a pen down, up or move (kind 0, 1, 2) changed; sent only then.
++  async JihadPenHandled(int16_t kind, int16_t handled);
++
+   sync Show(NPRect updatedRect, SurfaceDescriptor newSurface)
+     returns (SurfaceDescriptor prevSurface);
+ #ifdef MOZ_ENABLE_NPAPI
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index e46bb4a97c..1ca6addc59 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.cpp
++++ b/dom/plugins/ipc/PluginInstanceChild.cpp
+@@ -1223,8 +1223,14 @@ PluginInstanceChild::AnswerNPP_HandleEvent(const NPRemoteEvent& event,
+     // a second time while it's in the previous call.
+     if (!mPluginIface->event)
+         *handled = false;
+-    else
++    else {
++        ++mJihadEventDepth;
+         *handled = mPluginIface->event(&mData, reinterpret_cast<void*>(&evcopy));
++        --mJihadEventDepth;
++    }
++    // pen events that came during this call: a task delivers them once the movie is out of it (Jihad, T-576)
++    if (mJihadEventDepth == 0 && !mJihadPenQueue.IsEmpty())
++        JihadPostPenTask();
+ 
+     // Guard MUST match the one npapi.h uses to define NPEvent as Palm's union. Any other
+     // predicate compiles this against `typedef void* NPEvent` and does not build.
+@@ -4327,6 +4333,58 @@ PluginInstanceChild::RecvJihadShowDone()
+     return true;
+ }
+ 
++bool
++PluginInstanceChild::RecvJihadPenEvent(const NPRemoteEvent& event)
++{
++    // The same delivery as NPP_HandleEvent; nobody waits for its answer. Never delivered here: this message is
++    // dispatched whenever the channel is read, also while the movie waits on a call of its own to the host
++    // (inside an event call, or inside a frame's NPN call), and a pen event delivered inside the movie's own
++    // code is lost (2026-11-14: n-up 0 in the tap and lock tests; then a tap's down lost, its up counted).
++    // A task delivers it from the loop, as DoAsyncSetWindow is for the same reason; in order, after the
++    // event call in progress if there is one.
++    mJihadPenQueue.AppendElement(event);
++    JihadPostPenTask();
++    return true;
++}
++
++void
++PluginInstanceChild::JihadPostPenTask()
++{
++    if (mJihadPenTask)
++        return;
++    mJihadPenTask = NewNonOwningCancelableRunnableMethod(this, &PluginInstanceChild::JihadPenTaskRun);
++    RefPtr<Runnable> addrefedTask = mJihadPenTask;
++    MessageLoop::current()->PostTask(addrefedTask.forget());
++}
++
++void
++PluginInstanceChild::JihadPenTaskRun()
++{
++    mJihadPenTask = nullptr;
++    // inside an event call still (a nested loop ran this task): that call's end posts the task again
++    if (mJihadEventDepth == 0 && !mJihadPenDraining)
++        JihadDrainPen();
++}
++
++void
++PluginInstanceChild::JihadDrainPen()
++{
++    mJihadPenDraining = true;
++    while (!mJihadPenQueue.IsEmpty()) {
++        NPRemoteEvent next = mJihadPenQueue[0];
++        mJihadPenQueue.RemoveElementAt(0);
++        int16_t handled = 0;
++        AnswerNPP_HandleEvent(next, &handled);
++        int kind = next.event.eventType == npPalmPenDownEvent ? 0 : next.event.eventType == npPalmPenUpEvent ? 1 : 2;
++        int16_t h = handled ? 1 : 0;
++        if (h != mJihadPenToldHandled[kind]) {
++            mJihadPenToldHandled[kind] = h;
++            SendJihadPenHandled(kind, h);
++        }
++    }
++    mJihadPenDraining = false;
++}
++
+ bool
+ PluginInstanceChild::RecvJihadRequestFrame()
+ {
+@@ -5672,6 +5730,11 @@ PluginInstanceChild::Destroy()
+         mCurrentAsyncSetWindowTask->Cancel();
+         mCurrentAsyncSetWindowTask = nullptr;
+     }
++    if (mJihadPenTask) {
++        mJihadPenTask->Cancel();
++        mJihadPenTask = nullptr;
++    }
++    mJihadPenQueue.Clear();
+     {
+         MutexAutoLock autoLock(mAsyncInvalidateMutex);
+         if (mAsyncInvalidateTask) {
+diff --git a/dom/plugins/ipc/PluginInstanceChild.h b/dom/plugins/ipc/PluginInstanceChild.h
+index 22603098ad..5c54796d44 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.h
++++ b/dom/plugins/ipc/PluginInstanceChild.h
+@@ -148,6 +148,21 @@ protected:
+     virtual bool
+     RecvJihadShowDone() override;
+ 
++    // Jihad (T-576): a pen event with no answer awaited. See PPluginInstance.ipdl.
++    virtual bool
++    RecvJihadPenEvent(const NPRemoteEvent& event) override;
++    // the plugin's event calls in progress, and the pen events that came during one: the movie gets them after
++    // it returns, in order, never inside its own handling of the one before
++    int mJihadEventDepth = 0;
++    bool mJihadPenDraining = false;
++    nsTArray<NPRemoteEvent> mJihadPenQueue;
++    void JihadDrainPen();
++    void JihadPostPenTask();
++    void JihadPenTaskRun();
++    RefPtr<CancelableRunnable> mJihadPenTask;
++    // the answers to each pen kind (down, up, move) the parent was last told of (JihadPenHandled); it starts at 1
++    int16_t mJihadPenToldHandled[3] = { 1, 1, 1 };
++
+     virtual bool
+     AnswerNPP_Destroy(NPError* result) override;
+ 
+diff --git a/dom/plugins/ipc/PluginInstanceParent.cpp b/dom/plugins/ipc/PluginInstanceParent.cpp
+index 55c4cad675..a29edbb454 100644
+--- a/dom/plugins/ipc/PluginInstanceParent.cpp
++++ b/dom/plugins/ipc/PluginInstanceParent.cpp
+@@ -1141,6 +1141,14 @@ jihad_plugin_lane_copy(unsigned char* aDest, int aDestStride, int aX, int aY, in
+     return PluginInstanceParent::JihadLaneCopy(aDest, aDestStride, aX, aY, aW, aH, aFullW, aFullH);
+ }
+ 
++bool
++PluginInstanceParent::RecvJihadPenHandled(const int16_t& aKind, const int16_t& aHandled)
++{
++    if (aKind >= 0 && aKind < 3)
++        mJihadPenHandled[aKind] = aHandled;
++    return true;
++}
++
+ bool
+ PluginInstanceParent::RecvJihadShow(const NPRect& updatedRect,
+                                     const SurfaceDescriptor& newSurface)
+@@ -2043,6 +2051,21 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
+     }
+ #endif
+ 
++#if defined(XP_UNIX) && defined(MOZ_WIDGET_HEADLESS)
++    // Jihad (T-576): pen events go without waiting for the movie's frame (PPluginInstance.ipdl,
++    // JihadPenEvent); the movie's last answer to that kind is returned (RecvJihadPenHandled): a handled down
++    // keeps the page's own default for the press (2026-11-14: a fixed 0 for an AVM2 movie, which answers 1,
++    // lost the Enyo card the drag that followed a hold). JIHAD_PLUGIN_PEN_ASYNC=0 waits as before.
++    static const bool sPenAsync = !getenv("JIHAD_PLUGIN_PEN_ASYNC") || atoi(getenv("JIHAD_PLUGIN_PEN_ASYNC")) != 0;
++    if (sPenAsync && (npevent->eventType == npPalmPenDownEvent || npevent->eventType == npPalmPenUpEvent ||
++                      npevent->eventType == npPalmPenMoveEvent)) {
++        if (!SendJihadPenEvent(npremoteevent))
++            return 0;
++        int kind = npevent->eventType == npPalmPenDownEvent ? 0 : npevent->eventType == npPalmPenUpEvent ? 1 : 2;
++        return mJihadPenHandled[kind];
++    }
++#endif
++
+ #if defined(MOZ_X11)
+     switch (npevent->type) {
+     case GraphicsExpose:
+diff --git a/dom/plugins/ipc/PluginInstanceParent.h b/dom/plugins/ipc/PluginInstanceParent.h
+index c78e3c227b..67bfdfed68 100644
+--- a/dom/plugins/ipc/PluginInstanceParent.h
++++ b/dom/plugins/ipc/PluginInstanceParent.h
+@@ -215,6 +215,12 @@ public:
+     RecvJihadShow(const NPRect& updatedRect,
+                   const SurfaceDescriptor& newSurface) override;
+ 
++    // Jihad (T-576): the movie's last answer to each pen kind (down, up, move), returned for the pen
++    // events sent without a wait. Until the movie has answered one: handled (an AVM2 movie's answer).
++    virtual bool
++    RecvJihadPenHandled(const int16_t& aKind, const int16_t& aHandled) override;
++    int16_t mJihadPenHandled[3] = { 1, 1, 1 };
++
+     // The plugin lane: the one live instance's newest opaque frame (jihad_plugin_lane_copy)
+     static int JihadLaneCopy(unsigned char* aDest, int aDestStride, int aX, int aY, int aW, int aH,
+                              int* aFullW, int* aFullH);

@@ -1,0 +1,12 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  hold 240 272 2000
+WAIT ok 9-text up = [up 201 154]
+CHECK ok 10-number: heldms = 2296 (wanted 1500..3200)
+CHECK ok 11-number: n-down = 1 (wanted 1..1)
+CHECK ok 12-number: n-up = 1 (wanted 1..1)
+WAIT ok 14-text up = [up 361 282]
+CHECK FAIL 15-flash-el: the movie's move at [316,252] for 360,277 (more than 30 off)
+  frame kept: /media/internal/jihad-finger/15-flash-el_.last.raw
+CHECK ok 16-press-rate: 26.6 moves a second sent on (at least 20): ] a press of 1434 ms: 34 moves from the card in 1278 ms, 34 sent on, 194 ms in sending them
+CHECKS 5 FAILS 1
+novacom: unexpected EOF from server

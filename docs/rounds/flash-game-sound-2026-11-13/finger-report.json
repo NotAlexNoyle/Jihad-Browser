@@ -1,0 +1,87 @@
+{
+ "date": "2026-11-13T14:10:58",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "flash-game-sound",
+   "kit": "cavekit-flash.md R9",
+   "item": "A Flash game's sound is audible: Winterbells tapped into, its stream above 0 % and the speaker amp on",
+   "section": "Media and sound",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 10-rect sel:embed",
+    "CHECK FAIL 11-tap: the tap on sel:embed reached no clickAt",
+    "CHECK FAIL 13-tap: the tap on sel:embed reached no clickAt",
+    "CHECK FAIL 15-tap: the tap on sel:embed reached no clickAt",
+    "CHECK ok 16-audio: the movie's audio: open running audible"
+   ],
+   "kept": [
+    "kept/enyo-flash-game-sound-11-tap_.jpg",
+    "kept/enyo-flash-game-sound-13-tap_.jpg",
+    "kept/enyo-flash-game-sound-15-tap_.jpg",
+    "kept/enyo-flash-game-sound-game_.jpg"
+   ],
+   "seconds": 94,
+   "note": "",
+   "start": "enyo card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +2 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "enyo: (121186/822131781) jihad (start) running, process 8841; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-game-sound",
+   "kit": "cavekit-flash.md R9",
+   "item": "A Flash game's sound is audible: Winterbells tapped into, its stream above 0 % and the speaker amp on",
+   "section": "Media and sound",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 10-rect sel:embed",
+    "CHECK FAIL 11-tap: the tap on sel:embed reached no clickAt",
+    "CHECK FAIL 13-tap: the tap on sel:embed reached no clickAt",
+    "CHECK FAIL 15-tap: the tap on sel:embed reached no clickAt",
+    "CHECK ok 16-audio: the movie's audio: open running audible"
+   ],
+   "kept": [
+    "kept/mochi-flash-game-sound-11-tap_.jpg",
+    "kept/mochi-flash-game-sound-13-tap_.jpg",
+    "kept/mochi-flash-game-sound-15-tap_.jpg",
+    "kept/mochi-flash-game-sound-game_.jpg"
+   ],
+   "seconds": 101,
+   "note": "",
+   "start": "mochi card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +1 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mochi: (121287/999564651) jihad-mochi (start) running, process 13309; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-game-sound",
+   "kit": "cavekit-flash.md R9",
+   "item": "A Flash game's sound is audible: Winterbells tapped into, its stream above 0 % and the speaker amp on",
+   "section": "Media and sound",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 10-rect sel:embed",
+    "CHECK FAIL 11-tap: the tap on sel:embed reached no clickAt",
+    "CHECK FAIL 13-tap: the tap on sel:embed reached no clickAt",
+    "CHECK FAIL 15-tap: the tap on sel:embed reached no clickAt",
+    "CHECK ok 16-audio: the movie's audio: open running audible"
+   ],
+   "kept": [
+    "kept/mojo-flash-game-sound-11-tap_.jpg",
+    "kept/mojo-flash-game-sound-13-tap_.jpg",
+    "kept/mojo-flash-game-sound-15-tap_.jpg",
+    "kept/mojo-flash-game-sound-game_.jpg"
+   ],
+   "seconds": 107,
+   "note": "",
+   "start": "mojo card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +1 s, load done at +8 s, 10 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (121395/173745963) jihad-mojo (start) running, process 17902; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (121395/378986556) jihad (start) running, process 8841\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (121406/606277813) jihad-mochi (start) running, process 13309\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (121419/942198403) jihad-mojo (start) running, process 17902\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/sb-probe.png /tmp/sb-probe2.png /tmp/wb.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 5% of /tmp used\nnovacom: unexpected EOF from server",
+ "seconds": 341
+}

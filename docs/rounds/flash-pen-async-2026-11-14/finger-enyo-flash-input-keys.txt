@@ -1,0 +1,22 @@
+WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 240 272
+CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  pause 800 ms (the slow human)
+  double tap 240 272
+CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  pause 1500 ms (the slow human)
+  typed [a] on the keyboard
+WAIT ok 15-text keydown = [keydown 65 97]
+  typed [1] on the keyboard
+WAIT ok 17-text keydown = [keydown 49 49]
+  typed [ ] on the keyboard
+WAIT ok 19-text keydown = [keydown 32 32]
+CHECK ok 20-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0
+WAIT ok 22-text keydown = [keydown 38 0]
+WAIT ok 24-text keydown = [keydown 39 0]
+WAIT ok 26-text keydown = [keydown 40 0]
+WAIT ok 28-text keydown = [keydown 37 0]
+CHECK ok 29-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0
+  tap at 600,500 -> clickAt 601 418
+CHECK ok 31-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+CHECKS 5 FAILS 0

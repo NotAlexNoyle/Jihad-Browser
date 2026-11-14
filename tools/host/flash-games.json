@@ -397,7 +397,8 @@
     0.6
    ]
   ],
-  "note": "START, the Wix splash (a tap on it opens wixgames in a new card since 2026-11-14), PLAY (its right half), then 'How fast is your computer?': SLOW (recommended). After any choice the player computes for over 45 s (a list search in libflashplayer.so at 0x1c30d0) and the engine's plugin hang timeout ends it; the stock round never reached this screen"
+  "note": "START, the sponsor's splash (left alone it passes in ~10 s; a tap on it opens the sponsor in a new card), PLAY, then 'How fast is your computer?': SLOW (recommended)",
+  "limit": "after its 'How fast is your computer?' screen the device's Flash 10.3 player computes for longer than a browser lets a plugin hold it: the stock browser's BrowserServer ran at ~90 % of a core for over 40 s after SLOW and was then restarted, the page loading afresh (2026-11-14, docs/rounds/t576-games-2026-11-14b/stock-duck-life-4-after-slow.jpg); here the plugin hang timeout (45 s) ends the player and the card lives"
  },
  "effing-meteors": {
   "extra": 25,
@@ -655,9 +656,14 @@
     10
    ],
    [
-    0.12,
-    0.4,
-    6
+    0.17,
+    0.54,
+    8
+   ],
+   [
+    0.5,
+    0.24,
+    8
    ]
   ],
   "input": "keys",
@@ -669,7 +675,42 @@
    "left",
    "a"
   ],
-  "limit": "its title's PLAY! takes no tap on webOS Flash (the sponsor intro before it does), the same in the stock browser (2026-11-13)"
+  "seq": [
+   [
+    "key",
+    "right"
+   ],
+   [
+    "key",
+    "a"
+   ],
+   [
+    "key",
+    "s"
+   ],
+   [
+    "key",
+    "right"
+   ],
+   [
+    "key",
+    "a"
+   ],
+   [
+    "key",
+    "left"
+   ],
+   [
+    "key",
+    "s"
+   ],
+   [
+    "tap",
+    0.5,
+    0.75
+   ]
+  ],
+  "note": "the first screen's PLAY!, the title's PLAY! (at 0.17,0.54: until 2026-11-14 the tap was aimed above it, at the title's text, and the game was read as taking no tap, in the stock browser too: void), EASY; the cycle's tap is GAME OVER's PLAY AGAIN"
  },
  "impossible-quiz": {
   "start": [
@@ -1263,18 +1304,33 @@
     8
    ]
   ],
-  "input": "drag",
-  "from": [
-   0.5,
-   0.5
+  "input": "tap",
+  "points": [
+   [
+    0.3,
+    0.8
+   ],
+   [
+    0.15,
+    0.72
+   ],
+   [
+    0.3,
+    0.9
+   ],
+   [
+    0.4,
+    0.8
+   ],
+   [
+    0.2,
+    0.9
+   ],
+   [
+    0.1,
+    0.8
+   ]
   ],
-  "to": [
-   0.5,
-   0.2
-  ],
-  "lock_at": [
-   0.97,
-   0.5
-  ]
+  "note": "start game, the sponsors, the putter's PLAY; a tap putts towards its point (the drag this had until 2026-11-14 putted nothing); between holes the course rebuilds for seconds and takes no input"
  }
 }

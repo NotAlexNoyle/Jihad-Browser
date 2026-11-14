@@ -60,7 +60,7 @@ case "$1" in
   md5)     md5sum "$2" 2>&1 ;;
   minified) grep -c 'build/app.js' "$2/index.html" 2>&1 ;;
   logsize)  wc -c < /var/log/messages ;;
-  logsince) tail -c +"$2" /var/log/messages | grep "$3" ;; # short call; host loops
+  logsince) E=$(wc -c < /var/log/messages); [ "$E" -gt "$2" ] && tail -c $((E - $2)) /var/log/messages | grep "$3" ;; # short call; host loops (from the end: this busybox's tail -c +N miscounts)
   wake)
     # The TouchPad dozes aggressively; a dozing device answers luna-send with
     # EMPTY output (exit 0) and freezes /var/log/messages. Hold it awake:

@@ -23,20 +23,22 @@ echo "== exports: $(grep -a 'exports\|export' $LOG | grep -a -i 'engine\|jihad_'
 echo "== roots/tls: $(grep -a 'roots:\|TLS\|tls' $LOG | head -n 2 | tr '\n' '|' | cut -c1-200)"
 shot() { sleep 7; luna-send -n 1 palm://com.palm.systemmanager/takeScreenShot '{"file":"/tmp/ec-'$1'.png"}' >/dev/null 2>&1; }
 inj() { umask 077; echo "$1" > $STATE/inject.cmd; }
+# the log since the mark, counted from the end: this busybox's `tail -c +N` skips some 8 KB whatever N is
+since() { E=$(wc -c < $LOG); [ "$E" -gt "$mark" ] && tail -c $((E - mark)) $LOG; }
 mark=$(wc -c < $LOG)
 inj "cookie set en.wikipedia.org jihadupd rb27"; sleep 2
 inj "cookie count"; sleep 2
-echo "== cookie: $(tail -c +$((mark+1)) $LOG | grep -a 'inject cookie' | tr '\n' '|')"
+echo "== cookie: $(since | grep -a 'inject cookie' | tr '\n' '|')"
 for p in about:settings about:personas about:addons; do
   mark=$(wc -c < $LOG); inj "url $p"; shot ${p#about:}
-  echo "== $p -> $(tail -c +$((mark+1)) $LOG | grep -a 'load done\|loaderr\|js-console.*rror' | head -n 3 | tr '\n' '|' | cut -c1-300)"
+  echo "== $p -> $(since | grep -a 'load done\|loaderr\|js-console.*rror' | head -n 3 | tr '\n' '|' | cut -c1-300)"
 done
 mark=$(wc -c < $LOG); inj "url http://192.168.1.245:8077/jihad-svg-filter.html"; shot svg
-echo "== svg -> $(tail -c +$((mark+1)) $LOG | grep -a 'load done\|loaderr\|FATAL' | head -n 2 | tr '\n' '|' | cut -c1-200)"
+echo "== svg -> $(since | grep -a 'load done\|loaderr\|FATAL' | head -n 2 | tr '\n' '|' | cut -c1-200)"
 mark=$(wc -c < $LOG); inj "url http://192.168.1.245:8077/jihad-long-static.html"; sleep 8
 [ -x /tmp/finger ] && /tmp/finger hold 300 400 1500; sleep 3
 luna-send -n 1 palm://com.palm.systemmanager/takeScreenShot '{"file":"/tmp/ec-select.png"}' >/dev/null 2>&1
-echo "== select -> $(tail -c +$((mark+1)) $LOG | grep -a 'selection\|long\|FATAL' | head -n 3 | tr '\n' '|' | cut -c1-200)"
+echo "== select -> $(since | grep -a 'selection\|long\|FATAL' | head -n 3 | tr '\n' '|' | cut -c1-200)"
 echo "== faults: $(grep -a -c 'FATAL SIGNAL' $LOG), js errors: $(grep -a -c 'js-console.*JavaScript Error' $LOG), sqlite: $(grep -a -i -c 'sqlite.*error\|corrupt' $LOG)"
 EOS
 build/webos-oe/dev-sh.sh -t 300 $S | tee "$D/engine-checks.txt"

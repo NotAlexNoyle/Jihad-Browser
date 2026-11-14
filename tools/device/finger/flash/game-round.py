@@ -38,10 +38,13 @@ def body(t, g, app, top, seconds, ref, steps=False, winshots=False):
 close_all() {{ for pid in $(luna-send -n 1 palm://com.palm.applicationManager/running '{{}}' 2>/dev/null | tr ',' '\\n' | grep -A1 '"{app}"' | grep processid | sed 's/.*"processid": *"\\([^"]*\\)".*/\\1/'); do luna-send -n 1 palm://com.palm.applicationManager/close '{{"processId":"'"$pid"'"}}' >/dev/null 2>&1; done; }}
 shot() {{ luna-send -n 1 palm://com.palm.systemmanager/takeScreenShot '{{"file":"/tmp/fl-'$1'.png"}}' >/dev/null 2>&1; usleep 700000; }}
 J=$(echo {app} | sed 's/net.riverstonerelay.jihad-browser/jihad/'); V=enyo; case {app} in *mochi) V=mochi;; *mojo) V=mojo;; esac
-# the faults from this game on: the job daemon's daemon.log (rotated to daemon.log.old at some 2 MB, so its inode and size are kept) and
-# a hand-started daemon's daemon-gpu.log; 'FAULT' is the plugin child's signal handler, SIGSEGV and FATAL the daemon's
-D=/var/palm/jihad/$V; I0=$(ls -i $D/daemon.log 2>/dev/null | awk '{{print $1}}'); B0=$(wc -c < $D/daemon.log 2>/dev/null); G0=$(wc -c < $D/daemon-gpu.log 2>/dev/null)
-newlog() {{ if [ "$(ls -i $D/daemon.log 2>/dev/null | awk '{{print $1}}')" = "$I0" ]; then tail -c +$((${{B0:-0}} + 1)) $D/daemon.log; else tail -c +$((${{B0:-0}} + 1)) $D/daemon.log.old 2>/dev/null; cat $D/daemon.log; fi; tail -c +$((${{G0:-0}} + 1)) $D/daemon-gpu.log 2>/dev/null; }}
+# the faults from this game on: the job daemon's daemon.log and a hand-started daemon's daemon-gpu.log; 'FAULT' is the plugin child's
+# signal handler, SIGSEGV and FATAL the daemon's. The daemon caps its log in place (copied to daemon.log.old, then truncated: the inode
+# stays), so a log shorter than the mark was capped: the rest of the old generation, then the new one whole. Counted from the END:
+# this busybox's `tail -c +N` skips some 8 KB whatever N is (found 2026-11-14: a game was read with the whole log's old faults)
+D=/var/palm/jihad/$V; B0=$(wc -c < $D/daemon.log 2>/dev/null); G0=$(wc -c < $D/daemon-gpu.log 2>/dev/null)
+since() {{ [ -f $1 ] || return 0; E=$(wc -c < $1); if [ "$E" -lt "${{2:-0}}" ]; then if [ -n "$3" ] && [ -f $3 ]; then O=$(wc -c < $3); [ "$O" -gt "$2" ] && tail -c $((O - $2)) $3; fi; cat $1; elif [ "$E" -gt "${{2:-0}}" ]; then tail -c $((E - ${{2:-0}})) $1; fi; }}
+newlog() {{ since $D/daemon.log "${{B0:-0}}" $D/daemon.log.old; since $D/daemon-gpu.log "${{G0:-0}}"; }}
 close_all; usleep 500000
 # a player left from an earlier game would be read as this game's, and it takes the CPU: named and stopped
 for p in $(pgrep -f plugin-container); do echo "STALE $p"; kill -9 $p 2>/dev/null; done
@@ -101,7 +104,7 @@ elif [ -f $D/last-load ] && [ "$(sed -n 2p $D/last-load)" != "$LL0" ] && ! sed -
 /tmp/fbstream /tmp/fl-ctl -C {R} -s {win} -P 2000 >/dev/null 2>&1
 /tmp/fbstream /tmp/fl-win -C {R} -s {win} -P 4000 -B /tmp/fl-ctl > /tmp/fl-win.out 2>&1 &
 {block(w_i)}
-wait $!; {"shot w%d; " % w_i if winshots else ""}echo "WIN $(sed -n 's/.* new \\([0-9]*\\) of \\([0-9]*\\).*/\\1 \\2/p' /tmp/fl-win.out) $(sed -n 's/.*changes [0-9]* (\\([0-9.]*\\)\\/s).*/\\1/p' /tmp/fl-win.out) $(sed -n 's/.* p90 \\([0-9]*\\) .*/\\1/p' /tmp/fl-win.out)"
+wait $!; {"shot w%d; " % w_i if winshots else ""}echo "RSSW $(grep VmRSS /proc/$PID/status 2>/dev/null | tr -s ' ' | cut -d' ' -f2)"; echo "WIN $(sed -n 's/.* new \\([0-9]*\\) of \\([0-9]*\\).*/\\1 \\2/p' /tmp/fl-win.out) $(sed -n 's/.*changes [0-9]* (\\([0-9.]*\\)\\/s).*/\\1/p' /tmp/fl-win.out) $(sed -n 's/.* p90 \\([0-9]*\\) .*/\\1/p' /tmp/fl-win.out)"
 {away}fi
 """)
     s.append(f"""
@@ -168,6 +171,14 @@ def main():
              "content": med([c for a, b, c, d in wins]), "p90": med([d for a, b, c, d in wins if d]), "rates": [c for a, b, c, d in wins],
              "same_player": bool(p0) and p0 == p1, "rss": int((re.search(r"^RSS (\d+)", out, re.M) or [None, 0])[1]), "faults": int((re.search(r"^FAULTS (-?\d+)", out, re.M) or [None, -1])[1]), "colours": int((re.search(r"^SHOWN (\d+)", out, re.M) or [None, 0])[1]), "card": int((re.search(r"^CARD (\d+)", out, re.M) or [None, 0])[1]) > 0,
              "stale": re.findall(r"^STALE (\d+)", out, re.M), "orphan": re.findall(r"^ORPHAN (\d+)", out, re.M), "fault_lines": re.findall(r"^FAULTLINE (.*)", out, re.M), "away": (re.search(r"^AWAY (.*)", out, re.M) or [None, ""])[1], "new_cards": re.findall(r"^NEWCARD (.*)", out, re.M), "events": [int(x) for x in ((re.search(r"^EVENTS (\d+) (\d+)", out, re.M) or None) and re.search(r"^EVENTS (\d+) (\d+)", out, re.M).groups() or (0, 0))], "secs": round(time.time() - t0)}
+        # the soak (R6: 15 minutes, the player's resident memory and the content rate at the end within 10 % of minute 1): the first
+        # minute's six windows against the last minute's, the memory read after each window
+        rw = [int(x) for x in re.findall(r"^RSSW (\d+)", out, re.M)]
+        if len(wins) >= 24 and len(rw) >= 24:
+            r1, rn = med([c for a, b, c, d in wins[:6]]), med([c for a, b, c, d in wins[-6:]])
+            r["soak"] = {"minutes": round(len(wins) * 10 / 60, 1), "rate_1": r1, "rate_end": rn, "rss_1": rw[5], "rss_end": rw[-1], "rss_max": max(rw),
+                         "ok": bool(r1) and abs(rn - r1) <= 0.1 * r1 and abs(rw[-1] - rw[5]) <= 0.1 * rw[5]}
+            print("%-24s soak %.1f min: rate %.1f -> %.1f, rss %d -> %d kB (max %d): %s" % (id_, r["soak"]["minutes"], r1, rn, rw[5], rw[-1], max(rw), "ok" if r["soak"]["ok"] else "OUTSIDE 10 %"), flush=True)
         results[id_] = r; json.dump(results, open(out_path, "w"), indent=1)
         print("%-24s ref %5.1f reacted %2d/%2d changed %2d content %5.1f p90 %4d player %-5s rss %6d faults %2d (%d s) ev %d/%d%s%s" % (id_, r["ref"], r["reacted"], r["windows"], r["changed"], r["content"], r["p90"], r["same_player"], r["rss"], r["faults"], r["secs"], r["events"][1], r["events"][0], " STALE" if r["stale"] else "", " ORPHAN" if r["orphan"] else ""), flush=True)
 

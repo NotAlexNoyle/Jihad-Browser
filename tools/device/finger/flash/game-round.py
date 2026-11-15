@@ -107,6 +107,10 @@ elif [ -f $D/last-load ] && [ "$(sed -n 2p $D/last-load)" != "$LL0" ] && ! sed -
 wait $!; {"shot w%d; " % w_i if winshots else ""}echo "RSSW $(grep VmRSS /proc/$PID/status 2>/dev/null | tr -s ' ' | cut -d' ' -f2)"; echo "WIN $(sed -n 's/.* new \\([0-9]*\\) of \\([0-9]*\\).*/\\1 \\2/p' /tmp/fl-win.out) $(sed -n 's/.*changes [0-9]* (\\([0-9.]*\\)\\/s).*/\\1/p' /tmp/fl-win.out) $(sed -n 's/.* p90 \\([0-9]*\\) .*/\\1/p' /tmp/fl-win.out)"
 {away}fi
 """)
+        # --smaps: the player's resident memory by mapping after the first minute and at the end (what grows, in a soak)
+        if SMAPS and w_i in (5, n - 1):
+            s.append("""echo "SMAPS %d"; awk '/^[0-9a-f]+-[0-9a-f]+ /{n=$6; if(n=="")n="[anon]"} /^Rss:/{r[n]+=$2} END{for(k in r) if(r[k]>100) print "SMAP", r[k], k}' /proc/$PID/smaps 2>/dev/null | sort -k2 -n -r | head -40\n""" % w_i)
+            s.append("""awk '/^[0-9a-f]+-[0-9a-f]+ /{a=$1; n=$6} /^Rss:/{if(n=="" && $2>=256) print "SMAPA", $2, a}' /proc/$PID/smaps 2>/dev/null\n""")
     s.append(f"""
 shot play
 echo "SHOWN $(/tmp/fbstream /tmp/fl-sig -Q {R} 2>/dev/null | sed -n 's/.* colours \\([0-9]*\\).*/\\1/p')"
@@ -124,13 +128,16 @@ i=0; while [ $i -lt 35 ] && pgrep -f plugin-container >/dev/null; do sleep 1; i=
     return "".join(s), w, h
 
 
+SMAPS = False
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("shell", choices=list(SHELLS)); ap.add_argument("dir"); ap.add_argument("--only", default="")
     ap.add_argument("--seconds", type=int, default=60); ap.add_argument("--make-refs", action="store_true"); ap.add_argument("--steps", action="store_true")
-    ap.add_argument("--winshots", action="store_true")
+    ap.add_argument("--winshots", action="store_true"); ap.add_argument("--smaps", action="store_true")
     # --label soft: the results and pictures under another name, for the shell's daemon on its software path (R3's bar where the
     # stock browser cannot play a game: daemon-start.sh enyo URL JIHAD_GPU_COMPOSITOR=0 first, daemon-stop.sh after)
     ap.add_argument("--label", default=""); o = ap.parse_args(); name = o.label or o.shell
+    global SMAPS; SMAPS = o.smaps
     app, top = SHELLS[o.shell]; os.makedirs(o.dir, exist_ok=True); os.makedirs(REFS, exist_ok=True)
     m = {t["id"]: t for t in json.load(open(MANIFEST))["titles"]}; g = json.load(open(GAMES)); only = set(x for x in o.only.split(",") if x)
     out_path = os.path.join(o.dir, name + ".json"); results = json.load(open(out_path)) if os.path.exists(out_path) else {}; tmp = tempfile.mkdtemp()
@@ -140,7 +147,7 @@ def main():
         text, w, h = body(t, g[id_], app, top, o.seconds, ref, o.steps, o.winshots)
         p = os.path.join(tmp, "s.sh"); open(p, "w").write(text); t0 = time.time()
         for attempt in (1, 2):
-            out = subprocess.run([DEVSH, "-t", str(200 + o.seconds * 2 + g[id_].get("extra", 0)), p], capture_output=True, text=True, errors="replace").stdout
+            out = subprocess.run([DEVSH, "-t", str(300 + o.seconds * 3 + g[id_].get("extra", 0)), p], capture_output=True, text=True, errors="replace").stdout
             if re.search(r"^FAULTS ", out, re.M) or ref == "": break
             # novacom now and then loses the device for a while with it up: wait for it, close what the lost run left, play it again
             open(os.path.join(o.dir, f"{name}-{id_}-incomplete{attempt}.out"), "w").write(out)
@@ -171,12 +178,13 @@ def main():
              "content": med([c for a, b, c, d in wins]), "p90": med([d for a, b, c, d in wins if d]), "rates": [c for a, b, c, d in wins],
              "same_player": bool(p0) and p0 == p1, "rss": int((re.search(r"^RSS (\d+)", out, re.M) or [None, 0])[1]), "faults": int((re.search(r"^FAULTS (-?\d+)", out, re.M) or [None, -1])[1]), "colours": int((re.search(r"^SHOWN (\d+)", out, re.M) or [None, 0])[1]), "card": int((re.search(r"^CARD (\d+)", out, re.M) or [None, 0])[1]) > 0,
              "stale": re.findall(r"^STALE (\d+)", out, re.M), "orphan": re.findall(r"^ORPHAN (\d+)", out, re.M), "fault_lines": re.findall(r"^FAULTLINE (.*)", out, re.M), "away": (re.search(r"^AWAY (.*)", out, re.M) or [None, ""])[1], "new_cards": re.findall(r"^NEWCARD (.*)", out, re.M), "events": [int(x) for x in ((re.search(r"^EVENTS (\d+) (\d+)", out, re.M) or None) and re.search(r"^EVENTS (\d+) (\d+)", out, re.M).groups() or (0, 0))], "secs": round(time.time() - t0)}
+        if SMAPS: open(os.path.join(o.dir, f"{name}-{id_}-smaps.txt"), "w").write("\n".join(l for l in out.splitlines() if l.startswith("SMAP")) + "\n")
         # the soak (R6: 15 minutes, the player's resident memory and the content rate at the end within 10 % of minute 1): the first
         # minute's six windows against the last minute's, the memory read after each window
         rw = [int(x) for x in re.findall(r"^RSSW (\d+)", out, re.M)]
         if len(wins) >= 24 and len(rw) >= 24:
             r1, rn = med([c for a, b, c, d in wins[:6]]), med([c for a, b, c, d in wins[-6:]])
-            r["soak"] = {"minutes": round(len(wins) * 10 / 60, 1), "rate_1": r1, "rate_end": rn, "rss_1": rw[5], "rss_end": rw[-1], "rss_max": max(rw),
+            r["soak"] = {"minutes": round(len(wins) * 10 / 60, 1), "rate_1": r1, "rate_end": rn, "rss_1": rw[5], "rss_end": rw[-1], "rss_max": max(rw), "rss_w": rw,
                          "ok": bool(r1) and abs(rn - r1) <= 0.1 * r1 and abs(rw[-1] - rw[5]) <= 0.1 * rw[5]}
             print("%-24s soak %.1f min: rate %.1f -> %.1f, rss %d -> %d kB (max %d): %s" % (id_, r["soak"]["minutes"], r1, rn, rw[5], rw[-1], max(rw), "ok" if r["soak"]["ok"] else "OUTSIDE 10 %"), flush=True)
         results[id_] = r; json.dump(results, open(out_path, "w"), indent=1)

@@ -94,6 +94,30 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## 2026-11-15 — T-576: the menu games, the soaks, QWOP's memory; the full rounds running (READ FIRST)
+
+- **Commits (unpushed, the owner's):** `c27cc32a` (Hobo 2 and Wonderputt play; Duck Life 4 the player's limit; the
+  round tool's log mark), `a13bd223` (the soaks). The gitlink still uncommitted, as before.
+- **Done in T-576** (`docs/rounds/t576-games-2026-11-14b/`, `docs/rounds/t576-soaks-2026-11-14/`): Hobo 2 was a script
+  fault (plays 12 of 12 in the three shells); Wonderputt plays (taps, not drags); Bejeweled 2 stays a limit; Raft Wars'
+  lost drag not reproduced; Duck Life 4 is the 10.3 player's (the stock BrowserServer spins 40 s and dies the same way).
+  Soaks: Happy Wheels and Helicopter pass; Bubble Tanks 2, SAS, Desktop Tower Defense, GemCraft hold their memory but
+  their games change state, so their rates are no reading (a soak script must keep one state for 15 minutes).
+- **OPEN: QWOP's player memory grows 1.4 MB a minute while rounds are played** (anonymous memory outside the engine
+  allocator's chunks; flat when idle and without restarts; the stock browser cannot restart QWOP by Space or R, so it
+  decides nothing). Next step there: gdb on the player's heap growth while QWOP restarts.
+- **A trap found:** the device's busybox `tail -c +N` skips some 8 KB whatever N is. Every "log since the mark" on the
+  device counts from the end now (`tail -c $((size - mark))`). Old rounds' event counts were of the whole log.
+- **Running when this was written:** the full 37 game rounds, Enyo then Mochi then Mojo, detached, into
+  `docs/rounds/t576-games-2026-11-15/` (2.8 h a shell). After them: `game-report.py` over the three, R6's boxes, then
+  T-577.
+- **T-577 prepared on the host, untested on the device (uncommitted):** `jihad-instr-text.swf` (an input field, the
+  clipboard and FileReference bands; `make-instrument-swf.py build_text`), `jihad-flash-instr.html?movie=text&clip=1`,
+  `fl_type` with capitals and `<` for Backspace (`kb-shift`'s position 34 933 is a GUESS: check it on a screenshot),
+  `suite/flash-text.test`.
+- **Device as left:** the three shells on engine 0113, committed prefs and adapter; stock bench removed; kernel
+  keyboard fixture down; USB alert closed.
+
 ## HANDOFF 2026-11-14 (end of session) — where a new agent starts (READ FIRST)
 
 - **Pushed:** main at `eeb52904` is on Gitea (the owner, 2026-11-14). Nothing of this session is unpushed but this

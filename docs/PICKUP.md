@@ -94,6 +94,32 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## 2026-11-16 — no owner-driven tests; the README; the whole games round; an Enyo tap fixed (READ FIRST)
+
+- **The owner, 2026-11-16: "there should be no owner driven finger tests, you should learn how to orchestrate tools
+  to accurately run all finger tests".** No row or criterion waits for a person at the device any more: finger-testing
+  R7 and flash R14 rewritten, T-566 withdrawn, **T-653** (tools for the rotation, the launch from another app, sound
+  read at the sink or a host microphone, the volume keys) and T-584 (sync, dropouts, feel by instruments) are the
+  agent's. Also the owner's: the README carries no test counts.
+- **Harmonizing the README and the kits (asked 2026-11-16), under way:** 20 open criteria in the kits still say "left
+  for a person / the owner's finger" (list: `tools/readme-progress.py`'s OWNER pattern over the open boxes). The whole
+  finger suite runs on today's build into `docs/rounds/finger-2026-11-16/` (`run.log`; started detached); from its
+  report tick or reword each of the 20 by its script id, regenerate `docs/FINGER-TESTS.md` (`finger-list.py --write`),
+  the overview's counts and the README (`readme-progress.py`). Careful: the working tree's `fingerlib.sh` carries
+  T-577's untested `fl_type` capitals (a guessed shift key at 34,933): a typing failure in that run is read with that
+  in mind.
+- **README** (commit `78b0ebb3`): 343 to about 135 lines; `docs/screenshots/toolbars.webp` (the three shells' bars) and
+  `flash-games.webp` (six games in play, two a shell) composed from fresh device shots; known issues whole in
+  `docs/KNOWN-ISSUES.md`; the status table without counts. `readme-progress.py` had refused to run since the Global
+  Jihad kit was added (a kit in no area): that kit is now left out by name.
+- **T-576, the 37 games in three shells** (`docs/rounds/t576-games-2026-11-15/README.md`): input reaches the games, no
+  faults; every "fail" of the report is the content rate (parked). **Fixed** (`1f5cf1be`, pushed to the device's Enyo
+  card): the framework's modal Popup still came when a movie was engaged and took the next tap, so a first double tap
+  brought no keyboard. Open: Wonderputt's start taps hit a sponsor's link (script), the low-reacting four
+  (Alien Hominid, GemCraft, Happy Wheels, Motherload) want step shots, the soaks' scripts, QWOP's memory under gdb.
+- **Device:** adapter log switched off again (`/var/palm/jihad/enyo/adapterlog` removed, LunaSysMgr restarted); USB
+  alert closed; the suite's own end check closes it after the run.
+
 ## 2026-11-15 — T-576: the menu games, the soaks, QWOP's memory; the full rounds running (READ FIRST)
 
 - **Commits (unpushed, the owner's):** `c27cc32a` (Hobo 2 and Wonderputt play; Duck Life 4 the player's limit; the
@@ -130,7 +156,7 @@ target line (both webOS 3.0.5 and CE 3.1.0).
   `bash .cavekit/handoff-2026-11-08/push.sh` (the owner runs it).
 - **Open rows** (`.cavekit/task-status.json`): in progress T-576 (games), T-594 (hardware H.264 probe), T-605, T-606,
   T-651 (Atlas leak, staged for the owner); pending T-577..T-583 (Flash apps, videos, sound life, movie life, page
-  gestures, corpus suite, finish), T-611; blocked on the owner at the device T-566, T-584; DEFERRED optimisation rows
+  gestures, corpus suite, finish), T-611; (T-566 withdrawn and T-584 the agent's since 2026-11-16, see the top section); DEFERRED optimisation rows
   (finish first): T-505, T-592, T-604, T-628, T-629, T-652.
 - **T-576 next, in order:** Bejeweled 2, Hobo 2, Wonderputt start taps (never leave their menus, all shells); Raft Wars'
   second drag lost (88 ms press, no moves; Raft Wars only); Duck Life 4 (> 45 s in the player after its speed screen:

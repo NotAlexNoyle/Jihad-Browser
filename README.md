@@ -32,18 +32,18 @@ and touches nothing else.
 <!-- progress:start -->
 ## Status
 
-**`█████████████████░░░` 88 % done** (everything but tabs, which are on hold).
+**`█████████████████░░░` 89 % done** (everything but tabs, which are on hold).
 
 | Area | Progress | What it covers |
 |---|---|---|
-| Engine and page drawing | `██████████████████░░` 93 % | Goanna inside the webOS card, frames to the card, the card's messages |
+| Engine and page drawing | `██████████████████░░` 94 % | Goanna inside the webOS card, frames to the card, the card's messages |
 | Drawing on the GPU | `██████████████████░░` 90 % | the Adreno 220 composes the page; WebGL; pan and zoom speed |
 | The modern web | `█████████████████░░░` 87 % | today's sites: TLS, missing features filled in, video |
 | Speed and memory | `███████████████░░░░░` 78 % | the engine tuned for the TouchPad; no page can starve the device; YouTube made light |
-| The three interfaces | `██████████████████░░` 91 % | Enyo, Mochi and Mojo |
-| Touch and keyboard | `███████████████████░` 95 % | taps, gestures, the on-screen keyboard |
+| The three interfaces | `██████████████████░░` 94 % | Enyo, Mochi and Mojo |
+| Touch and keyboard | `████████████████████` 100 % | taps, gestures, the on-screen keyboard |
 | Settings and services | `███████████████████░` 96 % | the settings panes, downloads, history, printing |
-| Add-ons and Personas | `███████████████████░` 95 % | XPI add-ons, plugins, Personas, the add-on site |
+| Add-ons and Personas | `███████████████████░` 96 % | XPI add-ons, plugins, Personas, the add-on site |
 | Flash, finished | `███████░░░░░░░░░░░░░` 37 % | the device's own Flash Player proven on real games, apps and videos in every shell |
 | Privacy and security | `███████████████████░` 95 % | the ad and tracker blocker, proxies, certificates |
 | Building and updating | `██████████████████░░` 94 % | one repository builds every package; engine updates; the SDK; licences |
@@ -126,7 +126,7 @@ Developers start at `docs/PICKUP.md` and `docs/ENGINE.md`.
 
 The short list; the rest, with causes, is in `docs/KNOWN-ISSUES.md` and `docs/MODERN-WEB.md`.
 
-- Tested by hand on the TouchPad only.
+- Tested on a TouchPad running webOS CE 3.1.0 only; the TouchPad Go and stock 3.0.5 are untested.
 - Heavy single-page applications (GitLab, Reddit's login) take tens of seconds of script.
 - YouTube plays at 144p to 360p, decoded in software, and is heavy.
 - Flash movies made for Flash Player 11 and later may show nothing (Run 3, Learn to Fly 3); the

@@ -1,0 +1,10 @@
+WAIT ok 8-rect sel:#category-extension
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 258 landed on document y 224)
+WAIT ok 10-rect sel:#category-extension[selected='true']
+WAIT ok 11-rect sel:richlistitem[value='palefill@addons.martoks-place.de']
+WAIT ok 12-rect sel:richlistitem[value='pad12@jihad.test']
+WAIT ok 15-still 0,100,756,1000
+  tap at 660,945 -> clickAt 843 1439
+WAIT ok 17-rect sel:richlistitem[value='pad12@jihad.test'][selected='true']
+CHECK ok 18-hit: clickAt 843,1439 inside sel:richlistitem[value="pad12@jihad.test"] at 294,1412 656x99
+CHECKS 1 FAILS 0

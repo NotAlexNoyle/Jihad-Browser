@@ -1,0 +1,9 @@
+WAIT ok 7-rect c
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 138 landed on document y 60)
+  tap at 77,216 -> clickAt 78 138
+CHECK ok 10-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+  pause 8000 ms (the slow human)
+  chrome dialog-ok tapped at 612 192
+CHECK ok 13-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 14-text r = [c: true]
+CHECKS 2 FAILS 0

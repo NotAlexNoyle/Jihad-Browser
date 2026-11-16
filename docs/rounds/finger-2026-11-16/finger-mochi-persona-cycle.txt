@@ -1,0 +1,21 @@
+WAIT ok 8-rect sel:#mine .card
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 276 landed on document y 198)
+  tap at 106,500 -> clickAt 107 1902
+WAIT ok 11-rect sel:#files button
+  tap at 382,560 -> clickAt 383 1962
+CHECK ok 13-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+  chrome dialog-ok tapped at 612 214
+CHECK ok 15-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 16-pref lightweightThemes.isThemeSelected = [true]
+WAIT ok 17-rect sel:#mine .card:nth-child(2) button
+CHECK ok 18-text-has: sel:#mine .card:nth-child(2) = [Carbon Light 2.0Author unknownTake offRemove] holds [Carbon]
+  tap at 574,430 -> clickAt 575 352
+WAIT ok 20-text status-text = [Persona taken off.]
+  tap at 689,430 -> clickAt 690 352
+WAIT ok 22-text sel:#mine .card:nth-child(2) = [Carbon Light 2.0Author unknownWearRemove it?]
+CHECK ok 23-text-has: sel:#mine .card:nth-child(2) = [Carbon Light 2.0Author unknownWearRemove it?] holds [Remove it?]
+  dwell 4000 ms (does it still hold?)
+CHECK ok 25-text-has: sel:#mine .card:nth-child(2) = [Carbon Light 2.0Author unknownWearRemove it?] holds [Remove it?]
+  tap at 677,430 -> clickAt 678 352
+WAIT ok 27-text status-text = [Removing Carbon Light…]
+CHECKS 5 FAILS 0

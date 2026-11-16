@@ -20,7 +20,8 @@ def main():
     rep_path = None
     if "--report" in args: rep_path = args[args.index("--report") + 1]
     else:
-        reps = sorted(glob.glob(os.path.join(ROOT, "docs", "rounds", "finger-*", "finger-report.json")))
+        # the newest whole-suite round: finger-<date> only (a named round, finger-zoom-…, is a part and sorted after them)
+        reps = sorted(glob.glob(os.path.join(ROOT, "docs", "rounds", "finger-2[0-9][0-9][0-9]-*", "finger-report.json")))
         rep_path = reps[-1] if reps else None
     report = json.load(open(rep_path)) if rep_path else {"tests": [], "date": ""}
     date = report.get("date", "")[:10]

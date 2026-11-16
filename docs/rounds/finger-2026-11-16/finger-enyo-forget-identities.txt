@@ -1,0 +1,7 @@
+WAIT ok 7-rect page-title
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 117 landed on document y 35)
+  tap at 157,199 -> clickAt 158 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='general']
+  tap at 676,583 -> clickAt 677 501
+WAIT ok 12-text sel:.row[data-label='Sites remembered'] = [Sites rememberedNone yet. The browser says it is Firefox 52.9; a site whose bot check turns the page away is given a current Firefox identity and remembered here.]
+CHECKS 0 FAILS 0

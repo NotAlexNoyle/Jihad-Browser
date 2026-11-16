@@ -1,0 +1,12 @@
+WAIT ok 8-rect sel:#online .card button
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 271 landed on document y 198)
+  tap at 697,455 -> clickAt 698 2101
+CHECK ok 11-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+  chrome dialog-ok tapped at 384 935
+CHECK ok 13-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 14-text status-text = [Wearing Autumn Forest.]
+WAIT ok 15-pref lightweightThemes.isThemeSelected = [true]
+  tap at 687,974 -> clickAt 688 2834
+WAIT ok 17-text status-text = [Undone.]
+WAIT ok 18-pref lightweightThemes.isThemeSelected = [false]
+CHECKS 2 FAILS 0

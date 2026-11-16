@@ -1,0 +1,11 @@
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
+  pinch 384 700 150 400
+WAIT ok 10-zoom
+CHECK ok 11-zoom-min: zoom 1.9361 (at least 1.5)
+WAIT ok 12-launch: load done
+WAIT ok 13-still 0,100,756,600
+CHECK ok 14-zoom: zoom 1.0000 (want 1.0 within 0.05)
+WAIT ok 15-launch: load done
+WAIT ok 16-still 0,100,756,600
+CHECK ok 17-zoom: zoom 0.6882 (want 0.69 within 0.06)
+CHECKS 3 FAILS 0

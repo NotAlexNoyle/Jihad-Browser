@@ -3,7 +3,7 @@
 Everything above was measured on a TouchPad. Here's what doesn't work yet, or works with a catch.
 Site-by-site details, with causes and what was tried, are in `docs/MODERN-WEB.md`.
 
-- **Only the TouchPad** has been tested by hand (on webOS 3.0.5, then webOS CE 3.1.0); the TouchPad Go runs the
+- **Only the TouchPad** has been tested (on webOS 3.0.5, then webOS CE 3.1.0; every test is run by tools on the device, `docs/FINGER-TESTS.md`); the TouchPad Go runs the
   same binaries at the same resolution and is covered by that equivalence, not by a device test. Other webOS 3 devices should work and have
   not been tried.
 - **The TLS fix covers Jihad only.** The stock browser, Mail and the system services still use the

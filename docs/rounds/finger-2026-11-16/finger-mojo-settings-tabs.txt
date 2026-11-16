@@ -1,0 +1,7 @@
+WAIT ok 7-rect page-title
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 108 landed on document y 35)
+CHECK ok 9-text: page-title = [Settings]
+  tap at 250,190 -> clickAt 251 117
+WAIT ok 11-rect sel:button.pane-tab.on[data-pane='content']
+CHECK ok 12-text-has: sel:h2.group-title = [Content] holds [Content]
+CHECKS 2 FAILS 0

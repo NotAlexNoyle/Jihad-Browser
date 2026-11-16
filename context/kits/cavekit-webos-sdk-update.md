@@ -44,7 +44,7 @@ Reference: the research brief of 2026-10-26 (this session), `docs/DEVICE-BUILD.m
   full `push-variant.sh` all succeed (one session at a time); `palm-package`, `palm-install` and `palm-launch` build,
   install and launch the three packages *(2026-11-09, T-549: all of it, the 0.4.1 client against the host's 0.4 novacomd,
   whose Linux code 0.4.1 did not change; the daemon swap is the owner's root step)*
-- [ ] Stock 3.0.5 is not on the bench: its check is the owner's (asked before it is claimed)
+- [ ] The same check on stock 3.0.5, run by the same tools once a stock 3.0.5 TouchPad is on the bench (hardware, not a person's test; not claimed before)
 **Dependencies:** R1
 
 ### R3: The machine's own SDK (outside the repository), if the owner wants it

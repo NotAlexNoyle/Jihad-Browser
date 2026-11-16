@@ -165,7 +165,7 @@ fl_chrome() {
     enyo:cutcopy-cut) echo 275 111;; enyo:cutcopy-copy) echo 342 111;; enyo:cutcopy-paste) echo 409 111;;
     mochi:cutcopy-cut) echo 229 108;; mochi:cutcopy-copy) echo 296 108;; mochi:cutcopy-paste) echo 363 108;;
     # the system keyboard's special keys (fb0; the same in every shell; fl_kb_key has the letters)
-    *:kb-hide) echo 732 993;; *:kb-backspace) echo 732 813;; *:kb-enter) echo 715 873;; *:kb-space) echo 384 993;;
+    *:kb-hide) echo 732 993;; *:kb-backspace) echo 732 813;; *:kb-shift) echo 34 933;; *:kb-enter) echo 715 873;; *:kb-space) echo 384 993;;
     # the padlock on an https page, and the SSL dialog of a host with a questionable certificate (measured 2026-11-05 on
     # self-signed.badssl.com: Enyo a box mid-screen, Mochi a box under the toolbar, Mojo a sheet at the bottom)
     enyo:padlock) echo 184 54;; mochi:padlock) echo 172 53;; mojo:padlock) echo 27 51;;
@@ -416,13 +416,21 @@ fl_kb_key() { # CHAR -> "X Y"
   done
   echo "fl_kb_key: no key for '$c'" >&2; return 1
 }
-# TEXT typed on the system keyboard, a tap a character (lower-case letters, digits, space . , - / '), 130 ms apart;
+# TEXT typed on the system keyboard, a tap a character (letters, a capital by the shift key, digits, space . , - / ', '<' for Backspace), 130 ms apart;
 # the caller reads the field afterwards (the page's readout, a pref) — the keys themselves have no mark
 fl_type() {
   local s c p
   s=$1
   usleep 400000   # the keyboard slides in after its IME line, and it is on fb0 where the sampler cannot watch it
-  while [ -n "$s" ]; do c=${s%"${s#?}"}; s=${s#?}; p=$(fl_kb_key "$c") || return 1; /tmp/finger tap $p; usleep 130000; done
+  while [ -n "$s" ]; do
+    c=${s%"${s#?}"}; s=${s#?}
+    # a capital: the shift key, then its letter (the shift is for one letter); '<' is Backspace
+    case "$c" in
+      "<") /tmp/finger tap $(fl_chrome kb-backspace); usleep 130000; continue;;
+      [A-Z]) /tmp/finger tap $(fl_chrome kb-shift); usleep 200000; c=$(echo "$c" | tr 'A-Z' 'a-z');;
+    esac
+    p=$(fl_kb_key "$c") || return 1; /tmp/finger tap $p; usleep 130000
+  done
   echo "  typed [$1] on the keyboard"
 }
 fl_kb_hold() { # NAME [MS]: a key held (kb-backspace: the repeat)

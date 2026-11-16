@@ -1,0 +1,22 @@
+id: flash-text
+section: Flash
+item: Text typed on the system keyboard lands exact in a movie's input field: mixed case, digits, space and Backspace, by the movie's own report of its field
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=text
+kit: cavekit-flash.md R7
+wait text ready stage= 30
+flash-tap m 400 300 showAll 200 85
+expect keyboard down
+pause 800
+dtap 240 207
+expect keyboard up
+pause 1500
+type-keys Hello
+wait text text "text Hello" 6
+type-keys " World 123"
+wait text text "text Hello World 123" 8
+type-keys "<<<x9"
+wait text text "text Hello World x9" 8
+expect card-scroll 0 5
+tap-at 600 500
+expect keyboard down

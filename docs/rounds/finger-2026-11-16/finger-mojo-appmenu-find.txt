@@ -1,0 +1,11 @@
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 104 landed on document y 31)
+  sample before-menu of 0,30,300,180: hash 5b74f3f9
+  chrome appmenu tapped at 50 14
+WAIT ok 10-differs 0,30,300,180
+WAIT ok 11-still 0,30,300,180
+  chrome appmenu-find tapped at 70 57
+CHECK ok 13-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  typed [zebrafind] on the keyboard
+  chrome kb-enter tapped at 715 873
+WAIT ok 16-log: [jihad-bs] find 'Zebrafind' -> 1
+CHECKS 1 FAILS 0

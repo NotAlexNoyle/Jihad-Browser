@@ -1,0 +1,9 @@
+WAIT ok 7-rect sel:#f
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 114 landed on document y 50)
+CHECK ok 9-zoom-max: zoom 0.6400 (at most 0.8)
+  tap at 194,654 -> clickAt 304 1323
+CHECK ok 11-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+WAIT ok 12-settled: the card's scroll 0 430
+CHECK ok 14-above-keyboard: sel:#f on the screen at 64,639-324,668, above the keyboard
+CHECK ok 15-zoom-max: zoom 0.6400 (at most 0.8)
+CHECKS 4 FAILS 0

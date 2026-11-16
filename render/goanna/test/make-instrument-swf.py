@@ -229,6 +229,79 @@ def build_features():
     return swf(8, t)
 
 
+def build_text():
+    """The instrumented movie's text half (cavekit-flash.md R7, T-577): an input TextField whose text is reported whenever it
+    changes ("text <the field's text>"), each key as the input movie reports it, and along the stage's bottom three places a
+    press acts on: left, System.setClipboard("jihad-clip-7391") ("clip set"); middle, FileReference.browse() ("file browse
+    <its answer>", then "file select <name>" or "file cancel"); right, FileReference.download of jihad-flash-data.txt ("file
+    download <its answer>", then "file complete" or "file error"). A press above them is the field's own."""
+    def report(x):
+        x.push(1); x.getvar("_root"); x.push("R"); x.op(0x52); x.pop()
+    def unless(x, body):                         # the condition on the stack: body runs when it is true
+        x.op(0x12); x.op(0x9D, struct.pack("<h", len(body.b))); x.b += body.b
+    a = A1()
+    a.push("q", "").op(0x1D); a.push("fr", 0).op(0x1D); a.push("last", "").op(0x1D)
+    r = A1(); r.push("_root.q"); r.getvar("_root.q"); r.getvar("s"); r.add(); r.push(";"); r.add(); r.op(0x1D)
+    a.define("R", ["s"], r)
+    a.push(70, 360, 50, 20, 10, "t"); a.push(6); a.getvar("_root"); a.push("createTextField"); a.op(0x52); a.pop()
+    for k, v in (("type", "input"), ("border", True), ("background", True), ("multiline", False)):
+        a.getvar("_root.t"); a.push(k, v); a.op(0x4F)
+    a.push("f"); a.push(0, "TextFormat"); a.op(0x40); a.op(0x1D)
+    a.getvar("f"); a.push("size", 28); a.op(0x4F)
+    a.getvar("f"); a.push(1); a.getvar("_root.t"); a.push("setNewTextFormat"); a.op(0x52); a.pop()
+    # the file reference and its listener, kept on _root
+    def new_of(x, ctor): x.push(0); x.getvar(ctor); x.push(""); x.op(0x53)
+    a.push("_root.fl"); new_of(a, "Object"); a.op(0x1D)
+    for ev, words in (("onSelect", "file select "), ("onCancel", "file cancel"), ("onComplete", "file complete "), ("onIOError", "file error io"), ("onHTTPError", "file error http"), ("onSecurityError", "file error security"), ("onOpen", "file open ")):
+        fn = A1(); fn.push(words)
+        if words.endswith(" "): fn.getvar("f"); fn.getmember("name"); fn.add()
+        report(fn)
+        a.getvar("_root.fl"); a.push(ev); a.func_expr(["f"], fn); a.op(0x4F)
+    for name in ("fu", "fd"):
+        a.push("_root." + name); new_of(a, "flash.net.FileReference"); a.op(0x1D)
+        a.getvar("_root.fl"); a.push(1); a.getvar("_root." + name); a.push("addListener"); a.op(0x52); a.pop()
+    a.push("ready text ver="); a.getvar("$version"); a.add(); a.push(" stage="); a.add(); a.getvar("Stage"); a.getmember("width"); a.add(); a.push("x"); a.add(); a.getvar("Stage"); a.getmember("height"); a.add()
+    a.call("R", 1); a.pop()
+    a.op(0x00)
+    # each frame: the field's text when it changed, then the queue
+    f = A1()
+    ch = A1(); ch.push("_root.last"); ch.getvar("_root.t"); ch.getmember("text"); ch.op(0x1D)
+    ch.push("text "); ch.getvar("_root.last"); ch.add(); report(ch)
+    f.getvar("_root.t"); f.getmember("text"); f.getvar("_root.last"); f.op(0x49); f.op(0x12); unless(f, ch)
+    send = A1()
+    send.getvar("_root.q"); send.push("jihadFlash", 2); send.getvar("flash.external.ExternalInterface"); send.push("call"); send.op(0x52); send.pop()
+    send.push("_root.q", ""); send.op(0x1D)
+    f.getvar("_root.q"); f.push(""); f.op(0x49); f.op(0x12); unless(f, send)
+    f.op(0x00)
+    # a press on the bottom band (y > 220): the three places
+    d = A1()
+    d.push("down "); d.getvar("_root"); d.getmember("_xmouse"); d.add(); d.push(" "); d.add(); d.getvar("_root"); d.getmember("_ymouse"); d.add(); report(d)
+    def band(lo, hi, body):
+        d.getvar("_root"); d.getmember("_ymouse"); d.push(220); d.op(0x48); d.op(0x12)                      # y >= 220
+        d.getvar("_root"); d.getmember("_xmouse"); d.push(lo); d.op(0x48); d.op(0x12); d.op(0x10)           # and x >= lo
+        d.getvar("_root"); d.getmember("_xmouse"); d.push(hi); d.op(0x48); d.op(0x10)                       # and x < hi
+        unless(d, body)
+    c = A1(); c.push("jihad-clip-7391"); c.push(1); c.getvar("System"); c.push("setClipboard"); c.op(0x52); c.pop(); c.push("clip set"); report(c)
+    band(0, 133, c)
+    b = A1(); b.push("file browse "); b.push(0); b.getvar("_root.fu"); b.push("browse"); b.op(0x52); b.add(); report(b)
+    band(133, 266, b)
+    w = A1(); w.push("file download "); w.push("jd.txt", "jihad-flash-data.txt"); w.push(2); w.getvar("_root.fd"); w.push("download"); w.op(0x52); w.add(); report(w)
+    band(266, 400, w)
+    d.op(0x00)
+    t = tag(9, bytes((0x20, 0x40, 0x60)))
+    t += _anim.define_shape_rect(1, 40 * TWIPS, 40 * TWIPS, (0xF0, 0x60, 0x20))
+    t += _anim.place_object2(1, char_id=1, translate=(0, 0))
+    # the three places, drawn: a check and a person see where they are
+    for i, col in enumerate(((0xE0, 0xC0, 0x20), (0x20, 0xC0, 0x60), (0x20, 0x80, 0xE0))):
+        t += _anim.define_shape_rect(3 + i, 125 * TWIPS, 70 * TWIPS, col)
+        t += _anim.place_object2(3 + i, char_id=3 + i, translate=((4 + 133 * i) * TWIPS, 225 * TWIPS))
+    t += tag(12, bytes(a.b))
+    t += tag(39, struct.pack("<HH", 2, 1) + tag(1) + tag(0))
+    t += tag(26, bytes([0x80 | 0x02]) + struct.pack("<HH", 20, 2) + clip_actions([(0x02, bytes(f.b)), (0x10, bytes(d.b)), (0x40, clip_key("keydown")), (0x80, clip_key("keyup"))]))
+    t += tag(1)
+    return swf(8, t)
+
+
 def build_device_text():
     """A text field in a device font on white: what the player finds for fonts in this process."""
     a = A1()
@@ -500,6 +573,8 @@ def main():
     print("jihad-instr-avm2.swf", len(d), read_back(d))
     d = build_features(); read_back(d); open(os.path.join(o.d, "jihad-instr-features.swf"), "wb").write(d)
     print("jihad-instr-features.swf", len(d), read_back(d))
+    d = build_text(); read_back(d); open(os.path.join(o.d, "jihad-instr-text.swf"), "wb").write(d)
+    print("jihad-instr-text.swf", len(d), read_back(d))
     d = build_device_text(); read_back(d); open(os.path.join(o.d, "jihad-plant-text.swf"), "wb").write(d)
     print("jihad-plant-text.swf", len(d))
     for name, d in plants().items():

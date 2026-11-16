@@ -1,0 +1,13 @@
+WAIT ok 7-rect c
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 133 landed on document y 60)
+  tap at 77,211 -> clickAt 78 138
+CHECK ok 10-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+  chrome dialog-ok tapped at 384 935
+CHECK ok 12-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 13-text r = [c: true]
+  tap at 77,211 -> clickAt 78 138
+CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-2.fifo
+  chrome dialog-cancel tapped at 384 990
+CHECK ok 17-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+WAIT ok 18-text r = [c: false]
+CHECKS 4 FAILS 0

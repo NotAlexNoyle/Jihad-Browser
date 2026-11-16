@@ -3,7 +3,7 @@
 #
 # The README's "Status" section, counted from the records: each kit's acceptance criteria
 # (context/kits/cavekit-*.md, "- [x]" met, "- [ ]" open, "- [~]" partial, counted as open) grouped into the browser's areas, the
-# owner's finger tests (docs/FINGER-TESTS.md), and the road to the release drawn from them.
+# emulated finger's tests (docs/FINGER-TESTS.md, generated from the suite and its last report).
 #
 #   tools/readme-progress.py          rewrite the section between the README's progress markers
 #   tools/readme-progress.py --check  exit 1 when the README's section is not what the records say
@@ -47,8 +47,8 @@ HELD_KITS = {"tabbed-browsing"}
 BAR = 20
 
 
-# an open criterion only a person can close (a finger on the device, the owner's decision), or one
-# that waits on tabs: the rest is work still to build
+# an open criterion that waits on the owner's decision, or one that waits on tabs: the rest is work still to build
+# (2026-11-16: no test is a person's, cavekit-finger-testing.md R7; the kits carry no such criterion now and this count reads 0)
 # (2026-11-07: a bare "finger" no longer counts; the finger-testing and Flash kits mean the emulated one that runs unattended)
 OWNER = re.compile(r"\[human|human-only|\[OWNER\]|DEFERRED by the owner|\[decision\]|judged by eye|owner'?s|a person's finger|real finger|"
                    r"BLOCKED-EXTERNAL|a person at the device", re.I)

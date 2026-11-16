@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Copyright 2026 NotAlexNoyle. MPL-2.0.
      jihad-flash-instr.html: an instrumented movie (make-instrument-swf.py) and what it reports, in elements a check reads
-     (cavekit-flash.md R2, R4). ?movie=avm1|avm2&swf=FILE&scale=showAll&w=400&h=300&vars=a=b&wmode=&allow=&bg=&tag=&layout=&api=1&over=1&bench=1 -->
+     (cavekit-flash.md R2, R4). ?movie=avm1|avm2|text&swf=FILE&scale=showAll&w=400&h=300&vars=a=b&wmode=&allow=&bg=&tag=&layout=&api=1&over=1&bench=1&clip=1|TEXT -->
 <html><head><meta charset="utf-8"><title>jihad-flash-instr</title>
 <script>if (!/[?&]fit=1/.test(location.search)) { document.write('<meta name="viewport" content="width=device-width">'); }</script>
 <style>
@@ -15,7 +15,7 @@
 <div id="report">
   <div id="ready">-</div><div id="down">-</div><div id="up">-</div><div id="move">-</div>
   <div id="keydown">-</div><div id="keyup">-</div><div id="frames">-</div><div id="video">-</div><div id="vmeta">-</div><div id="vstatus">-</div>
-  <div id="vars">-</div><div id="so">-</div><div id="echo">-</div><div id="echoback">-</div><div id="geturl">-</div><div id="fscommand">-</div><div id="data">-</div><div id="kid">-</div><div id="fs">-</div><div id="detect">-</div>
+  <div id="vars">-</div><div id="so">-</div><div id="echo">-</div><div id="echoback">-</div><div id="geturl">-</div><div id="fscommand">-</div><div id="data">-</div><div id="kid">-</div><div id="fs">-</div><div id="detect">-</div><div id="text">-</div><div id="clip">-</div><div id="file">-</div>
   <div id="n-down">0</div><div id="n-up">0</div><div id="n-move">0</div><div id="heldms">0</div><div id="keyheldms">-</div><div id="moverate">0</div>
   <div id="count">0</div><div id="all"></div>
 </div>
@@ -90,6 +90,15 @@
       try { if (m && m.jihadEcho) { document.getElementById("echoback").textContent = "echoback " + m.jihadEcho("hi"); clearInterval(ask); } } catch (e) {}
       if (++tries > 120) { clearInterval(ask); }
     }, 500);
+  }
+  // ?clip=1: a field of the page beside the movie: what the movie put on the clipboard is pasted here, and what is copied here pasted there
+  if (q.clip) {
+    var pf = document.createElement("input");
+    pf.id = "pf"; pf.type = "text"; pf.value = q.clip == "1" ? "" : q.clip;
+    pf.style.cssText = "display:block;width:360px;height:44px;font-size:24px;margin:20px 0 0 40px";
+    document.getElementById("holder").appendChild(pf);
+    var pv = document.createElement("div"); pv.id = "pfv"; pv.textContent = "pf -"; document.getElementById("report").appendChild(pv);
+    setInterval(function () { pv.textContent = "pf " + pf.value; }, 300);
   }
   // ?over=1: a button that puts an element over the movie and takes it away, on a page that scrolls
   if (q.over) {

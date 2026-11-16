@@ -1,0 +1,10 @@
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)
+  inject url http://192.168.1.245:8077/jihad-busy.html
+CHECK ok 9-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+  frame kept: /media/internal/jihad-finger/busy-dialog_.last.raw
+  chrome dialog-cancel tapped at 384 636
+CHECK ok 12-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+WAIT ok 13-rect sel:h1
+  tap at 384,113 -> clickAt 491 39
+CHECK ok 15-hit: clickAt 491,39 inside sel:h1 at 8,21 964x36
+CHECKS 3 FAILS 0

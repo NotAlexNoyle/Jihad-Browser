@@ -1,0 +1,12 @@
+WAIT ok 7-rect page-title
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 108 landed on document y 35)
+  tap at 539,190 -> clickAt 540 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='advanced']
+WAIT ok 11-rect sel:.row[data-pref='network.proxy.type'] select
+  tap at 587,678 -> clickAt 588 1166
+  pick: Mojo's popup at rows 369-691, row 4 at 598
+WAIT ok 13-rect sel:.row[data-pref='network.proxy.http'] input
+  tap at 587,350 -> clickAt 588 1166
+  pick: Mojo's popup at rows 369-691, row 0 at 394
+WAIT ok 15-gone sel:.row[data-pref='network.proxy.http'] input
+CHECKS 0 FAILS 0

@@ -1,0 +1,11 @@
+WAIT ok 7-rect page-title
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 108 landed on document y 35)
+  tap at 250,190 -> clickAt 251 117
+WAIT ok 10-rect sel:button.pane-tab.on[data-pane='content']
+WAIT ok 11-rect fonts-reset
+  tap at 587,305 -> clickAt 588 1251
+  pick: Mojo's popup at rows 140-921, row 3 at 318
+WAIT ok 13-pref font.name.serif.x-western = [Dotum]
+  tap at 136,742 -> clickAt 137 1688
+WAIT ok 15-text sel:#status = [The Latin (Western) fonts are back to their defaults.]
+CHECKS 0 FAILS 0

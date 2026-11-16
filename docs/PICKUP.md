@@ -101,13 +101,20 @@ target line (both webOS 3.0.5 and CE 3.1.0).
   R7 and flash R14 rewritten, T-566 withdrawn, **T-653** (tools for the rotation, the launch from another app, sound
   read at the sink or a host microphone, the volume keys) and T-584 (sync, dropouts, feel by instruments) are the
   agent's. Also the owner's: the README carries no test counts.
-- **Harmonizing the README and the kits (asked 2026-11-16), under way:** 20 open criteria in the kits still say "left
-  for a person / the owner's finger" (list: `tools/readme-progress.py`'s OWNER pattern over the open boxes). The whole
-  finger suite runs on today's build into `docs/rounds/finger-2026-11-16/` (`run.log`; started detached); from its
-  report tick or reword each of the 20 by its script id, regenerate `docs/FINGER-TESTS.md` (`finger-list.py --write`),
-  the overview's counts and the README (`readme-progress.py`). Careful: the working tree's `fingerlib.sh` carries
-  T-577's untested `fl_type` capitals (a guessed shift key at 34,933): a typing failure in that run is read with that
-  in mind.
+- **The README and the kits harmonized (asked 2026-11-16), done:** the whole finger suite on today's build,
+  `docs/rounds/finger-2026-11-16/README.md`: 285 runs, 254 pass, 0 fail after the rerun of three, 9 at the known T-567,
+  9 not run (tabs, TouchPad Go, WebOne), 10 waiting for T-653's tools. The 20 open criteria that waited for a person:
+  11 ticked by script id, 9 reworded and open as tools' work (T-567, T-653, **T-654** a field in an iframe's hold menu,
+  the stock 3.0.5 hardware). `docs/FINGER-TESTS.md`, the overview's counts and the README's table regenerated;
+  `readme-progress.py`'s person pattern now matches no open box. `finger-list.py` picked a named part round
+  (`finger-zoom-…`) as "the last report": it takes the dated whole rounds only now.
+- **Open, new: T-655, the daemon's segfault on Etsy's search** (Enyo, once in six loads): the JS interpreter on a
+  script whose bytecode is gone (`Interpreter.cpp:3756`; the trace in the round's README). Not reproduced yet.
+- **T-577's first piece is in:** `flash-text` (text typed exact into a movie's field, capitals by the shift key at
+  34,933) passes in the three shells; `fl_type`'s capitals are committed.
+- **NEXT:** T-653 (the four tools: rotation, launch from another app, sound at the sink or the host's microphone, the
+  volume keys; then the `person:` lines go from `audio-heard`, `flash-sound`, `rotate`, `mojo-launch-from-app`), T-655,
+  T-576's leftovers, T-577 onward.
 - **README** (commit `78b0ebb3`): 343 to about 135 lines; `docs/screenshots/toolbars.webp` (the three shells' bars) and
   `flash-games.webp` (six games in play, two a shell) composed from fresh device shots; known issues whole in
   `docs/KNOWN-ISSUES.md`; the status table without counts. `readme-progress.py` had refused to run since the Global

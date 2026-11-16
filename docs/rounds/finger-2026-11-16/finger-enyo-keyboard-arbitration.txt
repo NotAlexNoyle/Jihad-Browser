@@ -1,0 +1,19 @@
+WAIT ok 8-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  sample bar of 150,30,620,78: hash e80d768f
+  flash tap on stage 200,150 (showAll) at 240 272
+CHECK ok 11-number: n-down = 1 (wanted 1..1)
+  pause 800 ms (the slow human)
+  kernel key 30
+WAIT ok 14-text keydown = [keydown 65 97]
+CHECK ok 15-region-equal: region 150,30-620,78: colours 165 hash e80d768f rows 48 uniform 0 light 55-58 blue none = the sample's hash
+  tap at 650,800 -> clickAt 651 718
+  pause 800 ms (the slow human)
+  chrome address tapped at 385 52
+CHECK ok 19-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  pause 1000 ms (the slow human)
+  kernel key 30
+WAIT ok 22-settled: the card's scroll 0 0
+CHECK ok 23-region-changed: region 150,30-620,78: colours 73 hash 9abd95e1 rows 48 uniform 0 light none blue none against the sample's hash e80d768f
+  chrome kb-hide tapped at 732 993
+CHECK ok 25-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+CHECKS 5 FAILS 0

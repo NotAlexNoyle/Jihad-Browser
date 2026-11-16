@@ -1,0 +1,10 @@
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 292 landed on document y 279)
+  tap at 247,134 -> clickAt 316 77
+CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  typed [abcdef] on the keyboard
+WAIT ok 11-text echo = [plain n=6 c=0 last=[abcdef] value=[abcdef] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+  kb-backspace held 2500 ms
+WAIT ok 13-text echo = [plain n=12 c=0 last=[] value=[] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+  chrome kb-hide tapped at 732 993
+CHECK ok 15-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+CHECKS 2 FAILS 0

@@ -1,0 +1,14 @@
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)
+  chrome address tapped at 385 52
+CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+  sample before-menu of 0,30,300,180: hash ab47a33c
+  chrome appmenu tapped at 50 14
+WAIT ok 12-differs 0,30,300,180
+WAIT ok 13-still 0,30,300,180
+  chrome appmenu-settings tapped at 51 201
+WAIT ok 15-load
+CHECK ok 16-url: load done uri=about:settings#chrome=%7B%22searchEngine%22%3A%22duckduckgo-lite%22%2C%22homeUrl%22%3A%22https%3A%2F%2Flite.duckduckgo.com%2Flite%2F%22%2C%22startLinks%22%3A%5B%7B%22title%22%3A%22DuckDuckGo%22%2C%22url%22%3A%22https%3A%2F%2Fduckduckgo.com%2F%22%7D%2C%7B%22title%22%3A%22Wikipedia%22%2C%22url%22%3A%2
+CHECK ok 17-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+WAIT ok 18-rect page-title
+CHECK ok 19-content: region 0,100-768,700: colours 787 hash 3b16afe0 rows 600 uniform 0 light none blue none; page-title on the screen at 20,96-744,130, text holds [Settings]
+CHECKS 4 FAILS 0

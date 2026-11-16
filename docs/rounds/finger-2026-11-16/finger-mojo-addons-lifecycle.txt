@@ -1,0 +1,13 @@
+WAIT ok 8-rect sel:#category-extension
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 249 landed on document y 224)
+WAIT ok 10-rect sel:#category-extension[selected='true']
+WAIT ok 11-rect sel:richlistitem[value='pad01@jihad.test']
+  tap at 620,278 -> clickAt 792 261
+WAIT ok 13-rect anon:richlistitem[value='pad01@jihad.test']|disable-btn
+  tap at 618,278 -> clickAt 789 261
+WAIT ok 15-rect anon:richlistitem[value='pad01@jihad.test']|enable-btn
+  tap at 694,278 -> clickAt 886 261
+WAIT ok 17-rect anon:richlistitem[value='pad01@jihad.test']|undo-btn
+  tap at 537,254 -> clickAt 686 230
+WAIT ok 19-rect anon:richlistitem[value='pad01@jihad.test']|remove-btn
+CHECKS 0 FAILS 0

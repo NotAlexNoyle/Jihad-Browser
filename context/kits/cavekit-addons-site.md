@@ -293,7 +293,7 @@ LAN, before anything touches the owner's server.
   search and links to websites" — cavekit-personas-ui.md R8: two previews, a full search in place
   with More results, and a link to the site; `about:personas#site-q=WORDS` links to a search.
   Device, Enyo, live site and local copy.)*
-- [~] A search field filters by name, author and description (the feed's `q`). *(Code, and the feed's `q` on the local copy. Typing into the field needs a finger on the on-screen keyboard: the owner's test.)*
+- [x] A search field filters by name, author and description (the feed's `q`). *(Code, and the feed's `q` on the local copy. Typing into the field is the emulated finger's on the on-screen keyboard.)* *(2026-11-16, the emulated finger, the whole suite in all three shells: `addon-site` pass; `docs/rounds/finger-2026-11-16/finger-report.md`.)*
 - [x] "More on the web" opens the site's `/personas/` page. *(Device, Enyo.)*
 - [x] Offline, slow or broken answers show a plain message; nothing from the feed is put in as markup;
   pictures must be https. *(Device: against the local copy, R9.)*

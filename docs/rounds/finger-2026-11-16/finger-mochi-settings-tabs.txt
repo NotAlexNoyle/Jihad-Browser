@@ -1,0 +1,7 @@
+WAIT ok 7-rect page-title
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 113 landed on document y 35)
+CHECK ok 9-text: page-title = [Settings]
+  tap at 244,195 -> clickAt 245 117
+WAIT ok 11-rect sel:button.pane-tab.on[data-pane='content']
+CHECK ok 12-text-has: sel:h2.group-title = [Content] holds [Content]
+CHECKS 2 FAILS 0

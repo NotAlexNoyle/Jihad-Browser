@@ -39,22 +39,22 @@ what is next, is in the kit itself, `docs/PICKUP.md` (the current handoff) and `
 
 | Domain | Cavekit File | Requirements | Status | Description |
 |--------|--------------|--------------|--------|-------------|
-| GPU Rendering (the pick: 2 + 4) | cavekit-gpu-rendering.md | 12 | 🟢 45 met / 3 partial / 1 open | The page composited on the Adreno 220 by the engine's OpenGL compositor in the daemon and read back into the YAP buffer (option 4), then WebGL through EGL (option 2); the software path the fallback; Tier 87 |
-| The Modern Web | cavekit-modern-web.md | 6 | 🟢 27 met / 3 partial / 0 open | Site-by-site compatibility ledger on the device and the configuration fixes it drives: the slow-script guard sized for the CPU, Cloudflare's challenge (UA), GitHub's deferred parts (diagnosed), Wikipedia's layout |
+| GPU Rendering (the pick: 2 + 4) | cavekit-gpu-rendering.md | 12 | 🟢 45 met / 3 partial / 2 open | The page composited on the Adreno 220 by the engine's OpenGL compositor in the daemon and read back into the YAP buffer (option 4), then WebGL through EGL (option 2); the software path the fallback; Tier 87 |
+| The Modern Web | cavekit-modern-web.md | 6 | 🟢 27 met / 3 partial / 1 open | Site-by-site compatibility ledger on the device and the configuration fixes it drives: the slow-script guard sized for the CPU, Cloudflare's challenge (UA), GitHub's deferred parts (diagnosed), Wikipedia's layout |
 | Content Blocking | cavekit-content-blocking.md | 7 | 🟢 26 met / 1 partial / 0 open | An ad and tracker blocker in the engine for all three interfaces: EasyList + EasyPrivacy (GPLv3+), host blocking by nsIContentPolicy, generic element hiding by a user sheet, 4-day updates, Settings → Privacy rows, device budget |
-| UI Shell (Enyo) | cavekit-ui-shell.md | 8 | 🟢 36 met / 0 partial / 2 open | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
-| Mochi UI Variant | cavekit-mochi-ui.md | 7 | 🟢 37 met / 2 partial / 0 open | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
-| Mojo UI Variant | cavekit-mojo-ui.md | 7 | 🟢 38 met / 5 partial / 0 open | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
+| UI Shell (Enyo) | cavekit-ui-shell.md | 8 | 🟢 39 met / 0 partial / 1 open | Forked/rebranded Enyo-1.0 app (`app/`) using the unchanged adapter contract |
+| Mochi UI Variant | cavekit-mochi-ui.md | 7 | ✅ 40 met / 0 partial / 0 open | Second front-end on Enyo-2/Mochi (`app-mochi/`), same contract, separate .ipk |
+| Mojo UI Variant | cavekit-mojo-ui.md | 7 | 🟢 40 met / 3 partial / 0 open | Third front-end on the system Mojo framework (`app-mojo/`), same contract, own independent .ipk |
 | IPC Contract Preservation | cavekit-ipc-contract.md | 5 | ✅ 16 met / 0 partial / 0 open | Frozen YAP command/message interface, shmem framebuffer, daemon, LunaService |
 | Engine Embedding & Build | cavekit-engine-embedding.md | 4 | ✅ 15 met / 0 partial / 0 open | Out-of-tree Goanna build, embedding runtime, event-loop integration |
 | Offscreen Rendering | cavekit-offscreen-rendering.md | 9 | 🟢 35 met / 0 partial / 1 open | Headless render → shared buffer → paint protocol + geometry events + orientation-correct composite + engine-popup delivery |
-| Input Bridging | cavekit-input-bridging.md | 8 | 🟢 40 met / 5 partial / 0 open | webOS pointer/key/touch/gesture → DOM events |
+| Input Bridging | cavekit-input-bridging.md | 8 | ✅ 45 met / 0 partial / 0 open | webOS pointer/key/touch/gesture → DOM events |
 | Navigation, Loading & Events | cavekit-navigation-events.md | 7 | ✅ 18 met / 0 partial / 0 open | Nav commands + load/location/title/history message stream |
-| Add-ons & Extensions | cavekit-addons-extensions.md | 10 | 🟢 49 met / 2 partial / 1 open | `about:addons` + classic XPI + NPAPI plugin support |
+| Add-ons & Extensions | cavekit-addons-extensions.md | 10 | 🟢 50 met / 1 partial / 1 open | `about:addons` + classic XPI + NPAPI plugin support |
 | Browser Services | cavekit-browser-services.md | 5 | ✅ 22 met / 0 partial / 0 open | Settings, cookies/cache, JS dialogs, downloads, TLS |
 | Desktop Build & PoC Harness | cavekit-desktop-build.md | 4 | ✅ 11 met / 0 partial / 0 open | Phase-1 x86_64 build + YAP test client + end-to-end gate |
-| Device Build & Packaging | cavekit-device-build.md | 11 | 🟢 68 met / 5 partial / 1 open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
-| GRE Widget Bindings | cavekit-gre-widgets.md | 7 | 🟡 20 met / 6 partial / 0 open | Widgets the engine already gives us, used or explicitly declined |
+| Device Build & Packaging | cavekit-device-build.md | 11 | 🟢 70 met / 4 partial / 1 open | Phase-2 ARM cross-toolchain; self-contained packaging via bitbake; TouchPad + TouchPad Go |
+| GRE Widget Bindings | cavekit-gre-widgets.md | 7 | 🟢 25 met / 5 partial / 0 open | Widgets the engine already gives us, used or explicitly declined |
 | In-Browser Preferences | cavekit-preferences-ui.md | 9 | 🟢 39 met / 2 partial / 0 open | An engine-side settings page the three shells can share |
 | Licensing & Branding | cavekit-licensing-branding.md | 5 | ✅ 12 met / 0 partial / 0 open | Apache+MPL headers, NOTICE, trademark stripping (cross-cut) |
 | Tabbed Browsing | cavekit-tabbed-browsing.md | 6 | ⬜ 0 met / 0 partial / 27 open | Several pages per card with a tab strip; pages held in the daemon, tab commands over the variant's own Luna service, YAP contract untouched |
@@ -62,18 +62,18 @@ what is next, is in the kit itself, `docs/PICKUP.md` (the current handoff) and `
 | Look of Jihad's pages | cavekit-chrome-look.md | 4 | 🟡 11 met / 4 partial / 0 open | Settings, about:personas and about:addons as part of each card |
 | Engine Update Readiness | cavekit-engine-update.md | 9 | 🟢 25 met / 1 partial / 0 open | Make the UXP/Goanna interaction modular and maintainable so an engine update is a procedure, not an excavation |
 | More Persona Formats | cavekit-persona-formats.md | 4 | 🟢 19 met / 3 partial / 0 open | Colour-only themes, layered pictures, more colour slots (owner's choice after the format survey) |
-| Add-on Site | cavekit-addons-site.md | 13 | 🟢 56 met / 3 partial / 0 open | addons.riverstonerelay.org on Phoebus: Personas first, owner-only, Palm-era skin; about:personas reads its feed |
+| Add-on Site | cavekit-addons-site.md | 13 | 🟢 57 met / 2 partial / 0 open | addons.riverstonerelay.org on Phoebus: Personas first, owner-only, Palm-era skin; about:personas reads its feed |
 | Proxies & Certificates | cavekit-proxies-certs.md | 6 | 🟢 24 met / 2 partial / 0 open | Settings → Proxy (none, webOS's setting, the Relay, WebOne, own, PAC); webOS's added and patched CAs trusted; a proxy's CA asked when opened; the Relay's CA an option, off |
 | Certificate Trust | cavekit-certificate-trust.md | 7 | ✅ 20 met / 0 partial / 0 open | Which certificates the browser trusts: the device's own store and the user's choices |
 | Finger Emulation | cavekit-finger-emulation.md | 4 | 🟢 12 met / 2 partial / 1 open | An emulated finger that sends the touch panel's own datagrams to LunaSysMgr, and the round of finger tests it drives. |
-| Device Headroom and YouTube | cavekit-device-headroom.md | 5 | 🟡 4 met / 0 partial / 11 open | The device kept reachable whatever a page does; YouTube measured, lighter, cheap to play |
-| Flash, Finished | cavekit-flash.md | 14 | 🟡 27 met / 1 partial / 42 open | The device's Flash Player proven on real games, apps and videos in every shell, by the emulated finger |
-| Autonomous Finger Testing | cavekit-finger-testing.md | 7 | 🟢 18 met / 0 partial / 2 open | The finger round judged by instruments a machine reads, not by an eye on a still |
-| Low-Power Engine Tuning | cavekit-lowpower-uxp.md | 6 | ⬜ 0 met / 0 partial / 19 open | Each candidate lever (JS helper threads for two cores, -O2, the allocator's retained memory, memory prefs, reduced motion, lazy images, decoders, omni.ja) measured on the TouchPad against one baseline, kept only where it gains |
+| Device Headroom and YouTube | cavekit-device-headroom.md | 5 | 🟡 10 met / 0 partial / 8 open | The device kept reachable whatever a page does; YouTube measured, lighter, cheap to play |
+| Flash, Finished | cavekit-flash.md | 14 | 🟡 27 met / 1 partial / 44 open | The device's Flash Player proven on real games, apps and videos in every shell, by the emulated finger |
+| Autonomous Finger Testing | cavekit-finger-testing.md | 7 | 🟡 18 met / 0 partial / 6 open | The finger round judged by instruments a machine reads, not by an eye on a still |
+| Low-Power Engine Tuning | cavekit-lowpower-uxp.md | 6 | ✅ 20 met / 0 partial / 0 open | Each candidate lever (JS helper threads for two cores, -O2, the allocator's retained memory, memory prefs, reduced motion, lazy images, decoders, omni.ja) measured on the TouchPad against one baseline, kept only where it gains |
 | The Engine's Next Release | cavekit-engine-release-2026-10.md | 4 | 🟢 11 met / 1 partial / 0 open | The engine moved to UXP's next release with the update procedure: the queue rebased, the roots re-audited, the device re-checked where the new commits touch |
-| The webOS SDK at Its Latest | cavekit-webos-sdk-update.md | 3 | ⬜ 0 met / 0 partial / 7 open | The SDK submodule and its novacom built from it at the latest release, proven on the bench; the machine's own SDK refreshed |
-| Global Jihad (after Jihad Browser) | cavekit-global-jihad.md | 3 | ⬜ 0 met / 0 partial / 10 open | Goanna in place of WebKit and Chromium for every app across the webOS family, replacing the system engine, never beside it; CE OTA updates blocked while installed. Will support: TouchPad (stock 3.0.x, CE), the 1.x/2.x phones, LuneOS, webOS OSE. Won't: Lunacy, LG TVs, Open webOS, Android/iOS generally |
-| The Atlas References, Current | cavekit-atlas-references.md | 3 | ⬜ 0 met / 0 partial / 9 open | The Atlas reference checkouts tracking their real upstreams, one update command, what moved weighed for Jihad |
+| The webOS SDK at Its Latest | cavekit-webos-sdk-update.md | 3 | 🟢 10 met / 0 partial / 1 open | The SDK submodule and its novacom built from it at the latest release, proven on the bench; the machine's own SDK refreshed |
+| Global Jihad (after Jihad Browser) | cavekit-global-jihad.md | 3 | ⬜ 0 met / 0 partial / 11 open | Goanna in place of WebKit and Chromium for every app across the webOS family, replacing the system engine, never beside it; CE OTA updates blocked while installed. Will support: TouchPad (stock 3.0.x, CE), the 1.x/2.x phones, LuneOS, webOS OSE. Won't: Lunacy, LG TVs, Open webOS, Android/iOS generally |
+| The Atlas References, Current | cavekit-atlas-references.md | 3 | ✅ 9 met / 0 partial / 0 open | The Atlas reference checkouts tracking their real upstreams, one update command, what moved weighed for Jihad |
 
 ### Driving the device
 

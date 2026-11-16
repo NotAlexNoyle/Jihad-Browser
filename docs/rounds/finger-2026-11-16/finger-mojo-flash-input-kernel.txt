@@ -1,0 +1,18 @@
+WAIT ok 8-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
+  flash tap on stage 200,150 (showAll) at 240 263
+CHECK ok 10-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  pause 1200 ms (the slow human)
+  kernel key 103
+WAIT ok 13-text keydown = [keydown 38 0]
+  kernel key 30
+WAIT ok 15-text keydown = [keydown 65 97]
+  kernel key 108
+WAIT ok 17-text keydown = [keydown 40 0]
+CHECK ok 18-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0
+  tap at 650,800 -> clickAt 651 727
+CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  pause 1500 ms (the slow human)
+  kernel key 108
+WAIT ok 23-settled: the card's scroll 0 51
+CHECK ok 24-card-scroll-min: the card's scroll y 51 (at least 20)
+CHECKS 4 FAILS 0

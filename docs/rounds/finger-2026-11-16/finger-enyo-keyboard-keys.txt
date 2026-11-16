@@ -1,0 +1,35 @@
+WAIT ok 8-rect plain
+calibrated (enyo): the page's top on the screen 83 (the table said 82, the tap at y 143 landed on document y 77)
+  tap at 247,144 -> clickAt 316 79
+CHECK ok 11-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  pause 1500 ms (the slow human)
+  kernel key 30
+  kernel key 48
+WAIT ok 15-text echo = [plain n=2 c=0 last=[ab] value=[ab] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+  kernel key 28
+WAIT ok 17-text echo = [plain n=2 c=1 last=[ab] value=[ab] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+  kernel key 105
+  kernel key 14
+WAIT ok 20-text echo = [plain n=3 c=1 last=[b] value=[b] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+  kernel key 106
+  kernel key 30
+  kernel key 102
+  kernel key 111
+WAIT ok 25-text echo = [plain n=5 c=1 last=[a] value=[a] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+  kernel key 15
+WAIT ok 27-text echo = [plain n=5 c=2 last=[a] value=[a] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=area keydowns=0]
+  kernel key 30
+  kernel key 28
+  kernel key 48
+  kernel key 28
+  kernel key 46
+WAIT ok 33-text echo = [plain n=5 c=2 last=[a] value=[a] area n=5 c=0 last=[a b c] value=[a b c] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=area keydowns=2]
+  kernel key 103
+  kernel key 103
+  kernel key 111
+WAIT ok 37-text echo = [plain n=5 c=2 last=[a] value=[a] area n=6 c=0 last=[ab c] value=[ab c] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=area keydowns=2]
+  kernel key 108
+  kernel key 14
+  kernel key 14
+WAIT ok 41-text echo = [plain n=5 c=2 last=[a] value=[a] area n=8 c=0 last=[ab] value=[ab] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=area keydowns=2]
+CHECKS 1 FAILS 0

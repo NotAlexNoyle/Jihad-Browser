@@ -252,5 +252,7 @@ stream reading other rows. `--merge` runs some scripts again into the round's re
    bare: `bash build/webos-oe/dev-sh.sh -t 120 tools/device/finger/sysmgr-restart.sh` kills, waits, taps its Close and
    takes the screenshot in one script; the owner asked twice.
 
-What it cannot do: the accelerometer (rotation), the volume keys, hearing audio, a physical keyboard. Those
-stay a person's in `docs/FINGER-TESTS.md`.
+Beside the finger, `hwinput.c` (T-653, pushed to `/tmp/hwinput` by `finger-run.py`): the device's turn (`turn
+up|down|left|right`: sensord's orientation event to its subscribers), the volume rocker (`volume-key up|down`: a key
+written to the kernel's gpio-keys device) and the level of the sound at the output sink (`expect sound heard|silent`).
+No item is a person's (cavekit-finger-testing.md R7); the state of each tool is in that requirement's notes.

@@ -1,0 +1,12 @@
+WAIT ok 9-rect sel:embed
+CHECK ok 10-audio: the movie's audio: open running audible
+CHECK FAIL 11-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard
+  frame kept: /media/internal/jihad-finger/11-sound_.last.raw
+WAIT ok 12-launch: load done
+CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 0
+WAIT ok 14-launch: load done
+WAIT ok 15-text status = [playing]
+CHECK FAIL 16-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard
+  frame kept: /media/internal/jihad-finger/16-sound_.last.raw
+CHECKS 4 FAILS 2
+novacom: unexpected EOF from server

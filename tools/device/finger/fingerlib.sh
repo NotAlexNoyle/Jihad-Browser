@@ -868,4 +868,74 @@ fl_check_region_changed() { # NAME REGION [SAMPLE-NAME]
   s=$(eval "echo \$FL_S_$(echo ${3:-$1} | tr -c 'A-Za-z0-9_' '_')"); reg=$(fl_region "$2"); h=$(echo "$reg" | sed -n 's/.*hash \([0-9a-f]*\).*/\1/p')
   if [ -n "$s" ] && [ "$h" != "$s" ]; then fl_check ok "$1" "$reg against the sample's hash $s"; else fl_check FAIL "$1" "$reg = the sample's hash ${s:-(none)}"; fi
 }
-fl_summary() { echo "CHECKS $FL_CHECKS FAILS $FL_FAILS"; [ $FL_FAILS = 0 ]; }
+# --- hardware with no hand (T-653: no test is a person's; /tmp/hwinput, hwinput.c) ---------------------------------
+# the device turned: sensord's own orientation event sent to its subscribers (LunaSysMgr turns the cards). The values
+# as CE 3.1.0 took them on 2026-11-16: 4 upright, 3 upside down, 5 and 6 the two landscapes. The turn stands until
+# the next one (sensord speaks only when the device really moves): fl_summary turns it back.
+fl_turn() { # up|down|left|right
+  local v
+  case $1 in up) v=4;; down) v=3;; left) v=5;; right) v=6;; *) echo "  fl_turn: $1?"; return 1;; esac
+  fl_mark; /tmp/hwinput orientation $v >/dev/null || return 1
+  if [ $1 = up ]; then rm -f /tmp/fl-turned; else : > /tmp/fl-turned; fi
+  echo "  the device turned $1 (orientation $v to sensord's subscribers)"
+}
+# the volume rocker: a key event written to the kernel's gpio-keys device, which hidd reads and publishes
+fl_volume() { luna-send -n 1 palm://com.palm.audio/media/status '{}' 2>/dev/null | sed -n 's/.*"volume":\([0-9]*\).*/\1/p'; }
+fl_volume_key() { # up|down [TIMES]
+  local c n
+  case $1 in up) c=115;; down) c=114;; *) return 1;; esac
+  n=${2:-1}; while [ $n -gt 0 ]; do /tmp/hwinput key $c 120 >/dev/null || return 1; usleep 400000; n=$((n-1)); done
+  echo "  volume key $1 x${2:-1}: the media volume now $(fl_volume)"
+}
+fl_volume_mark() { FL_VOL=$(fl_volume); echo "  the media volume is $FL_VOL"; }
+fl_check_volume() { # NAME higher|lower|same: against fl_volume_mark's reading
+  local v; v=$(fl_volume)
+  case "$2" in
+    higher) [ "${v:-0}" -gt "${FL_VOL:-0}" ];; lower) [ "${v:-0}" -lt "${FL_VOL:-0}" ];; same) [ "${v:-0}" = "${FL_VOL:-0}" ];; *) false;;
+  esac && fl_check ok "$1" "the media volume $v, $2 than/as the marked $FL_VOL" || fl_check FAIL "$1" "the media volume $v, wanted $2 than/as the marked $FL_VOL"
+}
+# sound with no ear: one second of the output sink's monitor (what PulseAudio hands the codec, after every stream's
+# volume), its level by hwinput; "heard" wants a signal there AND the speaker amp on (or a headset in)
+fl_sound_level() { # -> "peak P rms R frames N"
+  local p
+  rm -f /tmp/fl-snd.raw
+  parec -d pcm_output.monitor > /tmp/fl-snd.raw 2>/dev/null & p=$!
+  usleep 1200000; kill $p 2>/dev/null; wait $p 2>/dev/null
+  /tmp/hwinput level /tmp/fl-snd.raw; rm -f /tmp/fl-snd.raw
+}
+fl_check_sound() { # NAME heard|silent [BOUND] [MIN_RMS]
+  local n l r amp
+  n=${3:-10}; amp=off
+  while [ $n -gt 0 ]; do
+    l=$(fl_sound_level); r=$(echo "$l" | sed -n 's/.*rms \([0-9]*\).*/\1/p'); [ -n "$r" ] || r=0
+    amixer -c 0 cget numid=87 2>/dev/null | grep -q 'values=on' && amp=on || amp=off
+    case $2 in
+      heard) [ "$r" -ge "${4:-60}" ] && [ $amp = on ] && { fl_check ok "$1" "sound at the output sink: $l, the speaker amp $amp"; return 0; };;
+      silent) [ "$r" -lt "${4:-60}" ] && { fl_check ok "$1" "no sound at the output sink: $l"; return 0; };;
+    esac
+    n=$((n-2))
+  done
+  fl_check FAIL "$1" "sound at the output sink: $l, the speaker amp $amp; wanted $2"
+}
+# another app in front, then the browser asked for a page the way an app asks (the application manager's launch with a
+# target: what Email and Messaging send for a tapped link)
+fl_app_pids() { luna-send -n 1 palm://com.palm.applicationManager/running '{}' 2>/dev/null | tr ',' '\n' | grep -A1 "\"$1\"" | grep processid | sed 's/.*"processid": *"\([0-9]*\)".*/\1/'; }
+fl_launch_from() { # OTHER_APP_ID URL
+  local pid
+  luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"'"$1"'"}' >/dev/null 2>&1; sleep 4
+  pid=$(fl_app_pids "$1" | head -1); [ -n "$pid" ] || { echo "  $1 did not start"; return 1; }
+  echo "$1" > /tmp/fl-other-app
+  fl_mark
+  luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"'"$FL_ID"'","params":{"target":"'"$2"'"}}' >/dev/null 2>&1
+  echo "  $1 in front (process $pid), then the browser launched with the target $2"
+}
+fl_hw_restore() {
+  local pid
+  [ -f /tmp/fl-turned ] && fl_turn up
+  if [ -f /tmp/fl-other-app ]; then
+    for pid in $(fl_app_pids "$(cat /tmp/fl-other-app)"); do luna-send -n 1 palm://com.palm.applicationManager/close '{"processId":"'"$pid"'"}' >/dev/null 2>&1; done
+    rm -f /tmp/fl-other-app
+  fi
+  return 0
+}
+fl_summary() { fl_hw_restore; echo "CHECKS $FL_CHECKS FAILS $FL_FAILS"; [ $FL_FAILS = 0 ]; }

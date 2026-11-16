@@ -1,6 +1,12 @@
+# Another app's card in front, then the application manager's launch with a target: the call an app makes for a
+# tapped link (T-653).
 id: mojo-launch-from-app
 section: Keyboard and text
 item: Mojo: open a link to the browser from another app (an email or a message): the card shows the page with no keyboard over it
 shells: mojo
-person: a launch from another app is not emulated (a launch with a target from the command line showed the page with no keyboard, 2026-10-24)
+page: about:blank
 kit: cavekit-chrome-look.md R4
+launch-from com.palm.app.notes http://192.168.1.245:8077/jihad-long-static.html
+wait url jihad-long-static 30
+expect keyboard down
+expect content 0,150,756,600 'sel:body'

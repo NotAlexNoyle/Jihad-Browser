@@ -1,0 +1,112 @@
+{
+ "date": "2026-11-16T07:22:30",
+ "shells": [
+  "enyo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "audio-heard",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
+   "section": "Media and sound",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK FAIL 11-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK FAIL 14-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard"
+   ],
+   "kept": [
+    "kept/enyo-audio-heard-11-sound_.jpg",
+    "kept/enyo-audio-heard-14-sound_.jpg"
+   ],
+   "seconds": 74,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (355854/854538919) jihad (start) running, process 26143; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-sound",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
+   "section": "The engine",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK FAIL 11-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK FAIL 16-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard"
+   ],
+   "kept": [
+    "kept/enyo-flash-sound-11-sound_.jpg",
+    "kept/enyo-flash-sound-16-sound_.jpg"
+   ],
+   "seconds": 87,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (355941/464058310) jihad (start) running, process 30367; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "rotate",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards)",
+   "section": "Scrolling and gestures",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)",
+    "WAIT ok 11-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x686 mZoom=1.3333",
+    "WAIT ok 12-content 0,150,756,900",
+    "WAIT ok 15-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x686 mZoom=0.7500",
+    "WAIT ok 16-content 0,150,756,900",
+    "WAIT ok 18-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x686 mZoom=1.3333",
+    "WAIT ok 19-content 0,150,756,900",
+    "WAIT ok 22-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x686 mZoom=0.7500",
+    "WAIT ok 23-settled: the card's scroll 0 0",
+    "CHECK ok 24-content: region 0,150-756,600: colours 421 hash 727e4039 rows 450 uniform 173 light 150-599 blue none; sel:body on the screen at 0,82-764,20570",
+    "CHECK ok 26-card-scroll-min: the card's scroll y 629 (at least 400)"
+   ],
+   "kept": [
+    "kept/enyo-rotate-landscape-left_.jpg",
+    "kept/enyo-rotate-landscape-right_.jpg"
+   ],
+   "seconds": 70,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (356011/563429407) jihad (start) running, process 1428; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink",
+   "section": "Media and sound",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK FAIL 10-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard",
+    "CHECK ok 13-volume: the media volume 45, higher than/as the marked 23",
+    "CHECK ok 16-volume: the media volume 23, lower than/as the marked 45",
+    "CHECK FAIL 17-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard"
+   ],
+   "kept": [
+    "kept/enyo-volume-keys-10-sound_.jpg",
+    "kept/enyo-volume-keys-17-sound_.jpg"
+   ],
+   "seconds": 70,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +7 s, 20 content frames at +7 s; the GPU path, frames off the main thread",
+   "restore": "enyo: (356081/927787912) jihad (start) running, process 5223; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (356082/37323023) jihad (start) running, process 5223\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (356088/881959023) jihad-mochi (start) running, process 2558\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (356095/132252947) jihad-mojo (start) running, process 13496\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE FAIL tmp-dumps: /tmp/volshot.png \nDEVICE ok media-scratch: none\nDEVICE FAIL overall: 17% of /tmp used\nnovacom: unexpected EOF from server",
+ "seconds": 319
+}

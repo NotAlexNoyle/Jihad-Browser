@@ -66,16 +66,16 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 DEVSH = os.path.join(ROOT, "build", "webos-oe", "dev-sh.sh")
 REFS = os.path.join(os.environ.get("JIHAD_FLASH_CACHE", os.path.expanduser("~/.cache/jihad-flash")), "refs")   # a movie's screens (cavekit-flash R2)
 SHELLS = ["enyo", "mochi", "mojo"]
-GESTURES = {"kernel-key", "flash-tap", "plugin-signal", "tap", "tap-off", "touch", "dismiss", "tap-at", "chrome", "drag", "drag-off", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
+GESTURES = {"turn", "volume-key", "launch-from", "kernel-key", "flash-tap", "plugin-signal", "tap", "tap-off", "touch", "dismiss", "tap-at", "chrome", "drag", "drag-off", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
 UNMARKED = {"kernel-key", "chrome", "dismiss", "touch", "hold", "hold-on", "dtap", "pinch", "type-keys", "key-hold"}       # no mark of their own: a wait must follow before an expect
-WAITING_EXPECTS = {"lock", "keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
+WAITING_EXPECTS = {"sound", "volume", "lock", "keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
 CHECKS = {"scroll": "fl_check_scroll", "card-scroll": "fl_check_card_scroll", "card-scroll-min": "fl_check_card_scroll_min", "zoom": "fl_check_zoom",
           "zoom-min": "fl_check_zoom_min", "zoom-max": "fl_check_zoom_max", "visible": "fl_check_visible", "stream": None, "hit": "fl_check_hit", "file": "fl_check_file",
           "element-at": "fl_check_element_at", "text": "fl_check_text", "text-has": "fl_check_text_has", "url": "fl_check_url", "probe-has": "fl_check_probe_has",
           "dialog": "fl_check_dialog", "keyboard": "fl_check_keyboard", "content": "fl_check_content",
           "region-equal": "fl_check_region_equal", "region-changed": "fl_check_region_changed", "top": "fl_check_top",
           "flash-at": "fl_check_flash_at", "flash-drawn": "fl_check_flash_drawn", "flash-rate": "fl_check_flash_rate", "flash-rate-report": "fl_check_flash_rate_report", "flash-reacted": "fl_check_flash_reacted",
-          "plugin": "fl_check_plugin", "audio": "fl_check_audio", "screen": "fl_check_screen", "flash-behind": "fl_check_flash_behind", "above-keyboard": "fl_check_above_keyboard", "press-rate": "fl_check_press_rate", "number": "fl_check_number", "flash-el": "fl_check_flash_el", "lock": "fl_check_lock"}
+          "plugin": "fl_check_plugin", "audio": "fl_check_audio", "sound": "fl_check_sound", "volume": "fl_check_volume", "screen": "fl_check_screen", "flash-behind": "fl_check_flash_behind", "above-keyboard": "fl_check_above_keyboard", "press-rate": "fl_check_press_rate", "number": "fl_check_number", "flash-el": "fl_check_flash_el", "lock": "fl_check_lock"}
 
 def sh_quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
@@ -96,13 +96,13 @@ def split_args(rest):
         else: cur += c
     if cur: out.append(cur)
     return out
-ARITY = {"calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1), "measure": (1, 1),
+ARITY = {"turn": (1, 1), "volume-key": (1, 2), "volume-mark": (0, 0), "launch-from": (2, 2), "calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1), "measure": (1, 1),
          "hold-on": (1, 2), "touch": (1, 1), "key-hold": (1, 2), "drag": (4, 5), "drag-off": (5, 6), "drag-slow": (4, 4), "drag-jitter": (4, 5), "drag-paused": (4, 6), "flick": (4, 5), "pinch": (4, 5), "hold": (2, 3), "dtap": (2, 4),
          "key": (1, 1), "launch": (1, 2), "pause": (1, 1), "daemon-restart": (1, 1), "stream-start": (0, 9), "stream-stop": (0, 0),
          "header-away": (0, 0), "kernel-key": (1, 1), "flash-tap": (6, 6), "flash-control": (2, 2), "plugin-signal": (1, 1), "sig-save": (2, 2), "probe": (2, 2)}
 EXPECT_ARITY = {"above-keyboard": (1, 1), "press-rate": (1, 1), "number": (3, 3), "flash-el": (4, 4), "lock": (1, 2), "flash-behind": (3, 3), "flash-rate-report": (2, 2), "flash-at": (2, 3), "flash-drawn": (2, 2), "flash-rate": (4, 4), "flash-reacted": (3, 3), "plugin": (0, 2), "audio": (1, 2), "screen": (3, 4), "scroll": (3, 3), "card-scroll": (2, 2), "card-scroll-min": (1, 1), "zoom": (2, 2), "zoom-min": (1, 1), "zoom-max": (1, 1), "visible": (1, 1), "stream": (2, 2),
                 "hit": (1, 1), "file": (2, 2), "element-at": (3, 3), "text": (2, 2), "text-has": (2, 2),
-                "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2), "probe-has": (1, 1)}
+                "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2), "probe-has": (1, 1), "sound": (1, 3), "volume": (1, 1)}
 
 def parse(path):
     t = {"id": os.path.basename(path)[:-5], "shells": SHELLS[:], "page": "about:blank", "prefs": [], "kit": "", "person": "", "steps": [], "path": path,
@@ -161,7 +161,7 @@ def lint(tests):
                     errs.append(f"{t['id']}:{n}: expect needs a check: {', '.join(sorted(CHECKS))}")
                 elif pending and a[0] not in WAITING_EXPECTS:
                     errs.append(f"{t['id']}:{n}: `expect {a[0]}` after `{pending[1]}` (line {pending[0]}) with no wait between: name the mark")
-            elif verb in ("sample", "shoot", "measure", "flash-control", "sig-save", "header-away"):
+            elif verb in ("sample", "shoot", "measure", "flash-control", "sig-save", "header-away", "volume-mark"):
                 pass
             else:
                 errs.append(f"{t['id']}:{n}: unknown verb `{verb}`")
@@ -240,6 +240,10 @@ def compile_steps(t, shell=None):
         elif verb == "card-to": out.append(f"fl_card_to {q[0]}")
         elif verb == "pull-header": out.append("fl_pull_header")
         elif verb == "header-away": out.append("FL_HDR=1")
+        elif verb == "turn": out.append(f"fl_turn {q[0]} || fl_check FAIL \"{name}\" \"the turn {a[0]} was not sent\"")
+        elif verb == "volume-key": out.append(f"fl_volume_key {' '.join(q)} || fl_check FAIL \"{name}\" \"the volume key {a[0]} was not sent\"")
+        elif verb == "volume-mark": out.append("fl_volume_mark")
+        elif verb == "launch-from": out.append(f"fl_launch_from {q[0]} {q[1]} || fl_check FAIL \"{name}\" \"the other app {a[0]} did not start\"")
         elif verb == "kernel-key": out.append(f"echo 'key {a[0]} 1' > /tmp/uinput.cmd; usleep 500000; echo '  kernel key {a[0]}'")
         elif verb == "key": out.append(f"fl_ask \"key {a[0]}\" 'inject key ' 3 >/dev/null || fl_check FAIL \"{name}\" \"the key {a[0]} was not echoed\"")
         elif verb == "type": out.append(f"fl_ask \"text {rest}\" 'inject text ' 3 >/dev/null || fl_check FAIL \"{name}\" \"the text was not echoed\"")
@@ -335,6 +339,9 @@ def main():
     fg = os.path.join(tmp, "finger")
     if subprocess.run([tc, "-O2", "-march=armv7-a", "-mfpu=neon", "-mfloat-abi=softfp", "-std=gnu99", "-o", fg, os.path.join(HERE, "finger.c")]).returncode == 0:
         subprocess.run(["novacom", "put", "file:///tmp/finger"], stdin=open(fg, "rb"))
+    hw = os.path.join(tmp, "hwinput")     # the turn, the volume keys, the sink's level (T-653)
+    if subprocess.run([tc, "-O2", "-march=armv7-a", "-mfloat-abi=softfp", "-std=gnu99", "-o", hw, os.path.join(HERE, "hwinput.c")]).returncode == 0:
+        subprocess.run(["novacom", "put", "file:///tmp/hwinput"], stdin=open(hw, "rb"))
     subprocess.run(["novacom", "put", "file:///tmp/fl-daemon-start.sh"], stdin=open(os.path.join(HERE, "daemon-start.sh"), "rb"))   # fl_daemon_restart
     report = {"date": datetime.datetime.now().isoformat(timespec="seconds"), "shells": shells, "tests": [], "end_check": ""}
     t_start = time.time()
@@ -365,7 +372,7 @@ def main():
             if "FATAL" in out or not start_line:
                 rec["verdict"] = "fail"; rec["note"] = "the daemon did not start: " + out.strip().splitlines()[-1][:160]
             else:
-                body = "chmod +x /tmp/fbstream /tmp/finger 2>/dev/null\n" + lib + f"fl_init {shell}\n" + compile_steps(t, shell) + "fl_summary\n"
+                body = "chmod +x /tmp/fbstream /tmp/finger /tmp/hwinput 2>/dev/null\n" + lib + f"fl_init {shell}\n" + compile_steps(t, shell) + "fl_summary\n"
                 bound = min(900, 90 + 25 * len(t["steps"]))
                 rc, out = devsh(body, [shell], bound, tmp)
                 for l in out.splitlines():

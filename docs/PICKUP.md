@@ -94,6 +94,24 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## HANDOFF 2026-11-16 — where a new agent starts (READ FIRST)
+
+The prompt for the next session is `.cavekit/handoff-2026-11-16/next-agent-prompt.md` (local, not in git). In short:
+
+- **State:** main, commits from `c27cc32a` on unpushed (the owner's). Engine 0113 in the three shells. The whole
+  finger suite of today: 285 runs, 0 fail (`docs/rounds/finger-2026-11-16/README.md`). The kits, `docs/FINGER-TESTS.md`,
+  the overview and the README agree; no kit criterion waits for a person.
+- **In progress, T-653 (no test is a person's):** `tools/device/finger/hwinput.c` turns the device (sensord's
+  orientation event to its subscribers' sockets), presses the volume rocker (a key written to the kernel's gpio-keys
+  device) and reads a sound level file; the suite's verbs `turn`, `volume-key`, `volume-mark`, `launch-from`, `expect
+  sound`, `expect volume`. `rotate` passes on Enyo and the volume keys move the media volume while a clip plays (23 → 45 → 23). **Not working: the sound level** (parec of `pcm_output.monitor`
+  wrote 0 frames). Not run: `mojo-launch-from-app` (its other app's id is a guess), Mochi and Mojo for all five.
+  Per-criterion state: `context/kits/cavekit-finger-testing.md` R7. Round: `docs/rounds/t653-2026-11-16/`.
+- **Then:** T-655 (the daemon's segfault on Etsy, once in six), T-654 (an iframe field's hold menu), T-576's
+  leftovers, T-577 onward. The order of work above stands.
+- **Device as left:** upright, no card of the suite's, USB alert closed, `/tmp/hwinput` and `/tmp/finger` on it
+  (pushed anew by every `finger-run.py`).
+
 ## 2026-11-16 — no owner-driven tests; the README; the whole games round; an Enyo tap fixed (READ FIRST)
 
 - **The owner, 2026-11-16: "there should be no owner driven finger tests, you should learn how to orchestrate tools

@@ -1,6 +1,14 @@
+# Sound with no ear (T-653): the output sink's monitor read for a second, its level, and the speaker amp.
 id: audio-heard
 section: Media and sound
-item: Flash sound heard; an HTML audio element heard on the speaker
+item: Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)
 shells: enyo mochi mojo
-person: hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7)
+prefs: jihad.media.autoplayWithSound=true
+page: http://192.168.1.245:8077/jihad-flash-tone.html
 kit: cavekit-device-build.md R4
+wait rect 'sel:embed' 30
+expect audio audible 20
+expect sound heard 10
+launch http://192.168.1.245:8077/jihad-media-test.html?src=tone60.ogg&audio=1
+wait text status playing 20
+expect sound heard 10

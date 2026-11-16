@@ -1,0 +1,13 @@
+WAIT ok 9-text status = [playing]
+CHECK FAIL 10-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard
+  frame kept: /media/internal/jihad-finger/10-sound_.last.raw
+  the media volume is 23
+  volume key up x2: the media volume now 45
+CHECK ok 13-volume: the media volume 45, higher than/as the marked 23
+  the media volume is 45
+  volume key down x2: the media volume now 23
+CHECK ok 16-volume: the media volume 23, lower than/as the marked 45
+CHECK FAIL 17-sound: sound at the output sink: peak 0 rms 0 frames 0, the speaker amp on; wanted heard
+  frame kept: /media/internal/jihad-finger/17-sound_.last.raw
+CHECKS 4 FAILS 2
+novacom: unexpected EOF from server

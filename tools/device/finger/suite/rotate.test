@@ -1,6 +1,26 @@
-# A person's item: the accelerometer's rotation (no emulated finger reaches it).
+# The turn is the sensor daemon's own orientation event, sent by hwinput to its subscribers (T-653): LunaSysMgr turns
+# the card as for a hand. The daemon's geometry line is the page's new window; the frames are kept for the eye.
 id: rotate
 section: Scrolling and gestures
-item: Rotate the TouchPad: portrait ↔ landscape redraws the page right
-person: the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side
+item: Rotate the TouchPad: portrait ↔ landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-long-static.html
 kit: cavekit-device-build.md R4
+calibrate 'sel:#content p'
+turn left
+wait line 'emitGeometry.* win=1024x' 12
+wait content 0,150,756,900 8
+shoot landscape-left
+turn up
+wait line 'emitGeometry.* win=768x' 12
+wait content 0,150,756,900 8
+turn right
+wait line 'emitGeometry.* win=1024x' 12
+wait content 0,150,756,900 8
+shoot landscape-right
+turn up
+wait line 'emitGeometry.* win=768x' 12
+wait settled
+expect content 0,150,756,600 'sel:body'
+drag 480 900 480 250
+expect card-scroll-min 400

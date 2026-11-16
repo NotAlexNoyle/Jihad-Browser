@@ -1,0 +1,17 @@
+# The rocker's keys are written to the kernel's gpio-keys device by hwinput (T-653): hidd reads them as from the rocker.
+id: volume-keys
+section: Media and sound
+item: The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink
+shells: enyo mochi mojo
+prefs: jihad.media.autoplayWithSound=true
+page: http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1
+kit: cavekit-finger-testing.md R7
+wait text status playing 20
+expect sound heard 10
+volume-mark
+volume-key up 2
+expect volume higher
+volume-mark
+volume-key down 2
+expect volume lower
+expect sound heard 10

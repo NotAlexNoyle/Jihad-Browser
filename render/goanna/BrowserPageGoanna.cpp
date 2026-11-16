@@ -4003,6 +4003,20 @@ void BrowserPageGoanna::emitLoadAndLocation() {
   // and the shells adopt it off the committed url (ChromePrefs.adoptFromUrl and its Mochi/Mojo
   // twins). Emitted BEFORE the load branches so a same-document change that lands in the same
   // tick as a completion does not report the old url after the new one.
+  // A load in flight whose document has arrived (the engine's address is another than the last
+  // one seen here): the next content frame is the new page's first, and its time from the load's
+  // start is logged where the frame is painted (cavekit-mojo-ui.md R6, read by the suite).
+  // The address is followed on every tick (a pushState or a fragment between loads must not look
+  // like the next load's new page); only a change DURING a load arms the line, and a load that
+  // began after the arming drops it (its frame would be timed from the wrong start).
+  {
+    const std::string cur = mPage->CurrentUri();
+    if (mNavPaintOwed && mLoadStartMs && mNavStartMs != mLoadStartMs) mNavPaintOwed = false;
+    if (cur != mPaintedUri) {
+      mPaintedUri = cur;
+      if (mLoadStartMs && !mLoadWasDone) { mNavStartMs = mLoadStartMs; mNavPaintOwed = true; }
+    }
+  }
   if (mPage->TakeSameDocumentLocation()) {
     fprintf(stderr, "[jihad-bs] same-document location -> %s\n", mPage->CurrentUri().c_str());
     emitLocationAndTitleCore();
@@ -7900,6 +7914,12 @@ void BrowserPageGoanna::paintToSharedBuffer() {
   }
   if (nb >= 0) {
     jihadTimelineFirstPainted();
+    // The new page's first content frame, timed from the load's start (the card's open, back,
+    // forward or reload): what "slow to appear" is, read by the suite (cavekit-mojo-ui.md R6).
+    if (nb > 0 && mNavPaintOwed) {
+      mNavPaintOwed = false;
+      fprintf(stderr, "[jihad-bs] nav: first paint %ld ms after the load started\n", (long)(jihadNowMs() - mNavStartMs));
+    }
     fprintf(stderr, "[jihad-bs] painted shmid=0x%x bytes=%ld (%dx%d top=%d band=%ld left=%d) mZoom=%.4f contentZoom=%.4f ms=%ld"
                     " rows new=%ld copied=%ld%s\n",
             (unsigned)mActiveKey, nb, paintedW, paintedH, paintedTop, bandY, paintedX, mZoom,

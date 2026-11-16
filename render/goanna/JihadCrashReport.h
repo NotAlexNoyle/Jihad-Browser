@@ -82,6 +82,10 @@ inline void CrashDec(unsigned v) {
   CrashPuts(&buf[i]);
 }
 
+// libxul's code range, taken from the maps as they are printed: what the stack scan below keeps.
+inline unsigned long& CrashXulLo() { static unsigned long v = 0; return v; }
+inline unsigned long& CrashXulHi() { static unsigned long v = 0; return v; }
+
 // Only the mappings that can host code we care about, so the report stays short
 // enough to paste back out of a device log.
 inline void CrashDumpMaps() {
@@ -104,6 +108,12 @@ inline void CrashDumpMaps() {
   for (char* line = buf; line && *line; ) {
     char* nl = strchr(line, '\n');
     if (nl) *nl = '\0';
+    if (!CrashXulLo() && strstr(line, "libxul.so") && strstr(line, " r-xp ")) {
+      unsigned long lo = 0, hi = 0; const char* p = line;
+      for (; *p && *p != '-'; ++p) lo = lo * 16 + (unsigned long)(*p <= '9' ? *p - '0' : (*p | 0x20) - 'a' + 10);
+      if (*p == '-') for (++p; *p && *p != ' '; ++p) hi = hi * 16 + (unsigned long)(*p <= '9' ? *p - '0' : (*p | 0x20) - 'a' + 10);
+      CrashXulLo() = lo; CrashXulHi() = hi;
+    }
     if (strstr(line, "libxul.so") || strstr(line, "jihad-browserserver") ||
         strstr(line, "ld-2.23.so") || strstr(line, "libmozsqlite3.so")) {
       CrashPuts("[jihad-bs]   "); CrashPuts(line); CrashPuts("\n");
@@ -137,7 +147,33 @@ inline void CrashBacktrace() {
   _Unwind_Backtrace(CrashBtFrame, &st);
 }
 
+// The poor man's backtrace (T-655): _Unwind_Backtrace gives nothing from a signal frame on this
+// device (an empty "backtrace" under every report of 2026-11-16), so the words of the faulting
+// thread's stack that point into libxul's code are printed with their depth: return addresses,
+// with some stale ones among them, and the callers of the faulting function in order. Each page
+// is probed through a pipe first (write() answers EFAULT where a read here would fault again).
+inline void CrashStackScan(unsigned long sp) {
+  if (!sp || !CrashXulLo()) return;
+  int pf[2]; if (pipe(pf) != 0) return;
+  unsigned shown = 0;
+  for (unsigned i = 0; i < 16384 && shown < 96; ++i) {
+    const unsigned long a = (sp & ~3ul) + i * sizeof(unsigned long);
+    if (i == 0 || (a & 4095) == 0) {
+      char c[4];
+      if (write(pf[1], (const void*)a, 4) != 4) break;
+      ssize_t r = read(pf[0], c, 4); (void)r;
+    }
+    const unsigned long w = *(const unsigned long*)a;
+    if (w >= CrashXulLo() && w < CrashXulHi()) {
+      CrashPuts("[jihad-bs]   sp+"); CrashHex(i * sizeof(unsigned long)); CrashPuts(" "); CrashHex(w); CrashPuts("\n");
+      ++shown;
+    }
+  }
+  close(pf[0]); close(pf[1]);
+}
+
 extern "C" inline void JihadFatalSignal(int sig, siginfo_t* si, void* ctx) {
+  unsigned long crashSp = 0;
   CrashPuts("\n[jihad-bs] *** FATAL SIGNAL sig=");
   CrashHex((unsigned long)sig);
   CrashPuts(" faultaddr=");
@@ -150,6 +186,7 @@ extern "C" inline void JihadFatalSignal(int sig, siginfo_t* si, void* ctx) {
     CrashPuts("[jihad-bs] pc="); CrashHex(mc->arm_pc);
     CrashPuts(" lr=");           CrashHex(mc->arm_lr);
     CrashPuts(" sp=");           CrashHex(mc->arm_sp);
+    crashSp = mc->arm_sp;
     CrashPuts("\n");
   }
 #elif defined(__x86_64__)
@@ -171,6 +208,8 @@ extern "C" inline void JihadFatalSignal(int sig, siginfo_t* si, void* ctx) {
   // must not cost us the load bases, without which nothing is resolvable.
   CrashPuts("[jihad-bs] backtrace (raw return addresses; same base subtraction):\n");
   CrashBacktrace();
+  CrashPuts("[jihad-bs] stack words in libxul's code (sp+offset, address; same base subtraction):\n");
+  CrashStackScan(crashSp);
 
   CrashPuts("[jihad-bs] *** end fatal report\n");
 

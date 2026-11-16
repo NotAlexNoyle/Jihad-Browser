@@ -441,6 +441,23 @@ fl_hold() { # SEL [MS]: a long press on an element's centre (the context menu); 
   fl_bring "$1" || { echo "  hold: no element $1"; return 1; }
   p=$(fl_screen "$1") || return 1; FL_TX=${p% *}; FL_TY=${p#* }; fl_mark; /tmp/finger hold $p ${2:-1500}; echo "  hold on $1 at $p"
 }
+# the new page's first content frame, in ms from the load's start (the daemon's own clock: "nav: first paint N ms")
+fl_check_nav_paint() { # NAME MAX_MS [BOUND]
+  local l n
+  l=$(fl_wait 'nav: first paint [0-9]* ms' ${3:-30}) || { fl_check FAIL "$1" "no first paint of a new page within the bound"; return; }
+  n=$(echo "$l" | sed -n 's/.*first paint \([0-9]*\) ms.*/\1/p')
+  # "no longer waits for the whole page": the frame must come before the load's end, not with it
+  fl_since | grep -a 'nav: first paint\|load done uri=' | head -1 | grep -aq 'nav: first paint' || { fl_check FAIL "$1" "the load was done before the new page's first paint ($n ms)"; return; }
+  [ "${n:-999999}" -le "$2" ] && fl_check ok "$1" "the new page's first paint $n ms after the load started (at most $2)" || fl_check FAIL "$1" "the new page's first paint $n ms after the load started, over $2"
+}
+fl_hold_off() { # SEL DX DY [MS]: a long press at an offset in document px from the element's top left (a field in a frame)
+  local p r ms
+  ms=${4:-1500}
+  fl_bring "$1" || { echo "  hold: no element $1"; return 1; }
+  r=$(fl_screen_rect "$1") || return 1; set -- "$1" "$2" "$3" $r
+  p=$(awk -v x=$4 -v y=$5 -v dx=$2 -v dy=$3 -v z=$(fl_zoom) 'BEGIN { printf "%d %d\n", x + dx * z + 0.5, y + dy * z + 0.5 }')
+  FL_TX=${p% *}; FL_TY=${p#* }; fl_mark; /tmp/finger hold $p $ms; echo "  hold on $1 +$2,$3 at $p"
+}
 fl_chrome_tap() { # NAME: the shell's table entry; Mojo's address bar pulled back first for its entries
   local p
   p=$(fl_chrome $1) || return 1
@@ -884,38 +901,64 @@ fl_volume() { luna-send -n 1 palm://com.palm.audio/media/status '{}' 2>/dev/null
 fl_volume_key() { # up|down [TIMES]
   local c n
   case $1 in up) c=115;; down) c=114;; *) return 1;; esac
+  fl_mark
   n=${2:-1}; while [ $n -gt 0 ]; do /tmp/hwinput key $c 120 >/dev/null || return 1; usleep 400000; n=$((n-1)); done
   echo "  volume key $1 x${2:-1}: the media volume now $(fl_volume)"
 }
-fl_volume_mark() { FL_VOL=$(fl_volume); echo "  the media volume is $FL_VOL"; }
-fl_check_volume() { # NAME higher|lower|same: against fl_volume_mark's reading
+fl_volume_mark() { # the first mark of a script is what fl_hw_restore puts back
+  FL_VOL=$(fl_volume); [ -f /tmp/fl-vol0 ] || [ -z "$FL_VOL" ] || echo "$FL_VOL" > /tmp/fl-vol0; echo "  the media volume is $FL_VOL"
+}
+# the system's answer to the rocker, read at the window server: LunaSysMgr logs the alert it raises for the key
+# ("alert: got the following message", then the transient alert's activation). On CE 3.1.0 that alert draws nothing
+# in the frame buffer (looked 2026-11-16: screenshots 0.1 s and 0.7 s after a key, with and without sound playing,
+# show no HUD), so the log line is the reading, and the check says which it saw. The line is the key's: three 4 s
+# windows without a key logged none, three with a key up and three with a key down logged it each time (2026-11-16);
+# the transient alert is deactivated again some 2.5 s later.
+fl_check_volume_hud() { # NAME [BOUND]: since the last volume key
+  local l
+  l=$(fl_wait 'LunaSysMgr.*slotTransientAlertActivated' ${2:-4} sys) && fl_check ok "$1" "the window server raised its alert for the key (syslog: $(echo "$l" | sed 's/.*LunaSysMgr}: //' | cut -c1-90)); it draws no HUD in the frame buffer on this build" || fl_check FAIL "$1" "the window server logged no alert for the volume key"
+}
+fl_volume_set() { # N: the media volume put at a known level before the keys (the audio service's own call; setup, not the test)
+  luna-send -n 1 palm://com.palm.audio/media/setVolume '{"volume":'"$1"'}' >/dev/null 2>&1; usleep 500000
+  echo "  the media volume set to $1: it reads $(fl_volume)"
+}
+fl_check_volume() { # NAME higher|lower|same|zero: against fl_volume_mark's reading
   local v; v=$(fl_volume)
+  [ -n "$v" ] || { fl_check FAIL "$1" "the audio service gave no media volume"; return; }
+  case "$2" in higher|lower|same) [ -n "$FL_VOL" ] || { fl_check FAIL "$1" "no marked volume to compare with (volume-mark read nothing)"; return; };; esac
   case "$2" in
-    higher) [ "${v:-0}" -gt "${FL_VOL:-0}" ];; lower) [ "${v:-0}" -lt "${FL_VOL:-0}" ];; same) [ "${v:-0}" = "${FL_VOL:-0}" ];; *) false;;
-  esac && fl_check ok "$1" "the media volume $v, $2 than/as the marked $FL_VOL" || fl_check FAIL "$1" "the media volume $v, wanted $2 than/as the marked $FL_VOL"
+    higher) [ "$v" -gt "${FL_VOL:-0}" ];; lower) [ "$v" -lt "${FL_VOL:-0}" ];; same) [ "$v" = "${FL_VOL:-0}" ];; zero) [ "$v" -eq 0 ];; *) false;;
+  esac && fl_check ok "$1" "the media volume $v, $2 (marked $FL_VOL)" || fl_check FAIL "$1" "the media volume $v, wanted $2 (marked $FL_VOL)"
 }
 # sound with no ear: one second of the output sink's monitor (what PulseAudio hands the codec, after every stream's
 # volume), its level by hwinput; "heard" wants a signal there AND the speaker amp on (or a headset in)
-fl_sound_level() { # -> "peak P rms R frames N"
-  local p
-  rm -f /tmp/fl-snd.raw
-  parec -d pcm_output.monitor > /tmp/fl-snd.raw 2>/dev/null & p=$!
-  usleep 1200000; kill $p 2>/dev/null; wait $p 2>/dev/null
-  /tmp/hwinput level /tmp/fl-snd.raw; rm -f /tmp/fl-snd.raw
+fl_sound_level() { # -> "peak P rms R frames N hz H" (hwinput records: the device's parec refuses every stream name)
+  /tmp/hwinput record pcm_output.monitor 1000 2>&1
 }
-fl_check_sound() { # NAME heard|silent [BOUND] [MIN_RMS]
-  local n l r amp
-  n=${3:-10}; amp=off
+# heard: a signal at the sink AND the way out open (the speaker amp on, the media volume above 0: the volume is the
+# codec's, after the sink, so the sink's level does not move with it); muted: the signal there and the way out shut;
+# silent: no signal. No state passes on an instrument that did not answer: the recorder must hand back its second of
+# frames, the mixer its switch and the audio service its volume, or the read is not a reading.
+fl_check_sound() { # NAME heard|silent|muted [BOUND] [MIN_RMS] [HZ]: HZ, the pitch wanted, within a tenth
+  local n l r h f amp pitch vol read
+  n=${3:-10}; amp=?; l="no reading"
   while [ $n -gt 0 ]; do
-    l=$(fl_sound_level); r=$(echo "$l" | sed -n 's/.*rms \([0-9]*\).*/\1/p'); [ -n "$r" ] || r=0
-    amixer -c 0 cget numid=87 2>/dev/null | grep -q 'values=on' && amp=on || amp=off
-    case $2 in
-      heard) [ "$r" -ge "${4:-60}" ] && [ $amp = on ] && { fl_check ok "$1" "sound at the output sink: $l, the speaker amp $amp"; return 0; };;
-      silent) [ "$r" -lt "${4:-60}" ] && { fl_check ok "$1" "no sound at the output sink: $l"; return 0; };;
-    esac
+    l=$(fl_sound_level); r=$(echo "$l" | sed -n 's/.*rms \([0-9]*\).*/\1/p')
+    h=$(echo "$l" | sed -n 's/.*hz \([0-9]*\).*/\1/p'); f=$(echo "$l" | sed -n 's/.*frames \([0-9]*\).*/\1/p')
+    amp=$(amixer -c 0 cget numid=87 2>/dev/null | sed -n 's/.*: values=on.*/on/p;s/.*: values=off.*/off/p' | head -1)
+    vol=$(fl_volume)
+    read=1; [ -n "$r" ] && [ -n "$h" ] && [ "${f:-0}" -ge 40000 ] && [ -n "$amp" ] && [ -n "$vol" ] || read=0
+    if [ $read = 1 ]; then
+      pitch=1; [ -n "$5" ] && { [ $((h * 10)) -ge $(($5 * 9)) ] && [ $((h * 10)) -le $(($5 * 11)) ] || pitch=0; }
+      case $2 in
+        muted) [ "$r" -ge "${4:-60}" ] && [ $pitch = 1 ] && { [ $amp = off ] || [ "$vol" -eq 0 ]; } && { fl_check ok "$1" "the route muted (the speaker amp $amp, the media volume $vol) with the signal still at the sink ($l): no sound out"; return 0; };;
+        heard) [ "$r" -ge "${4:-60}" ] && [ $amp = on ] && [ "$vol" -gt 0 ] && [ $pitch = 1 ] && { fl_check ok "$1" "sound at the output sink: $l, the speaker amp $amp, the media volume $vol${5:+, the pitch wanted $5 Hz}"; return 0; };;
+        silent) [ "$r" -lt "${4:-60}" ] && { fl_check ok "$1" "no sound at the output sink: $l"; return 0; };;
+      esac
+    fi
     n=$((n-2))
   done
-  fl_check FAIL "$1" "sound at the output sink: $l, the speaker amp $amp; wanted $2"
+  fl_check FAIL "$1" "sound at the output sink: $l, the speaker amp ${amp:-unread}, the media volume ${vol:-unread}; wanted $2${5:+ at $5 Hz}"
 }
 # another app in front, then the browser asked for a page the way an app asks (the application manager's launch with a
 # target: what Email and Messaging send for a tapped link)
@@ -932,6 +975,9 @@ fl_launch_from() { # OTHER_APP_ID URL
 fl_hw_restore() {
   local pid
   [ -f /tmp/fl-turned ] && fl_turn up
+  if [ -s /tmp/fl-vol0 ]; then
+    luna-send -n 1 palm://com.palm.audio/media/setVolume '{"volume":'"$(cat /tmp/fl-vol0)"'}' >/dev/null 2>&1; rm -f /tmp/fl-vol0
+  fi
   if [ -f /tmp/fl-other-app ]; then
     for pid in $(fl_app_pids "$(cat /tmp/fl-other-app)"); do luna-send -n 1 palm://com.palm.applicationManager/close '{"processId":"'"$pid"'"}' >/dev/null 2>&1; done
     rm -f /tmp/fl-other-app

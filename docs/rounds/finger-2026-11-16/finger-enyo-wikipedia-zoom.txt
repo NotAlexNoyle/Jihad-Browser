@@ -10,9 +10,11 @@ WAIT ok 18-zoom
 WAIT ok 20-zoom
   pinch 384 500 400 100
 WAIT ok 22-still 0,100,756,700
-  stream: fbstream: sample 286: a one-colour run of 48+ rows where the last sample had content: /media/internal/jihad-finger/stream.fbs.event0286.raw (TORN: the card flip
+  stream: fbstream: 235 samples in 15.73 s (14.9/s, asked 15), read median~2.7 ms max 62.2 ms (mmap, stride 8: 96 rows of 768), 164 flips (frames shown, 10.4/s), 11403 po
 CHECK ok 24-zoom: zoom 0.6882 (want 0.69 within 0.12)
-CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 02aadc10 rows 600 uniform 62 light 100-699 blue 236-240; sel:body on the screen at 0,82-768,1028
+CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 33ba05dc rows 600 uniform 62 light 100-699 blue 236-240; sel:body on the screen at 0,82-768,1028
 CHECK ok 26-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]
   (the stream's uniform checked on the host)
+  (the stream's gap-median checked on the host)
+  (the stream's gap-p90 checked on the host)
 CHECKS 4 FAILS 0

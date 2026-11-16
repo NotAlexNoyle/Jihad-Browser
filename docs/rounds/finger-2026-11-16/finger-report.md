@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-16T07:00:20
+# Finger suite report — 2026-11-16T11:14:19
 
 First run 2026-11-16T00:53:38; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
+Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -15,7 +15,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | enyo | appmenu-find | **pass** | 4 ok, 0 failed | WAIT ok 16-log: [jihad-bs] find 'zebrafind' -> 1 | cavekit-ui-shell.md R7 |
 | enyo | appmenu-print (rerun) | **pass** | 6 ok, 0 failed | WAIT ok 17-still 0,200,756,960; frames: kept/enyo-appmenu-print-print-dialog_.jpg | cavekit-ui-shell.md R7 |
 | enyo | appmenu-settings-keyboard-down | **pass** | 8 ok, 0 failed | CHECK ok 19-content: region 0,100-768,700: colours 499 hash 333a5bcc rows 600 uniform 0 light none blue none; page-title on the screen at 20,100-744,134, text holds [Settings] | cavekit-chrome-look.md R4 |
-| enyo | audio-heard | **a person's** | 0 ok, 0 failed | hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7) | cavekit-device-build.md R4 |
+| enyo | audio-heard (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 14-sound: sound at the output sink: peak 2957 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-device-build.md R4 |
 | enyo | autoplay-sound | **pass** | 3 ok, 0 failed | WAIT ok 13-text status = [playing]; frames: kept/enyo-autoplay-sound-refused_.jpg | cavekit-gre-widgets.md R1 |
 | enyo | autoplay-unmute | **pass** | 3 ok, 0 failed | WAIT ok 11-text status = [paused t=29.7]; frames: kept/enyo-autoplay-unmute-paused-on-unmute_.jpg | cavekit-gre-widgets.md R1 |
 | enyo | busy-script-stop | **pass** | 4 ok, 0 failed | CHECK ok 15-hit: clickAt 491,39 inside sel:h1 at 8,21 964x36; frames: kept/enyo-busy-script-stop-busy-dialog_.jpg | cavekit-modern-web.md R2 |
@@ -47,35 +47,35 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | enyo | flash-input-tap | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
 | enyo | flash-lane | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,282: 3.0 s, flips 40 (13.3/s), changes 0 (0.0/s), reads 41, distinct 1, spacing median 67 p90 145 max 174 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | enyo | flash-layout | **pass** | 17 ok, 0 failed | CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
-| enyo | flash-sound | **a person's** | 0 ok, 0 failed | hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route) | cavekit-engine-update.md R8 |
+| enyo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2957 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | enyo | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 55 (18.3/s), changes 32 (10.7/s), reads 57, distinct 33, spacing median 44 p90 88 max 246 ms (wanted 5..100/s) | cavekit-flash.md R4 |
 | enyo | flash-text | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-flash.md R7 |
 | enyo | flash-wmode | **pass** | 19 ok, 0 failed | CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
 | enyo | fonts-pick | **pass** | 5 ok, 0 failed | WAIT ok 15-text sel:#status = [The Latin (Western) fonts are back to their defaults.] | cavekit-preferences-ui.md R9 |
 | enyo | forget-identities | **pass** | 3 ok, 0 failed | WAIT ok 12-text sel:.row[data-label='Sites remembered'] = [Sites rememberedNone yet. The browser says it is Firefox 52.9; a site whose bot check turns the page away is given a current Firefox identity and remembered here.] | cavekit-site-identity.md R1 |
-| enyo | frame-field | **pass** | 10 ok, 0 failed | CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-chrome-look.md R4 |
+| enyo | frame-field (rerun) | **pass** | 10 ok, 0 failed | CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-chrome-look.md R4 |
 | enyo | keyboard-address | **pass** | 2 ok, 0 failed | CHECK ok 11-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-input-bridging.md R2 |
 | enyo | keyboard-arbitration | **pass** | 8 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R7 |
-| enyo | keyboard-fields | **pass** | 6 ok, 0 failed | CHECK ok 17-visible: field on the screen at 16,284-522,319 (the reach ends at 600, keyboard 1) | cavekit-input-bridging.md R2 |
+| enyo | keyboard-fields (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 17-visible: field on the screen at 16,284-522,319 (the reach ends at 600, keyboard 1) | cavekit-input-bridging.md R2 |
 | enyo | keyboard-keys | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
 | enyo | long-press-image | **pass** | 2 ok, 0 failed | WAIT ok 12-differs 0,100,756,900; frames: kept/enyo-long-press-image-hold-image_.jpg | cavekit-ui-shell.md R7 |
 | enyo | long-press-menu | **pass** | 4 ok, 0 failed | CHECK ok 15-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html | cavekit-ui-shell.md R7 |
-| enyo | long-press-text-field | **pass** | 6 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html; frames: kept/enyo-long-press-text-field-hold-text_.jpg, kept/enyo-long-press-text-field-hold-field_.jpg | cavekit-ui-shell.md R7 |
+| enyo | long-press-text-field (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html; frames: kept/enyo-long-press-text-field-hold-text_.jpg, kept/enyo-long-press-text-field-hold-field_.jpg | cavekit-ui-shell.md R7 |
 | enyo | media-controls | **pass** | 10 ok, 0 failed | CHECK ok 30-visible: anon:#v/controlBar on the screen at 16,581-586,603 (the reach ends at 1024, keyboard 0); frames: kept/enyo-media-controls-controls_.jpg, kept/enyo-media-controls-bar_.jpg | cavekit-gre-widgets.md R1 |
 | enyo | media-scrub-drag | **pass** | 8 ok, 0 failed | WAIT ok 25-text seek = [60]; frames: kept/enyo-media-scrub-drag-seek_.jpg | cavekit-gre-widgets.md R1 |
 | enyo | mobile-wiki-pinch | **pass** | 8 ok, 0 failed | CHECK ok 18-content: region 0,100-756,700: colours 4096 hash dd9a5fda rows 600 uniform 8 light 100-699 blue none; sel:body on the screen at -634,-441-1401,2065 | cavekit-mojo-ui.md R6 |
 | enyo | pan-long-drag | **pass** | 9 ok, 0 failed | CHECK ok 20-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56 | cavekit-gpu-rendering.md R3 |
-| enyo | pan-long-flick | **known** | 1 ok, 2 failed | the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 1 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 25 (want at most 0) | cavekit-gpu-rendering.md R3 |
-| enyo | pan-speeds | **known** | 3 ok, 2 failed | the open defect T-567, T-567: CHECK FAIL 19-stream-stale: stale 9 (want at most 0) / CHECK FAIL 20-stream-uniform: uniform 30 (want at most 0) | cavekit-finger-testing.md R4 |
+| enyo | pan-long-flick (rerun) | **known** | 3 ok, 2 failed | the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 2 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 46 (want at most 0) | cavekit-gpu-rendering.md R3 |
+| enyo | pan-speeds (rerun) | **known** | 5 ok, 2 failed | the open defect T-567, T-567: CHECK FAIL 19-stream-stale: stale 1 (want at most 0) / CHECK FAIL 20-stream-uniform: uniform 5 (want at most 0) | cavekit-finger-testing.md R4 |
 | enyo | persona-cycle | **pass** | 12 ok, 0 failed | persona file: put | cavekit-personas-ui.md R6 |
 | enyo | persona-wear | **pass** | 7 ok, 0 failed | WAIT ok 18-pref lightweightThemes.isThemeSelected = [false] | cavekit-personas-ui.md R6 |
 | enyo | personas-flick | **pass** | 3 ok, 0 failed | CHECK ok 14-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0 | cavekit-chrome-look.md R3 |
-| enyo | personas-page-steady | **pass** | 3 ok, 0 failed | CHECK ok 15-stream-uniform: uniform 0 (at most 0) | cavekit-personas-ui.md R9 |
+| enyo | personas-page-steady (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 18-stream-gap-p90: gap-p90 39 (at most 50) | cavekit-personas-ui.md R9 |
 | enyo | proxy-login | **pass** | 11 ok, 0 failed | auth proxy: running; frames: kept/enyo-proxy-login-auth-dialog_.jpg | cavekit-proxies-certs.md R5 |
 | enyo | proxy-own | **pass** | 8 ok, 0 failed | auth proxy: running | cavekit-proxies-certs.md R1 |
 | enyo | proxy-section-redraw | **pass** | 5 ok, 0 failed | WAIT ok 15-gone sel:.row[data-pref='network.proxy.http'] input | cavekit-proxies-certs.md R1 |
 | enyo | relay-choice | **pass** | 6 ok, 0 failed | CHECK ok 17-text-has: sel:p = [This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.] holds [documentation] | cavekit-proxies-certs.md R2 |
-| enyo | rotate | **a person's** | 0 ok, 0 failed | the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side | cavekit-device-build.md R4 |
+| enyo | rotate (rerun) | **pass** | 10 ok, 0 failed | CHECK ok 28-card-scroll-min: the card's scroll y 650 (at least 400); frames: kept/enyo-rotate-landscape-left_.jpg, kept/enyo-rotate-landscape-right_.jpg | cavekit-device-build.md R4 |
 | enyo | screen-lock | **pass** | 5 ok, 0 failed | WAIT ok 34-text status = [paused t=37.9]; frames: kept/enyo-screen-lock-lock-button_.jpg, kept/enyo-screen-lock-locked_.jpg, kept/enyo-screen-lock-ask_.jpg, kept/enyo-screen-lock-unlocked_.jpg | cavekit-gre-widgets.md R1 |
 | enyo | script-hold-zoom | **pass** | 6 ok, 0 failed | CHECK ok 17-zoom: zoom 1.0000 (want 1.0 within 0.2) | cavekit-gpu-rendering.md R3 |
 | enyo | settings-every-control | **by a tool** | 0 ok, 0 failed | tools/device/finger/prefs-finger-walk.sh <shell> (62 of 62 on each shell, 2026-11-04: docs/rounds/finger-2026-11-04/prefs-finger-walk-<shell>.txt) | cavekit-preferences-ui.md R6 |
@@ -93,7 +93,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | enyo | webgl-cube | **pass** | 7 ok, 0 failed | WAIT ok 16-changed c | cavekit-gpu-rendering.md R8 |
 | enyo | webone | **not run** | 0 ok, 0 failed | needs webone, keyboard-map (run with --with webone,keyboard-map) | cavekit-proxies-certs.md R3 |
 | enyo | wikipedia-keyboard-zoom | **pass** | 10 ok, 0 failed | CHECK ok 20-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad] | cavekit-mochi-ui.md R6 |
-| enyo | wikipedia-zoom | **known** | 9 ok, 1 failed | the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 35 (want at most 0) | cavekit-gpu-rendering.md R6 |
+| enyo | wikipedia-zoom (rerun) | **known** | 11 ok, 1 failed | the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 13 (want at most 0) | cavekit-gpu-rendering.md R6 |
 | enyo | xpi-confirm | **pass** | 8 ok, 0 failed | xpi: 649 bytes served as jihad-effect.xpi; frames: kept/enyo-xpi-confirm-xpi-prompt_.jpg, kept/enyo-xpi-confirm-extensions-pane_.jpg | cavekit-addons-extensions.md R3 |
 | enyo | youtube-feed-no-preview | **pass** | 5 ok, 0 failed | CHECK ok 17-probe-has: the probe's answer holds [playing 0] | cavekit-device-headroom.md R4 |
 | enyo | youtube-mobile | **pass** | 3 ok, 0 failed | WAIT ok 11-changed 0,130,756,560; frames: kept/enyo-youtube-mobile-playing_.jpg | cavekit-modern-web.md R2 |
@@ -112,7 +112,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | mochi | appmenu-find | **pass** | 4 ok, 0 failed | WAIT ok 16-log: [jihad-bs] find 'zebrafind' -> 1 | cavekit-ui-shell.md R7 |
 | mochi | appmenu-print (rerun) | **pass** | 6 ok, 0 failed | WAIT ok 17-still 0,200,756,960; frames: kept/mochi-appmenu-print-print-dialog_.jpg | cavekit-ui-shell.md R7 |
 | mochi | appmenu-settings-keyboard-down | **pass** | 8 ok, 0 failed | CHECK ok 19-content: region 0,100-768,700: colours 787 hash 3b16afe0 rows 600 uniform 0 light none blue none; page-title on the screen at 20,96-744,130, text holds [Settings] | cavekit-chrome-look.md R4 |
-| mochi | audio-heard | **a person's** | 0 ok, 0 failed | hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7) | cavekit-device-build.md R4 |
+| mochi | audio-heard (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-device-build.md R4 |
 | mochi | busy-script-stop | **pass** | 4 ok, 0 failed | CHECK ok 15-hit: clickAt 491,39 inside sel:h1 at 8,21 964x36; frames: kept/mochi-busy-script-stop-busy-dialog_.jpg | cavekit-modern-web.md R2 |
 | mochi | card-dialog | **pass** | 7 ok, 0 failed | WAIT ok 18-text r = [c: false] | cavekit-browser-services.md R3 |
 | mochi | card-select | **pass** | 1 ok, 0 failed | WAIT ok 9-text picked = [picked: banana] | cavekit-device-build.md R4 |
@@ -141,36 +141,36 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | mochi | flash-input-tap | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
 | mochi | flash-lane | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,283: 3.0 s, flips 45 (15.0/s), changes 0 (0.0/s), reads 46, distinct 1, spacing median 65 p90 87 max 158 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | mochi | flash-layout | **pass** | 17 ok, 0 failed | CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
-| mochi | flash-sound | **a person's** | 0 ok, 0 failed | hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route) | cavekit-engine-update.md R8 |
+| mochi | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | mochi | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 48 (16.0/s), changes 43 (14.3/s), reads 49, distinct 44, spacing median 67 p90 92 max 106 ms (wanted 5..100/s) | cavekit-flash.md R4 |
 | mochi | flash-text | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-flash.md R7 |
 | mochi | flash-wmode | **pass** | 19 ok, 0 failed | CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
 | mochi | fonts-pick | **pass** | 5 ok, 0 failed | WAIT ok 15-text sel:#status = [The Latin (Western) fonts are back to their defaults.] | cavekit-preferences-ui.md R9 |
 | mochi | forget-identities | **pass** | 3 ok, 0 failed | WAIT ok 12-text sel:.row[data-label='Sites remembered'] = [Sites rememberedNone yet. The browser says it is Firefox 52.9; a site whose bot check turns the page away is given a current Firefox identity and remembered here.] | cavekit-site-identity.md R1 |
-| mochi | frame-field | **pass** | 10 ok, 0 failed | CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-chrome-look.md R4 |
+| mochi | frame-field (rerun) | **pass** | 10 ok, 0 failed | CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-chrome-look.md R4 |
 | mochi | keyboard-address | **pass** | 2 ok, 0 failed | CHECK ok 11-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-input-bridging.md R2 |
 | mochi | keyboard-arbitration | **pass** | 8 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R7 |
-| mochi | keyboard-fields | **pass** | 6 ok, 0 failed | CHECK ok 17-visible: field on the screen at 16,280-522,315 (the reach ends at 600, keyboard 1) | cavekit-input-bridging.md R2 |
+| mochi | keyboard-fields (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 17-visible: field on the screen at 16,280-522,315 (the reach ends at 600, keyboard 1) | cavekit-input-bridging.md R2 |
 | mochi | keyboard-keys | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
 | mochi | long-press-image | **pass** | 2 ok, 0 failed | WAIT ok 12-differs 0,100,756,900; frames: kept/mochi-long-press-image-hold-image_.jpg | cavekit-ui-shell.md R7 |
 | mochi | long-press-menu | **pass** | 4 ok, 0 failed | CHECK ok 15-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html | cavekit-ui-shell.md R7 |
-| mochi | long-press-text-field | **pass** | 6 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html; frames: kept/mochi-long-press-text-field-hold-text_.jpg, kept/mochi-long-press-text-field-hold-field_.jpg | cavekit-ui-shell.md R7 |
+| mochi | long-press-text-field (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html; frames: kept/mochi-long-press-text-field-hold-text_.jpg, kept/mochi-long-press-text-field-hold-field_.jpg | cavekit-ui-shell.md R7 |
 | mochi | media-controls | **pass** | 10 ok, 0 failed | CHECK ok 30-visible: anon:#v/controlBar on the screen at 16,577-586,599 (the reach ends at 1024, keyboard 0); frames: kept/mochi-media-controls-controls_.jpg, kept/mochi-media-controls-bar_.jpg | cavekit-gre-widgets.md R1 |
 | mochi | media-scrub-drag | **pass** | 8 ok, 0 failed | WAIT ok 25-text seek = [60]; frames: kept/mochi-media-scrub-drag-seek_.jpg | cavekit-gre-widgets.md R1 |
 | mochi | mobile-wiki-pinch | **pass** | 8 ok, 0 failed | CHECK ok 18-content: region 0,100-756,700: colours 4096 hash a219fe3e rows 600 uniform 3 light 100-699 blue none; sel:body on the screen at -634,-452-1401,2064 | cavekit-mojo-ui.md R6 |
 | mochi | mochi-paste | **pass** | 4 ok, 0 failed | CHECK ok 17-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused); frames: kept/mochi-mochi-paste-mochi-field-sheet_.jpg | cavekit-mochi-ui.md R2 |
 | mochi | pan-long-drag | **pass** | 9 ok, 0 failed | CHECK ok 20-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56 | cavekit-gpu-rendering.md R3 |
-| mochi | pan-long-flick | **known** | 1 ok, 2 failed | the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 4 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 31 (want at most 0) | cavekit-gpu-rendering.md R3 |
-| mochi | pan-speeds | **known** | 4 ok, 1 failed | the open defect T-567: CHECK FAIL 20-stream-uniform: uniform 19 (want at most 0) | cavekit-finger-testing.md R4 |
+| mochi | pan-long-flick (rerun) | **known** | 3 ok, 2 failed | the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 3 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 26 (want at most 0) | cavekit-gpu-rendering.md R3 |
+| mochi | pan-speeds (rerun) | **known** | 6 ok, 1 failed | the open defect T-567: CHECK FAIL 20-stream-uniform: uniform 29 (want at most 0) | cavekit-finger-testing.md R4 |
 | mochi | persona-cycle | **pass** | 12 ok, 0 failed | persona file: put | cavekit-personas-ui.md R6 |
 | mochi | persona-wear | **pass** | 7 ok, 0 failed | WAIT ok 18-pref lightweightThemes.isThemeSelected = [false] | cavekit-personas-ui.md R6 |
 | mochi | personas-flick | **pass** | 3 ok, 0 failed | CHECK ok 14-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0 | cavekit-chrome-look.md R3 |
-| mochi | personas-page-steady | **pass** | 3 ok, 0 failed | CHECK ok 15-stream-uniform: uniform 0 (at most 0) | cavekit-personas-ui.md R9 |
+| mochi | personas-page-steady (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 18-stream-gap-p90: gap-p90 36 (at most 50) | cavekit-personas-ui.md R9 |
 | mochi | proxy-login | **pass** | 11 ok, 0 failed | auth proxy: running; frames: kept/mochi-proxy-login-auth-dialog_.jpg | cavekit-proxies-certs.md R5 |
 | mochi | proxy-own | **pass** | 8 ok, 0 failed | auth proxy: running | cavekit-proxies-certs.md R1 |
 | mochi | proxy-section-redraw | **pass** | 5 ok, 0 failed | WAIT ok 15-gone sel:.row[data-pref='network.proxy.http'] input | cavekit-proxies-certs.md R1 |
 | mochi | relay-choice | **pass** | 6 ok, 0 failed | CHECK ok 17-text-has: sel:p = [This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.] holds [documentation] | cavekit-proxies-certs.md R2 |
-| mochi | rotate | **a person's** | 0 ok, 0 failed | the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side | cavekit-device-build.md R4 |
+| mochi | rotate (rerun) | **pass** | 10 ok, 0 failed | CHECK ok 28-card-scroll-min: the card's scroll y 650 (at least 400); frames: kept/mochi-rotate-landscape-left_.jpg, kept/mochi-rotate-landscape-right_.jpg | cavekit-device-build.md R4 |
 | mochi | screen-lock | **pass** | 5 ok, 0 failed | WAIT ok 34-text status = [paused t=33.7]; frames: kept/mochi-screen-lock-lock-button_.jpg, kept/mochi-screen-lock-locked_.jpg, kept/mochi-screen-lock-ask_.jpg, kept/mochi-screen-lock-unlocked_.jpg | cavekit-gre-widgets.md R1 |
 | mochi | script-hold-zoom | **pass** | 6 ok, 0 failed | CHECK ok 17-zoom: zoom 1.0000 (want 1.0 within 0.2) | cavekit-gpu-rendering.md R3 |
 | mochi | settings-every-control | **by a tool** | 0 ok, 0 failed | tools/device/finger/prefs-finger-walk.sh <shell> (62 of 62 on each shell, 2026-11-04: docs/rounds/finger-2026-11-04/prefs-finger-walk-<shell>.txt) | cavekit-preferences-ui.md R6 |
@@ -188,7 +188,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | mochi | webgl-cube | **pass** | 7 ok, 0 failed | WAIT ok 16-changed c | cavekit-gpu-rendering.md R8 |
 | mochi | webone | **not run** | 0 ok, 0 failed | needs webone, keyboard-map (run with --with webone,keyboard-map) | cavekit-proxies-certs.md R3 |
 | mochi | wikipedia-keyboard-zoom | **pass** | 10 ok, 0 failed | CHECK ok 20-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad] | cavekit-mochi-ui.md R6 |
-| mochi | wikipedia-zoom | **known** | 9 ok, 1 failed | the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 5 (want at most 0) | cavekit-gpu-rendering.md R6 |
+| mochi | wikipedia-zoom (rerun) | **known** | 11 ok, 1 failed | the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 5 (want at most 0) | cavekit-gpu-rendering.md R6 |
 | mochi | xpi-confirm | **pass** | 8 ok, 0 failed | xpi: 649 bytes served as jihad-effect.xpi; frames: kept/mochi-xpi-confirm-xpi-prompt_.jpg, kept/mochi-xpi-confirm-extensions-pane_.jpg | cavekit-addons-extensions.md R3 |
 | mochi | youtube-mobile | **pass** | 3 ok, 0 failed | WAIT ok 11-changed 0,130,756,560; frames: kept/mochi-youtube-mobile-playing_.jpg | cavekit-modern-web.md R2 |
 | mochi | youtube-no-next | **pass** | 6 ok, 0 failed | CHECK ok 17-url: load done uri=https://m.youtube.com/watch?v=jNQXAC9IVRw | cavekit-device-headroom.md R4 |
@@ -205,7 +205,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | mojo | appmenu-find | **pass** | 4 ok, 0 failed | WAIT ok 16-log: [jihad-bs] find 'Zebrafind' -> 1 | cavekit-ui-shell.md R7 |
 | mojo | appmenu-print (rerun) | **pass** | 6 ok, 0 failed | WAIT ok 17-still 0,200,756,960; frames: kept/mojo-appmenu-print-print-dialog_.jpg | cavekit-ui-shell.md R7 |
 | mojo | appmenu-settings-keyboard-down | **pass** | 8 ok, 0 failed | CHECK ok 19-content: region 0,100-768,700: colours 448 hash 7a103668 rows 600 uniform 0 light none blue none; page-title on the screen at 20,91-744,125, text holds [Settings] | cavekit-chrome-look.md R4 |
-| mojo | audio-heard | **a person's** | 0 ok, 0 failed | hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7) | cavekit-device-build.md R4 |
+| mojo | audio-heard (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-device-build.md R4 |
 | mojo | busy-script-stop | **pass** | 4 ok, 0 failed | CHECK ok 15-hit: clickAt 491,39 inside sel:h1 at 8,21 964x36; frames: kept/mojo-busy-script-stop-busy-dialog_.jpg | cavekit-modern-web.md R2 |
 | mojo | card-dialog | **pass** | 7 ok, 0 failed | WAIT ok 18-text r = [c: false] | cavekit-browser-services.md R3 |
 | mojo | card-select | **pass** | 1 ok, 0 failed | WAIT ok 9-text picked = [picked: banana] | cavekit-device-build.md R4 |
@@ -234,37 +234,37 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | mojo | flash-input-tap | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
 | mojo | flash-lane | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,17-440,315: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 66 p90 91 max 210 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | mojo | flash-layout | **pass** | 17 ok, 0 failed | CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
-| mojo | flash-sound | **a person's** | 0 ok, 0 failed | hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route) | cavekit-engine-update.md R8 |
+| mojo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | mojo | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 43 (14.3/s), changes 36 (12.0/s), reads 44, distinct 37, spacing median 67 p90 82 max 165 ms (wanted 5..100/s) | cavekit-flash.md R4 |
 | mojo | flash-text | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-flash.md R7 |
 | mojo | flash-wmode | **pass** | 19 ok, 0 failed | CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
 | mojo | fonts-pick | **pass** | 5 ok, 0 failed | WAIT ok 15-text sel:#status = [The Latin (Western) fonts are back to their defaults.] | cavekit-preferences-ui.md R9 |
 | mojo | forget-identities | **pass** | 3 ok, 0 failed | WAIT ok 12-text sel:.row[data-label='Sites remembered'] = [Sites rememberedNone yet. The browser says it is Firefox 52.9; a site whose bot check turns the page away is given a current Firefox identity and remembered here.] | cavekit-site-identity.md R1 |
-| mojo | frame-field | **pass** | 10 ok, 0 failed | CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-chrome-look.md R4 |
+| mojo | frame-field (rerun) | **pass** | 10 ok, 0 failed | CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-chrome-look.md R4 |
 | mojo | keyboard-address | **pass** | 2 ok, 0 failed | CHECK ok 11-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-input-bridging.md R2 |
 | mojo | keyboard-arbitration | **pass** | 8 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R7 |
-| mojo | keyboard-fields | **pass** | 6 ok, 0 failed | CHECK ok 17-visible: field on the screen at 16,275-522,310 (the reach ends at 600, keyboard 1) | cavekit-input-bridging.md R2 |
+| mojo | keyboard-fields (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 17-visible: field on the screen at 16,275-522,310 (the reach ends at 600, keyboard 1) | cavekit-input-bridging.md R2 |
 | mojo | keyboard-keys | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
 | mojo | long-press-image | **pass** | 2 ok, 0 failed | WAIT ok 12-differs 0,100,756,900; frames: kept/mojo-long-press-image-hold-image_.jpg | cavekit-ui-shell.md R7 |
 | mojo | long-press-menu | **pass** | 4 ok, 0 failed | CHECK ok 15-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html | cavekit-ui-shell.md R7 |
-| mojo | long-press-text-field | **pass** | 6 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html; frames: kept/mojo-long-press-text-field-hold-text_.jpg, kept/mojo-long-press-text-field-hold-field_.jpg | cavekit-ui-shell.md R7 |
+| mojo | long-press-text-field (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html; frames: kept/mojo-long-press-text-field-hold-text_.jpg, kept/mojo-long-press-text-field-hold-field_.jpg | cavekit-ui-shell.md R7 |
 | mojo | media-controls | **pass** | 10 ok, 0 failed | CHECK ok 30-visible: anon:#v/controlBar on the screen at 16,572-586,594 (the reach ends at 1024, keyboard 0); frames: kept/mojo-media-controls-controls_.jpg, kept/mojo-media-controls-bar_.jpg | cavekit-gre-widgets.md R1 |
 | mojo | media-scrub-drag | **pass** | 8 ok, 0 failed | WAIT ok 25-text seek = [60]; frames: kept/mojo-media-scrub-drag-seek_.jpg | cavekit-gre-widgets.md R1 |
 | mojo | mobile-wiki-pinch | **pass** | 8 ok, 0 failed | CHECK ok 18-content: region 0,100-756,700: colours 4096 hash 1462974a rows 600 uniform 0 light 100-699 blue none; sel:body on the screen at -646,-427-1410,2250 | cavekit-mojo-ui.md R6 |
-| mojo | mojo-address-typing | **pass** | 3 ok, 0 failed | CHECK ok 14-url: load done uri=https://lite.duckduckgo.com/lite/?q=webos | cavekit-mojo-ui.md R6 |
-| mojo | mojo-launch-from-app | **a person's** | 0 ok, 0 failed | a launch from another app is not emulated (a launch with a target from the command line showed the page with no keyboard, 2026-10-24) | cavekit-chrome-look.md R4 |
+| mojo | mojo-address-typing (rerun) | **pass** | 4 ok, 0 failed | CHECK ok 16-url: load done uri=https://lite.duckduckgo.com/lite/?q=webos | cavekit-mojo-ui.md R6 |
+| mojo | mojo-launch-from-app (rerun) | **pass** | 4 ok, 0 failed | CHECK ok 13-content: region 0,150-756,600: colours 373 hash f5159163 rows 450 uniform 164 light 150-593 blue none; sel:body on the screen at 0,73-764,20561 | cavekit-chrome-look.md R4 |
 | mojo | pan-long-drag | **pass** | 9 ok, 0 failed | CHECK ok 20-hit: clickAt 383,848 inside sel:#content p:nth-child(12) at 16,820 732x56 | cavekit-gpu-rendering.md R3 |
-| mojo | pan-long-flick | **known** | 1 ok, 2 failed | the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 1 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 19 (want at most 0) | cavekit-gpu-rendering.md R3 |
-| mojo | pan-speeds | **known** | 3 ok, 2 failed | the open defect T-567, T-567: CHECK FAIL 19-stream-stale: stale 21 (want at most 0) / CHECK FAIL 20-stream-uniform: uniform 65 (want at most 0) | cavekit-finger-testing.md R4 |
+| mojo | pan-long-flick (rerun) | **known** | 1 ok, 4 failed | the open defect T-567, T-567, T-656, T-656: CHECK FAIL 16-stream-stale: stale 4 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 14 (want at most 0) / CHECK FAIL 19-stream-gap-median: gap-median 35 (want at most 34) / CHECK FAIL 20-stream-gap-p90: gap-p90 55 (want at most 50) | cavekit-gpu-rendering.md R3 |
+| mojo | pan-speeds (rerun) | **known** | 6 ok, 1 failed | the open defect T-567: CHECK FAIL 20-stream-uniform: uniform 13 (want at most 0) | cavekit-finger-testing.md R4 |
 | mojo | persona-cycle | **pass** | 12 ok, 0 failed | persona file: put | cavekit-personas-ui.md R6 |
 | mojo | persona-wear | **pass** | 7 ok, 0 failed | WAIT ok 18-pref lightweightThemes.isThemeSelected = [false] | cavekit-personas-ui.md R6 |
 | mojo | personas-flick | **pass** | 3 ok, 0 failed | CHECK ok 14-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0 | cavekit-chrome-look.md R3 |
-| mojo | personas-page-steady | **pass** | 3 ok, 0 failed | CHECK ok 15-stream-uniform: uniform 0 (at most 0) | cavekit-personas-ui.md R9 |
+| mojo | personas-page-steady (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 18-stream-gap-p90: gap-p90 40 (at most 50) | cavekit-personas-ui.md R9 |
 | mojo | proxy-login-mojo | **pass** | 6 ok, 0 failed | auth proxy: running; frames: kept/mojo-proxy-login-mojo-auth-sheet_.jpg | cavekit-proxies-certs.md R5 |
 | mojo | proxy-own | **pass** | 8 ok, 0 failed | auth proxy: running | cavekit-proxies-certs.md R1 |
 | mojo | proxy-section-redraw | **pass** | 5 ok, 0 failed | WAIT ok 15-gone sel:.row[data-pref='network.proxy.http'] input | cavekit-proxies-certs.md R1 |
 | mojo | relay-choice | **pass** | 6 ok, 0 failed | CHECK ok 17-text-has: sel:p = [This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.] holds [documentation] | cavekit-proxies-certs.md R2 |
-| mojo | rotate | **a person's** | 0 ok, 0 failed | the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side | cavekit-device-build.md R4 |
+| mojo | rotate (rerun) | **pass** | 10 ok, 0 failed | CHECK ok 28-card-scroll-min: the card's scroll y 584 (at least 400); frames: kept/mojo-rotate-landscape-left_.jpg, kept/mojo-rotate-landscape-right_.jpg | cavekit-device-build.md R4 |
 | mojo | screen-lock | **pass** | 5 ok, 0 failed | WAIT ok 34-text status = [paused t=35.9]; frames: kept/mojo-screen-lock-lock-button_.jpg, kept/mojo-screen-lock-locked_.jpg, kept/mojo-screen-lock-ask_.jpg, kept/mojo-screen-lock-unlocked_.jpg | cavekit-gre-widgets.md R1 |
 | mojo | script-hold-zoom | **pass** | 6 ok, 0 failed | CHECK ok 17-zoom: zoom 1.0000 (want 1.0 within 0.2) | cavekit-gpu-rendering.md R3 |
 | mojo | settings-every-control | **by a tool** | 0 ok, 0 failed | tools/device/finger/prefs-finger-walk.sh <shell> (62 of 62 on each shell, 2026-11-04: docs/rounds/finger-2026-11-04/prefs-finger-walk-<shell>.txt) | cavekit-preferences-ui.md R6 |
@@ -282,7 +282,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | mojo | webgl-cube | **pass** | 7 ok, 0 failed | WAIT ok 16-changed c | cavekit-gpu-rendering.md R8 |
 | mojo | webone | **not run** | 0 ok, 0 failed | needs webone, keyboard-map (run with --with webone,keyboard-map) | cavekit-proxies-certs.md R3 |
 | mojo | wikipedia-keyboard-zoom | **pass** | 10 ok, 0 failed | CHECK ok 20-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad] | cavekit-mochi-ui.md R6 |
-| mojo | wikipedia-zoom | **known** | 9 ok, 1 failed | the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 3 (want at most 0) | cavekit-gpu-rendering.md R6 |
+| mojo | wikipedia-zoom (rerun) | **known** | 11 ok, 1 failed | the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 8 (want at most 0) | cavekit-gpu-rendering.md R6 |
 | mojo | xpi-confirm | **pass** | 8 ok, 0 failed | xpi: 649 bytes served as jihad-effect.xpi; frames: kept/mojo-xpi-confirm-xpi-prompt_.jpg, kept/mojo-xpi-confirm-extensions-pane_.jpg | cavekit-addons-extensions.md R3 |
 | mojo | youtube-mobile | **pass** | 3 ok, 0 failed | WAIT ok 11-changed 0,130,756,560; frames: kept/mojo-youtube-mobile-playing_.jpg | cavekit-modern-web.md R2 |
 | mojo | youtube-no-next | **pass** | 6 ok, 0 failed | CHECK ok 17-url: load done uri=https://m.youtube.com/watch?v=jNQXAC9IVRw | cavekit-device-headroom.md R4 |
@@ -291,11 +291,17 @@ Shells: enyo, mochi, mojo. Scripts: 3. 22575 s.
 | mojo | zoom-locked-pinch-off | **pass** | 3 ok, 0 failed | CHECK ok 13-zoom: zoom 1.0000 (want 1.0 within 0.05) | cavekit-input-bridging.md R5 |
 | mojo | zoom-locked-pinch | **pass** | 4 ok, 0 failed | CHECK ok 13-zoom-min: zoom 1.9361 (at least 1.3) | cavekit-input-bridging.md R5 |
 | mojo | zoom-new-page | **pass** | 8 ok, 0 failed | CHECK ok 17-zoom: zoom 0.6882 (want 0.69 within 0.06) | cavekit-input-bridging.md R3 |
+| enyo | frame-field-hold (rerun) | **pass** | 14 ok, 0 failed | WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false; frames: kept/enyo-frame-field-hold-field-menu_.jpg | cavekit-ui-shell.md R7 |
+| enyo | volume-keys (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 31-sound: sound at the output sink: peak 2961 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
+| mochi | frame-field-hold (rerun) | **pass** | 14 ok, 0 failed | WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false; frames: kept/mochi-frame-field-hold-field-menu_.jpg | cavekit-ui-shell.md R7 |
+| mochi | volume-keys (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 31-sound: sound at the output sink: peak 2961 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
+| mojo | frame-field-hold (rerun) | **pass** | 14 ok, 0 failed | WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false; frames: kept/mojo-frame-field-hold-field-menu_.jpg | cavekit-ui-shell.md R7 |
+| mojo | volume-keys (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 31-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
 
 ## The device at the end
 
 ```
-DEVICE ok job-enyo: (355138/776963354) jihad (start) running, process 24409
+DEVICE ok job-enyo: (369749/518808969) jihad (start) running, process 23034
 DEVICE ok daemons-enyo: one daemon
 DEVICE ok hand-daemon-enyo: none
 DEVICE ok hooks-enyo: none
@@ -305,7 +311,7 @@ DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
 DEVICE ok cards-enyo: none
 DEVICE ok audio-lib-enyo: the device's own
 DEVICE ok look-enyo: {"returnValue":true,"theme":null}
-DEVICE ok job-mochi: (355151/468408241) jihad-mochi (start) running, process 2558
+DEVICE ok job-mochi: (369755/729474894) jihad-mochi (start) running, process 11079
 DEVICE ok daemons-mochi: one daemon
 DEVICE ok hand-daemon-mochi: none
 DEVICE ok hooks-mochi: none
@@ -315,7 +321,7 @@ DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
 DEVICE ok cards-mochi: none
 DEVICE ok audio-lib-mochi: the device's own
 DEVICE ok look-mochi: {"returnValue":true,"theme":null}
-DEVICE ok job-mojo: (355158/652246017) jihad-mojo (start) running, process 13496
+DEVICE ok job-mojo: (369762/505554004) jihad-mojo (start) running, process 17547
 DEVICE ok daemons-mojo: one daemon
 DEVICE ok hand-daemon-mojo: none
 DEVICE ok hooks-mojo: none
@@ -444,9 +450,15 @@ DEVICE ok overall: 16% of /tmp used
     WAIT ok 18-rect page-title
     CHECK ok 19-content: region 0,100-768,700: colours 499 hash 333a5bcc rows 600 uniform 0 light none blue none; page-title on the screen at 20,100-744,134, text holds [Settings]
 
-### enyo / audio-heard — a person's
+### enyo / audio-heard — pass
 
-    hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7)
+    enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 21 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 9-rect sel:embed
+    CHECK ok 10-audio: the movie's audio: open running audible
+    CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    WAIT ok 12-launch: load done
+    WAIT ok 13-text status = [playing]
+    CHECK ok 14-sound: sound at the output sink: peak 2957 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### enyo / autoplay-sound — pass
 
@@ -797,9 +809,17 @@ DEVICE ok overall: 16% of /tmp used
     WAIT ok 29-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
     CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
 
-### enyo / flash-sound — a person's
+### enyo / flash-sound — pass
 
-    hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)
+    enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +7 s, 12 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 9-rect sel:embed
+    CHECK ok 10-audio: the movie's audio: open running audible
+    CHECK ok 11-sound: sound at the output sink: peak 31138 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    WAIT ok 12-launch: load done
+    CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0
+    WAIT ok 14-launch: load done
+    WAIT ok 15-text status = [playing]
+    CHECK ok 16-sound: sound at the output sink: peak 2957 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### enyo / flash-tags — pass
 
@@ -875,7 +895,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / frame-field — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    enyo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     WAIT ok 7-rect f
     calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 151 landed on document y 88)
     CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
@@ -909,7 +929,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / keyboard-fields — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    enyo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 301 landed on document y 279)
     CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
     CHECK ok 10-visible: area on the screen at 9,160-484,200 (the reach ends at 600, keyboard 1)
@@ -952,11 +972,11 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / long-press-text-field — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +2 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    enyo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +2 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 113 landed on document y 31)
     WAIT ok 10-differs 0,100,756,600
     WAIT ok 13-still 0,100,756,600
-    WAIT ok 15-line: [jihad-bs] hold at 270,219 editable=1 wasFocused=0
+    WAIT ok 15-line: [jihad-bs] hold at 269,219 editable=1 wasFocused=0
     WAIT ok 18-still 0,100,400,240
     WAIT ok 20-load
     CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html
@@ -1018,23 +1038,27 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / pan-long-flick — known
 
-    enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)
-    CHECK ok 18-card-scroll-min: the card's scroll y 3433 (at least 300)
-    STREAM fs-enyo-pan-long-flick.fbs: 190 samples (14.9/s asked 15, read median 2.26 ms max 31.69 ms, mmap stride 8, re-read 10, torn 0), 148 flips, cpu 7.1% of a core, polls 710/s | shown frames while moving: 145 gaps, median 26 ms, p90 42 ms, max 212 ms | shown scroll: 2005 rows over the stream (0 samples with the shift unknown); stale bands 1, uniform bands 25, still rows moved 0; the columns outside 0-756 changed in 51 samples | tracking (finger down, 21 samples): error median 20 px, max 225 px; lag median 322 ms, max 982 ms |   gesture at 1794813364929: the finger travelled 600 rows, the page showe
-    CHECK FAIL 16-stream-stale: stale 1 (want at most 0)
-    CHECK FAIL 17-stream-uniform: uniform 25 (want at most 0)
+    CHECK ok 21-card-scroll-min: the card's scroll y 3471 (at least 300)
+    STREAM fs-enyo-pan-long-flick.fbs: 163 samples (14.7/s asked 15, read median 2.24 ms max 30.36 ms, mmap stride 8, re-read 9, torn 0), 140 flips, cpu 7.7% of a core, polls 672/s | shown frames while moving: 137 gaps, median 27 ms, p90 42 ms, max 276 ms | shown scroll: 1703 rows over the stream (0 samples with the shift unknown); stale bands 2, uniform bands 46, still rows moved 0; the columns outside 0-756 changed in 51 samples | tracking (finger down, 22 samples): error median 29.0 px, max 188 px; lag median 179.5 ms, max 871 ms |   gesture at 1794842076327: the finger travelled 600 rows, the page sh
+    CHECK FAIL 16-stream-stale: stale 2 (want at most 0)
+    CHECK FAIL 17-stream-uniform: uniform 46 (want at most 0)
+    CHECK ok 19-stream-gap-median: gap-median 27 (at most 34)
+    CHECK ok 20-stream-gap-p90: gap-p90 42 (at most 50)
 
 ### enyo / pan-speeds — known
 
-    enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +3 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)
-    CHECK ok 13-card-scroll-min: the card's scroll y 646 (at least 500)
-    CHECK ok 22-card-scroll-min: the card's scroll y 4611 (at least 2500)
-    STREAM fs-enyo-pan-speeds.fbs: 389 samples (14.8/s asked 15, read median 2.25 ms max 49.37 ms, mmap stride 8, re-read 18, torn 0), 375 flips, cpu 6.6% of a core, polls 693/s | shown frames while moving: 367 gaps, median 25 ms, p90 39 ms, max 91 ms | shown scroll: 3387 rows over the stream (0 samples with the shift unknown); stale bands 9, uniform bands 30, still rows moved 0; the columns outside 0-756 changed in 128 samples | tracking (finger down, 121 samples): error median -12 px, max 150 px; lag median 78 ms, max 814 ms |   gesture at 1794813435308: the finger travelled 650 rows, the page showed 6
-    CHECK FAIL 19-stream-stale: stale 9 (want at most 0)
-    CHECK FAIL 20-stream-uniform: uniform 30 (want at most 0)
-    CHECK ok 21-stream-error-max: error-max 150 (at most 500)
+    CHECK ok 13-card-scroll-min: the card's scroll y 650 (at least 500)
+    CHECK ok 25-card-scroll-min: the card's scroll y 4662 (at least 2500)
+    STREAM fs-enyo-pan-speeds.fbs: 364 samples (14.7/s asked 15, read median 2.31 ms max 62.11 ms, mmap stride 8, re-read 25, torn 0), 359 flips, cpu 7.0% of a core, polls 674/s | shown frames while moving: 353 gaps, median 25 ms, p90 40 ms, max 294 ms | shown scroll: 3501 rows over the stream (1 samples with the shift unknown); stale bands 1, uniform bands 5, still rows moved 0; the columns outside 0-756 changed in 125 samples | tracking (finger down, 122 samples): error median -13.0 px, max 188 px; lag median 70.0 ms, max 871 ms |   gesture at 1794842137052: the finger travelled 650 rows, the page show
+    CHECK FAIL 19-stream-stale: stale 1 (want at most 0)
+    CHECK FAIL 20-stream-uniform: uniform 5 (want at most 0)
+    CHECK ok 21-stream-error-max: error-max 188 (at most 500)
+    CHECK ok 23-stream-gap-median: gap-median 25 (at most 34)
+    CHECK ok 24-stream-gap-p90: gap-p90 40 (at most 50)
 
 ### enyo / persona-cycle — pass
 
@@ -1075,12 +1099,14 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / personas-page-steady — pass
 
-    enyo card on about:personas: connected at +2 s, load done at +8 s, 14 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+    enyo card on about:personas: connected at +3 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
     WAIT ok 10-rect sel:#mine .card
     calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 280 landed on document y 198)
-    CHECK ok 16-content: region 0,100-768,900: colours 4096 hash 92b57e71 rows 800 uniform 0 light 100-899 blue 281-755; sel:body on the screen at 0,-412-764,2157
-    STREAM fs-enyo-personas-page-steady.fbs: 110 samples (15.0/s asked 15, read median 2.26 ms max 29.21 ms, mmap stride 8, re-read 5, torn 0), 142 flips, cpu 6.3% of a core, polls 680/s | shown frames while moving: 141 gaps, median 24 ms, p90 32 ms, max 66 ms | shown scroll: 496 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 47 samples | tracking (finger down, 48 samples): error median -10.0 px, max 24 px; lag median 68.0 ms, max 131 ms |   gesture at 1794813752987: the finger travelled 500 rows, the page 
+    CHECK ok 19-content: region 0,100-768,900: colours 4096 hash 234685cc rows 800 uniform 0 light 100-899 blue 276-750; sel:body on the screen at 0,-417-764,2152
+    STREAM fs-enyo-personas-page-steady.fbs: 103 samples (15.0/s asked 15, read median 2.4 ms max 24.31 ms, mmap stride 8, re-read 8, torn 0), 147 flips, cpu 6.6% of a core, polls 636/s | shown frames while moving: 146 gaps, median 24.0 ms, p90 39 ms, max 53 ms | shown scroll: 501 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 52 samples | tracking (finger down, 52 samples): error median -8.0 px, max 24 px; lag median 67.0 ms, max 165 ms |   gesture at 1794842211038: the finger travelled 500 rows, the page 
     CHECK ok 15-stream-uniform: uniform 0 (at most 0)
+    CHECK ok 17-stream-gap-median: gap-median 24 (at most 34)
+    CHECK ok 18-stream-gap-p90: gap-p90 39 (at most 50)
 
 ### enyo / proxy-login — pass
 
@@ -1133,9 +1159,20 @@ DEVICE ok overall: 16% of /tmp used
     calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 385 landed on document y 303)
     CHECK ok 17-text-has: sel:p = [This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.] holds [documentation]
 
-### enyo / rotate — a person's
+### enyo / rotate — pass
 
-    the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side
+    enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)
+    WAIT ok 13-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x686 mZoom=1.3333
+    WAIT ok 14-content 0,150,756,900
+    WAIT ok 17-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x686 mZoom=0.7500
+    WAIT ok 18-content 0,150,756,900
+    WAIT ok 20-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x686 mZoom=1.3333
+    WAIT ok 21-content 0,150,756,900
+    WAIT ok 24-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x686 mZoom=0.7500
+    WAIT ok 25-settled: the card's scroll 0 0
+    CHECK ok 26-content: region 0,150-756,600: colours 421 hash 727e4039 rows 450 uniform 173 light 150-599 blue none; sel:body on the screen at 0,82-764,20570
+    CHECK ok 28-card-scroll-min: the card's scroll y 650 (at least 400)
 
 ### enyo / screen-lock — pass
 
@@ -1291,7 +1328,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / wikipedia-zoom — known
 
-    enyo card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +2 s, load done at +17 s, 9 content frames at +17 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    enyo card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +2 s, load done at +15 s, 12 content frames at +15 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
     WAIT ok 11-rect sel:.infobox
     calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 158 landed on document y 110)
     WAIT ok 15-zoom
@@ -1300,10 +1337,12 @@ DEVICE ok overall: 16% of /tmp used
     WAIT ok 20-zoom
     WAIT ok 22-still 0,100,756,700
     CHECK ok 24-zoom: zoom 0.6882 (want 0.69 within 0.12)
-    CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 02aadc10 rows 600 uniform 62 light 100-699 blue 236-240; sel:body on the screen at 0,82-768,1028
+    CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 33ba05dc rows 600 uniform 62 light 100-699 blue 236-240; sel:body on the screen at 0,82-768,1028
     CHECK ok 26-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]
-    STREAM fs-enyo-wikipedia-zoom.fbs: 299 samples (14.9/s asked 15, read median 1.66 ms max 37.9 ms, mmap stride 8, re-read 9, torn 0), 159 flips, cpu 6.3% of a core, polls 753/s | shown frames while moving: 149 gaps, median 37 ms, p90 51 ms, max 279 ms | shown scroll: 144 rows over the stream (40 samples with the shift unknown); stale bands 1, uniform bands 35, still rows moved 0; the columns outside 170-600 changed in 26 samples | tracking (finger down, 40 samples): error median 0.0 px, max 1 px; lag median 401.5 ms, max 1011 ms |   gesture at 1794815255350: the finger travelled 0 rows, the page showe
-    CHECK FAIL 27-stream-uniform: uniform 35 (want at most 0)
+    STREAM fs-enyo-wikipedia-zoom.fbs: 235 samples (14.9/s asked 15, read median 1.73 ms max 62.19 ms, mmap stride 8, re-read 7, torn 0), 164 flips, cpu 6.3% of a core, polls 725/s | shown frames while moving: 156 gaps, median 37.0 ms, p90 60 ms, max 240 ms | shown scroll: 80 rows over the stream (44 samples with the shift unknown); stale bands 0, uniform bands 13, still rows moved 0; the columns outside 170-600 changed in 20 samples | tracking (finger down, 38 samples): error median 0.0 px, max 0 px; lag median 364.5 ms, max 817 ms |   gesture at 1794842423113: the finger travelled 0 rows, the page show
+    CHECK FAIL 27-stream-uniform: uniform 13 (want at most 0)
+    CHECK ok 29-stream-gap-median: gap-median 37 (at most 45)
+    CHECK ok 30-stream-gap-p90: gap-p90 60 (at most 80)
 
 ### enyo / xpi-confirm — pass
 
@@ -1498,9 +1537,15 @@ DEVICE ok overall: 16% of /tmp used
     WAIT ok 18-rect page-title
     CHECK ok 19-content: region 0,100-768,700: colours 787 hash 3b16afe0 rows 600 uniform 0 light none blue none; page-title on the screen at 20,96-744,130, text holds [Settings]
 
-### mochi / audio-heard — a person's
+### mochi / audio-heard — pass
 
-    hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7)
+    mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +3 s, load done at +9 s, 10 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    WAIT ok 9-rect sel:embed
+    CHECK ok 10-audio: the movie's audio: open running audible
+    CHECK ok 11-sound: sound at the output sink: peak 31141 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    WAIT ok 12-launch: load done
+    WAIT ok 13-text status = [playing]
+    CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### mochi / busy-script-stop — pass
 
@@ -1820,9 +1865,17 @@ DEVICE ok overall: 16% of /tmp used
     WAIT ok 29-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
     CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
 
-### mochi / flash-sound — a person's
+### mochi / flash-sound — pass
 
-    hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)
+    mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 16 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    WAIT ok 9-rect sel:embed
+    CHECK ok 10-audio: the movie's audio: open running audible
+    CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    WAIT ok 12-launch: load done
+    CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0
+    WAIT ok 14-launch: load done
+    WAIT ok 15-text status = [playing]
+    CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### mochi / flash-tags — pass
 
@@ -1898,7 +1951,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / frame-field — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    mochi card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
     WAIT ok 7-rect f
     calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 147 landed on document y 88)
     CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
@@ -1932,7 +1985,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / keyboard-fields — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +3 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    mochi card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 297 landed on document y 279)
     CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
     CHECK ok 10-visible: area on the screen at 9,156-484,196 (the reach ends at 600, keyboard 1)
@@ -1975,11 +2028,11 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / long-press-text-field — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    mochi card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J
     calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 109 landed on document y 31)
     WAIT ok 10-differs 0,100,756,600
     WAIT ok 13-still 0,100,756,600
-    WAIT ok 15-line: [jihad-bs] hold at 270,219 editable=1 wasFocused=0
+    WAIT ok 15-line: [jihad-bs] hold at 269,219 editable=1 wasFocused=0
     WAIT ok 18-still 0,100,400,240
     WAIT ok 20-load
     CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html
@@ -2050,23 +2103,27 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / pan-long-flick — known
 
-    mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
     calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)
-    CHECK ok 18-card-scroll-min: the card's scroll y 3413 (at least 300)
-    STREAM fs-mochi-pan-long-flick.fbs: 197 samples (14.4/s asked 15, read median 2.3 ms max 54.12 ms, mmap stride 8, re-read 10, torn 0), 133 flips, cpu 7.8% of a core, polls 690/s | shown frames while moving: 129 gaps, median 28 ms, p90 45 ms, max 260 ms | shown scroll: 1526 rows over the stream (2 samples with the shift unknown); stale bands 4, uniform bands 31, still rows moved 35; the columns outside 0-756 changed in 46 samples | tracking (finger down, 25 samples): error median 20 px, max 225 px; lag median 128 ms, max 916 ms |   gesture at 1794820623117: the finger travelled 600 rows, the page show
-    CHECK FAIL 16-stream-stale: stale 4 (want at most 0)
-    CHECK FAIL 17-stream-uniform: uniform 31 (want at most 0)
+    CHECK ok 21-card-scroll-min: the card's scroll y 3301 (at least 300)
+    STREAM fs-mochi-pan-long-flick.fbs: 187 samples (14.5/s asked 15, read median 2.17 ms max 50.95 ms, mmap stride 8, re-read 5, torn 0), 134 flips, cpu 6.6% of a core, polls 714/s | shown frames while moving: 130 gaps, median 27.0 ms, p90 41 ms, max 72 ms | shown scroll: 1873 rows over the stream (0 samples with the shift unknown); stale bands 3, uniform bands 26, still rows moved 39; the columns outside 0-756 changed in 46 samples | tracking (finger down, 20 samples): error median 34.5 px, max 188 px; lag median 167.0 ms, max 800 ms |   gesture at 1794842703488: the finger travelled 600 rows, the page
+    CHECK FAIL 16-stream-stale: stale 3 (want at most 0)
+    CHECK FAIL 17-stream-uniform: uniform 26 (want at most 0)
+    CHECK ok 19-stream-gap-median: gap-median 27 (at most 34)
+    CHECK ok 20-stream-gap-p90: gap-p90 41 (at most 50)
 
 ### mochi / pan-speeds — known
 
-    mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J
     calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)
-    CHECK ok 13-card-scroll-min: the card's scroll y 648 (at least 500)
-    CHECK ok 22-card-scroll-min: the card's scroll y 4582 (at least 2500)
-    STREAM fs-mochi-pan-speeds.fbs: 401 samples (14.9/s asked 15, read median 2.31 ms max 165.67 ms, mmap stride 8, re-read 30, torn 2), 377 flips, cpu 6.4% of a core, polls 683/s | shown frames while moving: 371 gaps, median 27 ms, p90 41 ms, max 268 ms | shown scroll: 4188 rows over the stream (2 samples with the shift unknown); stale bands 0, uniform bands 19, still rows moved 110; the columns outside 0-756 changed in 132 samples | tracking (finger down, 125 samples): error median -11 px, max 150 px; lag median 73 ms, max 786 ms |   gesture at 1794820688271: the finger travelled 650 rows, the page sho
+    CHECK ok 13-card-scroll-min: the card's scroll y 650 (at least 500)
+    CHECK ok 25-card-scroll-min: the card's scroll y 4586 (at least 2500)
+    STREAM fs-mochi-pan-speeds.fbs: 429 samples (15.0/s asked 15, read median 2.19 ms max 27.17 ms, mmap stride 8, re-read 17, torn 0), 358 flips, cpu 6.0% of a core, polls 711/s | shown frames while moving: 351 gaps, median 27 ms, p90 41 ms, max 110 ms | shown scroll: 4382 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 29, still rows moved 98; the columns outside 0-756 changed in 127 samples | tracking (finger down, 121 samples): error median -12 px, max 225 px; lag median 69 ms, max 783 ms |   gesture at 1794842766491: the finger travelled 650 rows, the page showe
     CHECK ok 19-stream-stale: stale 0 (at most 0)
-    CHECK FAIL 20-stream-uniform: uniform 19 (want at most 0)
-    CHECK ok 21-stream-error-max: error-max 150 (at most 500)
+    CHECK FAIL 20-stream-uniform: uniform 29 (want at most 0)
+    CHECK ok 21-stream-error-max: error-max 225 (at most 500)
+    CHECK ok 23-stream-gap-median: gap-median 27 (at most 34)
+    CHECK ok 24-stream-gap-p90: gap-p90 41 (at most 50)
 
 ### mochi / persona-cycle — pass
 
@@ -2107,12 +2164,14 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / personas-page-steady — pass
 
-    mochi card on about:personas: connected at +1 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+    mochi card on about:personas: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
     WAIT ok 10-rect sel:#mine .card
     calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 276 landed on document y 198)
-    CHECK ok 16-content: region 0,100-768,900: colours 4096 hash 5c9da272 rows 800 uniform 0 light 102-647 blue 107-655; sel:body on the screen at 0,-418-764,2441
-    STREAM fs-mochi-personas-page-steady.fbs: 114 samples (15.0/s asked 15, read median 2.33 ms max 26.72 ms, mmap stride 8, re-read 5, torn 0), 143 flips, cpu 6.1% of a core, polls 657/s | shown frames while moving: 142 gaps, median 24.0 ms, p90 37 ms, max 56 ms | shown scroll: 498 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 49 samples | tracking (finger down, 51 samples): error median -10 px, max 26 px; lag median 70 ms, max 187 ms |   gesture at 1794820989604: the finger travelled 500 rows, the page s
+    CHECK ok 19-content: region 0,100-768,900: colours 4096 hash d49b3af3 rows 800 uniform 0 light 101-646 blue 106-654; sel:body on the screen at 0,-419-764,2440
+    STREAM fs-mochi-personas-page-steady.fbs: 115 samples (15.0/s asked 15, read median 2.32 ms max 35.3 ms, mmap stride 8, re-read 8, torn 0), 135 flips, cpu 6.3% of a core, polls 665/s | shown frames while moving: 134 gaps, median 25.0 ms, p90 36 ms, max 76 ms | shown scroll: 499 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 49 samples | tracking (finger down, 49 samples): error median -10 px, max 22 px; lag median 66 ms, max 155 ms |   gesture at 1794842849448: the finger travelled 500 rows, the page sh
     CHECK ok 15-stream-uniform: uniform 0 (at most 0)
+    CHECK ok 17-stream-gap-median: gap-median 25 (at most 34)
+    CHECK ok 18-stream-gap-p90: gap-p90 36 (at most 50)
 
 ### mochi / proxy-login — pass
 
@@ -2165,9 +2224,20 @@ DEVICE ok overall: 16% of /tmp used
     calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 382 landed on document y 304)
     CHECK ok 17-text-has: sel:p = [This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.] holds [documentation]
 
-### mochi / rotate — a person's
+### mochi / rotate — pass
 
-    the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side
+    mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)
+    WAIT ok 13-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x690 mZoom=1.3333
+    WAIT ok 14-content 0,150,756,900
+    WAIT ok 17-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x946 mZoom=0.7500
+    WAIT ok 18-content 0,150,756,900
+    WAIT ok 20-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x690 mZoom=1.3333
+    WAIT ok 21-content 0,150,756,900
+    WAIT ok 24-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x946 mZoom=0.7500
+    WAIT ok 25-settled: the card's scroll 0 0
+    CHECK ok 26-content: region 0,150-756,600: colours 361 hash 20376874 rows 450 uniform 169 light 150-598 blue none; sel:body on the screen at 0,78-764,20566
+    CHECK ok 28-card-scroll-min: the card's scroll y 650 (at least 400)
 
 ### mochi / screen-lock — pass
 
@@ -2323,7 +2393,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / wikipedia-zoom — known
 
-    mochi card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +2 s, load done at +20 s, 14 content frames at +20 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD
+    mochi card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +1 s, load done at +14 s, 9 content frames at +14 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
     WAIT ok 11-rect sel:.infobox
     calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 154 landed on document y 110)
     WAIT ok 15-zoom
@@ -2332,10 +2402,12 @@ DEVICE ok overall: 16% of /tmp used
     WAIT ok 20-zoom
     WAIT ok 22-still 0,100,756,700
     CHECK ok 24-zoom: zoom 0.6882 (want 0.69 within 0.12)
-    CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 28d69aa0 rows 600 uniform 63 light 100-699 blue 232-236; sel:body on the screen at 0,78-768,1028
+    CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 2d40fbff rows 600 uniform 66 light 100-699 blue 232-236; sel:body on the screen at 0,78-768,1028
     CHECK ok 26-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]
-    STREAM fs-mochi-wikipedia-zoom.fbs: 240 samples (14.9/s asked 15, read median 1.66 ms max 18.79 ms, mmap stride 8, re-read 5, torn 0), 152 flips, cpu 6.3% of a core, polls 756/s | shown frames while moving: 143 gaps, median 36 ms, p90 49 ms, max 253 ms | shown scroll: 86 rows over the stream (37 samples with the shift unknown); stale bands 0, uniform bands 5, still rows moved 2; the columns outside 170-600 changed in 21 samples | tracking (finger down, 35 samples): error median 0 px, max 1 px; lag median 337 ms, max 712 ms |   gesture at 1794822451967: the finger travelled 0 rows, the page showed 0 b
+    STREAM fs-mochi-wikipedia-zoom.fbs: 223 samples (14.9/s asked 15, read median 1.81 ms max 99.22 ms, mmap stride 8, re-read 10, torn 1), 151 flips, cpu 6.8% of a core, polls 699/s | shown frames while moving: 143 gaps, median 38 ms, p90 62 ms, max 260 ms | shown scroll: 71 rows over the stream (40 samples with the shift unknown); stale bands 0, uniform bands 5, still rows moved 1; the columns outside 170-600 changed in 19 samples | tracking (finger down, 38 samples): error median 0.0 px, max 1 px; lag median 381.0 ms, max 848 ms |   gesture at 1794843071934: the finger travelled 0 rows, the page showe
     CHECK FAIL 27-stream-uniform: uniform 5 (want at most 0)
+    CHECK ok 29-stream-gap-median: gap-median 38 (at most 45)
+    CHECK ok 30-stream-gap-p90: gap-p90 62 (at most 80)
 
 ### mochi / xpi-confirm — pass
 
@@ -2512,9 +2584,15 @@ DEVICE ok overall: 16% of /tmp used
     WAIT ok 18-rect page-title
     CHECK ok 19-content: region 0,100-768,700: colours 448 hash 7a103668 rows 600 uniform 0 light none blue none; page-title on the screen at 20,91-744,125, text holds [Settings]
 
-### mojo / audio-heard — a person's
+### mojo / audio-heard — pass
 
-    hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7)
+    mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    WAIT ok 9-rect sel:embed
+    CHECK ok 10-audio: the movie's audio: open running audible
+    CHECK ok 11-sound: sound at the output sink: peak 31141 rms 21986 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    WAIT ok 12-launch: load done
+    WAIT ok 13-text status = [playing]
+    CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### mojo / busy-script-stop — pass
 
@@ -2834,9 +2912,17 @@ DEVICE ok overall: 16% of /tmp used
     WAIT ok 29-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
     CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
 
-### mojo / flash-sound — a person's
+### mojo / flash-sound — pass
 
-    hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)
+    mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    WAIT ok 9-rect sel:embed
+    CHECK ok 10-audio: the movie's audio: open running audible
+    CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    WAIT ok 12-launch: load done
+    CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0
+    WAIT ok 14-launch: load done
+    WAIT ok 15-text status = [playing]
+    CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### mojo / flash-tags — pass
 
@@ -2912,7 +2998,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / frame-field — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    mojo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +5 s, 8 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     WAIT ok 7-rect f
     calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 142 landed on document y 88)
     CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
@@ -2946,7 +3032,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / keyboard-fields — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    mojo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +1 s, load done at +5 s, 3 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 292 landed on document y 279)
     CHECK ok 9-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
     CHECK ok 10-visible: area on the screen at 9,151-484,191 (the reach ends at 600, keyboard 1)
@@ -2989,11 +3075,11 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / long-press-text-field — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +5 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +5 s, 3 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 104 landed on document y 31)
     WAIT ok 10-differs 0,100,756,600
     WAIT ok 13-still 0,100,756,600
-    WAIT ok 15-line: [jihad-bs] hold at 270,219 editable=1 wasFocused=0
+    WAIT ok 15-line: [jihad-bs] hold at 269,219 editable=1 wasFocused=0
     WAIT ok 18-still 0,100,400,240
     WAIT ok 20-load
     CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html
@@ -3041,15 +3127,20 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / mojo-address-typing — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +5 s, 3 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 104 landed on document y 31)
     CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
-    WAIT ok 13-load
-    CHECK ok 14-url: load done uri=https://lite.duckduckgo.com/lite/?q=webos
+    CHECK ok 14-nav-paint: the new page's first paint 2792 ms after the load started (at most 6000)
+    WAIT ok 15-load
+    CHECK ok 16-url: load done uri=https://lite.duckduckgo.com/lite/?q=webos
 
-### mojo / mojo-launch-from-app — a person's
+### mojo / mojo-launch-from-app — pass
 
-    a launch from another app is not emulated (a launch with a target from the command line showed the page with no keyboard, 2026-10-24)
+    mojo card on about:blank: connected at +1 s, load done at +5 s, 0 content frames at +35 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+    WAIT ok 10-url: http://192.168.1.245:8077/jihad-long-static.html
+    CHECK ok 11-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 12-content 0,150,756,600
+    CHECK ok 13-content: region 0,150-756,600: colours 373 hash f5159163 rows 450 uniform 164 light 150-593 blue none; sel:body on the screen at 0,73-764,20561
 
 ### mojo / pan-long-drag — pass
 
@@ -3067,23 +3158,27 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / pan-long-flick — known
 
-    mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +5 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
-    CHECK ok 18-card-scroll-min: the card's scroll y 2880 (at least 300)
-    STREAM fs-mojo-pan-long-flick.fbs: 132 samples (14.3/s asked 15, read median 2.21 ms max 12.62 ms, mmap stride 8, re-read 0, torn 0), 103 flips, cpu 7.3% of a core, polls 632/s | shown frames while moving: 98 gaps, median 30.0 ms, p90 51 ms, max 208 ms | shown scroll: 234 rows over the stream (2 samples with the shift unknown); stale bands 1, uniform bands 19, still rows moved 0; the columns outside 0-756 changed in 39 samples | tracking (finger down, 22 samples): error median 30.0 px, max 562 px; lag median 242.0 ms, max 894 ms |   gesture at 1794827802817: the finger travelled 600 rows, the page sh
-    CHECK FAIL 16-stream-stale: stale 1 (want at most 0)
-    CHECK FAIL 17-stream-uniform: uniform 19 (want at most 0)
+    CHECK ok 21-card-scroll-min: the card's scroll y 2917 (at least 300)
+    STREAM fs-mojo-pan-long-flick.fbs: 141 samples (14.2/s asked 15, read median 2.22 ms max 97.56 ms, mmap stride 8, re-read 8, torn 0), 97 flips, cpu 7.1% of a core, polls 610/s | shown frames while moving: 93 gaps, median 35 ms, p90 55 ms, max 258 ms | shown scroll: 162 rows over the stream (2 samples with the shift unknown); stale bands 4, uniform bands 14, still rows moved 0; the columns outside 0-756 changed in 34 samples | tracking (finger down, 23 samples): error median 39 px, max 450 px; lag median 202 ms, max 909 ms |   gesture at 1794845696861: the finger travelled 600 rows, the page showed 0 
+    CHECK FAIL 16-stream-stale: stale 4 (want at most 0)
+    CHECK FAIL 17-stream-uniform: uniform 14 (want at most 0)
+    CHECK FAIL 19-stream-gap-median: gap-median 35 (want at most 34)
+    CHECK FAIL 20-stream-gap-p90: gap-p90 55 (want at most 50)
 
 ### mojo / pan-speeds — known
 
-    mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 2 content frames at +36 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +6 s, 2 content frames at +36 s; the GPU path, frames off the main thread (the express lane) (the job's J
     calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
-    CHECK ok 13-card-scroll-min: the card's scroll y 601 (at least 500)
-    CHECK ok 22-card-scroll-min: the card's scroll y 4438 (at least 2500)
-    STREAM fs-mojo-pan-speeds.fbs: 309 samples (14.9/s asked 15, read median 2.25 ms max 140.09 ms, mmap stride 8, re-read 14, torn 1), 318 flips, cpu 6.6% of a core, polls 616/s | shown frames while moving: 312 gaps, median 32.0 ms, p90 44 ms, max 285 ms | shown scroll: 3537 rows over the stream (2 samples with the shift unknown); stale bands 21, uniform bands 65, still rows moved 0; the columns outside 0-756 changed in 127 samples | tracking (finger down, 126 samples): error median -12.0 px, max 256 px; lag median 79.5 ms, max 800 ms |   gesture at 1794827894814: the finger travelled 650 rows, the page
-    CHECK FAIL 19-stream-stale: stale 21 (want at most 0)
-    CHECK FAIL 20-stream-uniform: uniform 65 (want at most 0)
-    CHECK ok 21-stream-error-max: error-max 256 (at most 500)
+    CHECK ok 13-card-scroll-min: the card's scroll y 605 (at least 500)
+    CHECK ok 25-card-scroll-min: the card's scroll y 4568 (at least 2500)
+    STREAM fs-mojo-pan-speeds.fbs: 476 samples (14.6/s asked 15, read median 2.23 ms max 90.05 ms, mmap stride 8, re-read 19, torn 0), 283 flips, cpu 6.5% of a core, polls 722/s | shown frames while moving: 275 gaps, median 32 ms, p90 48 ms, max 281 ms | shown scroll: 2740 rows over the stream (1 samples with the shift unknown); stale bands 0, uniform bands 13, still rows moved 0; the columns outside 0-756 changed in 112 samples | tracking (finger down, 125 samples): error median -10 px, max 263 px; lag median 72 ms, max 787 ms |   gesture at 1794843637469: the finger travelled 650 rows, the page showed 
+    CHECK ok 19-stream-stale: stale 0 (at most 0)
+    CHECK FAIL 20-stream-uniform: uniform 13 (want at most 0)
+    CHECK ok 21-stream-error-max: error-max 263 (at most 500)
+    CHECK ok 23-stream-gap-median: gap-median 32 (at most 34)
+    CHECK ok 24-stream-gap-p90: gap-p90 48 (at most 50)
 
 ### mojo / persona-cycle — pass
 
@@ -3124,12 +3219,14 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / personas-page-steady — pass
 
-    mojo card on about:personas: connected at +1 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+    mojo card on about:personas: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
     WAIT ok 10-rect sel:#mine .card
     calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 271 landed on document y 198)
-    CHECK ok 16-content: region 0,100-768,900: colours 4096 hash 0eec4290 rows 800 uniform 0 light 182-737 blue 156-745; sel:body on the screen at 0,-425-764,2442
-    STREAM fs-mojo-personas-page-steady.fbs: 90 samples (15.0/s asked 15, read median 2.23 ms max 16.03 ms, mmap stride 8, re-read 6, torn 0), 110 flips, cpu 7.0% of a core, polls 654/s | shown frames while moving: 109 gaps, median 27 ms, p90 39 ms, max 256 ms | shown scroll: 500 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 43 samples | tracking (finger down, 50 samples): error median -10.0 px, max 64 px; lag median 74.5 ms, max 428 ms |   gesture at 1794828189199: the finger travelled 500 rows, the page 
+    CHECK ok 19-content: region 0,100-768,900: colours 4096 hash 4f6212d6 rows 800 uniform 0 light 181-736 blue 155-744; sel:body on the screen at 0,-426-764,2441
+    STREAM fs-mojo-personas-page-steady.fbs: 122 samples (15.0/s asked 15, read median 2.21 ms max 37.92 ms, mmap stride 8, re-read 3, torn 0), 107 flips, cpu 6.2% of a core, polls 724/s | shown frames while moving: 106 gaps, median 28.0 ms, p90 40 ms, max 271 ms | shown scroll: 501 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 42 samples | tracking (finger down, 50 samples): error median -10.0 px, max 60 px; lag median 70.0 ms, max 439 ms |   gesture at 1794843731322: the finger travelled 500 rows, the pa
     CHECK ok 15-stream-uniform: uniform 0 (at most 0)
+    CHECK ok 17-stream-gap-median: gap-median 28 (at most 34)
+    CHECK ok 18-stream-gap-p90: gap-p90 40 (at most 50)
 
 ### mojo / proxy-login-mojo — pass
 
@@ -3177,9 +3274,20 @@ DEVICE ok overall: 16% of /tmp used
     calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 389 landed on document y 316)
     CHECK ok 17-text-has: sel:p = [This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.] holds [documentation]
 
-### mojo / rotate — a person's
+### mojo / rotate — pass
 
-    the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side
+    mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
+    WAIT ok 13-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x740 mZoom=1.3333
+    WAIT ok 14-content 0,150,756,900
+    WAIT ok 17-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x996 mZoom=0.7500
+    WAIT ok 18-content 0,150,756,900
+    WAIT ok 20-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x740 mZoom=1.0000
+    WAIT ok 21-content 0,150,756,900
+    WAIT ok 24-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x996 mZoom=0.7500
+    WAIT ok 25-settled: the card's scroll 0 0
+    CHECK ok 26-content: region 0,150-756,600: colours 373 hash f5159163 rows 450 uniform 164 light 150-593 blue none; sel:body on the screen at 0,73-764,20561
+    CHECK ok 28-card-scroll-min: the card's scroll y 584 (at least 400)
 
 ### mojo / screen-lock — pass
 
@@ -3335,19 +3443,21 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / wikipedia-zoom — known
 
-    mojo card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +1 s, load done at +16 s, 9 content frames at +16 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    mojo card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +1 s, load done at +13 s, 7 content frames at +13 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
     WAIT ok 11-rect sel:.infobox
     calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 149 landed on document y 110)
     WAIT ok 15-zoom
-    CHECK ok 16-zoom-min: zoom 2.4459 (at least 1.3)
+    CHECK ok 16-zoom-min: zoom 2.7529 (at least 1.3)
     WAIT ok 18-zoom
     WAIT ok 20-zoom
     WAIT ok 22-still 0,100,756,700
     CHECK ok 24-zoom: zoom 0.6882 (want 0.69 within 0.12)
-    CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 5de6b877 rows 600 uniform 64 light 100-699 blue 227-231; sel:body on the screen at 0,73-768,1073
+    CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 979450f1 rows 600 uniform 62 light 100-699 blue 227-231; sel:body on the screen at 0,73-768,1073
     CHECK ok 26-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]
-    STREAM fs-mojo-wikipedia-zoom.fbs: 241 samples (15.0/s asked 15, read median 1.67 ms max 26.04 ms, mmap stride 8, re-read 3, torn 0), 138 flips, cpu 5.7% of a core, polls 738/s | shown frames while moving: 130 gaps, median 41.0 ms, p90 71 ms, max 277 ms | shown scroll: 43 rows over the stream (41 samples with the shift unknown); stale bands 1, uniform bands 3, still rows moved 0; the columns outside 170-600 changed in 18 samples | tracking (finger down, 34 samples): error median 0.0 px, max 15 px; lag median 349.0 ms, max 716 ms |   gesture at 1794829542907: the finger travelled 0 rows, the page show
-    CHECK FAIL 27-stream-uniform: uniform 3 (want at most 0)
+    STREAM fs-mojo-wikipedia-zoom.fbs: 244 samples (14.9/s asked 15, read median 1.72 ms max 20.16 ms, mmap stride 8, re-read 4, torn 0), 141 flips, cpu 6.0% of a core, polls 736/s | shown frames while moving: 135 gaps, median 39 ms, p90 77 ms, max 285 ms | shown scroll: 110 rows over the stream (40 samples with the shift unknown); stale bands 0, uniform bands 8, still rows moved 0; the columns outside 170-600 changed in 20 samples | tracking (finger down, 37 samples): error median 0 px, max 14 px; lag median 345 ms, max 791 ms |   gesture at 1794843966894: the finger travelled 0 rows, the page showed 0 
+    CHECK FAIL 27-stream-uniform: uniform 8 (want at most 0)
+    CHECK ok 29-stream-gap-median: gap-median 39 (at most 45)
+    CHECK ok 30-stream-gap-p90: gap-p90 77 (at most 80)
 
 ### mojo / xpi-confirm — pass
 
@@ -3428,4 +3538,106 @@ DEVICE ok overall: 16% of /tmp used
     WAIT ok 15-launch: load done
     WAIT ok 16-still 0,100,756,600
     CHECK ok 17-zoom: zoom 0.6882 (want 0.69 within 0.06)
+
+### enyo / frame-field-hold — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +3 s, load done at +9 s, 7 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 9-rect f
+    calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 151 landed on document y 88)
+    WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0
+    WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true
+    WAIT ok 15-still f
+    WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0
+    WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false
+    WAIT ok 22-line: [jihad-bs] notify: page-hold: {"editable":true,"readOnly":false,"selected":false} (pushed)
+    WAIT ok 23-differs f
+    CHECK ok 24-region-changed: region 13,323-756,528: colours 299 hash 49e48b9b rows 205 uniform 0 light 324-526 blue none against the sample's hash 261e5084
+    CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1
+    WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false
+
+### enyo / volume-keys — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +8 s, 20 content frames at +8 s; the GPU path, frames off the main thread
+    WAIT ok 9-text status = [playing]
+    CHECK ok 13-sound: sound at the output sink: peak 2975 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build
+    CHECK ok 17-volume: the media volume 66, higher (marked 44)
+    CHECK ok 18-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
+    CHECK ok 21-volume: the media volume 44, lower (marked 66)
+    CHECK ok 22-sound: sound at the output sink: peak 2954 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 26-volume: the media volume 0, zero (marked 66)
+    CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2957 rms 2059 frames 45056 hz 440): no sound out
+    CHECK ok 30-volume: the media volume 22, higher (marked 0)
+    CHECK ok 31-sound: sound at the output sink: peak 2961 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
+
+### mochi / frame-field-hold — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +7 s, 3 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    WAIT ok 9-rect f
+    calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 147 landed on document y 88)
+    WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0
+    WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true
+    WAIT ok 15-still f
+    WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0
+    WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false
+    WAIT ok 22-line: [jihad-bs] notify: page-hold: {"editable":true,"readOnly":false,"selected":false} (pushed)
+    WAIT ok 23-differs f
+    CHECK ok 24-region-changed: region 13,319-756,524: colours 218 hash c90db968 rows 205 uniform 0 light none blue none against the sample's hash 22936c02
+    CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1
+    WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false
+
+### mochi / volume-keys — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread
+    WAIT ok 9-text status = [playing]
+    CHECK ok 13-sound: sound at the output sink: peak 2975 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build
+    CHECK ok 17-volume: the media volume 66, higher (marked 44)
+    CHECK ok 18-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
+    CHECK ok 21-volume: the media volume 44, lower (marked 66)
+    CHECK ok 22-sound: sound at the output sink: peak 2963 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 26-volume: the media volume 0, zero (marked 66)
+    CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2954 rms 2058 frames 45056 hz 440): no sound out
+    CHECK ok 30-volume: the media volume 22, higher (marked 0)
+    CHECK ok 31-sound: sound at the output sink: peak 2961 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
+
+### mojo / frame-field-hold — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 9-rect f
+    calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 142 landed on document y 88)
+    WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0
+    WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true
+    WAIT ok 15-still f
+    WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0
+    WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false
+    WAIT ok 22-line: [jihad-bs] notify: page-hold: {"editable":true,"readOnly":false,"selected":false} (pushed)
+    WAIT ok 23-differs f
+    CHECK ok 24-region-changed: region 13,314-756,519: colours 609 hash 4f7ab6f1 rows 205 uniform 0 light 326-444 blue none against the sample's hash ce1bdacc
+    CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1
+    WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false
+
+### mojo / volume-keys — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main thread
+    WAIT ok 9-text status = [playing]
+    CHECK ok 13-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build
+    CHECK ok 17-volume: the media volume 66, higher (marked 44)
+    CHECK ok 18-sound: sound at the output sink: peak 2958 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
+    CHECK ok 21-volume: the media volume 44, lower (marked 66)
+    CHECK ok 22-sound: sound at the output sink: peak 2963 rms 2060 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 26-volume: the media volume 0, zero (marked 66)
+    CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2955 rms 2059 frames 45056 hz 440): no sound out
+    CHECK ok 30-volume: the media volume 22, higher (marked 0)
+    CHECK ok 31-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
 

@@ -1,0 +1,9 @@
+WAIT ok 9-rect sel:embed
+CHECK ok 10-audio: the movie's audio: open running audible
+CHECK ok 11-sound: sound at the output sink: peak 31138 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+WAIT ok 12-launch: load done
+CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0
+WAIT ok 14-launch: load done
+WAIT ok 15-text status = [playing]
+CHECK ok 16-sound: sound at the output sink: peak 2957 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+CHECKS 4 FAILS 0

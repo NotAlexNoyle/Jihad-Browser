@@ -9,4 +9,5 @@ kit: cavekit-chrome-look.md R4
 launch-from com.palm.app.notes http://192.168.1.245:8077/jihad-long-static.html
 wait url jihad-long-static 30
 expect keyboard down
+wait content 0,150,756,600 15
 expect content 0,150,756,600 'sel:body'

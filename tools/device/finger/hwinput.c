@@ -20,13 +20,18 @@
  * injected by the kernel to every reader (evdev's write), so hidd sees a key as from the rocker. (A datagram to
  * LunaSysMgr's /var/run/hidd/KeypadEventSocket reaches the window server only: the volume did not move.)
  *
- *   build: $TC/arm-webos-linux-gnueabi-gcc -O2 -march=armv7-a -mfloat-abi=softfp -o hwinput hwinput.c
+ *   build: $TC/arm-webos-linux-gnueabi-gcc -O2 -march=armv7-a -mfloat-abi=softfp -o hwinput hwinput.c -ldl
  *   on the device (root):
  *     hwinput orientation N     send orientation N to every subscriber (fingerlib's fl_turn names them)
  *     hwinput list              the subscribers' sockets
  *     hwinput key CODE [MS]     press and release a gpio-keys key (held MS, default 80)
- *     hwinput level FILE        "peak P rms R frames N" of raw s16le stereo samples (what `parec -d pcm_output.monitor`
- *                               wrote: the sound as it reaches the output sink — sound read with no ear)
+ *     hwinput level FILE        "peak P rms R frames N hz H" of raw s16le stereo samples
+ *     hwinput record SOURCE MS [STREAM]
+ *                               the same line for MS milliseconds of a PulseAudio source (pcm_output.monitor: the
+ *                               sound as it reaches the output sink, after every stream's volume — sound read with
+ *                               no ear). hz is the pitch by the left channel's upward zero crossings. Recorded
+ *                               through libpulse-simple (dlopen), because the device's parec refuses every stream
+ *                               name ("Invalid stream name": its locale conversion fails, 2026-11-16).
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +41,51 @@
 #include <sys/un.h>
 #include <fcntl.h>
 #include <linux/input.h>
+#include <dlfcn.h>
+#include <stdint.h>
+#include <time.h>
+
+/* the level of s16le stereo samples, fed in pieces; the pitch from the left channel's first 4 s, kept: upward
+ * crossings between -peak/4 and +peak/4 (a plain zero-crossing count read a 440 Hz Vorbis tone as 511) */
+#define LV_KEEP (44100 * 4)
+static long long lv_n; static double lv_sq; static int lv_peak; static short lv_left[LV_KEEP]; static int lv_kept;
+static void level_feed(const short* b, size_t k) {
+  size_t i;
+  for (i = 0; i < k; i++) {
+    int v = b[i] < 0 ? -b[i] : b[i]; if (v > lv_peak) lv_peak = v; lv_sq += (double)b[i] * b[i];
+    if (!(lv_n & 1) && lv_kept < LV_KEEP) lv_left[lv_kept++] = b[i];
+    lv_n++;
+  }
+}
+static void level_print(int rate) {
+  int rms = 0, hz = 0, i, low = 0, thr, first = -1, last = -1; long long frames = lv_n / 2, cross = 0;
+  if (lv_n) { double m = lv_sq / lv_n, r = m; int j; if (m > 0) { for (j = 0; j < 40; j++) r = (r + m / r) / 2; rms = (int)r; } }
+  /* the threshold from the rms (one loud click must not hide the tone); the rate over the span between the first and
+   * the last crossing (a tone that starts late in the window reads its own pitch) */
+  thr = rms / 2;
+  if (thr > 8) for (i = 0; i < lv_kept; i++) {
+    if (lv_left[i] < -thr) low = 1;
+    else if (lv_left[i] > thr && low) { cross++; low = 0; if (first < 0) first = i; last = i; }
+  }
+  if (cross > 1 && last > first) hz = (int)(((cross - 1) * (long long)rate + (last - first) / 2) / (last - first));
+  printf("peak %d rms %d frames %lld hz %d\n", lv_peak, rms, frames, hz);
+}
+struct pa_ss { int format; uint32_t rate; uint8_t channels; };
+static int record(const char* source, int ms, const char* stream) {
+  alarm(ms / 1000 + 8);   /* a server that does not answer, or a source that yields nothing, blocks for ever: die instead (no line printed) */
+  void* h = dlopen("libpulse-simple.so.0", RTLD_NOW); if (!h) { fprintf(stderr, "hwinput: %s\n", dlerror()); return 1; }
+  void* (*snew)(const char*, const char*, int, const char*, const char*, const struct pa_ss*, const void*, const void*, int*) = dlsym(h, "pa_simple_new");
+  int (*sread)(void*, void*, size_t, int*) = dlsym(h, "pa_simple_read");
+  void (*sfree)(void*) = dlsym(h, "pa_simple_free");
+  if (!snew || !sread || !sfree) { fprintf(stderr, "hwinput: libpulse-simple lacks a symbol\n"); return 1; }
+  struct pa_ss ss = { 3 /* PA_SAMPLE_S16LE */, 44100, 2 }; int err = 0;
+  void* s = snew(NULL, "hwinput", 2 /* PA_STREAM_RECORD */, source, stream, &ss, NULL, NULL, &err);
+  if (!s) { fprintf(stderr, "hwinput: pa_simple_new(%s, %s) failed: %d\n", source, stream, err); return 1; }
+  short buf[2048]; long long want = (long long)ms * 44100 / 1000 * 2; int bad = 0;
+  while (lv_n < want) { if (sread(s, buf, sizeof buf, &err) < 0) { fprintf(stderr, "hwinput: pa_simple_read failed: %d\n", err); bad = 1; break; } level_feed(buf, 2048); }
+  alarm(0); sfree(s); if (bad) return 1;
+  level_print(44100); return 0;
+}
 
 static const char* DIR = "/var/run/psc/orientation/sensord/data-";
 static const unsigned char HASH[8] = { 0x99, 0x4d, 0x0d, 0x3e, 0x09, 0x8f, 0x4e, 0xc8 };
@@ -62,13 +112,11 @@ static int ev(int fd, int type, int code, int value) {
 int main(int argc, char** argv) {
   if (argc == 3 && !strcmp(argv[1], "level")) {
     FILE* s = fopen(argv[2], "rb"); if (!s) { perror(argv[2]); return 1; }
-    short buf[4096]; size_t k, i; long long n = 0; double sq = 0; int peak = 0;
-    while ((k = fread(buf, sizeof(short), 4096, s)) > 0)
-      for (i = 0; i < k; i++) { int v = buf[i] < 0 ? -buf[i] : buf[i]; if (v > peak) peak = v; sq += (double)buf[i] * buf[i]; n++; }
-    fclose(s);
-    int rms = 0; if (n) { double m = sq / n, r = m; int j; if (m > 0) { for (j = 0; j < 40; j++) r = (r + m / r) / 2; rms = (int)r; } }
-    printf("peak %d rms %d frames %lld\n", peak, rms, n / 2); return 0;
+    short buf[4096]; size_t k;
+    while ((k = fread(buf, sizeof(short), 4096, s)) > 0) level_feed(buf, k);
+    fclose(s); level_print(44100); return 0;
   }
+  if (argc >= 4 && !strcmp(argv[1], "record")) return record(argv[2], atoi(argv[3]), argc > 4 ? argv[4] : "hwinput");
   if (argc >= 3 && !strcmp(argv[1], "key")) {
     int code = atoi(argv[2]), ms = argc > 3 ? atoi(argv[3]) : 80, fd = open_input("gpio-keys");
     if (fd < 0) { perror("gpio-keys"); return 1; }
@@ -79,7 +127,7 @@ int main(int argc, char** argv) {
   }
   int list = argc == 2 && !strcmp(argv[1], "list");
   if (!list && !(argc == 3 && !strcmp(argv[1], "orientation"))) {
-    fprintf(stderr, "usage: hwinput orientation N | list | key CODE [MS] | level FILE\n"); return 2;
+    fprintf(stderr, "usage: hwinput orientation N | list | key CODE [MS] | level FILE | record SOURCE MS [STREAM]\n"); return 2;
   }
   unsigned char msg[9]; memcpy(msg, HASH, 8); msg[8] = list ? 0 : (unsigned char)atoi(argv[2]);
   FILE* f = fopen("/proc/net/unix", "r"); if (!f) { perror("/proc/net/unix"); return 1; }

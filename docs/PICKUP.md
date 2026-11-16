@@ -94,7 +94,36 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
-## HANDOFF 2026-11-16 — where a new agent starts (READ FIRST)
+## 2026-11-16 (later) — T-653 and T-654 DONE: every test an instrument's; T-655 next (READ FIRST)
+
+- **T-653 done** (`docs/rounds/t653-2026-11-16e/README.md`; the last runs merged into `docs/rounds/finger-2026-11-16/`:
+  291 runs, 0 failed, 8 at the known T-567 and T-656; `docs/FINGER-TESTS.md` has no `[P]`):
+  - **Sound**: the device's `parec` refuses every stream name. `hwinput record pcm_output.monitor 1000` records through
+    libpulse-simple (dlopen). `expect sound heard|silent|muted [BOUND] [MIN_RMS] [HZ]`. **The media volume is the
+    codec's, after the sink**: the sink's level is the same at volume 0, so "heard" also wants the amp on and the
+    volume above 0. No state passes on an instrument that did not answer.
+  - **Volume keys**: `volume-set`, `volume-mark`, `volume-key`, `expect volume higher|lower|same|zero`, `expect
+    volume-hud` (LunaSysMgr's transient alert in its syslog; it draws nothing on CE 3.1.0).
+  - `mojo-launch-from-app` (Notes in front), `rotate`, `expect nav-paint` (the daemon's `nav: first paint N ms after
+    the load started`: 2.8-3.3 s for a search from Mojo's bar), `expect stream gap-median|gap-p90` (R12's bars: pans
+    34 / 50 ms, Wikipedia's zooms 45 / 80). **Mojo's long flick misses its bar (35 / 53): T-656, deferred.**
+- **T-654 done**: a hold on a field in a frame gets the editing menu (`frame-field-hold`, three shells).
+  **TRAP: `GetContentDocument` (and anything else that asks for the subject principal) called from the daemon with no
+  script running ABORTS the engine** (`nsContentUtils::SubjectPrincipal`): reach a frame's document by
+  `jihadFrameDocShell` (the frame loader's docshell). A framed field whose keyboard was hidden and brought back by a
+  tap leaves the top document's focus on `<body>`; the page's commands mend that case only.
+- **For T-655 (next):** the fatal report now ends with the stack's words that point into libxul
+  (`_Unwind_Backtrace` gives nothing from the signal frame), and a daemon that dies while a page starts leaves its
+  report in the round as `crash-<shell>-<id>-<time>.txt`. So: `finger-run.py --shells enyo --only etsy-search` in a
+  loop until a crash file appears, then addr2line the `sp+` words on
+  `build/webos-oe/out-arm/obj-jihad-goanna-arm-pgo/toolkit/library/libxul.so`.
+- **Two reviews by ck:inspector (Fable)**: 1 crash path and 8 wrong-result paths found and fixed before the final
+  runs (listed in the round's README). `show-log [PATTERN]` in a script prints the daemon's log since the mark.
+- **Device as left:** the three shells on engine 0113 with today's daemon and `jihadPageCommands.js` (pushed by
+  `push-engine-update.sh --daemon-only`); upright; media volume 23; USB alert closed.
+- **Then:** T-655, T-576's leftovers, T-577 onward. The order of work above stands.
+
+## HANDOFF 2026-11-16 (morning; superseded by the section above where they disagree)
 
 The prompt for the next session is `.cavekit/handoff-2026-11-16/next-agent-prompt.md` (local, not in git). In short:
 

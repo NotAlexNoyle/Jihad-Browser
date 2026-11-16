@@ -1,5 +1,7 @@
 # The turn is the sensor daemon's own orientation event, sent by hwinput to its subscribers (T-653): LunaSysMgr turns
 # the card as for a hand. The daemon's geometry line is the page's new window; the frames are kept for the eye.
+# Back upright the only geometry line is the width's (win=768x686, the height follows without one): the content
+# check down to row 900 is what proves the tall window.
 id: rotate
 section: Scrolling and gestures
 item: Rotate the TouchPad: portrait ↔ landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards)

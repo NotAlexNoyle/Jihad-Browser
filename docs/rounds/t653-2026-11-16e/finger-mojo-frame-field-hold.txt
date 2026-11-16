@@ -1,0 +1,25 @@
+WAIT ok 9-rect f
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 142 landed on document y 88)
+  hold on f +60,30 at 60 337
+WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0
+WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true
+  a tap to dismiss at 640,40
+WAIT ok 15-still f
+  sample before of f: hash ce1bdacc
+  hold on f +100,90 at 91 384
+WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0
+WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false
+WAIT ok 22-line: [jihad-bs] notify: page-hold: {"editable":true,"readOnly":false,"selected":false} (pushed)
+WAIT ok 23-differs f
+CHECK ok 24-region-changed: region 13,314-756,519: colours 609 hash 4f7ab6f1 rows 205 uniform 0 light 326-444 blue none against the sample's hash ce1bdacc
+CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  frame kept: /media/internal/jihad-finger/field-menu_.last.raw
+  a tap to dismiss at 640,40
+  chrome kb-hide tapped at 732 993
+CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  tap at 91,384 -> clickAt 117 396
+CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+  hold on f +100,90 at 91 384
+WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1
+WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false
+CHECKS 4 FAILS 0

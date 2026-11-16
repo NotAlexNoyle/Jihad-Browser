@@ -1,0 +1,588 @@
+{
+ "date": "2026-11-16T08:30:35",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "audio-heard",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 65,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (359931/694920352) jihad (start) running, process 22200; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-sound",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 67,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +7 s, 14 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (359998/882452191) jihad (start) running, process 25695; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "frame-field-hold",
+   "kit": "cavekit-ui-shell.md R7",
+   "item": "A hold on a field inside a frame (jihad-frame-field.html): the daemon and the page's commands both call it editable (the editing menu, not the page's), the field takes the focus and the keyboard comes up; a hold on the frame's plain text stays the page's",
+   "section": "Keyboard and text",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 9-rect f",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 151 landed on document y 88)",
+    "WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0",
+    "WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true",
+    "WAIT ok 15-still f",
+    "WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0",
+    "WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false",
+    "WAIT ok 22-line: [jihad-bs] notify: page-hold: {\"editable\":true,\"readOnly\":false,\"selected\":false} (pushed)",
+    "WAIT ok 23-differs f",
+    "CHECK ok 24-region-changed: region 13,323-756,528: colours 299 hash 49e48b9b rows 205 uniform 0 light 324-526 blue none against the sample's hash 261e5084",
+    "CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1",
+    "CHECK FAIL 35-wait-line: no line hold: editable=true within the bound"
+   ],
+   "kept": [
+    "kept/enyo-frame-field-hold-field-menu_.jpg",
+    "kept/enyo-frame-field-hold-35-wait-line_.jpg"
+   ],
+   "seconds": 99,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +6 s, 10 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "enyo: (360098/204445950) jihad (start) running, process 30547; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "frame-field",
+   "kit": "cavekit-chrome-look.md R4",
+   "item": "A field inside a frame (jihad-frame-field.html): a tap raises the keyboard, typed keys land in it (the frame's picture changes), the hide key drops it and no caret is left (the frame's picture holds still), a tap brings it back",
+   "section": "Keyboard and text",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-rect f",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 151 landed on document y 88)",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "CHECK ok 11-visible: f on the screen at 13,322-759,529 (the reach ends at 600, keyboard 1)",
+    "WAIT ok 14-differs f",
+    "CHECK ok 15-region-changed: region 13,323-756,528: colours 203 hash 9f55f686 rows 205 uniform 0 light 324-526 blue none against the sample's hash 2a543c72",
+    "CHECK ok 17-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 18-still f",
+    "WAIT ok 20-still f",
+    "CHECK ok 21-region-equal: region 13,323-756,528: colours 202 hash af7f74a8 rows 205 uniform 0 light 324-526 blue none = the sample's hash",
+    "CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)"
+   ],
+   "kept": [],
+   "seconds": 80,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +3 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (360177/734918823) jihad (start) running, process 2496; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "long-press-menu",
+   "kit": "cavekit-ui-shell.md R7",
+   "item": "Hold on a link: the long-press menu comes up over the page (the frame changes where it stands) and a tap outside takes it away; a plain tap on the link is unaffected (it navigates)",
+   "section": "Chrome, menus and dialogs",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 113 landed on document y 31)",
+    "WAIT ok 10-differs 0,300,756,900",
+    "WAIT ok 12-still 0,300,756,900",
+    "WAIT ok 14-load",
+    "CHECK ok 15-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html"
+   ],
+   "kept": [],
+   "seconds": 67,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (360244/289772736) jihad (start) running, process 6121; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "rotate",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards)",
+   "section": "Scrolling and gestures",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)",
+    "WAIT ok 13-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x686 mZoom=1.3333",
+    "WAIT ok 14-content 0,150,756,900",
+    "WAIT ok 17-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x686 mZoom=0.7500",
+    "WAIT ok 18-content 0,150,756,900",
+    "WAIT ok 20-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x686 mZoom=1.3333",
+    "WAIT ok 21-content 0,150,756,900",
+    "WAIT ok 24-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x686 mZoom=0.7500",
+    "WAIT ok 25-settled: the card's scroll 0 0",
+    "CHECK ok 26-content: region 0,150-756,600: colours 421 hash 727e4039 rows 450 uniform 173 light 150-599 blue none; sel:body on the screen at 0,82-764,20570",
+    "CHECK ok 28-card-scroll-min: the card's scroll y 640 (at least 400)"
+   ],
+   "kept": [
+    "kept/enyo-rotate-landscape-left_.jpg",
+    "kept/enyo-rotate-landscape-right_.jpg"
+   ],
+   "seconds": 79,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (360323/154733609) jihad (start) running, process 9842; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after",
+   "section": "Media and sound",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK ok 13-sound: sound at the output sink: peak 2975 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 16-volume: the media volume 66, higher (marked 44)",
+    "CHECK ok 17-sound: sound at the output sink: peak 2964 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz",
+    "CHECK ok 20-volume: the media volume 44, lower (marked 66)",
+    "CHECK ok 21-sound: sound at the output sink: peak 2953 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 25-volume: the media volume 0, zero (marked 66)",
+    "CHECK ok 26-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2958 rms 2060 frames 45056 hz 440): no sound out",
+    "CHECK FAIL 28-volume: the media volume 22, wanted higher (marked 66)",
+    "CHECK ok 29-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz"
+   ],
+   "kept": [
+    "kept/enyo-volume-keys-28-volume_.jpg"
+   ],
+   "seconds": 84,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +8 s, 21 content frames at +8 s; the GPU path, frames off the main thread",
+   "restore": "enyo: (360407/329267667) jihad (start) running, process 13533; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "audio-heard",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31144 rms 21986 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 70,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mochi: (360477/279344987) jihad-mochi (start) running, process 16959; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-sound",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 71,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +7 s, 18 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (360547/999544529) jihad-mochi (start) running, process 20527; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "frame-field-hold",
+   "kit": "cavekit-ui-shell.md R7",
+   "item": "A hold on a field inside a frame (jihad-frame-field.html): the daemon and the page's commands both call it editable (the editing menu, not the page's), the field takes the focus and the keyboard comes up; a hold on the frame's plain text stays the page's",
+   "section": "Keyboard and text",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 9-rect f",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 147 landed on document y 88)",
+    "WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0",
+    "WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true",
+    "WAIT ok 15-still f",
+    "WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0",
+    "WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false",
+    "WAIT ok 22-line: [jihad-bs] notify: page-hold: {\"editable\":true,\"readOnly\":false,\"selected\":false} (pushed)",
+    "WAIT ok 23-differs f",
+    "CHECK ok 24-region-changed: region 13,319-756,524: colours 218 hash c90db968 rows 205 uniform 0 light none blue none against the sample's hash 22936c02",
+    "CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1",
+    "CHECK FAIL 35-wait-line: no line hold: editable=true within the bound"
+   ],
+   "kept": [
+    "kept/mochi-frame-field-hold-field-menu_.jpg",
+    "kept/mochi-frame-field-hold-35-wait-line_.jpg"
+   ],
+   "seconds": 104,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (360652/402551768) jihad-mochi (start) running, process 25484; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "frame-field",
+   "kit": "cavekit-chrome-look.md R4",
+   "item": "A field inside a frame (jihad-frame-field.html): a tap raises the keyboard, typed keys land in it (the frame's picture changes), the hide key drops it and no caret is left (the frame's picture holds still), a tap brings it back",
+   "section": "Keyboard and text",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-rect f",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 147 landed on document y 88)",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "CHECK ok 11-visible: f on the screen at 13,318-759,525 (the reach ends at 600, keyboard 1)",
+    "WAIT ok 14-differs f",
+    "CHECK ok 15-region-changed: region 13,319-756,524: colours 229 hash 4e051f6c rows 205 uniform 0 light 320-522 blue none against the sample's hash 47ef556c",
+    "CHECK ok 17-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 18-still f",
+    "WAIT ok 20-still f",
+    "CHECK ok 21-region-equal: region 13,319-756,524: colours 228 hash ea9cee95 rows 205 uniform 0 light 320-522 blue none = the sample's hash",
+    "CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)"
+   ],
+   "kept": [],
+   "seconds": 87,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +6 s, 10 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's ",
+   "restore": "mochi: (360739/477163899) jihad-mochi (start) running, process 29908; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "long-press-menu",
+   "kit": "cavekit-ui-shell.md R7",
+   "item": "Hold on a link: the long-press menu comes up over the page (the frame changes where it stands) and a tap outside takes it away; a plain tap on the link is unaffected (it navigates)",
+   "section": "Chrome, menus and dialogs",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 109 landed on document y 31)",
+    "WAIT ok 10-differs 0,300,756,900",
+    "WAIT ok 12-still 0,300,756,900",
+    "WAIT ok 14-load",
+    "CHECK ok 15-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html"
+   ],
+   "kept": [],
+   "seconds": 68,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-card-events.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (360807/776167145) jihad-mochi (start) running, process 913; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "rotate",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards)",
+   "section": "Scrolling and gestures",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)",
+    "WAIT ok 13-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x690 mZoom=1.3333",
+    "WAIT ok 14-content 0,150,756,900",
+    "WAIT ok 17-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x690 mZoom=1.0000",
+    "WAIT ok 18-content 0,150,756,900",
+    "WAIT ok 20-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x946 mZoom=1.0000",
+    "WAIT ok 21-content 0,150,756,900",
+    "WAIT ok 24-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x946 mZoom=0.7500",
+    "WAIT ok 25-settled: the card's scroll 0 0",
+    "CHECK ok 26-content: region 0,150-756,600: colours 361 hash 20376874 rows 450 uniform 169 light 150-598 blue none; sel:body on the screen at 0,78-764,20566",
+    "CHECK ok 28-card-scroll-min: the card's scroll y 650 (at least 400)"
+   ],
+   "kept": [
+    "kept/mochi-rotate-landscape-left_.jpg",
+    "kept/mochi-rotate-landscape-right_.jpg"
+   ],
+   "seconds": 73,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (360880/586046242) jihad-mochi (start) running, process 4695; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after",
+   "section": "Media and sound",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK ok 13-sound: sound at the output sink: peak 2975 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 16-volume: the media volume 66, higher (marked 44)",
+    "CHECK ok 17-sound: sound at the output sink: peak 2964 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz",
+    "CHECK ok 20-volume: the media volume 44, lower (marked 66)",
+    "CHECK ok 21-sound: sound at the output sink: peak 2953 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 25-volume: the media volume 0, zero (marked 66)",
+    "CHECK ok 26-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2958 rms 2060 frames 45056 hz 440): no sound out",
+    "CHECK FAIL 28-volume: the media volume 22, wanted higher (marked 66)",
+    "CHECK ok 29-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz"
+   ],
+   "kept": [
+    "kept/mochi-volume-keys-28-volume_.jpg"
+   ],
+   "seconds": 76,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +7 s, 18 content frames at +7 s; the GPU path, frames off the main threa",
+   "restore": "mochi: (360956/669577042) jihad-mochi (start) running, process 8363; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "audio-heard",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31138 rms 21983 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK ok 14-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 63,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mojo: (361019/988243104) jihad-mojo (start) running, process 11915; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-sound",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31144 rms 21986 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK ok 16-sound: sound at the output sink: peak 2952 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 71,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mojo: (361091/66868571) jihad-mojo (start) running, process 15509; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "frame-field-hold",
+   "kit": "cavekit-ui-shell.md R7",
+   "item": "A hold on a field inside a frame (jihad-frame-field.html): the daemon and the page's commands both call it editable (the editing menu, not the page's), the field takes the focus and the keyboard comes up; a hold on the frame's plain text stays the page's",
+   "section": "Keyboard and text",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 9-rect f",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 142 landed on document y 88)",
+    "WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0",
+    "WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true",
+    "WAIT ok 15-still f",
+    "WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0",
+    "WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false",
+    "WAIT ok 22-line: [jihad-bs] notify: page-hold: {\"editable\":true,\"readOnly\":false,\"selected\":false} (pushed)",
+    "WAIT ok 23-differs f",
+    "CHECK ok 24-region-changed: region 13,314-756,519: colours 609 hash 4f7ab6f1 rows 205 uniform 0 light 326-444 blue none against the sample's hash ce1bdacc",
+    "CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1",
+    "CHECK FAIL 35-wait-line: no line hold: editable=true within the bound"
+   ],
+   "kept": [
+    "kept/mojo-frame-field-hold-field-menu_.jpg",
+    "kept/mojo-frame-field-hold-35-wait-line_.jpg"
+   ],
+   "seconds": 81,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +5 s, 5 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (361172/435198037) jihad-mojo (start) running, process 20110; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "frame-field",
+   "kit": "cavekit-chrome-look.md R4",
+   "item": "A field inside a frame (jihad-frame-field.html): a tap raises the keyboard, typed keys land in it (the frame's picture changes), the hide key drops it and no caret is left (the frame's picture holds still), a tap brings it back",
+   "section": "Keyboard and text",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-rect f",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 142 landed on document y 88)",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "CHECK ok 11-visible: f on the screen at 13,313-759,520 (the reach ends at 600, keyboard 1)",
+    "WAIT ok 14-differs f",
+    "CHECK ok 15-region-changed: region 13,314-756,519: colours 203 hash 3245e2d2 rows 205 uniform 0 light 315-517 blue none against the sample's hash 14b1cd9a",
+    "CHECK ok 17-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 18-still f",
+    "WAIT ok 20-still f",
+    "CHECK ok 21-region-equal: region 13,314-756,519: colours 202 hash ba939f24 rows 205 uniform 0 light 315-517 blue none = the sample's hash",
+    "CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)"
+   ],
+   "kept": [],
+   "seconds": 63,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +5 s, 7 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (361235/849783507) jihad-mojo (start) running, process 24108; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "long-press-menu",
+   "kit": "cavekit-ui-shell.md R7",
+   "item": "Hold on a link: the long-press menu comes up over the page (the frame changes where it stands) and a tap outside takes it away; a plain tap on the link is unaffected (it navigates)",
+   "section": "Chrome, menus and dialogs",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 104 landed on document y 31)",
+    "WAIT ok 10-differs 0,300,756,900",
+    "WAIT ok 12-still 0,300,756,900",
+    "WAIT ok 14-load",
+    "CHECK ok 15-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html"
+   ],
+   "kept": [],
+   "seconds": 58,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +5 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (361294/200278904) jihad-mojo (start) running, process 27644; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "mojo-address-typing",
+   "kit": "cavekit-mojo-ui.md R6",
+   "item": "Mojo: a search typed in the address bar on the keyboard replaces the selected address and Enter opens the search results",
+   "section": "Keyboard and text",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 104 landed on document y 31)",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "CHECK ok 14-nav-paint: the new page's first paint 5 ms after the load started (at most 6000)",
+    "WAIT ok 15-load",
+    "CHECK ok 16-url: load done uri=https://lite.duckduckgo.com/lite/?q=webos"
+   ],
+   "kept": [],
+   "seconds": 64,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (361358/20127929) jihad-mojo (start) running, process 31240; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "mojo-launch-from-app",
+   "kit": "cavekit-chrome-look.md R4",
+   "item": "Mojo: open a link to the browser from another app (an email or a message): the card shows the page with no keyboard over it",
+   "section": "Keyboard and text",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-url: http://192.168.1.245:8077/jihad-long-static.html",
+    "CHECK ok 11-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 12-content 0,150,756,600",
+    "CHECK ok 13-content: region 0,150-756,600: colours 373 hash f5159163 rows 450 uniform 164 light 150-593 blue none; sel:body on the screen at 0,73-764,20561"
+   ],
+   "kept": [],
+   "seconds": 86,
+   "note": "",
+   "start": "mojo card on about:blank: connected at +1 s, load done at +4 s, 0 content frames at +34 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "restore": "mojo: (361443/510509985) jihad-mojo (start) running, process 2504; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "rotate",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards)",
+   "section": "Scrolling and gestures",
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)",
+    "WAIT ok 13-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x740 mZoom=1.3333",
+    "WAIT ok 14-content 0,150,756,900",
+    "WAIT ok 17-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x996 mZoom=1.0000",
+    "WAIT ok 18-content 0,150,756,900",
+    "WAIT ok 20-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x740 mZoom=1.3333",
+    "WAIT ok 21-content 0,150,756,900",
+    "WAIT ok 24-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x996 mZoom=0.7500",
+    "WAIT ok 25-settled: the card's scroll 0 0",
+    "CHECK ok 26-content: region 0,150-756,600: colours 373 hash f5159163 rows 450 uniform 164 light 150-593 blue none; sel:body on the screen at 0,73-764,20561",
+    "CHECK ok 28-card-scroll-min: the card's scroll y 573 (at least 400)"
+   ],
+   "kept": [
+    "kept/mojo-rotate-landscape-left_.jpg",
+    "kept/mojo-rotate-landscape-right_.jpg"
+   ],
+   "seconds": 64,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (361507/827387454) jihad-mojo (start) running, process 6244; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after",
+   "section": "Media and sound",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK ok 13-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 16-volume: the media volume 66, higher (marked 44)",
+    "CHECK ok 17-sound: sound at the output sink: peak 2959 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz",
+    "CHECK ok 20-volume: the media volume 44, lower (marked 66)",
+    "CHECK ok 21-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 25-volume: the media volume 0, zero (marked 66)",
+    "CHECK ok 26-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2959 rms 2058 frames 45056 hz 440): no sound out",
+    "CHECK FAIL 28-volume: the media volume 22, wanted higher (marked 66)",
+    "CHECK ok 29-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz"
+   ],
+   "kept": [
+    "kept/mojo-volume-keys-28-volume_.jpg"
+   ],
+   "seconds": 78,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread ",
+   "restore": "mojo: (361586/75414254) jihad-mojo (start) running, process 10009; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (361586/166284328) jihad (start) running, process 13533\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (361590/845864770) jihad-mochi (start) running, process 8363\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (361596/828472177) jihad-mojo (start) running, process 10009\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok media-scratch: none\nDEVICE ok overall: 16% of /tmp used",
+ "seconds": 1736
+}

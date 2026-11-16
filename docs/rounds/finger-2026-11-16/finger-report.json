@@ -1,5 +1,5 @@
 {
- "date": "2026-11-16T07:00:20",
+ "date": "2026-11-16T11:14:19",
  "shells": [
   "enyo",
   "mochi",
@@ -216,13 +216,23 @@
    "shell": "enyo",
    "id": "audio-heard",
    "kit": "cavekit-device-build.md R4",
-   "item": "Flash sound heard; an HTML audio element heard on the speaker",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
    "section": "Media and sound",
-   "verdict": "a person's",
-   "checks": [],
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK ok 14-sound: sound at the output sink: peak 2957 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7)"
+   "seconds": 62,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 21 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (365930/526191338) jihad (start) running, process 21215; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "enyo",
@@ -941,13 +951,25 @@
    "shell": "enyo",
    "id": "flash-sound",
    "kit": "cavekit-engine-update.md R8",
-   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
    "section": "The engine",
-   "verdict": "a person's",
-   "checks": [],
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31138 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK ok 16-sound: sound at the output sink: peak 2957 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)"
+   "seconds": 66,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +7 s, 12 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (365996/905063769) jihad (start) running, process 24780; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "enyo",
@@ -1097,10 +1119,11 @@
     "CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)"
    ],
    "kept": [],
-   "seconds": 76,
+   "seconds": 81,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
-   "restore": "enyo: (336312/83028186) jihad (start) running, process 22552; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (368389/834664640) jihad (start) running, process 11392; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "enyo",
@@ -1161,10 +1184,11 @@
     "CHECK ok 17-visible: field on the screen at 16,284-522,319 (the reach ends at 600, keyboard 1)"
    ],
    "kept": [],
-   "seconds": 84,
+   "seconds": 82,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
-   "restore": "enyo: (336635/834042643) jihad (start) running, process 3400; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "enyo: (368471/446998995) jihad (start) running, process 15300; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "enyo",
@@ -1243,7 +1267,7 @@
     "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 113 landed on document y 31)",
     "WAIT ok 10-differs 0,100,756,600",
     "WAIT ok 13-still 0,100,756,600",
-    "WAIT ok 15-line: [jihad-bs] hold at 270,219 editable=1 wasFocused=0",
+    "WAIT ok 15-line: [jihad-bs] hold at 269,219 editable=1 wasFocused=0",
     "WAIT ok 18-still 0,100,400,240",
     "WAIT ok 20-load",
     "CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html"
@@ -1252,10 +1276,11 @@
     "kept/enyo-long-press-text-field-hold-text_.jpg",
     "kept/enyo-long-press-text-field-hold-field_.jpg"
    ],
-   "seconds": 77,
+   "seconds": 79,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +2 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
-   "restore": "enyo: (337028/616400789) jihad (start) running, process 20085; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +2 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (368550/877189498) jihad (start) running, process 19175; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "enyo",
@@ -1370,30 +1395,33 @@
    "verdict": "known",
    "checks": [
     "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)",
-    "CHECK ok 18-card-scroll-min: the card's scroll y 3433 (at least 300)",
-    "STREAM fs-enyo-pan-long-flick.fbs: 190 samples (14.9/s asked 15, read median 2.26 ms max 31.69 ms, mmap stride 8, re-read 10, torn 0), 148 flips, cpu 7.1% of a core, polls 710/s | shown frames while moving: 145 gaps, median 26 ms, p90 42 ms, max 212 ms | shown scroll: 2005 rows over the stream (0 samples with the shift unknown); stale bands 1, uniform bands 25, still rows moved 0; the columns outside 0-756 changed in 51 samples | tracking (finger down, 21 samples): error median 20 px, max 225 px; lag median 322 ms, max 982 ms |   gesture at 1794813364929: the finger travelled 600 rows, the page showe",
-    "CHECK FAIL 16-stream-stale: stale 1 (want at most 0)",
-    "CHECK FAIL 17-stream-uniform: uniform 25 (want at most 0)"
+    "CHECK ok 21-card-scroll-min: the card's scroll y 3471 (at least 300)",
+    "STREAM fs-enyo-pan-long-flick.fbs: 163 samples (14.7/s asked 15, read median 2.24 ms max 30.36 ms, mmap stride 8, re-read 9, torn 0), 140 flips, cpu 7.7% of a core, polls 672/s | shown frames while moving: 137 gaps, median 27 ms, p90 42 ms, max 276 ms | shown scroll: 1703 rows over the stream (0 samples with the shift unknown); stale bands 2, uniform bands 46, still rows moved 0; the columns outside 0-756 changed in 51 samples | tracking (finger down, 22 samples): error median 29.0 px, max 188 px; lag median 179.5 ms, max 871 ms |   gesture at 1794842076327: the finger travelled 600 rows, the page sh",
+    "CHECK FAIL 16-stream-stale: stale 2 (want at most 0)",
+    "CHECK FAIL 17-stream-uniform: uniform 46 (want at most 0)",
+    "CHECK ok 19-stream-gap-median: gap-median 27 (at most 34)",
+    "CHECK ok 20-stream-gap-p90: gap-p90 42 (at most 50)"
    ],
    "kept": [],
-   "seconds": 67,
-   "note": "the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 1 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 25 (want at most 0)",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "seconds": 62,
+   "note": "the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 2 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 46 (want at most 0)",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
    "stream": [
-    "fs-enyo-pan-long-flick.fbs: 190 samples (14.9/s asked 15, read median 2.26 ms max 31.69 ms, mmap stride 8, re-read 10, torn 0), 148 flips, cpu 7.1% of a core, polls 710/s",
-    "shown frames while moving: 145 gaps, median 26 ms, p90 42 ms, max 212 ms",
-    "shown scroll: 2005 rows over the stream (0 samples with the shift unknown); stale bands 1, uniform bands 25, still rows moved 0; the columns outside 0-756 changed in 51 samples",
-    "tracking (finger down, 21 samples): error median 20 px, max 225 px; lag median 322 ms, max 982 ms",
-    "  gesture at 1794813364929: the finger travelled 600 rows, the page showed 262 by the last sample while down (finger then at 450), 3 samples",
-    "  gesture at 1794813369072: the finger travelled 600 rows, the page showed 412 by the last sample while down (finger then at 525), 3 samples",
-    "  gesture at 1794813372752: the finger travelled -600 rows, the page showed -580 by the last sample while down (finger then at -600), 15 samples",
-    "the shown scroll went backwards under the finger in 14 samples: [(136, -30, 'exact'), (137, -40, 'exact'), (138, -30, 'exact'), (139, -40, 'exact'), (140, -30, 'exact'), (141, -20, 'exact'), (142, -60, 'exact'), (143, -60, 'exact')]",
-    "  stale_bands: sample 24 rows 884-892 ",
-    "  uniform_bands: sample 22 rows 607-615 fff8f6f0",
-    "  uniform_bands: sample 23 rows 660-672 fff8f6f0",
-    "  uniform_bands: sample 23 rows 689-710 fff8f6f0"
+    "fs-enyo-pan-long-flick.fbs: 163 samples (14.7/s asked 15, read median 2.24 ms max 30.36 ms, mmap stride 8, re-read 9, torn 0), 140 flips, cpu 7.7% of a core, polls 672/s",
+    "shown frames while moving: 137 gaps, median 27 ms, p90 42 ms, max 276 ms",
+    "shown scroll: 1703 rows over the stream (0 samples with the shift unknown); stale bands 2, uniform bands 46, still rows moved 0; the columns outside 0-756 changed in 51 samples",
+    "tracking (finger down, 22 samples): error median 29.0 px, max 188 px; lag median 179.5 ms, max 871 ms",
+    "  gesture at 1794842076327: the finger travelled 600 rows, the page showed 375 by the last sample while down (finger then at 525), 4 samples",
+    "  gesture at 1794842079678: the finger travelled 600 rows, the page showed 300 by the last sample while down (finger then at 487), 4 samples",
+    "  gesture at 1794842083007: the finger travelled -600 rows, the page showed -581 by the last sample while down (finger then at -600), 14 samples",
+    "the shown scroll went backwards under the finger in 12 samples: [(117, -60, 'exact'), (118, -50, 'exact'), (119, -60, 'exact'), (120, -30, 'exact'), (121, -61, 'exact'), (122, -30, 'exact'), (123, -60, 'exact'), (124, -60, 'exact')]",
+    "  stale_bands: sample 25 rows 477-485 ",
+    "  stale_bands: sample 76 rows 1012-1024 ",
+    "  uniform_bands: sample 20 rows 946-966 fff8f6f0",
+    "  uniform_bands: sample 20 rows 986-1006 fff8f6f0"
    ],
-   "restore": "enyo: (337424/689042934) jihad (start) running, process 7570; daemons running: 1"
+   "restore": "enyo: (366132/458422854) jihad (start) running, process 32538; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "enyo",
@@ -1404,32 +1432,35 @@
    "verdict": "known",
    "checks": [
     "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)",
-    "CHECK ok 13-card-scroll-min: the card's scroll y 646 (at least 500)",
-    "CHECK ok 22-card-scroll-min: the card's scroll y 4611 (at least 2500)",
-    "STREAM fs-enyo-pan-speeds.fbs: 389 samples (14.8/s asked 15, read median 2.25 ms max 49.37 ms, mmap stride 8, re-read 18, torn 0), 375 flips, cpu 6.6% of a core, polls 693/s | shown frames while moving: 367 gaps, median 25 ms, p90 39 ms, max 91 ms | shown scroll: 3387 rows over the stream (0 samples with the shift unknown); stale bands 9, uniform bands 30, still rows moved 0; the columns outside 0-756 changed in 128 samples | tracking (finger down, 121 samples): error median -12 px, max 150 px; lag median 78 ms, max 814 ms |   gesture at 1794813435308: the finger travelled 650 rows, the page showed 6",
-    "CHECK FAIL 19-stream-stale: stale 9 (want at most 0)",
-    "CHECK FAIL 20-stream-uniform: uniform 30 (want at most 0)",
-    "CHECK ok 21-stream-error-max: error-max 150 (at most 500)"
+    "CHECK ok 13-card-scroll-min: the card's scroll y 650 (at least 500)",
+    "CHECK ok 25-card-scroll-min: the card's scroll y 4662 (at least 2500)",
+    "STREAM fs-enyo-pan-speeds.fbs: 364 samples (14.7/s asked 15, read median 2.31 ms max 62.11 ms, mmap stride 8, re-read 25, torn 0), 359 flips, cpu 7.0% of a core, polls 674/s | shown frames while moving: 353 gaps, median 25 ms, p90 40 ms, max 294 ms | shown scroll: 3501 rows over the stream (1 samples with the shift unknown); stale bands 1, uniform bands 5, still rows moved 0; the columns outside 0-756 changed in 125 samples | tracking (finger down, 122 samples): error median -13.0 px, max 188 px; lag median 70.0 ms, max 871 ms |   gesture at 1794842137052: the finger travelled 650 rows, the page show",
+    "CHECK FAIL 19-stream-stale: stale 1 (want at most 0)",
+    "CHECK FAIL 20-stream-uniform: uniform 5 (want at most 0)",
+    "CHECK ok 21-stream-error-max: error-max 188 (at most 500)",
+    "CHECK ok 23-stream-gap-median: gap-median 25 (at most 34)",
+    "CHECK ok 24-stream-gap-p90: gap-p90 40 (at most 50)"
    ],
    "kept": [],
-   "seconds": 83,
-   "note": "the open defect T-567, T-567: CHECK FAIL 19-stream-stale: stale 9 (want at most 0) / CHECK FAIL 20-stream-uniform: uniform 30 (want at most 0)",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +3 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "seconds": 74,
+   "note": "the open defect T-567, T-567: CHECK FAIL 19-stream-stale: stale 1 (want at most 0) / CHECK FAIL 20-stream-uniform: uniform 5 (want at most 0)",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
    "stream": [
-    "fs-enyo-pan-speeds.fbs: 389 samples (14.8/s asked 15, read median 2.25 ms max 49.37 ms, mmap stride 8, re-read 18, torn 0), 375 flips, cpu 6.6% of a core, polls 693/s",
-    "shown frames while moving: 367 gaps, median 25 ms, p90 39 ms, max 91 ms",
-    "shown scroll: 3387 rows over the stream (0 samples with the shift unknown); stale bands 9, uniform bands 30, still rows moved 0; the columns outside 0-756 changed in 128 samples",
-    "tracking (finger down, 121 samples): error median -12 px, max 150 px; lag median 78 ms, max 814 ms",
-    "  gesture at 1794813435308: the finger travelled 650 rows, the page showed 640 by the last sample while down (finger then at 650), 67 samples",
-    "  gesture at 1794813444423: the finger travelled 650 rows, the page showed 596 by the last sample while down (finger then at 639), 12 samples",
-    "  gesture at 1794813448544: the finger travelled 650 rows, the page showed 598 by the last sample while down (finger then at 650), 13 samples",
-    "  gesture at 1794813452128: the finger travelled 650 rows, the page showed 628 by the last sample while down (finger then at 650), 25 samples",
-    "  gesture at 1794813456630: the finger travelled 600 rows, the page showed 375 by the last sample while down (finger then at 487), 4 samples",
-    "  stale_bands: sample 173 rows 376-409 ",
-    "  stale_bands: sample 173 rows 415-423 ",
-    "  stale_bands: sample 173 rows 424-432 "
+    "fs-enyo-pan-speeds.fbs: 364 samples (14.7/s asked 15, read median 2.31 ms max 62.11 ms, mmap stride 8, re-read 25, torn 0), 359 flips, cpu 7.0% of a core, polls 674/s",
+    "shown frames while moving: 353 gaps, median 25 ms, p90 40 ms, max 294 ms",
+    "shown scroll: 3501 rows over the stream (1 samples with the shift unknown); stale bands 1, uniform bands 5, still rows moved 0; the columns outside 0-756 changed in 125 samples",
+    "tracking (finger down, 122 samples): error median -13.0 px, max 188 px; lag median 70.0 ms, max 871 ms",
+    "  gesture at 1794842137052: the finger travelled 650 rows, the page showed 650 by the last sample while down (finger then at 650), 65 samples",
+    "  gesture at 1794842145067: the finger travelled 650 rows, the page showed 640 by the last sample while down (finger then at 650), 14 samples",
+    "  gesture at 1794842149168: the finger travelled 650 rows, the page showed 608 by the last sample while down (finger then at 650), 13 samples",
+    "  gesture at 1794842152613: the finger travelled 650 rows, the page showed 618 by the last sample while down (finger then at 650), 26 samples",
+    "  gesture at 1794842157526: the finger travelled 600 rows, the page showed 451 by the last sample while down (finger then at 525), 4 samples",
+    "  stale_bands: sample 329 rows 648-656 ",
+    "  uniform_bands: sample 143 rows 170-191 ffffffff",
+    "  uniform_bands: sample 150 rows 162-173 ffffffff"
    ],
-   "restore": "enyo: (337507/921991362) jihad (start) running, process 11455; daemons running: 1"
+   "restore": "enyo: (366206/356133803) jihad (start) running, process 3871; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "enyo",
@@ -1511,22 +1542,25 @@
    "checks": [
     "WAIT ok 10-rect sel:#mine .card",
     "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 280 landed on document y 198)",
-    "CHECK ok 16-content: region 0,100-768,900: colours 4096 hash 92b57e71 rows 800 uniform 0 light 100-899 blue 281-755; sel:body on the screen at 0,-412-764,2157",
-    "STREAM fs-enyo-personas-page-steady.fbs: 110 samples (15.0/s asked 15, read median 2.26 ms max 29.21 ms, mmap stride 8, re-read 5, torn 0), 142 flips, cpu 6.3% of a core, polls 680/s | shown frames while moving: 141 gaps, median 24 ms, p90 32 ms, max 66 ms | shown scroll: 496 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 47 samples | tracking (finger down, 48 samples): error median -10.0 px, max 24 px; lag median 68.0 ms, max 131 ms |   gesture at 1794813752987: the finger travelled 500 rows, the page ",
-    "CHECK ok 15-stream-uniform: uniform 0 (at most 0)"
+    "CHECK ok 19-content: region 0,100-768,900: colours 4096 hash 234685cc rows 800 uniform 0 light 100-899 blue 276-750; sel:body on the screen at 0,-417-764,2152",
+    "STREAM fs-enyo-personas-page-steady.fbs: 103 samples (15.0/s asked 15, read median 2.4 ms max 24.31 ms, mmap stride 8, re-read 8, torn 0), 147 flips, cpu 6.6% of a core, polls 636/s | shown frames while moving: 146 gaps, median 24.0 ms, p90 39 ms, max 53 ms | shown scroll: 501 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 52 samples | tracking (finger down, 52 samples): error median -8.0 px, max 24 px; lag median 67.0 ms, max 165 ms |   gesture at 1794842211038: the finger travelled 500 rows, the page ",
+    "CHECK ok 15-stream-uniform: uniform 0 (at most 0)",
+    "CHECK ok 17-stream-gap-median: gap-median 24 (at most 34)",
+    "CHECK ok 18-stream-gap-p90: gap-p90 39 (at most 50)"
    ],
    "kept": [],
-   "seconds": 65,
+   "seconds": 56,
    "note": "",
-   "start": "enyo card on about:personas: connected at +2 s, load done at +8 s, 14 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "start": "enyo card on about:personas: connected at +3 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
    "stream": [
-    "fs-enyo-personas-page-steady.fbs: 110 samples (15.0/s asked 15, read median 2.26 ms max 29.21 ms, mmap stride 8, re-read 5, torn 0), 142 flips, cpu 6.3% of a core, polls 680/s",
-    "shown frames while moving: 141 gaps, median 24 ms, p90 32 ms, max 66 ms",
-    "shown scroll: 496 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 47 samples",
-    "tracking (finger down, 48 samples): error median -10.0 px, max 24 px; lag median 68.0 ms, max 131 ms",
-    "  gesture at 1794813752987: the finger travelled 500 rows, the page showed 496 by the last sample while down (finger then at 500), 48 samples"
+    "fs-enyo-personas-page-steady.fbs: 103 samples (15.0/s asked 15, read median 2.4 ms max 24.31 ms, mmap stride 8, re-read 8, torn 0), 147 flips, cpu 6.6% of a core, polls 636/s",
+    "shown frames while moving: 146 gaps, median 24.0 ms, p90 39 ms, max 53 ms",
+    "shown scroll: 501 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 52 samples",
+    "tracking (finger down, 52 samples): error median -8.0 px, max 24 px; lag median 67.0 ms, max 165 ms",
+    "  gesture at 1794842211038: the finger travelled 500 rows, the page showed 489 by the last sample while down (finger then at 500), 52 samples"
    ],
-   "restore": "enyo: (337809/299785674) jihad (start) running, process 26841; daemons running: 1"
+   "restore": "enyo: (366262/565898829) jihad (start) running, process 7074; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "enyo",
@@ -1629,13 +1663,31 @@
    "shell": "enyo",
    "id": "rotate",
    "kit": "cavekit-device-build.md R4",
-   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right",
+   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards)",
    "section": "Scrolling and gestures",
-   "verdict": "a person's",
-   "checks": [],
-   "kept": [],
-   "seconds": 0,
-   "note": "the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side"
+   "verdict": "pass",
+   "checks": [
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 182 landed on document y 100)",
+    "WAIT ok 13-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x686 mZoom=1.3333",
+    "WAIT ok 14-content 0,150,756,900",
+    "WAIT ok 17-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x686 mZoom=0.7500",
+    "WAIT ok 18-content 0,150,756,900",
+    "WAIT ok 20-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x686 mZoom=1.3333",
+    "WAIT ok 21-content 0,150,756,900",
+    "WAIT ok 24-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x686 mZoom=0.7500",
+    "WAIT ok 25-settled: the card's scroll 0 0",
+    "CHECK ok 26-content: region 0,150-756,600: colours 421 hash 727e4039 rows 450 uniform 173 light 150-599 blue none; sel:body on the screen at 0,82-764,20570",
+    "CHECK ok 28-card-scroll-min: the card's scroll y 650 (at least 400)"
+   ],
+   "kept": [
+    "kept/enyo-rotate-landscape-left_.jpg",
+    "kept/enyo-rotate-landscape-right_.jpg"
+   ],
+   "seconds": 64,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (366327/22428447) jihad (start) running, process 10779; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "enyo",
@@ -1987,30 +2039,33 @@
     "WAIT ok 20-zoom",
     "WAIT ok 22-still 0,100,756,700",
     "CHECK ok 24-zoom: zoom 0.6882 (want 0.69 within 0.12)",
-    "CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 02aadc10 rows 600 uniform 62 light 100-699 blue 236-240; sel:body on the screen at 0,82-768,1028",
+    "CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 33ba05dc rows 600 uniform 62 light 100-699 blue 236-240; sel:body on the screen at 0,82-768,1028",
     "CHECK ok 26-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]",
-    "STREAM fs-enyo-wikipedia-zoom.fbs: 299 samples (14.9/s asked 15, read median 1.66 ms max 37.9 ms, mmap stride 8, re-read 9, torn 0), 159 flips, cpu 6.3% of a core, polls 753/s | shown frames while moving: 149 gaps, median 37 ms, p90 51 ms, max 279 ms | shown scroll: 144 rows over the stream (40 samples with the shift unknown); stale bands 1, uniform bands 35, still rows moved 0; the columns outside 170-600 changed in 26 samples | tracking (finger down, 40 samples): error median 0.0 px, max 1 px; lag median 401.5 ms, max 1011 ms |   gesture at 1794815255350: the finger travelled 0 rows, the page showe",
-    "CHECK FAIL 27-stream-uniform: uniform 35 (want at most 0)"
+    "STREAM fs-enyo-wikipedia-zoom.fbs: 235 samples (14.9/s asked 15, read median 1.73 ms max 62.19 ms, mmap stride 8, re-read 7, torn 0), 164 flips, cpu 6.3% of a core, polls 725/s | shown frames while moving: 156 gaps, median 37.0 ms, p90 60 ms, max 240 ms | shown scroll: 80 rows over the stream (44 samples with the shift unknown); stale bands 0, uniform bands 13, still rows moved 0; the columns outside 170-600 changed in 20 samples | tracking (finger down, 38 samples): error median 0.0 px, max 0 px; lag median 364.5 ms, max 817 ms |   gesture at 1794842423113: the finger travelled 0 rows, the page show",
+    "CHECK FAIL 27-stream-uniform: uniform 13 (want at most 0)",
+    "CHECK ok 29-stream-gap-median: gap-median 37 (at most 45)",
+    "CHECK ok 30-stream-gap-p90: gap-p90 60 (at most 80)"
    ],
    "kept": [],
-   "seconds": 100,
-   "note": "the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 35 (want at most 0)",
-   "start": "enyo card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +2 s, load done at +17 s, 9 content frames at +17 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "seconds": 79,
+   "note": "the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 13 (want at most 0)",
+   "start": "enyo card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +2 s, load done at +15 s, 12 content frames at +15 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_",
    "stream": [
-    "fs-enyo-wikipedia-zoom.fbs: 299 samples (14.9/s asked 15, read median 1.66 ms max 37.9 ms, mmap stride 8, re-read 9, torn 0), 159 flips, cpu 6.3% of a core, polls 753/s",
-    "shown frames while moving: 149 gaps, median 37 ms, p90 51 ms, max 279 ms",
-    "shown scroll: 144 rows over the stream (40 samples with the shift unknown); stale bands 1, uniform bands 35, still rows moved 0; the columns outside 170-600 changed in 26 samples",
-    "tracking (finger down, 40 samples): error median 0.0 px, max 1 px; lag median 401.5 ms, max 1011 ms",
-    "  gesture at 1794815255350: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
-    "  gesture at 1794815255540: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
-    "  gesture at 1794815263704: the finger travelled 0 rows, the page showed -1 by the last sample while down (finger then at 0), 16 samples, 13 unknown",
-    "  gesture at 1794815268399: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 11 samples, 10 unknown",
-    "  gesture at 1794815271896: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 11 samples, 10 unknown",
-    "  stale_bands: sample 152 rows 467-477 ",
-    "  uniform_bands: sample 165 rows 188-222 ffffffff",
-    "  uniform_bands: sample 165 rows 243-263 ffffffff"
+    "fs-enyo-wikipedia-zoom.fbs: 235 samples (14.9/s asked 15, read median 1.73 ms max 62.19 ms, mmap stride 8, re-read 7, torn 0), 164 flips, cpu 6.3% of a core, polls 725/s",
+    "shown frames while moving: 156 gaps, median 37.0 ms, p90 60 ms, max 240 ms",
+    "shown scroll: 80 rows over the stream (44 samples with the shift unknown); stale bands 0, uniform bands 13, still rows moved 0; the columns outside 170-600 changed in 20 samples",
+    "tracking (finger down, 38 samples): error median 0.0 px, max 0 px; lag median 364.5 ms, max 817 ms",
+    "  gesture at 1794842423113: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 2 samples",
+    "  gesture at 1794842423323: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
+    "  gesture at 1794842428172: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 13 samples, 11 unknown",
+    "  gesture at 1794842432007: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 12 samples, 11 unknown",
+    "  gesture at 1794842435076: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 10 samples, 9 unknown",
+    "  uniform_bands: sample 104 rows 96-146 ffd8d8d8",
+    "  uniform_bands: sample 104 rows 883-904 fff8f9fa",
+    "  uniform_bands: sample 104 rows 916-939 fff8f9fa"
    ],
-   "restore": "enyo: (339329/789030713) jihad (start) running, process 3225; daemons running: 1"
+   "restore": "enyo: (366486/938518786) jihad (start) running, process 18149; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "enyo",
@@ -2415,13 +2470,23 @@
    "shell": "mochi",
    "id": "audio-heard",
    "kit": "cavekit-device-build.md R4",
-   "item": "Flash sound heard; an HTML audio element heard on the speaker",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
    "section": "Media and sound",
-   "verdict": "a person's",
-   "checks": [],
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31141 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7)"
+   "seconds": 63,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +3 s, load done at +9 s, 10 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (366549/798410774) jihad-mochi (start) running, process 21663; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mochi",
@@ -3072,13 +3137,25 @@
    "shell": "mochi",
    "id": "flash-sound",
    "kit": "cavekit-engine-update.md R8",
-   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
    "section": "The engine",
-   "verdict": "a person's",
-   "checks": [],
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)"
+   "seconds": 69,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 16 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (366618/695989723) jihad-mochi (start) running, process 25282; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mochi",
@@ -3228,10 +3305,11 @@
     "CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)"
    ],
    "kept": [],
-   "seconds": 77,
+   "seconds": 82,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J",
-   "restore": "mochi: (343491/348353907) jihad-mochi (start) running, process 10305; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (368810/622442485) jihad-mochi (start) running, process 31610; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "mochi",
@@ -3294,8 +3372,9 @@
    "kept": [],
    "seconds": 84,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +3 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
-   "restore": "mochi: (343838/284134432) jihad-mochi (start) running, process 23274; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mochi: (368894/666187505) jihad-mochi (start) running, process 3299; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "mochi",
@@ -3374,7 +3453,7 @@
     "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 109 landed on document y 31)",
     "WAIT ok 10-differs 0,100,756,600",
     "WAIT ok 13-still 0,100,756,600",
-    "WAIT ok 15-line: [jihad-bs] hold at 270,219 editable=1 wasFocused=0",
+    "WAIT ok 15-line: [jihad-bs] hold at 269,219 editable=1 wasFocused=0",
     "WAIT ok 18-still 0,100,400,240",
     "WAIT ok 20-load",
     "CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html"
@@ -3383,10 +3462,11 @@
     "kept/mochi-long-press-text-field-hold-text_.jpg",
     "kept/mochi-long-press-text-field-hold-field_.jpg"
    ],
-   "seconds": 68,
+   "seconds": 77,
    "note": "",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J",
-   "restore": "mochi: (344240/699787390) jihad-mochi (start) running, process 8194; daemons running: 1"
+   "start": "mochi card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (368972/8914601) jihad-mochi (start) running, process 7202; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "mochi",
@@ -3523,30 +3603,33 @@
    "verdict": "known",
    "checks": [
     "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)",
-    "CHECK ok 18-card-scroll-min: the card's scroll y 3413 (at least 300)",
-    "STREAM fs-mochi-pan-long-flick.fbs: 197 samples (14.4/s asked 15, read median 2.3 ms max 54.12 ms, mmap stride 8, re-read 10, torn 0), 133 flips, cpu 7.8% of a core, polls 690/s | shown frames while moving: 129 gaps, median 28 ms, p90 45 ms, max 260 ms | shown scroll: 1526 rows over the stream (2 samples with the shift unknown); stale bands 4, uniform bands 31, still rows moved 35; the columns outside 0-756 changed in 46 samples | tracking (finger down, 25 samples): error median 20 px, max 225 px; lag median 128 ms, max 916 ms |   gesture at 1794820623117: the finger travelled 600 rows, the page show",
-    "CHECK FAIL 16-stream-stale: stale 4 (want at most 0)",
-    "CHECK FAIL 17-stream-uniform: uniform 31 (want at most 0)"
+    "CHECK ok 21-card-scroll-min: the card's scroll y 3301 (at least 300)",
+    "STREAM fs-mochi-pan-long-flick.fbs: 187 samples (14.5/s asked 15, read median 2.17 ms max 50.95 ms, mmap stride 8, re-read 5, torn 0), 134 flips, cpu 6.6% of a core, polls 714/s | shown frames while moving: 130 gaps, median 27.0 ms, p90 41 ms, max 72 ms | shown scroll: 1873 rows over the stream (0 samples with the shift unknown); stale bands 3, uniform bands 26, still rows moved 39; the columns outside 0-756 changed in 46 samples | tracking (finger down, 20 samples): error median 34.5 px, max 188 px; lag median 167.0 ms, max 800 ms |   gesture at 1794842703488: the finger travelled 600 rows, the page",
+    "CHECK FAIL 16-stream-stale: stale 3 (want at most 0)",
+    "CHECK FAIL 17-stream-uniform: uniform 26 (want at most 0)",
+    "CHECK ok 19-stream-gap-median: gap-median 27 (at most 34)",
+    "CHECK ok 20-stream-gap-p90: gap-p90 41 (at most 50)"
    ],
    "kept": [],
-   "seconds": 71,
-   "note": "the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 4 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 31 (want at most 0)",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "seconds": 66,
+   "note": "the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 3 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 26 (want at most 0)",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J",
    "stream": [
-    "fs-mochi-pan-long-flick.fbs: 197 samples (14.4/s asked 15, read median 2.3 ms max 54.12 ms, mmap stride 8, re-read 10, torn 0), 133 flips, cpu 7.8% of a core, polls 690/s",
-    "shown frames while moving: 129 gaps, median 28 ms, p90 45 ms, max 260 ms",
-    "shown scroll: 1526 rows over the stream (2 samples with the shift unknown); stale bands 4, uniform bands 31, still rows moved 35; the columns outside 0-756 changed in 46 samples",
-    "tracking (finger down, 25 samples): error median 20 px, max 225 px; lag median 128 ms, max 916 ms",
-    "  gesture at 1794820623117: the finger travelled 600 rows, the page showed 300 by the last sample while down (finger then at 525), 5 samples",
-    "  gesture at 1794820627655: the finger travelled 600 rows, the page showed 450 by the last sample while down (finger then at 562), 6 samples",
-    "  gesture at 1794820632214: the finger travelled -600 rows, the page showed -570 by the last sample while down (finger then at -600), 14 samples",
-    "the shown scroll went backwards under the finger in 13 samples: [(147, -30, 'exact'), (148, -40, 'exact'), (149, -30, 'exact'), (150, -30, 'exact'), (151, -80, 'exact'), (152, -30, 'exact'), (153, -60, 'exact'), (154, -20, 'exact')]",
-    "  stale_bands: sample 24 rows 835-847 ",
-    "  stale_bands: sample 28 rows 143-155 ",
-    "  stale_bands: sample 88 rows 190-206 ",
-    "  stale_bands: sample 88 rows 258-271 "
+    "fs-mochi-pan-long-flick.fbs: 187 samples (14.5/s asked 15, read median 2.17 ms max 50.95 ms, mmap stride 8, re-read 5, torn 0), 134 flips, cpu 6.6% of a core, polls 714/s",
+    "shown frames while moving: 130 gaps, median 27.0 ms, p90 41 ms, max 72 ms",
+    "shown scroll: 1873 rows over the stream (0 samples with the shift unknown); stale bands 3, uniform bands 26, still rows moved 39; the columns outside 0-756 changed in 46 samples",
+    "tracking (finger down, 20 samples): error median 34.5 px, max 188 px; lag median 167.0 ms, max 800 ms",
+    "  gesture at 1794842703488: the finger travelled 600 rows, the page showed 375 by the last sample while down (finger then at 562), 4 samples",
+    "  gesture at 1794842707152: the finger travelled 600 rows, the page showed 337 by the last sample while down (finger then at 450), 3 samples",
+    "  gesture at 1794842711520: the finger travelled -600 rows, the page showed -551 by the last sample while down (finger then at -590), 13 samples",
+    "the shown scroll went backwards under the finger in 11 samples: [(136, -30, 'exact'), (137, -50, 'exact'), (138, -40, 'exact'), (139, -70, 'exact'), (140, -91, 'exact'), (141, -30, 'exact'), (142, -60, 'exact'), (143, -30, 'exact')]",
+    "  stale_bands: sample 25 rows 748-756 ",
+    "  stale_bands: sample 79 rows 640-651 ",
+    "  stale_bands: sample 81 rows 673-681 ",
+    "  uniform_bands: sample 22 rows 989-1009 fff8f6f0"
    ],
-   "restore": "mochi: (344685/675441675) jihad-mochi (start) running, process 31348; daemons running: 1"
+   "restore": "mochi: (366763/829702139) jihad-mochi (start) running, process 421; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mochi",
@@ -3557,32 +3640,35 @@
    "verdict": "known",
    "checks": [
     "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)",
-    "CHECK ok 13-card-scroll-min: the card's scroll y 648 (at least 500)",
-    "CHECK ok 22-card-scroll-min: the card's scroll y 4582 (at least 2500)",
-    "STREAM fs-mochi-pan-speeds.fbs: 401 samples (14.9/s asked 15, read median 2.31 ms max 165.67 ms, mmap stride 8, re-read 30, torn 2), 377 flips, cpu 6.4% of a core, polls 683/s | shown frames while moving: 371 gaps, median 27 ms, p90 41 ms, max 268 ms | shown scroll: 4188 rows over the stream (2 samples with the shift unknown); stale bands 0, uniform bands 19, still rows moved 110; the columns outside 0-756 changed in 132 samples | tracking (finger down, 125 samples): error median -11 px, max 150 px; lag median 73 ms, max 786 ms |   gesture at 1794820688271: the finger travelled 650 rows, the page sho",
+    "CHECK ok 13-card-scroll-min: the card's scroll y 650 (at least 500)",
+    "CHECK ok 25-card-scroll-min: the card's scroll y 4586 (at least 2500)",
+    "STREAM fs-mochi-pan-speeds.fbs: 429 samples (15.0/s asked 15, read median 2.19 ms max 27.17 ms, mmap stride 8, re-read 17, torn 0), 358 flips, cpu 6.0% of a core, polls 711/s | shown frames while moving: 351 gaps, median 27 ms, p90 41 ms, max 110 ms | shown scroll: 4382 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 29, still rows moved 98; the columns outside 0-756 changed in 127 samples | tracking (finger down, 121 samples): error median -12 px, max 225 px; lag median 69 ms, max 783 ms |   gesture at 1794842766491: the finger travelled 650 rows, the page showe",
     "CHECK ok 19-stream-stale: stale 0 (at most 0)",
-    "CHECK FAIL 20-stream-uniform: uniform 19 (want at most 0)",
-    "CHECK ok 21-stream-error-max: error-max 150 (at most 500)"
+    "CHECK FAIL 20-stream-uniform: uniform 29 (want at most 0)",
+    "CHECK ok 21-stream-error-max: error-max 225 (at most 500)",
+    "CHECK ok 23-stream-gap-median: gap-median 27 (at most 34)",
+    "CHECK ok 24-stream-gap-p90: gap-p90 41 (at most 50)"
    ],
    "kept": [],
-   "seconds": 76,
-   "note": "the open defect T-567: CHECK FAIL 20-stream-uniform: uniform 19 (want at most 0)",
-   "start": "mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "seconds": 78,
+   "note": "the open defect T-567: CHECK FAIL 20-stream-uniform: uniform 29 (want at most 0)",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J",
    "stream": [
-    "fs-mochi-pan-speeds.fbs: 401 samples (14.9/s asked 15, read median 2.31 ms max 165.67 ms, mmap stride 8, re-read 30, torn 2), 377 flips, cpu 6.4% of a core, polls 683/s",
-    "shown frames while moving: 371 gaps, median 27 ms, p90 41 ms, max 268 ms",
-    "shown scroll: 4188 rows over the stream (2 samples with the shift unknown); stale bands 0, uniform bands 19, still rows moved 110; the columns outside 0-756 changed in 132 samples",
-    "tracking (finger down, 125 samples): error median -11 px, max 150 px; lag median 73 ms, max 786 ms",
-    "  gesture at 1794820688271: the finger travelled 650 rows, the page showed 648 by the last sample while down (finger then at 650), 66 samples",
-    "  gesture at 1794820697320: the finger travelled 650 rows, the page showed 542 by the last sample while down (finger then at 650), 16 samples, 2 unknown",
-    "  gesture at 1794820701868: the finger travelled 650 rows, the page showed 619 by the last sample while down (finger then at 650), 15 samples",
-    "  gesture at 1794820706044: the finger travelled 650 rows, the page showed 617 by the last sample while down (finger then at 650), 25 samples",
-    "  gesture at 1794820711045: the finger travelled 600 rows, the page showed 300 by the last sample while down (finger then at 450), 3 samples",
-    "  uniform_bands: sample 168 rows 185-194 ffffffff",
-    "  uniform_bands: sample 170 rows 185-194 ffffffff",
-    "  uniform_bands: sample 359 rows 967-980 fff8f6f0"
+    "fs-mochi-pan-speeds.fbs: 429 samples (15.0/s asked 15, read median 2.19 ms max 27.17 ms, mmap stride 8, re-read 17, torn 0), 358 flips, cpu 6.0% of a core, polls 711/s",
+    "shown frames while moving: 351 gaps, median 27 ms, p90 41 ms, max 110 ms",
+    "shown scroll: 4382 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 29, still rows moved 98; the columns outside 0-756 changed in 127 samples",
+    "tracking (finger down, 121 samples): error median -12 px, max 225 px; lag median 69 ms, max 783 ms",
+    "  gesture at 1794842766491: the finger travelled 650 rows, the page showed 650 by the last sample while down (finger then at 650), 62 samples",
+    "  gesture at 1794842775559: the finger travelled 650 rows, the page showed 629 by the last sample while down (finger then at 650), 14 samples",
+    "  gesture at 1794842779780: the finger travelled 650 rows, the page showed 596 by the last sample while down (finger then at 650), 14 samples",
+    "  gesture at 1794842784673: the finger travelled 650 rows, the page showed 597 by the last sample while down (finger then at 650), 27 samples",
+    "  gesture at 1794842790469: the finger travelled 600 rows, the page showed 337 by the last sample while down (finger then at 525), 4 samples",
+    "  uniform_bands: sample 164 rows 190-208 ffffffff",
+    "  uniform_bands: sample 169 rows 165-177 ffffffff",
+    "  uniform_bands: sample 234 rows 145-159 ffffffff"
    ],
-   "restore": "mochi: (344762/36301660) jihad-mochi (start) running, process 2815; daemons running: 1"
+   "restore": "mochi: (366841/848606124) jihad-mochi (start) running, process 4272; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mochi",
@@ -3664,22 +3750,25 @@
    "checks": [
     "WAIT ok 10-rect sel:#mine .card",
     "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 276 landed on document y 198)",
-    "CHECK ok 16-content: region 0,100-768,900: colours 4096 hash 5c9da272 rows 800 uniform 0 light 102-647 blue 107-655; sel:body on the screen at 0,-418-764,2441",
-    "STREAM fs-mochi-personas-page-steady.fbs: 114 samples (15.0/s asked 15, read median 2.33 ms max 26.72 ms, mmap stride 8, re-read 5, torn 0), 143 flips, cpu 6.1% of a core, polls 657/s | shown frames while moving: 142 gaps, median 24.0 ms, p90 37 ms, max 56 ms | shown scroll: 498 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 49 samples | tracking (finger down, 51 samples): error median -10 px, max 26 px; lag median 70 ms, max 187 ms |   gesture at 1794820989604: the finger travelled 500 rows, the page s",
-    "CHECK ok 15-stream-uniform: uniform 0 (at most 0)"
+    "CHECK ok 19-content: region 0,100-768,900: colours 4096 hash d49b3af3 rows 800 uniform 0 light 101-646 blue 106-654; sel:body on the screen at 0,-419-764,2440",
+    "STREAM fs-mochi-personas-page-steady.fbs: 115 samples (15.0/s asked 15, read median 2.32 ms max 35.3 ms, mmap stride 8, re-read 8, torn 0), 135 flips, cpu 6.3% of a core, polls 665/s | shown frames while moving: 134 gaps, median 25.0 ms, p90 36 ms, max 76 ms | shown scroll: 499 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 49 samples | tracking (finger down, 49 samples): error median -10 px, max 22 px; lag median 66 ms, max 155 ms |   gesture at 1794842849448: the finger travelled 500 rows, the page sh",
+    "CHECK ok 15-stream-uniform: uniform 0 (at most 0)",
+    "CHECK ok 17-stream-gap-median: gap-median 25 (at most 34)",
+    "CHECK ok 18-stream-gap-p90: gap-p90 36 (at most 50)"
    ],
    "kept": [],
-   "seconds": 62,
+   "seconds": 61,
    "note": "",
-   "start": "mochi card on about:personas: connected at +1 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "start": "mochi card on about:personas: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
    "stream": [
-    "fs-mochi-personas-page-steady.fbs: 114 samples (15.0/s asked 15, read median 2.33 ms max 26.72 ms, mmap stride 8, re-read 5, torn 0), 143 flips, cpu 6.1% of a core, polls 657/s",
-    "shown frames while moving: 142 gaps, median 24.0 ms, p90 37 ms, max 56 ms",
-    "shown scroll: 498 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 49 samples",
-    "tracking (finger down, 51 samples): error median -10 px, max 26 px; lag median 70 ms, max 187 ms",
-    "  gesture at 1794820989604: the finger travelled 500 rows, the page showed 498 by the last sample while down (finger then at 500), 51 samples"
+    "fs-mochi-personas-page-steady.fbs: 115 samples (15.0/s asked 15, read median 2.32 ms max 35.3 ms, mmap stride 8, re-read 8, torn 0), 135 flips, cpu 6.3% of a core, polls 665/s",
+    "shown frames while moving: 134 gaps, median 25.0 ms, p90 36 ms, max 76 ms",
+    "shown scroll: 499 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 49 samples",
+    "tracking (finger down, 49 samples): error median -10 px, max 22 px; lag median 66 ms, max 155 ms",
+    "  gesture at 1794842849448: the finger travelled 500 rows, the page showed 487 by the last sample while down (finger then at 500), 49 samples"
    ],
-   "restore": "mochi: (345045/943007087) jihad-mochi (start) running, process 18132; daemons running: 1"
+   "restore": "mochi: (366902/859432779) jihad-mochi (start) running, process 7595; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mochi",
@@ -3782,13 +3871,31 @@
    "shell": "mochi",
    "id": "rotate",
    "kit": "cavekit-device-build.md R4",
-   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right",
+   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards)",
    "section": "Scrolling and gestures",
-   "verdict": "a person's",
-   "checks": [],
-   "kept": [],
-   "seconds": 0,
-   "note": "the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side"
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)",
+    "WAIT ok 13-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x690 mZoom=1.3333",
+    "WAIT ok 14-content 0,150,756,900",
+    "WAIT ok 17-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x946 mZoom=0.7500",
+    "WAIT ok 18-content 0,150,756,900",
+    "WAIT ok 20-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x690 mZoom=1.3333",
+    "WAIT ok 21-content 0,150,756,900",
+    "WAIT ok 24-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x946 mZoom=0.7500",
+    "WAIT ok 25-settled: the card's scroll 0 0",
+    "CHECK ok 26-content: region 0,150-756,600: colours 361 hash 20376874 rows 450 uniform 169 light 150-598 blue none; sel:body on the screen at 0,78-764,20566",
+    "CHECK ok 28-card-scroll-min: the card's scroll y 650 (at least 400)"
+   ],
+   "kept": [
+    "kept/mochi-rotate-landscape-left_.jpg",
+    "kept/mochi-rotate-landscape-right_.jpg"
+   ],
+   "seconds": 73,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (366975/429630246) jihad-mochi (start) running, process 11494; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mochi",
@@ -4140,30 +4247,33 @@
     "WAIT ok 20-zoom",
     "WAIT ok 22-still 0,100,756,700",
     "CHECK ok 24-zoom: zoom 0.6882 (want 0.69 within 0.12)",
-    "CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 28d69aa0 rows 600 uniform 63 light 100-699 blue 232-236; sel:body on the screen at 0,78-768,1028",
+    "CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 2d40fbff rows 600 uniform 66 light 100-699 blue 232-236; sel:body on the screen at 0,78-768,1028",
     "CHECK ok 26-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]",
-    "STREAM fs-mochi-wikipedia-zoom.fbs: 240 samples (14.9/s asked 15, read median 1.66 ms max 18.79 ms, mmap stride 8, re-read 5, torn 0), 152 flips, cpu 6.3% of a core, polls 756/s | shown frames while moving: 143 gaps, median 36 ms, p90 49 ms, max 253 ms | shown scroll: 86 rows over the stream (37 samples with the shift unknown); stale bands 0, uniform bands 5, still rows moved 2; the columns outside 170-600 changed in 21 samples | tracking (finger down, 35 samples): error median 0 px, max 1 px; lag median 337 ms, max 712 ms |   gesture at 1794822451967: the finger travelled 0 rows, the page showed 0 b",
-    "CHECK FAIL 27-stream-uniform: uniform 5 (want at most 0)"
+    "STREAM fs-mochi-wikipedia-zoom.fbs: 223 samples (14.9/s asked 15, read median 1.81 ms max 99.22 ms, mmap stride 8, re-read 10, torn 1), 151 flips, cpu 6.8% of a core, polls 699/s | shown frames while moving: 143 gaps, median 38 ms, p90 62 ms, max 260 ms | shown scroll: 71 rows over the stream (40 samples with the shift unknown); stale bands 0, uniform bands 5, still rows moved 1; the columns outside 170-600 changed in 19 samples | tracking (finger down, 38 samples): error median 0.0 px, max 1 px; lag median 381.0 ms, max 848 ms |   gesture at 1794843071934: the finger travelled 0 rows, the page showe",
+    "CHECK FAIL 27-stream-uniform: uniform 5 (want at most 0)",
+    "CHECK ok 29-stream-gap-median: gap-median 38 (at most 45)",
+    "CHECK ok 30-stream-gap-p90: gap-p90 62 (at most 80)"
    ],
    "kept": [],
-   "seconds": 89,
+   "seconds": 84,
    "note": "the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 5 (want at most 0)",
-   "start": "mochi card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +2 s, load done at +20 s, 14 content frames at +20 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD",
+   "start": "mochi card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +1 s, load done at +14 s, 9 content frames at +14 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_",
    "stream": [
-    "fs-mochi-wikipedia-zoom.fbs: 240 samples (14.9/s asked 15, read median 1.66 ms max 18.79 ms, mmap stride 8, re-read 5, torn 0), 152 flips, cpu 6.3% of a core, polls 756/s",
-    "shown frames while moving: 143 gaps, median 36 ms, p90 49 ms, max 253 ms",
-    "shown scroll: 86 rows over the stream (37 samples with the shift unknown); stale bands 0, uniform bands 5, still rows moved 2; the columns outside 170-600 changed in 21 samples",
-    "tracking (finger down, 35 samples): error median 0 px, max 1 px; lag median 337 ms, max 712 ms",
-    "  gesture at 1794822451967: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
-    "  gesture at 1794822452160: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
-    "  gesture at 1794822457509: the finger travelled 0 rows, the page showed -1 by the last sample while down (finger then at 0), 11 samples, 9 unknown",
-    "  gesture at 1794822461622: the finger travelled 0 rows, the page showed 1 by the last sample while down (finger then at 0), 11 samples, 9 unknown",
-    "  gesture at 1794822464530: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 11 samples, 9 unknown",
-    "  uniform_bands: sample 116 rows 89-140 ff1c1c1c",
-    "  uniform_bands: sample 116 rows 887-910 fff8f9fa",
-    "  uniform_bands: sample 116 rows 922-944 fff8f9fa"
+    "fs-mochi-wikipedia-zoom.fbs: 223 samples (14.9/s asked 15, read median 1.81 ms max 99.22 ms, mmap stride 8, re-read 10, torn 1), 151 flips, cpu 6.8% of a core, polls 699/s",
+    "shown frames while moving: 143 gaps, median 38 ms, p90 62 ms, max 260 ms",
+    "shown scroll: 71 rows over the stream (40 samples with the shift unknown); stale bands 0, uniform bands 5, still rows moved 1; the columns outside 170-600 changed in 19 samples",
+    "tracking (finger down, 38 samples): error median 0.0 px, max 1 px; lag median 381.0 ms, max 848 ms",
+    "  gesture at 1794843071934: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
+    "  gesture at 1794843072125: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
+    "  gesture at 1794843075474: the finger travelled 0 rows, the page showed -1 by the last sample while down (finger then at 0), 13 samples, 10 unknown",
+    "  gesture at 1794843078946: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 11 samples, 9 unknown",
+    "  gesture at 1794843082981: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 12 samples, 10 unknown",
+    "  uniform_bands: sample 90 rows 83-133 ff1c1c1c",
+    "  uniform_bands: sample 90 rows 892-916 fff8f9fa",
+    "  uniform_bands: sample 90 rows 928-950 fff8f9fa"
    ],
-   "restore": "mochi: (346516/834597320) jihad-mochi (start) running, process 25425; daemons running: 1"
+   "restore": "mochi: (367135/936157326) jihad-mochi (start) running, process 18925; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mochi",
@@ -4528,13 +4638,23 @@
    "shell": "mojo",
    "id": "audio-heard",
    "kit": "cavekit-device-build.md R4",
-   "item": "Flash sound heard; an HTML audio element heard on the speaker",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
    "section": "Media and sound",
-   "verdict": "a person's",
-   "checks": [],
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31141 rms 21986 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7)"
+   "seconds": 63,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mojo: (367199/187393907) jihad-mojo (start) running, process 22369; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mojo",
@@ -5185,13 +5305,25 @@
    "shell": "mojo",
    "id": "flash-sound",
    "kit": "cavekit-engine-update.md R8",
-   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
    "section": "The engine",
-   "verdict": "a person's",
-   "checks": [],
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)"
+   "seconds": 68,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mojo: (367266/953435820) jihad-mojo (start) running, process 26104; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mojo",
@@ -5341,10 +5473,11 @@
     "CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)"
    ],
    "kept": [],
-   "seconds": 70,
+   "seconds": 88,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
-   "restore": "mojo: (350593/380985568) jihad-mojo (start) running, process 27240; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +5 s, 8 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (369248/416155732) jihad-mojo (start) running, process 20014; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "mojo",
@@ -5405,10 +5538,11 @@
     "CHECK ok 17-visible: field on the screen at 16,275-522,310 (the reach ends at 600, keyboard 1)"
    ],
    "kept": [],
-   "seconds": 90,
+   "seconds": 64,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
-   "restore": "mojo: (350934/855793798) jihad-mojo (start) running, process 8414; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +1 s, load done at +5 s, 3 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mojo: (369312/320157350) jihad-mojo (start) running, process 23909; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "mojo",
@@ -5487,7 +5621,7 @@
     "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 104 landed on document y 31)",
     "WAIT ok 10-differs 0,100,756,600",
     "WAIT ok 13-still 0,100,756,600",
-    "WAIT ok 15-line: [jihad-bs] hold at 270,219 editable=1 wasFocused=0",
+    "WAIT ok 15-line: [jihad-bs] hold at 269,219 editable=1 wasFocused=0",
     "WAIT ok 18-still 0,100,400,240",
     "WAIT ok 20-load",
     "CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html"
@@ -5496,10 +5630,11 @@
     "kept/mojo-long-press-text-field-hold-text_.jpg",
     "kept/mojo-long-press-text-field-hold-field_.jpg"
    ],
-   "seconds": 89,
+   "seconds": 66,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +5 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
-   "restore": "mojo: (351392/637790599) jihad-mojo (start) running, process 26651; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +5 s, 3 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (369377/928869337) jihad-mojo (start) running, process 27760; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "mojo",
@@ -5590,14 +5725,16 @@
    "checks": [
     "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 104 landed on document y 31)",
     "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
-    "WAIT ok 13-load",
-    "CHECK ok 14-url: load done uri=https://lite.duckduckgo.com/lite/?q=webos"
+    "CHECK ok 14-nav-paint: the new page's first paint 2792 ms after the load started (at most 6000)",
+    "WAIT ok 15-load",
+    "CHECK ok 16-url: load done uri=https://lite.duckduckgo.com/lite/?q=webos"
    ],
    "kept": [],
-   "seconds": 60,
+   "seconds": 62,
    "note": "",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +5 s, 3 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
-   "restore": "mojo: (351737/54238384) jihad-mojo (start) running, process 10838; daemons running: 1"
+   "start": "mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (369439/819901917) jihad-mojo (start) running, process 31456; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   },
   {
    "shell": "mojo",
@@ -5605,11 +5742,19 @@
    "kit": "cavekit-chrome-look.md R4",
    "item": "Mojo: open a link to the browser from another app (an email or a message): the card shows the page with no keyboard over it",
    "section": "Keyboard and text",
-   "verdict": "a person's",
-   "checks": [],
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-url: http://192.168.1.245:8077/jihad-long-static.html",
+    "CHECK ok 11-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 12-content 0,150,756,600",
+    "CHECK ok 13-content: region 0,150-756,600: colours 373 hash f5159163 rows 450 uniform 164 light 150-593 blue none; sel:body on the screen at 0,73-764,20561"
+   ],
    "kept": [],
-   "seconds": 0,
-   "note": "a launch from another app is not emulated (a launch with a target from the command line showed the page with no keyboard, 2026-10-24)"
+   "seconds": 87,
+   "note": "",
+   "start": "mojo card on about:blank: connected at +1 s, load done at +5 s, 0 content frames at +35 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "restore": "mojo: (367512/576823032) jihad-mojo (start) running, process 5538; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mojo",
@@ -5645,30 +5790,33 @@
    "verdict": "known",
    "checks": [
     "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)",
-    "CHECK ok 18-card-scroll-min: the card's scroll y 2880 (at least 300)",
-    "STREAM fs-mojo-pan-long-flick.fbs: 132 samples (14.3/s asked 15, read median 2.21 ms max 12.62 ms, mmap stride 8, re-read 0, torn 0), 103 flips, cpu 7.3% of a core, polls 632/s | shown frames while moving: 98 gaps, median 30.0 ms, p90 51 ms, max 208 ms | shown scroll: 234 rows over the stream (2 samples with the shift unknown); stale bands 1, uniform bands 19, still rows moved 0; the columns outside 0-756 changed in 39 samples | tracking (finger down, 22 samples): error median 30.0 px, max 562 px; lag median 242.0 ms, max 894 ms |   gesture at 1794827802817: the finger travelled 600 rows, the page sh",
-    "CHECK FAIL 16-stream-stale: stale 1 (want at most 0)",
-    "CHECK FAIL 17-stream-uniform: uniform 19 (want at most 0)"
+    "CHECK ok 21-card-scroll-min: the card's scroll y 2917 (at least 300)",
+    "STREAM fs-mojo-pan-long-flick.fbs: 141 samples (14.2/s asked 15, read median 2.22 ms max 97.56 ms, mmap stride 8, re-read 8, torn 0), 97 flips, cpu 7.1% of a core, polls 610/s | shown frames while moving: 93 gaps, median 35 ms, p90 55 ms, max 258 ms | shown scroll: 162 rows over the stream (2 samples with the shift unknown); stale bands 4, uniform bands 14, still rows moved 0; the columns outside 0-756 changed in 34 samples | tracking (finger down, 23 samples): error median 39 px, max 450 px; lag median 202 ms, max 909 ms |   gesture at 1794845696861: the finger travelled 600 rows, the page showed 0 ",
+    "CHECK FAIL 16-stream-stale: stale 4 (want at most 0)",
+    "CHECK FAIL 17-stream-uniform: uniform 14 (want at most 0)",
+    "CHECK FAIL 19-stream-gap-median: gap-median 35 (want at most 34)",
+    "CHECK FAIL 20-stream-gap-p90: gap-p90 55 (want at most 50)"
    ],
    "kept": [],
-   "seconds": 58,
-   "note": "the open defect T-567, T-567: CHECK FAIL 16-stream-stale: stale 1 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 19 (want at most 0)",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +5 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "seconds": 59,
+   "note": "the open defect T-567, T-567, T-656, T-656: CHECK FAIL 16-stream-stale: stale 4 (want at most 0) / CHECK FAIL 17-stream-uniform: uniform 14 (want at most 0) / CHECK FAIL 19-stream-gap-median: gap-median 35 (want at most 34) / CHECK FAIL 20-stream-gap-p90: gap-p90 55 (want at most 50)",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
    "stream": [
-    "fs-mojo-pan-long-flick.fbs: 132 samples (14.3/s asked 15, read median 2.21 ms max 12.62 ms, mmap stride 8, re-read 0, torn 0), 103 flips, cpu 7.3% of a core, polls 632/s",
-    "shown frames while moving: 98 gaps, median 30.0 ms, p90 51 ms, max 208 ms",
-    "shown scroll: 234 rows over the stream (2 samples with the shift unknown); stale bands 1, uniform bands 19, still rows moved 0; the columns outside 0-756 changed in 39 samples",
-    "tracking (finger down, 22 samples): error median 30.0 px, max 562 px; lag median 242.0 ms, max 894 ms",
-    "  gesture at 1794827802817: the finger travelled 600 rows, the page showed 0 by the last sample while down (finger then at 562), 4 samples",
-    "  gesture at 1794827805790: the finger travelled 600 rows, the page showed 337 by the last sample while down (finger then at 525), 4 samples",
-    "  gesture at 1794827808543: the finger travelled -600 rows, the page showed -570 by the last sample while down (finger then at -600), 14 samples",
-    "the shown scroll went backwards under the finger in 13 samples: [(95, -30, 'exact'), (96, -30, 'exact'), (97, -50, 'exact'), (98, -60, 'exact'), (99, -30, 'exact'), (100, -50, 'exact'), (101, -30, 'exact'), (102, -60, 'exact')]",
-    "  stale_bands: sample 65 rows 652-660 ",
-    "  uniform_bands: sample 65 rows 706-720 ffffffff",
-    "  uniform_bands: sample 65 rows 728-748 ffffffff",
-    "  uniform_bands: sample 65 rows 768-788 ffffffff"
+    "fs-mojo-pan-long-flick.fbs: 141 samples (14.2/s asked 15, read median 2.22 ms max 97.56 ms, mmap stride 8, re-read 8, torn 0), 97 flips, cpu 7.1% of a core, polls 610/s",
+    "shown frames while moving: 93 gaps, median 35 ms, p90 55 ms, max 258 ms",
+    "shown scroll: 162 rows over the stream (2 samples with the shift unknown); stale bands 4, uniform bands 14, still rows moved 0; the columns outside 0-756 changed in 34 samples",
+    "tracking (finger down, 23 samples): error median 39 px, max 450 px; lag median 202 ms, max 909 ms",
+    "  gesture at 1794845696861: the finger travelled 600 rows, the page showed 0 by the last sample while down (finger then at 450), 4 samples",
+    "  gesture at 1794845699935: the finger travelled 600 rows, the page showed 337 by the last sample while down (finger then at 525), 5 samples",
+    "  gesture at 1794845703015: the finger travelled -600 rows, the page showed -601 by the last sample while down (finger then at -600), 14 samples",
+    "the shown scroll went backwards under the finger in 12 samples: [(102, -40, 'exact'), (103, -50, 'exact'), (104, -40, 'exact'), (105, -60, 'exact'), (106, -31, 'exact'), (107, -60, 'exact'), (108, -60, 'exact'), (109, -40, 'exact')]",
+    "  stale_bands: sample 66 rows 373-381 ",
+    "  stale_bands: sample 66 rows 499-509 ",
+    "  stale_bands: sample 66 rows 566-576 ",
+    "  stale_bands: sample 67 rows 519-527 "
    ],
-   "restore": "mojo: (351857/93254064) jihad-mojo (start) running, process 18184; daemons running: 1"
+   "restore": "mojo: (369749/437143340) jihad-mojo (start) running, process 17547; daemons running: 1",
+   "rerun": "2026-11-16T11:14:19"
   },
   {
    "shell": "mojo",
@@ -5679,32 +5827,35 @@
    "verdict": "known",
    "checks": [
     "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)",
-    "CHECK ok 13-card-scroll-min: the card's scroll y 601 (at least 500)",
-    "CHECK ok 22-card-scroll-min: the card's scroll y 4438 (at least 2500)",
-    "STREAM fs-mojo-pan-speeds.fbs: 309 samples (14.9/s asked 15, read median 2.25 ms max 140.09 ms, mmap stride 8, re-read 14, torn 1), 318 flips, cpu 6.6% of a core, polls 616/s | shown frames while moving: 312 gaps, median 32.0 ms, p90 44 ms, max 285 ms | shown scroll: 3537 rows over the stream (2 samples with the shift unknown); stale bands 21, uniform bands 65, still rows moved 0; the columns outside 0-756 changed in 127 samples | tracking (finger down, 126 samples): error median -12.0 px, max 256 px; lag median 79.5 ms, max 800 ms |   gesture at 1794827894814: the finger travelled 650 rows, the page",
-    "CHECK FAIL 19-stream-stale: stale 21 (want at most 0)",
-    "CHECK FAIL 20-stream-uniform: uniform 65 (want at most 0)",
-    "CHECK ok 21-stream-error-max: error-max 256 (at most 500)"
+    "CHECK ok 13-card-scroll-min: the card's scroll y 605 (at least 500)",
+    "CHECK ok 25-card-scroll-min: the card's scroll y 4568 (at least 2500)",
+    "STREAM fs-mojo-pan-speeds.fbs: 476 samples (14.6/s asked 15, read median 2.23 ms max 90.05 ms, mmap stride 8, re-read 19, torn 0), 283 flips, cpu 6.5% of a core, polls 722/s | shown frames while moving: 275 gaps, median 32 ms, p90 48 ms, max 281 ms | shown scroll: 2740 rows over the stream (1 samples with the shift unknown); stale bands 0, uniform bands 13, still rows moved 0; the columns outside 0-756 changed in 112 samples | tracking (finger down, 125 samples): error median -10 px, max 263 px; lag median 72 ms, max 787 ms |   gesture at 1794843637469: the finger travelled 650 rows, the page showed ",
+    "CHECK ok 19-stream-stale: stale 0 (at most 0)",
+    "CHECK FAIL 20-stream-uniform: uniform 13 (want at most 0)",
+    "CHECK ok 21-stream-error-max: error-max 263 (at most 500)",
+    "CHECK ok 23-stream-gap-median: gap-median 32 (at most 34)",
+    "CHECK ok 24-stream-gap-p90: gap-p90 48 (at most 50)"
    ],
    "kept": [],
-   "seconds": 105,
-   "note": "the open defect T-567, T-567: CHECK FAIL 19-stream-stale: stale 21 (want at most 0) / CHECK FAIL 20-stream-uniform: uniform 65 (want at most 0)",
-   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 2 content frames at +36 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "seconds": 125,
+   "note": "the open defect T-567: CHECK FAIL 20-stream-uniform: uniform 13 (want at most 0)",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +2 s, load done at +6 s, 2 content frames at +36 s; the GPU path, frames off the main thread (the express lane) (the job's J",
    "stream": [
-    "fs-mojo-pan-speeds.fbs: 309 samples (14.9/s asked 15, read median 2.25 ms max 140.09 ms, mmap stride 8, re-read 14, torn 1), 318 flips, cpu 6.6% of a core, polls 616/s",
-    "shown frames while moving: 312 gaps, median 32.0 ms, p90 44 ms, max 285 ms",
-    "shown scroll: 3537 rows over the stream (2 samples with the shift unknown); stale bands 21, uniform bands 65, still rows moved 0; the columns outside 0-756 changed in 127 samples",
-    "tracking (finger down, 126 samples): error median -12.0 px, max 256 px; lag median 79.5 ms, max 800 ms",
-    "  gesture at 1794827894814: the finger travelled 650 rows, the page showed 646 by the last sample while down (finger then at 650), 70 samples",
-    "  gesture at 1794827902572: the finger travelled 650 rows, the page showed 607 by the last sample while down (finger then at 650), 13 samples",
-    "  gesture at 1794827905847: the finger travelled 650 rows, the page showed 407 by the last sample while down (finger then at 650), 14 samples, 2 unknown",
-    "  gesture at 1794827908509: the finger travelled 650 rows, the page showed 596 by the last sample while down (finger then at 639), 25 samples",
-    "  gesture at 1794827912066: the finger travelled 600 rows, the page showed 225 by the last sample while down (finger then at 375), 4 samples",
-    "  stale_bands: sample 77 rows 555-563 ",
-    "  stale_bands: sample 77 rows 623-631 ",
-    "  stale_bands: sample 77 rows 691-699 "
+    "fs-mojo-pan-speeds.fbs: 476 samples (14.6/s asked 15, read median 2.23 ms max 90.05 ms, mmap stride 8, re-read 19, torn 0), 283 flips, cpu 6.5% of a core, polls 722/s",
+    "shown frames while moving: 275 gaps, median 32 ms, p90 48 ms, max 281 ms",
+    "shown scroll: 2740 rows over the stream (1 samples with the shift unknown); stale bands 0, uniform bands 13, still rows moved 0; the columns outside 0-756 changed in 112 samples",
+    "tracking (finger down, 125 samples): error median -10 px, max 263 px; lag median 72 ms, max 787 ms",
+    "  gesture at 1794843637469: the finger travelled 650 rows, the page showed 650 by the last sample while down (finger then at 650), 72 samples",
+    "  gesture at 1794843647739: the finger travelled 650 rows, the page showed 618 by the last sample while down (finger then at 650), 12 samples",
+    "  gesture at 1794843653105: the finger travelled 650 rows, the page showed 616 by the last sample while down (finger then at 650), 14 samples",
+    "  gesture at 1794843657914: the finger travelled 650 rows, the page showed 629 by the last sample while down (finger then at 650), 24 samples",
+    "  gesture at 1794843664184: the finger travelled 600 rows, the page showed 375 by the last sample while down (finger then at 450), 3 samples",
+    "  uniform_bands: sample 184 rows 98-106 ffffffff",
+    "  uniform_bands: sample 272 rows 115-136 ffffffff",
+    "  uniform_bands: sample 279 rows 115-136 ffffffff"
    ],
-   "restore": "mojo: (351962/217871229) jihad-mojo (start) running, process 22341; daemons running: 1"
+   "restore": "mojo: (367714/993370549) jihad-mojo (start) running, process 13966; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mojo",
@@ -5786,22 +5937,25 @@
    "checks": [
     "WAIT ok 10-rect sel:#mine .card",
     "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 271 landed on document y 198)",
-    "CHECK ok 16-content: region 0,100-768,900: colours 4096 hash 0eec4290 rows 800 uniform 0 light 182-737 blue 156-745; sel:body on the screen at 0,-425-764,2442",
-    "STREAM fs-mojo-personas-page-steady.fbs: 90 samples (15.0/s asked 15, read median 2.23 ms max 16.03 ms, mmap stride 8, re-read 6, torn 0), 110 flips, cpu 7.0% of a core, polls 654/s | shown frames while moving: 109 gaps, median 27 ms, p90 39 ms, max 256 ms | shown scroll: 500 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 43 samples | tracking (finger down, 50 samples): error median -10.0 px, max 64 px; lag median 74.5 ms, max 428 ms |   gesture at 1794828189199: the finger travelled 500 rows, the page ",
-    "CHECK ok 15-stream-uniform: uniform 0 (at most 0)"
+    "CHECK ok 19-content: region 0,100-768,900: colours 4096 hash 4f6212d6 rows 800 uniform 0 light 181-736 blue 155-744; sel:body on the screen at 0,-426-764,2441",
+    "STREAM fs-mojo-personas-page-steady.fbs: 122 samples (15.0/s asked 15, read median 2.21 ms max 37.92 ms, mmap stride 8, re-read 3, torn 0), 107 flips, cpu 6.2% of a core, polls 724/s | shown frames while moving: 106 gaps, median 28.0 ms, p90 40 ms, max 271 ms | shown scroll: 501 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 42 samples | tracking (finger down, 50 samples): error median -10.0 px, max 60 px; lag median 70.0 ms, max 439 ms |   gesture at 1794843731322: the finger travelled 500 rows, the pa",
+    "CHECK ok 15-stream-uniform: uniform 0 (at most 0)",
+    "CHECK ok 17-stream-gap-median: gap-median 28 (at most 34)",
+    "CHECK ok 18-stream-gap-p90: gap-p90 40 (at most 50)"
    ],
    "kept": [],
-   "seconds": 62,
+   "seconds": 68,
    "note": "",
-   "start": "mojo card on about:personas: connected at +1 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "start": "mojo card on about:personas: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
    "stream": [
-    "fs-mojo-personas-page-steady.fbs: 90 samples (15.0/s asked 15, read median 2.23 ms max 16.03 ms, mmap stride 8, re-read 6, torn 0), 110 flips, cpu 7.0% of a core, polls 654/s",
-    "shown frames while moving: 109 gaps, median 27 ms, p90 39 ms, max 256 ms",
-    "shown scroll: 500 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 43 samples",
-    "tracking (finger down, 50 samples): error median -10.0 px, max 64 px; lag median 74.5 ms, max 428 ms",
-    "  gesture at 1794828189199: the finger travelled 500 rows, the page showed 500 by the last sample while down (finger then at 500), 50 samples"
+    "fs-mojo-personas-page-steady.fbs: 122 samples (15.0/s asked 15, read median 2.21 ms max 37.92 ms, mmap stride 8, re-read 3, torn 0), 107 flips, cpu 6.2% of a core, polls 724/s",
+    "shown frames while moving: 106 gaps, median 28.0 ms, p90 40 ms, max 271 ms",
+    "shown scroll: 501 rows over the stream (0 samples with the shift unknown); stale bands 0, uniform bands 0, still rows moved 0; the columns outside 0-756 changed in 42 samples",
+    "tracking (finger down, 50 samples): error median -10.0 px, max 60 px; lag median 70.0 ms, max 439 ms",
+    "  gesture at 1794843731322: the finger travelled 500 rows, the page showed 495 by the last sample while down (finger then at 500), 50 samples"
    ],
-   "restore": "mojo: (352239/817080360) jihad-mojo (start) running, process 5701; daemons running: 1"
+   "restore": "mojo: (367782/638392165) jihad-mojo (start) running, process 17492; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mojo",
@@ -5899,13 +6053,31 @@
    "shell": "mojo",
    "id": "rotate",
    "kit": "cavekit-device-build.md R4",
-   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right",
+   "item": "Rotate the TouchPad: portrait \u2194 landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards)",
    "section": "Scrolling and gestures",
-   "verdict": "a person's",
-   "checks": [],
-   "kept": [],
-   "seconds": 0,
-   "note": "the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side"
+   "verdict": "pass",
+   "checks": [
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)",
+    "WAIT ok 13-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x740 mZoom=1.3333",
+    "WAIT ok 14-content 0,150,756,900",
+    "WAIT ok 17-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x996 mZoom=0.7500",
+    "WAIT ok 18-content 0,150,756,900",
+    "WAIT ok 20-line: [jihad-bs] emitGeometry contentSize=1024x20488 win=1024x740 mZoom=1.0000",
+    "WAIT ok 21-content 0,150,756,900",
+    "WAIT ok 24-line: [jihad-bs] emitGeometry contentSize=768x20488 win=768x996 mZoom=0.7500",
+    "WAIT ok 25-settled: the card's scroll 0 0",
+    "CHECK ok 26-content: region 0,150-756,600: colours 373 hash f5159163 rows 450 uniform 164 light 150-593 blue none; sel:body on the screen at 0,73-764,20561",
+    "CHECK ok 28-card-scroll-min: the card's scroll y 584 (at least 400)"
+   ],
+   "kept": [
+    "kept/mojo-rotate-landscape-left_.jpg",
+    "kept/mojo-rotate-landscape-right_.jpg"
+   ],
+   "seconds": 74,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (367856/883553188) jihad-mojo (start) running, process 21331; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mojo",
@@ -6252,35 +6424,38 @@
     "WAIT ok 11-rect sel:.infobox",
     "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 149 landed on document y 110)",
     "WAIT ok 15-zoom",
-    "CHECK ok 16-zoom-min: zoom 2.4459 (at least 1.3)",
+    "CHECK ok 16-zoom-min: zoom 2.7529 (at least 1.3)",
     "WAIT ok 18-zoom",
     "WAIT ok 20-zoom",
     "WAIT ok 22-still 0,100,756,700",
     "CHECK ok 24-zoom: zoom 0.6882 (want 0.69 within 0.12)",
-    "CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 5de6b877 rows 600 uniform 64 light 100-699 blue 227-231; sel:body on the screen at 0,73-768,1073",
+    "CHECK ok 25-content: region 0,100-756,700: colours 4096 hash 979450f1 rows 600 uniform 62 light 100-699 blue 227-231; sel:body on the screen at 0,73-768,1073",
     "CHECK ok 26-text-has: sel:#firstHeading = [HP TouchPad] holds [TouchPad]",
-    "STREAM fs-mojo-wikipedia-zoom.fbs: 241 samples (15.0/s asked 15, read median 1.67 ms max 26.04 ms, mmap stride 8, re-read 3, torn 0), 138 flips, cpu 5.7% of a core, polls 738/s | shown frames while moving: 130 gaps, median 41.0 ms, p90 71 ms, max 277 ms | shown scroll: 43 rows over the stream (41 samples with the shift unknown); stale bands 1, uniform bands 3, still rows moved 0; the columns outside 170-600 changed in 18 samples | tracking (finger down, 34 samples): error median 0.0 px, max 15 px; lag median 349.0 ms, max 716 ms |   gesture at 1794829542907: the finger travelled 0 rows, the page show",
-    "CHECK FAIL 27-stream-uniform: uniform 3 (want at most 0)"
+    "STREAM fs-mojo-wikipedia-zoom.fbs: 244 samples (14.9/s asked 15, read median 1.72 ms max 20.16 ms, mmap stride 8, re-read 4, torn 0), 141 flips, cpu 6.0% of a core, polls 736/s | shown frames while moving: 135 gaps, median 39 ms, p90 77 ms, max 285 ms | shown scroll: 110 rows over the stream (40 samples with the shift unknown); stale bands 0, uniform bands 8, still rows moved 0; the columns outside 170-600 changed in 20 samples | tracking (finger down, 37 samples): error median 0 px, max 14 px; lag median 345 ms, max 791 ms |   gesture at 1794843966894: the finger travelled 0 rows, the page showed 0 ",
+    "CHECK FAIL 27-stream-uniform: uniform 8 (want at most 0)",
+    "CHECK ok 29-stream-gap-median: gap-median 39 (at most 45)",
+    "CHECK ok 30-stream-gap-p90: gap-p90 77 (at most 80)"
    ],
    "kept": [],
-   "seconds": 91,
-   "note": "the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 3 (want at most 0)",
-   "start": "mojo card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +1 s, load done at +16 s, 9 content frames at +16 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "seconds": 93,
+   "note": "the open defect T-567: CHECK FAIL 27-stream-uniform: uniform 8 (want at most 0)",
+   "start": "mojo card on https://en.wikipedia.org/wiki/HP_TouchPad: connected at +1 s, load done at +13 s, 7 content frames at +13 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
    "stream": [
-    "fs-mojo-wikipedia-zoom.fbs: 241 samples (15.0/s asked 15, read median 1.67 ms max 26.04 ms, mmap stride 8, re-read 3, torn 0), 138 flips, cpu 5.7% of a core, polls 738/s",
-    "shown frames while moving: 130 gaps, median 41.0 ms, p90 71 ms, max 277 ms",
-    "shown scroll: 43 rows over the stream (41 samples with the shift unknown); stale bands 1, uniform bands 3, still rows moved 0; the columns outside 170-600 changed in 18 samples",
-    "tracking (finger down, 34 samples): error median 0.0 px, max 15 px; lag median 349.0 ms, max 716 ms",
-    "  gesture at 1794829542907: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
-    "  gesture at 1794829543103: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
-    "  gesture at 1794829547437: the finger travelled 0 rows, the page showed 15 by the last sample while down (finger then at 0), 11 samples, 9 unknown",
-    "  gesture at 1794829550607: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 10 samples, 9 unknown",
-    "  gesture at 1794829555087: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 11 samples, 7 unknown",
-    "  stale_bands: sample 32 rows 449-458 ",
-    "  uniform_bands: sample 101 rows 99-113 ffe4e4e2",
-    "  uniform_bands: sample 101 rows 131-149 ffe4e4e2"
+    "fs-mojo-wikipedia-zoom.fbs: 244 samples (14.9/s asked 15, read median 1.72 ms max 20.16 ms, mmap stride 8, re-read 4, torn 0), 141 flips, cpu 6.0% of a core, polls 736/s",
+    "shown frames while moving: 135 gaps, median 39 ms, p90 77 ms, max 285 ms",
+    "shown scroll: 110 rows over the stream (40 samples with the shift unknown); stale bands 0, uniform bands 8, still rows moved 0; the columns outside 170-600 changed in 20 samples",
+    "tracking (finger down, 37 samples): error median 0 px, max 14 px; lag median 345 ms, max 791 ms",
+    "  gesture at 1794843966894: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 2 samples",
+    "  gesture at 1794843967131: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 1 samples",
+    "  gesture at 1794843971544: the finger travelled 0 rows, the page showed 14 by the last sample while down (finger then at 0), 11 samples, 9 unknown",
+    "  gesture at 1794843975850: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 12 samples, 11 unknown",
+    "  gesture at 1794843979096: the finger travelled 0 rows, the page showed 0 by the last sample while down (finger then at 0), 11 samples, 7 unknown",
+    "  uniform_bands: sample 106 rows 88-137 ffe4e4e2",
+    "  uniform_bands: sample 106 rows 894-911 fff8f9fa",
+    "  uniform_bands: sample 106 rows 927-944 fff8f9fa"
    ],
-   "restore": "mojo: (353609/644520836) jihad-mojo (start) running, process 12536; daemons running: 1"
+   "restore": "mojo: (368036/673345746) jihad-mojo (start) running, process 29001; daemons running: 1",
+   "rerun": "2026-11-16T10:10:38"
   },
   {
    "shell": "mojo",
@@ -6454,9 +6629,189 @@
    "note": "",
    "start": "mojo card on http://192.168.1.245:8077/jihad-long-static.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
    "restore": "mojo: (354279/253026780) jihad-mojo (start) running, process 10759; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "frame-field-hold",
+   "kit": "cavekit-ui-shell.md R7",
+   "item": "A hold on a field inside a frame (jihad-frame-field.html): the daemon and the page's commands both call it editable (the editing menu, not the page's), the field takes the focus and the keyboard comes up; a hold on the frame's plain text stays the page's",
+   "section": "Keyboard and text",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect f",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 151 landed on document y 88)",
+    "WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0",
+    "WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true",
+    "WAIT ok 15-still f",
+    "WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0",
+    "WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false",
+    "WAIT ok 22-line: [jihad-bs] notify: page-hold: {\"editable\":true,\"readOnly\":false,\"selected\":false} (pushed)",
+    "WAIT ok 23-differs f",
+    "CHECK ok 24-region-changed: region 13,323-756,528: colours 299 hash 49e48b9b rows 205 uniform 0 light 324-526 blue none against the sample's hash 261e5084",
+    "CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1",
+    "WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false"
+   ],
+   "kept": [
+    "kept/enyo-frame-field-hold-field-menu_.jpg"
+   ],
+   "seconds": 90,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +3 s, load done at +9 s, 7 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (368308/722265397) jihad (start) running, process 7043; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
+  },
+  {
+   "shell": "enyo",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK ok 13-sound: sound at the output sink: peak 2975 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build",
+    "CHECK ok 17-volume: the media volume 66, higher (marked 44)",
+    "CHECK ok 18-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz",
+    "CHECK ok 21-volume: the media volume 44, lower (marked 66)",
+    "CHECK ok 22-sound: sound at the output sink: peak 2954 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 26-volume: the media volume 0, zero (marked 66)",
+    "CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2957 rms 2059 frames 45056 hz 440): no sound out",
+    "CHECK ok 30-volume: the media volume 22, higher (marked 0)",
+    "CHECK ok 31-sound: sound at the output sink: peak 2961 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 86,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +8 s, 20 content frames at +8 s; the GPU path, frames off the main thread",
+   "restore": "enyo: (368636/517911999) jihad (start) running, process 23034; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
+  },
+  {
+   "shell": "mochi",
+   "id": "frame-field-hold",
+   "kit": "cavekit-ui-shell.md R7",
+   "item": "A hold on a field inside a frame (jihad-frame-field.html): the daemon and the page's commands both call it editable (the editing menu, not the page's), the field takes the focus and the keyboard comes up; a hold on the frame's plain text stays the page's",
+   "section": "Keyboard and text",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect f",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 147 landed on document y 88)",
+    "WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0",
+    "WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true",
+    "WAIT ok 15-still f",
+    "WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0",
+    "WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false",
+    "WAIT ok 22-line: [jihad-bs] notify: page-hold: {\"editable\":true,\"readOnly\":false,\"selected\":false} (pushed)",
+    "WAIT ok 23-differs f",
+    "CHECK ok 24-region-changed: region 13,319-756,524: colours 218 hash c90db968 rows 205 uniform 0 light none blue none against the sample's hash 22936c02",
+    "CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1",
+    "WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false"
+   ],
+   "kept": [
+    "kept/mochi-frame-field-hold-field-menu_.jpg"
+   ],
+   "seconds": 92,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +2 s, load done at +7 s, 3 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (368728/494621464) jihad-mochi (start) running, process 27319; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
+  },
+  {
+   "shell": "mochi",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK ok 13-sound: sound at the output sink: peak 2975 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build",
+    "CHECK ok 17-volume: the media volume 66, higher (marked 44)",
+    "CHECK ok 18-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz",
+    "CHECK ok 21-volume: the media volume 44, lower (marked 66)",
+    "CHECK ok 22-sound: sound at the output sink: peak 2963 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 26-volume: the media volume 0, zero (marked 66)",
+    "CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2954 rms 2058 frames 45056 hz 440): no sound out",
+    "CHECK ok 30-volume: the media volume 22, higher (marked 0)",
+    "CHECK ok 31-sound: sound at the output sink: peak 2961 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 87,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread",
+   "restore": "mochi: (369058/740736214) jihad-mochi (start) running, process 11079; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
+  },
+  {
+   "shell": "mojo",
+   "id": "frame-field-hold",
+   "kit": "cavekit-ui-shell.md R7",
+   "item": "A hold on a field inside a frame (jihad-frame-field.html): the daemon and the page's commands both call it editable (the editing menu, not the page's), the field takes the focus and the keyboard comes up; a hold on the frame's plain text stays the page's",
+   "section": "Keyboard and text",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect f",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 142 landed on document y 88)",
+    "WAIT ok 12-line: [jihad-bs] hold at 77,336 editable=0 wasFocused=0",
+    "WAIT ok 13-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=false readOnly=false selected=true",
+    "WAIT ok 15-still f",
+    "WAIT ok 18-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=0",
+    "WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false",
+    "WAIT ok 22-line: [jihad-bs] notify: page-hold: {\"editable\":true,\"readOnly\":false,\"selected\":false} (pushed)",
+    "WAIT ok 23-differs f",
+    "CHECK ok 24-region-changed: region 13,314-756,519: colours 609 hash 4f7ab6f1 rows 205 uniform 0 light 326-444 blue none against the sample's hash ce1bdacc",
+    "CHECK ok 25-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "CHECK ok 30-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "CHECK ok 32-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 34-line: [jihad-bs] hold at 117,396 editable=1 wasFocused=1",
+    "WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false"
+   ],
+   "kept": [
+    "kept/mojo-frame-field-hold-field-menu_.jpg"
+   ],
+   "seconds": 101,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-frame-field.html: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (369160/150724046) jihad-mojo (start) running, process 15551; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
+  },
+  {
+   "shell": "mojo",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK ok 13-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build",
+    "CHECK ok 17-volume: the media volume 66, higher (marked 44)",
+    "CHECK ok 18-sound: sound at the output sink: peak 2958 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz",
+    "CHECK ok 21-volume: the media volume 44, lower (marked 66)",
+    "CHECK ok 22-sound: sound at the output sink: peak 2963 rms 2060 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 26-volume: the media volume 0, zero (marked 66)",
+    "CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2955 rms 2059 frames 45056 hz 440): no sound out",
+    "CHECK ok 30-volume: the media volume 22, higher (marked 0)",
+    "CHECK ok 31-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 80,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main thread",
+   "restore": "mojo: (369519/985661459) jihad-mojo (start) running, process 2889; daemons running: 1",
+   "rerun": "2026-11-16T10:49:48"
   }
  ],
- "end_check": "DEVICE ok job-enyo: (355138/776963354) jihad (start) running, process 24409\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (355151/468408241) jihad-mochi (start) running, process 2558\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (355158/652246017) jihad-mojo (start) running, process 13496\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok media-scratch: none\nDEVICE ok overall: 16% of /tmp used",
- "seconds": 22575,
+ "end_check": "DEVICE ok job-enyo: (369749/518808969) jihad (start) running, process 23034\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (369755/729474894) jihad-mochi (start) running, process 11079\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (369762/505554004) jihad-mojo (start) running, process 17547\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok media-scratch: none\nDEVICE ok overall: 16% of /tmp used",
+ "seconds": 26160,
  "first_date": "2026-11-16T00:53:38"
 }

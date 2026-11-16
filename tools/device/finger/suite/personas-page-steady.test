@@ -13,4 +13,7 @@ stream-start 16 -c 0-756 -U 48
 drag-slow 480 900 480 400
 stream-stop
 expect stream uniform 0
+# smoothness, cavekit-gpu-rendering.md R12: the gap between shown frames while the page moves
+expect stream gap-median 34
+expect stream gap-p90 50
 expect content 0,100,768,900 'sel:body'

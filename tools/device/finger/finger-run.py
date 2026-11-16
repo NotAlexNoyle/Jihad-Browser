@@ -24,7 +24,7 @@
 #   wait text SEL TEXT [BOUND]
 #   calibrate SEL [TOL]                 the page-top calibration tap (the round stops on a disagreement)
 #   tap SEL | tap-at X Y | chrome NAME | drag X0 Y0 X1 Y1 [MS] | flick X0 Y0 X1 Y1 [MS] | pinch CX CY D0 D1 [MS]
-#   hold X Y [MS] | hold-on SEL [MS] | dtap X Y | pick SEL INDEX [ROWS]
+#   hold X Y [MS] | hold-on SEL [MS] | hold-off SEL DX DY [MS] | dtap X Y | pick SEL INDEX [ROWS]
 #   header-away                         Mojo's bar went with a scroll the page made itself: the tools' model says so
 #   kernel-key CODE                     a key of the emulated kernel keyboard (fixture: kernel-kbd), a raw Linux code
 #   type-keys TEXT | key-hold kb-backspace [MS]     the system keyboard by finger (type TEXT is the inject channel's) | card-to Y | pull-header | key CODE | type TEXT | inject CMD...
@@ -66,16 +66,16 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 DEVSH = os.path.join(ROOT, "build", "webos-oe", "dev-sh.sh")
 REFS = os.path.join(os.environ.get("JIHAD_FLASH_CACHE", os.path.expanduser("~/.cache/jihad-flash")), "refs")   # a movie's screens (cavekit-flash R2)
 SHELLS = ["enyo", "mochi", "mojo"]
-GESTURES = {"turn", "volume-key", "launch-from", "kernel-key", "flash-tap", "plugin-signal", "tap", "tap-off", "touch", "dismiss", "tap-at", "chrome", "drag", "drag-off", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
-UNMARKED = {"kernel-key", "chrome", "dismiss", "touch", "hold", "hold-on", "dtap", "pinch", "type-keys", "key-hold"}       # no mark of their own: a wait must follow before an expect
-WAITING_EXPECTS = {"sound", "volume", "lock", "keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
+GESTURES = {"turn", "volume-key", "launch-from", "kernel-key", "flash-tap", "plugin-signal", "tap", "tap-off", "touch", "dismiss", "tap-at", "chrome", "drag", "drag-off", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "hold-off", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
+UNMARKED = {"kernel-key", "chrome", "dismiss", "touch", "hold", "hold-on", "hold-off", "dtap", "pinch", "type-keys", "key-hold"}       # no mark of their own: a wait must follow before an expect
+WAITING_EXPECTS = {"sound", "nav-paint", "volume-hud", "volume", "lock", "keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
 CHECKS = {"scroll": "fl_check_scroll", "card-scroll": "fl_check_card_scroll", "card-scroll-min": "fl_check_card_scroll_min", "zoom": "fl_check_zoom",
           "zoom-min": "fl_check_zoom_min", "zoom-max": "fl_check_zoom_max", "visible": "fl_check_visible", "stream": None, "hit": "fl_check_hit", "file": "fl_check_file",
           "element-at": "fl_check_element_at", "text": "fl_check_text", "text-has": "fl_check_text_has", "url": "fl_check_url", "probe-has": "fl_check_probe_has",
           "dialog": "fl_check_dialog", "keyboard": "fl_check_keyboard", "content": "fl_check_content",
           "region-equal": "fl_check_region_equal", "region-changed": "fl_check_region_changed", "top": "fl_check_top",
           "flash-at": "fl_check_flash_at", "flash-drawn": "fl_check_flash_drawn", "flash-rate": "fl_check_flash_rate", "flash-rate-report": "fl_check_flash_rate_report", "flash-reacted": "fl_check_flash_reacted",
-          "plugin": "fl_check_plugin", "audio": "fl_check_audio", "sound": "fl_check_sound", "volume": "fl_check_volume", "screen": "fl_check_screen", "flash-behind": "fl_check_flash_behind", "above-keyboard": "fl_check_above_keyboard", "press-rate": "fl_check_press_rate", "number": "fl_check_number", "flash-el": "fl_check_flash_el", "lock": "fl_check_lock"}
+          "plugin": "fl_check_plugin", "audio": "fl_check_audio", "sound": "fl_check_sound", "nav-paint": "fl_check_nav_paint", "volume-hud": "fl_check_volume_hud", "volume": "fl_check_volume", "screen": "fl_check_screen", "flash-behind": "fl_check_flash_behind", "above-keyboard": "fl_check_above_keyboard", "press-rate": "fl_check_press_rate", "number": "fl_check_number", "flash-el": "fl_check_flash_el", "lock": "fl_check_lock"}
 
 def sh_quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
@@ -96,13 +96,13 @@ def split_args(rest):
         else: cur += c
     if cur: out.append(cur)
     return out
-ARITY = {"turn": (1, 1), "volume-key": (1, 2), "volume-mark": (0, 0), "launch-from": (2, 2), "calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1), "measure": (1, 1),
-         "hold-on": (1, 2), "touch": (1, 1), "key-hold": (1, 2), "drag": (4, 5), "drag-off": (5, 6), "drag-slow": (4, 4), "drag-jitter": (4, 5), "drag-paused": (4, 6), "flick": (4, 5), "pinch": (4, 5), "hold": (2, 3), "dtap": (2, 4),
+ARITY = {"turn": (1, 1), "volume-key": (1, 2), "volume-mark": (0, 0), "volume-set": (1, 1), "launch-from": (2, 2), "show-log": (0, 1), "calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1), "measure": (1, 1),
+         "hold-on": (1, 2), "hold-off": (3, 4), "touch": (1, 1), "key-hold": (1, 2), "drag": (4, 5), "drag-off": (5, 6), "drag-slow": (4, 4), "drag-jitter": (4, 5), "drag-paused": (4, 6), "flick": (4, 5), "pinch": (4, 5), "hold": (2, 3), "dtap": (2, 4),
          "key": (1, 1), "launch": (1, 2), "pause": (1, 1), "daemon-restart": (1, 1), "stream-start": (0, 9), "stream-stop": (0, 0),
          "header-away": (0, 0), "kernel-key": (1, 1), "flash-tap": (6, 6), "flash-control": (2, 2), "plugin-signal": (1, 1), "sig-save": (2, 2), "probe": (2, 2)}
 EXPECT_ARITY = {"above-keyboard": (1, 1), "press-rate": (1, 1), "number": (3, 3), "flash-el": (4, 4), "lock": (1, 2), "flash-behind": (3, 3), "flash-rate-report": (2, 2), "flash-at": (2, 3), "flash-drawn": (2, 2), "flash-rate": (4, 4), "flash-reacted": (3, 3), "plugin": (0, 2), "audio": (1, 2), "screen": (3, 4), "scroll": (3, 3), "card-scroll": (2, 2), "card-scroll-min": (1, 1), "zoom": (2, 2), "zoom-min": (1, 1), "zoom-max": (1, 1), "visible": (1, 1), "stream": (2, 2),
                 "hit": (1, 1), "file": (2, 2), "element-at": (3, 3), "text": (2, 2), "text-has": (2, 2),
-                "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2), "probe-has": (1, 1), "sound": (1, 3), "volume": (1, 1)}
+                "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2), "probe-has": (1, 1), "sound": (1, 4), "volume": (1, 1), "nav-paint": (1, 2), "volume-hud": (0, 1)}
 
 def parse(path):
     t = {"id": os.path.basename(path)[:-5], "shells": SHELLS[:], "page": "about:blank", "prefs": [], "kit": "", "person": "", "steps": [], "path": path,
@@ -161,7 +161,7 @@ def lint(tests):
                     errs.append(f"{t['id']}:{n}: expect needs a check: {', '.join(sorted(CHECKS))}")
                 elif pending and a[0] not in WAITING_EXPECTS:
                     errs.append(f"{t['id']}:{n}: `expect {a[0]}` after `{pending[1]}` (line {pending[0]}) with no wait between: name the mark")
-            elif verb in ("sample", "shoot", "measure", "flash-control", "sig-save", "header-away", "volume-mark"):
+            elif verb in ("sample", "shoot", "show-log", "measure", "flash-control", "sig-save", "header-away", "volume-mark", "volume-set"):
                 pass
             else:
                 errs.append(f"{t['id']}:{n}: unknown verb `{verb}`")
@@ -235,6 +235,10 @@ def compile_steps(t, shell=None):
         elif verb == "pinch": out.append(f"fl_mark; /tmp/finger pinch {' '.join(q)}; echo \"  pinch {rest}\"")
         elif verb == "hold": out.append(f"fl_mark; /tmp/finger hold {' '.join(q)}; echo \"  hold {rest}\"")
         elif verb == "hold-on": out.append(f"fl_hold {' '.join(q)} || fl_check FAIL \"{name}\" \"no element {m[0]}\"")
+        elif verb == "show-log":       # a diagnostic: the daemon's log since the mark (the lines with PATTERN), into the run's text
+            pat = q[0] if q else "''"
+            out.append("fl_since | grep -a -- " + pat + " | tail -n 40 | cut -c1-230 | sed 's/^/  log: /'")
+        elif verb == "hold-off": out.append(f"fl_hold_off {' '.join(q)} || fl_check FAIL \"{name}\" \"no element {m[0]}\"")
         elif verb == "dtap": out.append(f"fl_mark; /tmp/finger dtap {' '.join(q)}; echo \"  double tap {rest}\"")
         elif verb == "pick": out.append(f"fl_pick {' '.join(q)} || fl_check FAIL \"{name}\" \"the pick on {m[0]} did not open or close\"")
         elif verb == "card-to": out.append(f"fl_card_to {q[0]}")
@@ -243,6 +247,7 @@ def compile_steps(t, shell=None):
         elif verb == "turn": out.append(f"fl_turn {q[0]} || fl_check FAIL \"{name}\" \"the turn {a[0]} was not sent\"")
         elif verb == "volume-key": out.append(f"fl_volume_key {' '.join(q)} || fl_check FAIL \"{name}\" \"the volume key {a[0]} was not sent\"")
         elif verb == "volume-mark": out.append("fl_volume_mark")
+        elif verb == "volume-set": out.append(f"fl_volume_set {q[0]}")
         elif verb == "launch-from": out.append(f"fl_launch_from {q[0]} {q[1]} || fl_check FAIL \"{name}\" \"the other app {a[0]} did not start\"")
         elif verb == "kernel-key": out.append(f"echo 'key {a[0]} 1' > /tmp/uinput.cmd; usleep 500000; echo '  kernel key {a[0]}'")
         elif verb == "key": out.append(f"fl_ask \"key {a[0]}\" 'inject key ' 3 >/dev/null || fl_check FAIL \"{name}\" \"the key {a[0]} was not echoed\"")
@@ -340,7 +345,7 @@ def main():
     if subprocess.run([tc, "-O2", "-march=armv7-a", "-mfpu=neon", "-mfloat-abi=softfp", "-std=gnu99", "-o", fg, os.path.join(HERE, "finger.c")]).returncode == 0:
         subprocess.run(["novacom", "put", "file:///tmp/finger"], stdin=open(fg, "rb"))
     hw = os.path.join(tmp, "hwinput")     # the turn, the volume keys, the sink's level (T-653)
-    if subprocess.run([tc, "-O2", "-march=armv7-a", "-mfloat-abi=softfp", "-std=gnu99", "-o", hw, os.path.join(HERE, "hwinput.c")]).returncode == 0:
+    if subprocess.run([tc, "-O2", "-march=armv7-a", "-mfloat-abi=softfp", "-std=gnu99", "-o", hw, os.path.join(HERE, "hwinput.c"), "-ldl"]).returncode == 0:
         subprocess.run(["novacom", "put", "file:///tmp/hwinput"], stdin=open(hw, "rb"))
     subprocess.run(["novacom", "put", "file:///tmp/fl-daemon-start.sh"], stdin=open(os.path.join(HERE, "daemon-start.sh"), "rb"))   # fl_daemon_restart
     report = {"date": datetime.datetime.now().isoformat(timespec="seconds"), "shells": shells, "tests": [], "end_check": ""}
@@ -369,6 +374,8 @@ def main():
             rc, out = devsh(open(os.path.join(HERE, "daemon-start.sh")).read(), [shell, t["page"]] + ["PREF=" + p for p in t["prefs"]], 150, tmp)
             start_line = [l for l in out.splitlines() if "content frames" in l or "FATAL" in l]
             rec["start"] = start_line[-1][:200] if start_line else out.strip()[-200:]
+            if "CRASH-BEGIN" in out:       # the daemon's fatal report, kept whole beside the round's texts
+                open(os.path.join(round_dir, f"crash-{shell}-{t['id']}-{int(time.time())}.txt"), "w").write(out[out.index("CRASH-BEGIN"):].split("CRASH-END")[0])
             if "FATAL" in out or not start_line:
                 rec["verdict"] = "fail"; rec["note"] = "the daemon did not start: " + out.strip().splitlines()[-1][:160]
             else:
@@ -395,17 +402,22 @@ def main():
                         rec["stream"] = [l for l in r2.stdout.splitlines() if re.search(r"stale|uniform|tracking|spacing|samples|still|backwards|shown frames", l)][:12]
                         rec["checks"].append("STREAM " + " | ".join(rec["stream"])[:600])
                         # `expect stream KEY VALUE` lines are checked here from the stream tool's reading: stale / uniform (bands, at
-                        # most VALUE), still (rows moved, at most VALUE), lag-max / error-max (ms / px, at most VALUE)
+                        # most VALUE), still (rows moved, at most VALUE), lag-max / error-max (ms / px, at most VALUE), gap-median / gap-p90
+                        # (ms between shown frames while moving, at most VALUE)
                         text = r2.stdout
                         for n2, v2, rest2, _sh in t["steps"]:
                             a2 = split_args(rest2)
                             if v2 != "expect" or not a2 or a2[0] != "stream" or len(a2) < 3: continue
                             key, want = a2[1], a2[2]
                             pat = {"stale": r"stale bands (\d+)", "uniform": r"uniform bands (\d+)", "still": r"still rows moved (\d+)",
-                                   "lag-max": r"lag median \S+ ms, max (\d+)", "error-max": r"error median \S+ px, max (\d+)"}.get(key)
+                                   "lag-max": r"lag median \S+ ms, max (\d+)", "error-max": r"error median \S+ px, max (\d+)",
+                                   # smoothness (cavekit-gpu-rendering.md R12): the gaps between shown frames while the page moves
+                                   "gap-median": r"shown frames while moving: \d+ gaps, median ([\d.]+)", "gap-p90": r"shown frames while moving: \d+ gaps, median \S+ ms, p90 ([\d.]+)"}.get(key)
                             m2 = re.search(pat, text) if pat else None
                             if not m2: rec["checks"].append(f"CHECK FAIL {n2}-stream-{key}: the stream's reading has no {key}")
-                            elif int(m2.group(1)) <= int(want): rec["checks"].append(f"CHECK ok {n2}-stream-{key}: {key} {m2.group(1)} (at most {want})")
+                            elif key.startswith("gap-") and int((re.search(r"shown frames while moving: (\d+) gaps", text) or [0, "0"])[1]) < 40:
+                                rec["checks"].append(f"CHECK FAIL {n2}-stream-{key}: fewer than 40 gaps between shown frames: no reading")
+                            elif float(m2.group(1)) <= float(want): rec["checks"].append(f"CHECK ok {n2}-stream-{key}: {key} {m2.group(1)} (at most {want})")
                             else: rec["checks"].append(f"CHECK FAIL {n2}-stream-{key}: {key} {m2.group(1)} (want at most {want})")
                     else: rec["checks"].append("STREAM none pulled")
                 fails = [l for l in rec["checks"] if l.startswith("CHECK FAIL") or l.startswith("CALIBRATION FAIL")]

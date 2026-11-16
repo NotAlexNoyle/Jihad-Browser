@@ -8,9 +8,9 @@ page: http://192.168.1.245:8077/jihad-flash-tone.html
 kit: cavekit-engine-update.md R8
 wait rect 'sel:embed' 30
 expect audio audible 20
-expect sound heard 10
+expect sound heard 10 60 440
 launch about:blank
 expect sound silent 10
 launch http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1
 wait text status playing 20
-expect sound heard 10
+expect sound heard 10 60 440

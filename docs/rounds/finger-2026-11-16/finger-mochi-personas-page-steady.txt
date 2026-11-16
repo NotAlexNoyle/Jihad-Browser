@@ -1,7 +1,9 @@
 WAIT ok 10-rect sel:#mine .card
 calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 276 landed on document y 198)
   stream on for 16 s (-c 0-756 -U 48)
-  stream: fbstream: 114 samples in 7.54 s (15.1/s, asked 15), read median~3.5 ms max 26.7 ms (mmap, stride 8: 96 rows of 768), 143 flips (frames shown, 19.0/s), 4955 poll
+  stream: fbstream: 115 samples in 7.63 s (15.1/s, asked 15), read median~3.8 ms max 35.3 ms (mmap, stride 8: 96 rows of 768), 135 flips (frames shown, 17.7/s), 5075 poll
   (the stream's uniform checked on the host)
-CHECK ok 16-content: region 0,100-768,900: colours 4096 hash 5c9da272 rows 800 uniform 0 light 102-647 blue 107-655; sel:body on the screen at 0,-418-764,2441
+  (the stream's gap-median checked on the host)
+  (the stream's gap-p90 checked on the host)
+CHECK ok 19-content: region 0,100-768,900: colours 4096 hash d49b3af3 rows 800 uniform 0 light 101-646 blue 106-654; sel:body on the screen at 0,-419-764,2440
 CHECKS 1 FAILS 0

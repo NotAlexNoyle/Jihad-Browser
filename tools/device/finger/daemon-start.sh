@@ -63,4 +63,13 @@ since | grep -aq 'load done uri=' || echo "WARNING: no load done within 60 s"
 t3=0; n=0
 while [ $t3 -lt 30 ]; do n=$(since | grep -ac 'painted shmid=0x[0-9a-f]* bytes=[1-9][0-9]'); [ "$n" -ge 3 ] && break; sleep 1; t3=$((t3+1)); done
 echo "$V card on $URL: connected at +$t s, load done at +$((t + t2)) s, $n content frames at +$((t + t2 + t3)) s; $(grep -a 'rendering:' $LOG | tail -1 | sed 's/.*rendering: //')"
+# a daemon that died under the load: the lines before the fault and the report's addresses, for the host to keep
+# (T-655: a crash once in six loads left only its first line in the round)
+if since | grep -aq 'FATAL SIGNAL'; then
+  since > /tmp/fl-crash.$$; n=$(grep -an 'FATAL SIGNAL' /tmp/fl-crash.$$ | head -1 | cut -d: -f1); s=$((n - 20)); [ $s -lt 1 ] && s=1
+  echo "CRASH-BEGIN"
+  sed -n "${s},${n}p" /tmp/fl-crash.$$ | cut -c1-240
+  sed -n "$((n + 1)),\$p" /tmp/fl-crash.$$ | grep -a 'pc=\|r-xp.*libxul.so\|r-xp.*jihad-browserserver\|  #[0-9]\|sp+0x\|backtrace\|stack words' | head -n 130
+  echo "CRASH-END"; rm -f /tmp/fl-crash.$$
+fi
 grep -a 'FATAL\|SIGSEGV' "$LOG" | head -3

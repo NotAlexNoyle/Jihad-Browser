@@ -1,0 +1,18 @@
+WAIT ok 7-rect f
+calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 142 landed on document y 88)
+  tap at 91,384 -> clickAt 117 396
+CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+CHECK ok 11-visible: f on the screen at 13,313-759,520 (the reach ends at 600, keyboard 1)
+  sample frame of f: hash 14b1cd9a
+  typed [ab] on the keyboard
+WAIT ok 14-differs f
+CHECK ok 15-region-changed: region 13,314-756,519: colours 203 hash 3245e2d2 rows 205 uniform 0 light 315-517 blue none against the sample's hash 14b1cd9a
+  chrome kb-hide tapped at 732 993
+CHECK ok 17-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+WAIT ok 18-still f
+  sample rest of f: hash ba939f24
+WAIT ok 20-still f
+CHECK ok 21-region-equal: region 13,314-756,519: colours 202 hash ba939f24 rows 205 uniform 0 light 315-517 blue none = the sample's hash
+  tap at 91,384 -> clickAt 117 396
+CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+CHECKS 6 FAILS 0

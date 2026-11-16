@@ -254,5 +254,14 @@ stream reading other rows. `--merge` runs some scripts again into the round's re
 
 Beside the finger, `hwinput.c` (T-653, pushed to `/tmp/hwinput` by `finger-run.py`): the device's turn (`turn
 up|down|left|right`: sensord's orientation event to its subscribers), the volume rocker (`volume-key up|down`: a key
-written to the kernel's gpio-keys device) and the level of the sound at the output sink (`expect sound heard|silent`).
+written to the kernel's gpio-keys device; `volume-set N` and `volume-mark` before it, `expect volume
+higher|lower|same|zero` and `expect volume-hud` after: the window server's alert for the key, from its syslog) and the
+sound at the output sink (`hwinput record pcm_output.monitor MS` through libpulse-simple, since the device's `parec`
+refuses every stream name: `expect sound heard|silent|muted [BOUND] [MIN_RMS] [HZ]`; heard is the signal at the wanted
+pitch with the speaker amp on and the media volume above 0, muted the signal with the way out shut, and no state passes
+on an instrument that did not answer). Also: `hold-off SEL DX DY [MS]` (a hold at an offset in an element: a field in a
+frame), `expect nav-paint MAX_MS` (the daemon's `nav: first paint N ms after the load started`), `expect stream
+gap-median|gap-p90 MS` (smoothness, cavekit-gpu-rendering.md R12), `show-log [PATTERN]` (the daemon's log since the
+mark into the run's text, for a diagnosis), and a daemon that dies while a page starts leaves its fatal report in the
+round (`crash-<shell>-<id>-<time>.txt`, with the stack's words that point into libxul).
 No item is a person's (cavekit-finger-testing.md R7); the state of each tool is in that requirement's notes.

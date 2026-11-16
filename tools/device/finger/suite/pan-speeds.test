@@ -19,4 +19,7 @@ stream-stop
 expect stream stale 0
 expect stream uniform 0
 expect stream error-max 500
+# smoothness, cavekit-gpu-rendering.md R12: the gap between shown frames while the page moves
+expect stream gap-median 34
+expect stream gap-p90 50
 expect card-scroll-min 2500

@@ -17,7 +17,7 @@ The hand-run record this list was until 2026-11-05 is `docs/FINGER-TESTS-2026-10
 - [ ] Flick the long page: the card arrives with content to the bottom, nothing blank enters from below, the header's rows hold (the stream's stale and uniform bands) (cavekit-gpu-rendering.md R3) — `pan-long-flick` on enyo known, mochi known, mojo known (2026-11-16)
 - [ ] The pan at three speeds on the long page — a slow drag of 2 px a scan, the 600 ms drag, the 160 ms flick — plus a jittered path and a drag that pauses mid-way: each reported by the stream (tracking error, stale and uniform bands) (cavekit-finger-testing.md R4) — `pan-speeds` on enyo known, mochi known, mojo known (2026-11-16)
 - [x] Flick up and down on about:personas at both ends: the page coasts and comes back to its top (cavekit-chrome-look.md R3) — `personas-flick` on enyo pass, mochi pass, mojo pass (2026-11-16)
-- [P] Rotate the TouchPad: portrait ↔ landscape redraws the page right (cavekit-device-build.md R4) — **a person's:** the device's rotation by the accelerometer; the self-test hook's rotate scenario covers the window's side
+- [x] Rotate the TouchPad: portrait ↔ landscape redraws the page right (both landscapes and back; the page's window follows each turn and takes a drag afterwards) (cavekit-device-build.md R4) — `rotate` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] jihad-script-hold.html (its script holds the engine 600 ms in every 700): pinch and pan — the page follows the finger at the new zoom without waiting for the script, the fixed header right at rest (cavekit-gpu-rendering.md R3) — `script-hold-zoom` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] Flick up and down on about:settings at both ends: the page coasts (the card's scroll well past the finger's travel), and a flick down at the top stays at the top (cavekit-chrome-look.md R3) — `settings-flick` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] WebGL on the GPU path: jihad-webgl-cube.html's cube turns (its ticker counts), a pinch and a pan over the canvas keep it drawn (content in the canvas region) (cavekit-gpu-rendering.md R8) — `webgl-cube` on enyo pass, mochi pass, mojo pass (2026-11-16)
@@ -33,6 +33,7 @@ The hand-run record this list was until 2026-11-05 is `docs/FINGER-TESTS-2026-10
 - [x] Focus about:addons' search field, type on the keyboard, then close the keyboard with its hide key: the field keeps the text and no caret is left; a tap on the field brings the keyboard back (cavekit-chrome-look.md R4) — `addons-search-hide-key` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] Tap the address field: the whole address is selected (typing replaces it); a second tap offers Cut / Copy / Paste over the field (Mojo's field has no popup) — the paste into a page field stays a person's half (cavekit-chrome-look.md R4) — `address-select-all` on enyo pass, mochi pass (2026-11-16)
 - [x] With the address field focused, open Settings from the app menu: the keyboard goes down and the whole settings page shows (cavekit-chrome-look.md R4) — `appmenu-settings-keyboard-down` on enyo pass, mochi pass, mojo pass (2026-11-16)
+- [x] A hold on a field inside a frame (jihad-frame-field.html): the daemon and the page's commands both call it editable (the editing menu, not the page's), the field takes the focus and the keyboard comes up; a hold on the frame's plain text stays the page's (cavekit-ui-shell.md R7) — `frame-field-hold` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] A field inside a frame (jihad-frame-field.html): a tap raises the keyboard, typed keys land in it (the frame's picture changes), the hide key drops it and no caret is left (the frame's picture holds still), a tap brings it back (cavekit-chrome-look.md R4) — `frame-field` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] Tap the address field: the keyboard comes up (the window server's IME line says so); a tap on the page drops it (cavekit-input-bridging.md R2) — `keyboard-address` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] Keyboard arbitration on the card side (the 2026-08-15 procedure, with the emulated hardware keyboard): a movie engaged by its first tap takes a hardware key and the address field's pixels do not change; released, a tap on the address field takes the next key (its pixels change) (cavekit-input-bridging.md R7) — `keyboard-arbitration` on enyo pass, mochi pass, mojo pass (2026-11-16)
@@ -40,7 +41,7 @@ The hand-run record this list was until 2026-11-05 is `docs/FINGER-TESTS-2026-10
 - [x] A hardware keyboard's non-printing keys reach the page (the echo page's readout): Enter fires change, Left and Backspace, Home and Delete edit at the caret, Tab moves the focus from a field to the next, Up and Down move between a textarea's lines (Tab inside a textarea inserts a tab there instead of moving on: a finding, not this script's check) (cavekit-input-bridging.md R2) — `keyboard-keys` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] Mochi: with the keyboard up over a page field, a hold on the field offers Paste in the card's sheet (the frame kept for the eye; the pasted text's landing is read by the page) (cavekit-mochi-ui.md R2) — `mochi-paste` on mochi pass (2026-11-16)
 - [x] Mojo: a search typed in the address bar on the keyboard replaces the selected address and Enter opens the search results (cavekit-mojo-ui.md R6) — `mojo-address-typing` on mojo pass (2026-11-16); needs internet
-- [P] Mojo: open a link to the browser from another app (an email or a message): the card shows the page with no keyboard over it (cavekit-chrome-look.md R4) — **a person's:** a launch from another app is not emulated (a launch with a target from the command line showed the page with no keyboard, 2026-10-24)
+- [x] Mojo: open a link to the browser from another app (an email or a message): the card shows the page with no keyboard over it (cavekit-chrome-look.md R4) — `mojo-launch-from-app` on mojo pass (2026-11-16)
 - [x] Type into a settings field, then close the keyboard with its own key: the value is kept (the pref) and the caret is gone (the field's pixels hold still) (cavekit-chrome-look.md R4) — `settings-field-saves` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] A setting changed by finger sticks across the daemon's stop and start (as upstart stops it): a checkbox on about:settings read back after the restart (cavekit-preferences-ui.md R2) — `settings-persist` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] Type in about:settings' fields on the system keyboard (keys reach the XUL page): a character lands in a text field and Enter writes the pref (cavekit-preferences-ui.md R6) — `settings-typing` on enyo pass, mochi pass, mojo pass (2026-11-16)
@@ -81,7 +82,7 @@ The hand-run record this list was until 2026-11-05 is `docs/FINGER-TESTS-2026-10
 ## The engine
 
 - [x] Everyday browsing on the engine: a real site loads and scrolls, a search box takes the keyboard, back comes back — nothing slower or odder than before (cavekit-engine-update.md R8) — `everyday-browsing` on enyo pass, mochi pass, mojo pass (2026-11-16); needs internet
-- [P] Flash with sound (jihad-audio-long), and a video with sound, on the engine (cavekit-engine-update.md R8) — **a person's:** hearing the speaker is a person's; the decode path is measured by script (cavekit-addons-extensions R7, the audio route)
+- [x] Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them) (cavekit-engine-update.md R8) — `flash-sound` on enyo pass, mochi pass, mojo pass (2026-11-16)
 
 ## Proxies and certificates
 
@@ -94,7 +95,7 @@ The hand-run record this list was until 2026-11-05 is `docs/FINGER-TESTS-2026-10
 
 ## Media and sound
 
-- [P] Flash sound heard; an HTML audio element heard on the speaker (cavekit-device-build.md R4) — **a person's:** hearing the speaker; the route and the mixer are measured by script (cavekit-addons-extensions R7)
+- [x] Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each) (cavekit-device-build.md R4) — `audio-heard` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] Autoplay media with sound off (T-603, the Settings row; from the Atlas app): a page's own play() of a clip with its sound is refused, and a tap on the video starts it (cavekit-gre-widgets.md R1) — `autoplay-sound` on enyo pass (2026-11-16)
 - [x] Autoplay media with sound off (T-603): a muted clip plays by itself, and the page unmuting it with no tap gets it paused (cavekit-gre-widgets.md R1) — `autoplay-unmute` on enyo pass (2026-11-16)
 - [x] VP8 and VP9 video and FLAC, MP3 and AAC audio play to their end on the shipped prefs (libvpx for VP8/VP9, ffvpx kept for FLAC) (cavekit-lowpower-uxp.md R4) — `codecs-play` on enyo pass (2026-11-16)
@@ -105,6 +106,7 @@ The hand-run record this list was until 2026-11-05 is `docs/FINGER-TESTS-2026-10
 - [x] The video's sliders by finger: a drag on the volume slider changes the volume and a drag of the scrubber's thumb seeks (the page reads them back); a slider is XUL scale content inside the video's anonymous controls, which the adapter's interactive-rect answer does not name, so the drag pans instead (T-598) (cavekit-gre-widgets.md R1) — `media-scrub-drag` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] The screen lock while a video plays (T-602, from the Atlas app): its button stands while the video plays; locked, a tap on the video does not reach it (the video plays on); a tap on the notice asks, a second unlocks, and a tap on the video pauses it again (cavekit-gre-widgets.md R1) — `screen-lock` on enyo pass, mochi pass, mojo pass (2026-11-16)
 - [x] A video's play/pause by tap: jihad-media-test.html's clip plays (its status counts), a tap on the video pauses it (the status holds across two reads) (cavekit-gre-widgets.md R1) — `video-controls` on enyo pass, mochi pass, mojo pass (2026-11-16)
+- [x] The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after (cavekit-finger-testing.md R7) — `volume-keys` on enyo pass, mochi pass, mojo pass (2026-11-16)
 
 ## Sites
 

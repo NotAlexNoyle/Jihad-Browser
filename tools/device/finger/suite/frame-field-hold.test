@@ -1,0 +1,35 @@
+# T-654: a hold on a field in a frame is a hold on a field: the daemon's hit test follows the frame, the field takes
+# the focus (the keyboard comes) and the card is told "editable", so its menu is the editing one.
+id: frame-field-hold
+section: Keyboard and text
+item: A hold on a field inside a frame (jihad-frame-field.html): the daemon and the page's commands both call it editable (the editing menu, not the page's), the field takes the focus and the keyboard comes up; a hold on the frame's plain text stays the page's
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-frame-field.html
+kit: cavekit-ui-shell.md R7
+wait rect f 20
+calibrate outer
+hold-off f 60 30 1500
+wait line 'hold at .* editable=0' 8
+wait line 'hold: editable=false' 8
+dismiss 640 40
+wait still f 4
+sample before f
+hold-off f 100 90 1500
+wait line 'hold at .* editable=1' 8
+wait line 'hold: editable=true' 8
+# what the card was told is what picks its menu ("page-hold" with editable true: Paste and Select All); the frame's
+# picture changes where the menu and the caret stand, and the frame is kept for the eye
+wait line 'notify: page-hold: {"editable":true' 8
+wait differs f before 5
+expect region-changed f before
+expect keyboard up 8
+shoot field-menu
+# the field already focused (a tap first), then the hold: the daemon's frame lookups with the focus inside the frame
+dismiss 640 40
+chrome kb-hide
+expect keyboard down 8
+tap-off f 100 90
+expect keyboard up 8
+hold-off f 100 90 1500
+wait line 'hold at .* editable=1 wasFocused=1' 8
+wait line 'hold: editable=true' 8

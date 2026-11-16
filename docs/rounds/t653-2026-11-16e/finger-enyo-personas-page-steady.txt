@@ -1,0 +1,9 @@
+WAIT ok 10-rect sel:#mine .card
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 280 landed on document y 198)
+  stream on for 16 s (-c 0-756 -U 48)
+  stream: fbstream: 108 samples in 7.16 s (15.1/s, asked 15), read median~3.3 ms max 40.2 ms (mmap, stride 8: 96 rows of 768), 147 flips (frames shown, 20.5/s), 4643 poll
+  (the stream's uniform checked on the host)
+  (the stream's gap-median checked on the host)
+  (the stream's gap-p90 checked on the host)
+CHECK ok 19-content: region 0,100-768,900: colours 4096 hash 9425246f rows 800 uniform 0 light 100-899 blue 278-752; sel:body on the screen at 0,-415-764,2154
+CHECKS 1 FAILS 0

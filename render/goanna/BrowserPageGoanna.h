@@ -777,6 +777,9 @@ private:
                                         // of the underlying data: URL the engine sees
   bool               mNeedsPaint;       // set when there is a new frame to send
   int64_t            mLoadStartMs;      // ms when the current load's msgLoadStarted was emitted (0=idle)
+  int64_t mNavStartMs = 0;      // the load start that location change belongs to
+  std::string mPaintedUri;      // the engine's address as last seen during a load (emitLoadAndLocation)
+  bool mNavPaintOwed = false;   // a new document arrived in this load: the next content frame is its first (T-653)
   int64_t            mPurgeAtMs = 0;    // T-557: the heap purge due after this load went idle (0 = none)
   std::string        mBarUrlOnce;       // T-600: the address a failed load reports to the card's bar (once)
   int64_t            mLastNavMs = 0;    // the latest load start this page has had (kept when idle): the shedding's order

@@ -1,9 +1,11 @@
 calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 173 landed on document y 100)
   stream on for 40 s (-c 0-756 -U 48)
-CHECK ok 13-card-scroll-min: the card's scroll y 601 (at least 500)
-  stream: fbstream: 309 samples in 20.74 s (14.9/s, asked 15), read median~4.5 ms max 140.1 ms (mmap, stride 8: 96 rows of 768), 318 flips (frames shown, 15.3/s), 12780 p
+CHECK ok 13-card-scroll-min: the card's scroll y 605 (at least 500)
+  stream: fbstream: sample 426: a one-colour run of 48+ rows where the last sample had content: /media/internal/jihad-finger/stream.fbs.event0426.raw
   (the stream's stale checked on the host)
   (the stream's uniform checked on the host)
   (the stream's error-max checked on the host)
-CHECK ok 22-card-scroll-min: the card's scroll y 4438 (at least 2500)
+  (the stream's gap-median checked on the host)
+  (the stream's gap-p90 checked on the host)
+CHECK ok 25-card-scroll-min: the card's scroll y 4568 (at least 2500)
 CHECKS 2 FAILS 0

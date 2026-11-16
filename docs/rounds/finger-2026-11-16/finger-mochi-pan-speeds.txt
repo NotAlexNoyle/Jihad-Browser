@@ -1,9 +1,11 @@
 calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 178 landed on document y 100)
   stream on for 40 s (-c 0-756 -U 48)
-CHECK ok 13-card-scroll-min: the card's scroll y 648 (at least 500)
-  stream: fbstream: 401 samples in 26.87 s (14.9/s, asked 15), read median~5.2 ms max 165.7 ms (mmap, stride 8: 96 rows of 768), 377 flips (frames shown, 14.0/s), 18365 p
+CHECK ok 13-card-scroll-min: the card's scroll y 650 (at least 500)
+  stream: fbstream: 429 samples in 28.57 s (15.0/s, asked 15), read median~3.1 ms max 27.2 ms (mmap, stride 8: 96 rows of 768), 358 flips (frames shown, 12.5/s), 20328 po
   (the stream's stale checked on the host)
   (the stream's uniform checked on the host)
   (the stream's error-max checked on the host)
-CHECK ok 22-card-scroll-min: the card's scroll y 4582 (at least 2500)
+  (the stream's gap-median checked on the host)
+  (the stream's gap-p90 checked on the host)
+CHECK ok 25-card-scroll-min: the card's scroll y 4586 (at least 2500)
 CHECKS 2 FAILS 0

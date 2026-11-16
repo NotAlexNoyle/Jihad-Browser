@@ -101,6 +101,7 @@
 #include "nsIDOMWindow.h"            // content window -> document (GetTitle)
 #include "nsIDOMHTMLIFrameElement.h" // a tapped frame's document (jihadIsInsideFrameOf)
 #include "nsIDOMHTMLFrameElement.h"
+#include "nsIFrameLoader.h"          // a frame's docshell without script (EditableAt, T-654)
 #include "nsIDOMElement.h"           // elementFromPoint (clickAt target hit-test)
 #include "nsIDOMHTMLElement.h"       // DOMClick() — button / JS-onclick activation
 #include "nsIDOMHTMLAnchorElement.h" // resolve <a href> at a tap -> direct navigation
@@ -3518,15 +3519,25 @@ static bool jihadIsSelfOrInside(nsIDOMElement* inner, nsIDOMElement* outer) {
 // framed field raised the keyboard (focus had CHANGED), the hide key dropped it, and the second
 // tap on the same field — focus unchanged, the <iframe> the hit element — adopted nothing and
 // the keyboard stayed down. One level of framing; a frame in a frame is not followed.
+// The docshell of the document an <iframe>/<frame> element shows; null for anything else and for
+// a frame in another process. By the frame loader, NOT GetContentDocument: called from here, with
+// no script running, that asks for the subject principal and the engine aborts
+// (nsContentUtils::SubjectPrincipal; the daemon died at a hold on a framed field, 2026-11-16).
+static already_AddRefed<nsIDocShell> jihadFrameDocShell(nsIDOMElement* frameEl) {
+  nsCOMPtr<nsIDocShell> ds;
+  nsCOMPtr<nsIDOMHTMLIFrameElement> ifr = do_QueryInterface(frameEl);
+  nsCOMPtr<nsIDOMHTMLFrameElement> fr = do_QueryInterface(frameEl);
+  if (!ifr && !fr) return ds.forget();
+  nsCOMPtr<nsIFrameLoaderOwner> flo = do_QueryInterface(frameEl);
+  nsCOMPtr<nsIFrameLoader> fl; if (flo) flo->GetFrameLoaderXPCOM(getter_AddRefs(fl));
+  if (fl) fl->GetDocShell(getter_AddRefs(ds));
+  return ds.forget();
+}
 static bool jihadIsInsideFrameOf(nsIDOMElement* inner, nsIDOMElement* frameEl) {
   if (!inner || !frameEl) return false;
-  nsCOMPtr<nsIDOMDocument> fd;
-  nsCOMPtr<nsIDOMHTMLIFrameElement> ifr = do_QueryInterface(frameEl);
-  if (ifr) { ifr->GetContentDocument(getter_AddRefs(fd)); }
-  else {
-    nsCOMPtr<nsIDOMHTMLFrameElement> fr = do_QueryInterface(frameEl);
-    if (fr) fr->GetContentDocument(getter_AddRefs(fd));
-  }
+  nsCOMPtr<nsIDocShell> ds = jihadFrameDocShell(frameEl);
+  nsCOMPtr<nsIContentViewer> cv; if (ds) ds->GetContentViewer(getter_AddRefs(cv));
+  nsCOMPtr<nsIDOMDocument> fd; if (cv) cv->GetDOMDocument(getter_AddRefs(fd));
   if (!fd) return false;
   nsCOMPtr<nsIDOMDocument> od; inner->GetOwnerDocument(getter_AddRefs(od));
   return od && od == fd;
@@ -4772,6 +4783,32 @@ bool GoannaRenderPage::EditableAt(int x, int y, bool* isFocused, bool* readOnly)
   nsCOMPtr<nsIDOMWindowUtils> u = GetWindowUtils(mChrome->mBrowser);
   if (!u) return false;
   nsCOMPtr<nsIDOMElement> el = engine_calls::ElementAt(u, (float)x, (float)y);
+  // A field in a frame (T-654): the element at the point is the <iframe>, and the field is in
+  // the frame's own document. Follow the frames down, the point taken into each one's window,
+  // as jihadPageCommands.js's deepPoint does (a frame under a CSS transform is not followed right).
+  float fx = (float)x, fy = (float)y;
+  nsCOMPtr<nsIDOMWindowUtils> cur = u;
+  for (int depth = 0; el && depth < 8; ++depth) {
+    nsCOMPtr<nsIDocShell> fds = jihadFrameDocShell(el);
+    nsCOMPtr<nsIInterfaceRequestor> dsr = do_QueryInterface(fds);
+    nsCOMPtr<mozIDOMWindowProxy> fw;
+    if (dsr) dsr->GetInterface(NS_GET_IID(mozIDOMWindowProxy), getter_AddRefs(fw));
+    nsCOMPtr<nsIInterfaceRequestor> ir = do_QueryInterface(fw);
+    nsCOMPtr<nsIDOMWindowUtils> fu;
+    if (ir) ir->GetInterface(NS_GET_IID(nsIDOMWindowUtils), getter_AddRefs(fu));
+    if (!fu) break;
+    nsCOMPtr<nsIDOMClientRect> r; el->GetBoundingClientRect(getter_AddRefs(r));
+    float left = 0, top = 0; if (r) { r->GetLeft(&left); r->GetTop(&top); }
+    int32_t cl = 0, ct = 0; el->GetClientLeft(&cl); el->GetClientTop(&ct);
+    // past the frame element's border and its padding, as deepPoint does
+    nsAutoString pl, pt;
+    cur->GetVisitedDependentComputedStyle(el, EmptyString(), NS_LITERAL_STRING("padding-left"), pl);
+    cur->GetVisitedDependentComputedStyle(el, EmptyString(), NS_LITERAL_STRING("padding-top"), pt);
+    fx -= left + (float)cl + (float)atof(NS_ConvertUTF16toUTF8(pl).get());
+    fy -= top + (float)ct + (float)atof(NS_ConvertUTF16toUTF8(pt).get());
+    el = engine_calls::ElementAt(fu, fx, fy);
+    cur = fu;
+  }
   if (!el) return false;
   // The press lands on the anonymous text inside an <input>; its host is the control.
   nsCOMPtr<nsIDOMElement> host = edHostControl(el);

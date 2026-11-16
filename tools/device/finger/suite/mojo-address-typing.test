@@ -10,5 +10,7 @@ chrome address
 expect keyboard up 8
 type-keys webos
 chrome kb-enter
+# the time from Enter to the results' first paint, the daemon's clock (the owner 2026-10-08: "slow"; 12 s then)
+expect nav-paint 6000 60
 wait load 60
 expect url duckduckgo

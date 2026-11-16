@@ -249,11 +249,13 @@ function selectionIsAt(sel, x, y) {
   return false;
 }
 
-//* The long-press on plain content. Returns true when something is selected afterwards.
-function holdSelect(st, top, x, y) {
-  let w = top;
+//* The innermost window under a point of `top` (frames followed), the element there and the
+//* point in that window's own coordinates.
+function deepPoint(top, x, y) {
+  let w = top, el = null;
   for (let depth = 0; depth < 8; depth++) {
-    let el = w.document.elementFromPoint(x, y), inner = null;
+    let inner = null;
+    try { el = w.document.elementFromPoint(x, y); } catch (e) { el = null; }
     try { inner = el && el.contentWindow; } catch (e) { inner = null; }
     if (!inner || !inner.document) { break; }
     // Into the frame's own coordinates: past its border AND its padding.
@@ -263,6 +265,13 @@ function holdSelect(st, top, x, y) {
     y -= r.top + el.clientTop + (cs ? (parseFloat(cs.paddingTop) || 0) : 0);
     w = inner;
   }
+  return {win: w, el: el, x: x, y: y};
+}
+
+//* The long-press on plain content. Returns true when something is selected afterwards.
+function holdSelect(st, top, x, y) {
+  let d = deepPoint(top, x, y), w = d.win;
+  x = d.x; y = d.y;
   st.win = Cu.getWeakReference(w);
   st.editable = false;
   let pos = null, sel = null;
@@ -551,12 +560,34 @@ JihadPageCommands.prototype = {
         // contains everything and is not a field: offer the page's menu rather than edit
         // the wrong thing.
         let f = req.editable ? focusOf(win) : null, editable = false;
-        if (f && f.el && f.win === win && isEditingTarget(f.el)) {
-          let at = null;
-          try { at = win.document.elementFromPoint(x, y); } catch (e) { at = null; }
-          editable = !!at && (at === f.el || f.el.contains(at));
+        // The focused field may stand in a frame's document (T-654): the press is taken into
+        // the innermost window under it, and the field must be that window's.
+        let fx = x, fy = y;
+        if (req.editable) {
+          let d = deepPoint(win, x, y);
+          if (!(f && f.el && isEditingTarget(f.el) && f.win === d.win) && d.win !== win) {
+            // The daemon found a field under the press, in a frame, and the documents' focus does
+            // not lead to it: seen with a framed field whose keyboard was hidden and brought back
+            // by a tap (the frame's document keeps the field active, the top document says
+            // <body>; device 2026-11-16). ONLY that case is mended: the field the frame's own
+            // document already calls active is given the focus again, without scrolling. A field
+            // the page kept from being focused (a custom editor that cancels mousedown) is left
+            // alone, in a frame as in the top document: the page's menu, as before.
+            let cand = d.el, act = null;
+            while (cand && !isTextField(cand)) { cand = cand.parentElement; }
+            try { act = d.win.document.activeElement; } catch (e) { act = null; }
+            if (cand && cand === act) {
+              try { Services.focus.setFocus(cand, Ci.nsIFocusManager.FLAG_NOSCROLL); } catch (e) {}
+              f = focusOf(win);
+              log("hold: the frame's active " + cand.localName + " had lost the window's focus; focused again");
+            }
+          }
+          if (f && f.el && isEditingTarget(f.el)) {
+            editable = d.win === f.win && !!d.el && (d.el === f.el || f.el.contains(d.el));
+            fx = d.x; fy = d.y;
+          }
         }
-        let selected = editable ? holdInField(st, f, x, y) : holdSelect(st, win, x, y);
+        let selected = editable ? holdInField(st, f, fx, fy) : holdSelect(st, win, x, y);
         let readOnly = editable && !!req.readOnly;
         notify("page-hold", JSON.stringify({editable: editable, readOnly: readOnly, selected: selected}));
         log("hold: editable=" + editable + " readOnly=" + readOnly + " selected=" + selected);

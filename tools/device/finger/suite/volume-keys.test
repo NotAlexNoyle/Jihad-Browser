@@ -1,17 +1,31 @@
 # The rocker's keys are written to the kernel's gpio-keys device by hwinput (T-653): hidd reads them as from the rocker.
 id: volume-keys
 section: Media and sound
-item: The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink
+item: The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after
 shells: enyo mochi mojo
 prefs: jihad.media.autoplayWithSound=true
 page: http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1
 kit: cavekit-finger-testing.md R7
 wait text status playing 20
-expect sound heard 10
+# the first mark is what the run puts back at its end; then a known level, so the keys have room both ways
+volume-mark
+volume-set 44
+expect sound heard 10 60 440
 volume-mark
 volume-key up 2
+expect volume-hud
 expect volume higher
+expect sound heard 10 60 440
 volume-mark
 volume-key down 2
 expect volume lower
-expect sound heard 10
+expect sound heard 10 60 440
+# the route muted: the volume keyed down to nothing. The sink still carries the tone, and "heard" cannot pass there
+# (it wants the volume above 0): `expect sound muted` wants the tone at the sink AND the way out shut.
+volume-key down 8
+expect volume zero
+expect sound muted 6 60 440
+volume-mark
+volume-key up 2
+expect volume higher
+expect sound heard 10 60 440

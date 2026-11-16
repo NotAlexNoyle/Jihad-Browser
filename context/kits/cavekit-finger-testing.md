@@ -99,15 +99,19 @@ stream's numbers) is listed with the reason.
 - [x] The kit criteria that cite finger evidence cite a script id; `cavekit-gpu-rendering.md` R12 cites the stream's numbers for the pans, flicks, pinches and double taps *(2026-11-06, T-565: nineteen criteria in eleven kits name their scripts; R12's numbers are per shell from the round of record)*
 **Dependencies:** R5
 
-## R7: Accuracy proven against a person
-**Description:** the suite is accurate when its verdicts match the owner's at the device. Once the suite stands, the
-owner runs the finger list on the same build and the two verdicts are compared item by item; a verdict the owner
-contradicts is a defect of the suite — its check, its geometry or its instrument — fixed and re-run; what the suite
-cannot judge is recorded, not glossed.
+## R7: No test is a person's
+**Description:** the owner, 2026-11-16: "there should be no owner driven finger tests, you should learn how to
+orchestrate tools to accurately run all finger tests". The comparison round against the owner (this requirement until
+then, T-566) is withdrawn. Every item of the list is the agent's: where the finger and the check library do not reach,
+a tool is built or learned until they do, and the item's verdict is an instrument's reading, never "a person's".
 **Acceptance Criteria:**
-- [ ] One comparison round recorded: the suite's report beside the owner's verdicts, every disagreement dispositioned (the suite fixed, or the item moved to a person's with the reason)
-- [ ] The owner's "finds it smooth" (gpu-rendering R12) is answered by the stream's numbers (the tracking error, the shown-frame spacing) and the owner's own word on the same drags, and the two agree or the gap is named
-**Dependencies:** R6 (BLOCKED-EXTERNAL: the owner at the device)
+- [ ] The device's rotation is driven by a tool (the accelerometer's events or the system's orientation, not a hand) and `rotate` judges the redraw in both orientations in each shell
+- [ ] A launch of the browser from another app with a link is driven by a tool and `mojo-launch-from-app` judges the card (the page, no keyboard over it)
+- [ ] Sound is read where it leaves the device (the samples at the audio sink, or a microphone on the host): `audio-heard` and `flash-sound` pass on a tone's measured level and pitch, and fail with the route muted
+- [ ] The hardware volume keys are pressed by a tool during page media: the level changes, and whether the HUD shows is read
+- [ ] `docs/FINGER-TESTS.md` holds no `[P]` item and no script carries a `person:` line
+- [ ] Smoothness (gpu-rendering R12) is answered by the stream's numbers alone, against bars written in that kit
+**Dependencies:** R6
 
 ## Non-goals
 - A camera at the screen, the accelerometer, the volume keys, audio heard, a physical keyboard: a person's.
@@ -131,4 +135,4 @@ cannot judge is recorded, not glossed.
 - 2026-11-04 (afternoon): R1 and R3 met (T-563): the check library `tools/device/finger/fingerlib.sh` and the geometry.
 - 2026-11-06: R4 and R6 met (T-565): the suite whole on the three shells; eight real defects found and fixed. R7 is the owner's (T-566).
 - 2026-11-05: R5 met and R4's lint criterion (T-564): the script form and the runner `finger-run.py`.
-
+- 2026-11-16: R7 rewritten by the owner's word: no owner-driven finger tests; the comparison round (T-566) withdrawn, the four person's items become tools' (T-653).

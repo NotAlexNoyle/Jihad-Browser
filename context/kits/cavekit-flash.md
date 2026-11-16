@@ -177,12 +177,14 @@ fetched and verified by a tool, and kept out of the repository (it is public and
 - [ ] A script holds stage coordinates and chrome names only; pictures are kept for failures and for reference signatures, and game art stays in the cache
 **Dependencies:** cavekit-finger-testing.md R4, R5
 
-## R14: Accuracy against a person (BLOCKED-EXTERNAL: the owner at the device)
-**Description:** the suite's verdicts are held against the owner's on real games, as cavekit-finger-testing.md R7 does for the list.
+## R14: Accuracy without a person
+**Description:** the owner, 2026-11-16: no owner-driven tests (cavekit-finger-testing.md R7). The owner's comparison on
+real titles (this requirement until then, T-584) is withdrawn; game feel, sync and dropouts are instruments' readings.
 **Acceptance Criteria:**
-- [ ] The owner plays at least 5 games, 2 apps and 2 videos of the corpus on the same build; their verdicts sit beside the suite's, and each disagreement is dispositioned (the suite fixed, or the item moved to a person's with the reason). A title the owner finds broken goes back to fail until that is done, so R12's table holds only after this round
-- [ ] The owner's word on game feel, audio-to-picture sync and clicks or dropouts is recorded beside the stream's numbers, and the two agree or the gap is named. This answers addons R7's smoothness question and T-364
-**Dependencies:** R6, R7, R8 (BLOCKED-EXTERNAL)
+- [ ] Audio-to-picture sync on at least 2 videos and 2 games is measured (the sound's onset at the sink against the frame that shows its event) and within a bar written here before the round
+- [ ] Clicks and dropouts are counted from the samples at the sink over a title's minute, with none on at least 5 games, 2 apps and 2 videos
+- [ ] Game feel is the stream's numbers: input-to-picture latency and the content rate's spread per title, recorded in R12's table. This answers addons R7's smoothness question and T-364
+**Dependencies:** R6, R7, R8
 
 ## Out of Scope
 - Silverlight, Moonlight and other plugins: addons R7 records why not.

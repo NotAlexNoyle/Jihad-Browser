@@ -126,10 +126,10 @@ whole account, the measurements and the traps: `docs/RENDERING-OPTIONS.md` ("T-5
 - [x] `docs/RENDERING-OPTIONS.md`, `docs/PICKUP.md` and the README say what the GPU path does and what it measured *(2026-10-19: RENDERING-OPTIONS' "What it does" and table with tonight's numbers and what it does not reach; the README's known issues; PICKUP's evening delta)*
 **Dependencies:** R1-R10
 
-### R12: The owner's finger round
+### R12: The finger round on the GPU path (the agent's, by the stream; no owner's round since 2026-11-16)
 **Acceptance Criteria:**
 - [~] The owner pans, flicks, pinches and double-taps real pages on the GPU path in all three interfaces (`docs/FINGER-TESTS.md`) and finds it smooth *(2026-10-24, the emulated finger (T-524): pans track the finger in all three interfaces. "Finds it smooth" stays the owner's word.)* *(2026-11-06, the suite's stream, frames shown median / p90 ms, tracking error median / max px, stale / uniform bands. `pan-speeds` (slow, 600 ms, jittered, paused, a flick): Enyo 27/41, -12/263, 1/45; Mochi 27/43, -12/450, 0/47; Mojo 31/50, -12/262, 0/14. `pan-long-flick`: Enyo 27/43, 30/188, 0/46; Mochi 27/44, 30/225, 1/38; Mojo 34/54, 20/450, 0/10. `wikipedia-zoom` (a double tap and pinches): Enyo 37/82, Mochi 38/113, Mojo 43/150, bands 0/0, 0/0, 1/6. `personas-page-steady` (a slow drag): 26/39; 27/41; 27/38, bands 0/0, 0/0, 0/0. The uniform bands under a flick are T-567's. `docs/rounds/finger-2026-11-05/t565/finger-report.md`.)*
-**Dependencies:** R1-R10 (BLOCKED-EXTERNAL: a person at the device)
+**Dependencies:** R1-R10 (the owner's word is no longer waited for, 2026-11-16: smoothness is the stream's numbers against bars to be written here, cavekit-finger-testing.md R7)
 
 ## Non-goals (this version)
 - The video overlay (option 5) and a LunaSysMgr change (option 6): held back by the owner's pick.

@@ -33,6 +33,12 @@ enyo.kind({
 			inner.downloadProgress = enyo.bind(this, "downloadProgress");
 			inner.downloadFinished = enyo.bind(this, "downloadFinished");
 			inner.downloadError = enyo.bind(this, "downloadError");
+			// and the lock's message: flashGestureLockChange runs on the inner view and calls its own
+			// showFlashLockedMessage, the framework's modal Popup. With the method on this wrapper alone
+			// the Popup still came, and its scrim took the tap after the one that engaged a movie: the
+			// second tap of a first double tap never reached the adapter, so no keyboard came (found
+			// 2026-11-16, Fancy Pants in the games round: its keys never arrived).
+			inner.showFlashLockedMessage = enyo.bind(this, "showFlashLockedMessage");
 		}
 	},
 	downloadStart: function(inUrl) {

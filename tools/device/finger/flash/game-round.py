@@ -105,7 +105,7 @@ elif [ -f $D/last-load ] && [ "$(sed -n 2p $D/last-load)" != "$LL0" ] && ! sed -
 {"sleep %d" % win if NOFB else f"/tmp/fbstream /tmp/fl-ctl -C {R} -s {win} -P 2000 >/dev/null 2>&1"}
 {"FP=$(grep -l libflashplayer /proc/[0-9]*/maps 2>/dev/null | head -1 | cut -d/ -f3); echo PCPU%d a $(cut -d' ' -f1 /proc/uptime) $(cut -d' ' -f14-19 /proc/$FP/task/$FP/stat) $(awk '/^cpu /{print $5, $2+$3+$4+$5+$6+$7+$8}' /proc/stat)" % w_i if THREADS else ""}
 {"sleep %d &" % win if NOFB else f"{FBNICE}/tmp/fbstream /tmp/fl-win -C {R} -s {win} -P 4000 -B /tmp/fl-ctl > /tmp/fl-win.out 2>&1 &"}
-FB=$!; {"/tmp/cputop 4 22 > /tmp/fl-tt.out 2>&1 & /tmp/pcsample $FP 4 1000 > /tmp/fl-pc.out 2>&1 & (for k in 1 2 3 4; do echo FREQ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq) $(cat /sys/devices/system/cpu/online); sleep 1; done > /tmp/fl-fq.out) &" if THREADS and w_i in (2, 4) else ""}
+FB=$!; {"/tmp/cputop 4 22 > /tmp/fl-tt.out 2>&1 & " + STACK + " > /tmp/fl-pc.out 2>&1 & (for k in 1 2 3 4; do echo FREQ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq) $(cat /sys/devices/system/cpu/online); sleep 1; done > /tmp/fl-fq.out) &" if THREADS and w_i in (2, 4) else ""}
 {block(w_i)}
 wait $FB; {"echo PCPU%d b $(cut -d' ' -f1 /proc/uptime) $(cut -d' ' -f14-19 /proc/$FP/task/$FP/stat) $(awk '/^cpu /{print $5, $2+$3+$4+$5+$6+$7+$8}' /proc/stat); " % w_i if THREADS else ""}{"wait; sed 's/^/TT%d /' /tmp/fl-tt.out; head -1500 /tmp/fl-pc.out | sed 's/^/PC%d /'; sed 's/^/PC%d /' /tmp/fl-fq.out; " % (w_i, w_i, w_i) if THREADS and w_i in (2, 4) else ""}{"shot w%d; " % w_i if winshots else ""}echo "RSSW $(grep VmRSS /proc/$PID/status 2>/dev/null | tr -s ' ' | cut -d' ' -f2)"; echo "WIN $(sed -n 's/.* new \\([0-9]*\\) of \\([0-9]*\\).*/\\1 \\2/p' /tmp/fl-win.out) $(sed -n 's/.*changes [0-9]* (\\([0-9.]*\\)\\/s).*/\\1/p' /tmp/fl-win.out) $(sed -n 's/.* p90 \\([0-9]*\\) .*/\\1/p' /tmp/fl-win.out)"
 {away}fi
@@ -133,6 +133,8 @@ i=0; while [ $i -lt 35 ] && pgrep -f plugin-container >/dev/null; do sleep 1; i=
 
 SMAPS = False
 FBNICE = ""
+# the player's thread sampled: its program counter alone (pcsample.c), or with JIHAD_STACK=1 its stack too (stacksample.c: the thread is stopped for each sample)
+STACK = "/tmp/stacksample $FP 4 20000" if os.environ.get("JIHAD_STACK") else "/tmp/pcsample $FP 4 1000"
 NOFB = bool(os.environ.get("JIHAD_FB_OFF"))    # an experiment: the minute played with no frame reading at all (the player's own count in the log is the reading)
 QUERY = os.environ.get("JIHAD_GAME_QUERY", "")     # "?quality=low": the title page's own switches, for an experiment
 THREADS = False
@@ -153,7 +155,7 @@ def main():
     global THREADS; THREADS = o.threads
     if THREADS:      # cputop.c and pcsample.c, built here: every thread's CPU over the window, and where the player's main thread is
         tc = os.path.join(ROOT, "build", "webos-oe", "toolchain", "out-toolchain", "x-tools", "arm-webos-linux-gnueabi", "bin", "arm-webos-linux-gnueabi-gcc"); td = tempfile.mkdtemp()
-        for tool in ("cputop", "pcsample"):
+        for tool in ("cputop", "pcsample", "stacksample"):
             pc = os.path.join(td, tool)
             if subprocess.run([tc, "-O2", "-march=armv7-a", "-mfloat-abi=softfp", "-std=gnu99", "-static", "-o", pc, os.path.join(HERE, tool + ".c")]).returncode == 0:
                 subprocess.run(["novacom", "put", "file:///tmp/" + tool], stdin=open(pc, "rb")); subprocess.run(["novacom", "run", "file://bin/chmod", "--", "+x", "/tmp/" + tool], stdin=subprocess.DEVNULL)

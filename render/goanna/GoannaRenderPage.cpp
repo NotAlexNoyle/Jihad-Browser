@@ -1979,7 +1979,7 @@ bool GoannaRenderPage::HandleEnter() {
 void GoannaRenderPage::HandleTab(bool backward) {
   if (!mChrome || !mChrome->mFocusedEditable) return;
   nsCOMPtr<nsIDOMHTMLTextAreaElement> ta = do_QueryInterface(mChrome->mFocusedEditable);
-  if (ta) { InsertText("\t"); return; }
+  if (ta && !backward) { InsertText("\t"); return; }   // Shift+Tab leaves a textarea for the field before, as in any browser
   FocusNextField(backward);
 }
 
@@ -4562,7 +4562,12 @@ bool GoannaRenderPage::KeyEvent(const char* type, int keyCode, int charCode, int
   // T-575: a keydown has no character in the DOM, but a player's key event does, as in the stock host (and
   // AS's charCode comes from it: 'a' read 65, not 97). And webOS's own special keys stay its own: the player
   // takes a raw code under 0x100 for text, so the DOM's 38 for Up read as '&', AS's 55. The next event's.
-  if (jihad_plugin_key_char) jihad_plugin_key_char(domChar, keyCode >= 0xE000 ? keyCode : 0);
+  // T-658: Shift too goes to the player as webOS's raw code (0x80), which its key handler knows as the modifier
+  // (libflashplayer.so 0x44a14): ActionScript reads keyCode 16 and a field takes nothing; as the DOM's 16 it was a
+  // character and a field showed a control glyph at each press (seen 2026-11-16). Ctrl stays the DOM's 17: the
+  // player's own reading of webOS's 0x82 gave ActionScript keyCode -1 and emptied the focused field (measured the
+  // same day), and a game's Ctrl (17, a common fire key) is worth more than a glyph in a field.
+  if (jihad_plugin_key_char) jihad_plugin_key_char(domChar, (keyCode >= 0xE000 || keyCode == 0x80) ? keyCode : 0);
   if (strcmp(type, "keypress") == 0) engine_calls::KeyEvent(u, t, domChar ? 0 : domKey, domChar, mods, &ret);
   else                               engine_calls::KeyEvent(u, t, domKey, 0, mods, &ret);
   if (jihad_plugin_key_char) jihad_plugin_key_char(0, 0);

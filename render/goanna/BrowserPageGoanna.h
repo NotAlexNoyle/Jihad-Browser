@@ -908,6 +908,8 @@ private:
   // T-576: a key's release held back until it has been down kKeyHoldMs (keyUp, flushKeyUps)
   static const int kKeyHoldMs = 120;
   struct HeldKeyUp { int key, modifiers, chr; int64_t dueMs; };
+  int palmModifiers(int modifiers);   // T-658
+  int mModsLogged = 0;
   std::vector<HeldKeyUp> mHeldKeyUps;
   std::map<int, int64_t> mKeyDownMs;
   void flushKeyUps(int onlyKey);   // T-575: until then a scroll of the page's own is not the card's echo

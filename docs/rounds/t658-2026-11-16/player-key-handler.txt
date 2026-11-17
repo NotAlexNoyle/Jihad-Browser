@@ -1,0 +1,21 @@
+# libflashplayer.so 0x449e0-0x44b20: the key handler's dispatch on the raw code (r6 = chr, or rawkeyCode when chr is 0)
+   44a10:	e58d9014 	str	r9, [sp, #20]
+   44a14:	e58d5018 	str	r5, [sp, #24]
+   44a18:	eb053654 	bl	192370 <NP_Initialize@@Base+0x14ef50>
+   44a1c:	e3560080 	cmp	r6, #128	; 0x80
+   44a20:	0a000066 	beq	44bc0 <NP_Initialize@@Base+0x17a0>
+   44a24:	ca000035 	bgt	44b00 <NP_Initialize@@Base+0x16e0>
+   44a28:	e3560008 	cmp	r6, #8
+...
+   44b00:	e3560081 	cmp	r6, #129	; 0x81
+   44b04:	0a000035 	beq	44be0 <NP_Initialize@@Base+0x17c0>
+   44b08:	e3560082 	cmp	r6, #130	; 0x82
+   44b0c:	1affffc9 	bne	44a38 <NP_Initialize@@Base+0x1618>
+   44b10:	e28d4038 	add	r4, sp, #56	; 0x38
+   44b14:	e1a02009 	mov	r2, r9
+   44b18:	e1a03005 	mov	r3, r5
+   44b1c:	e3a0100c 	mov	r1, #12
+   44b20:	e1a00004 	mov	r0, r4
+
+# 0x80 -> the special at 0x44bc0 (code 101), 0x81 -> 0x44be0, 0x82 -> code 12, 8 and 13 their own; every other code is a character.
+# No branch reads a modifier mask to turn a letter into a paste.

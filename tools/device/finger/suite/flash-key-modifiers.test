@@ -1,0 +1,32 @@
+# A hardware keyboard's Shift and Ctrl in a movie's field, and the clipboard into a movie (cavekit-flash.md R7,
+# T-658). The device sends a key pressed with a modifier held with a mask that is not npPalm's (0x80 Shift, 0x20
+# Ctrl): the daemon reads it into npPalm's bits. Shift itself goes to the player as webOS's raw 0x80 (ActionScript
+# reads 16, the field takes nothing: it showed a control glyph before). Ctrl is the DOM's 17 (a game's fire key).
+# Ctrl+V with a primed system clipboard: the player has no paste on a key (its handler, libflashplayer.so 0x44970,
+# knows no clipboard): the key reaches ActionScript as 86 and the field takes a "v", none of the primed text.
+# THE LIMIT, recorded: a page's copied text does not reach a movie.
+id: flash-key-modifiers
+section: Flash
+item: A hardware keyboard's Shift and Ctrl in a movie's field: Shift+b types B and nothing else, Ctrl reaches the movie as key 17, and Ctrl+V with a text on the system clipboard pastes none of it (the player has no paste on a key: recorded)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=text
+kit: cavekit-flash.md R7
+fixture: kernel-kbd
+wait text ready stage= 30
+clipboard-set jihad-prime-42
+flash-tap m 400 300 showAll 200 85
+pause 1500
+kernel-key 30
+wait text text "text a" 6
+kernel-key 42
+kernel-chord 42 48
+wait text text "text aB" 6
+wait line 'modifier mask 0x80 read as 0x4' 4
+kernel-key 29
+wait text keydown "keydown 17" 6
+kernel-chord 29 47
+wait text keydown "keydown 86 118" 6
+wait line 'modifier mask 0x20 read as 0x1' 4
+expect text-has text v
+expect text-lacks text prime
+expect clipboard jihad-prime-42

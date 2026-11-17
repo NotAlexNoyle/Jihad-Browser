@@ -107,16 +107,28 @@ target line (both webOS 3.0.5 and CE 3.1.0).
   a plugin's stream as it opens; the amp is held from a plugin's start.
 - **The owner, 2026-11-16, on the user agent: "add the gecko version from when pale moon last forked gecko"**:
   `Gecko/52.9` before `Goanna/6.9` (JihadUserAgent.h). Asked because YUI 2 found no Flash without a Gecko/ token.
-- **Open, T-658: a movie's `System.setClipboard` does not reach the card's clipboard** (Paste gave the older text);
-  the way in (Ctrl+V from the emulated keyboard) not tried; Mojo's `field-paste` point is a guess that missed.
-  FileReference.browse/download answer false in this player: recorded.
+- **T-658 done: the clipboard between a movie and the page is the player's limit, both ways**
+  (`docs/rounds/t658-2026-11-16/README.md`): the stock browser's Paste gave the older text too (the player imports
+  nothing of the system clipboard), and the player has no paste on a key. Fixed on the way: a key pressed with
+  Ctrl or Shift held on a hardware keyboard reached the engine without the modifier (the device's mask is 0x80 Shift, 0x20 Ctrl, not npPalm's;
+  `BrowserPageGoanna::palmModifiers` reads it, no state kept), and Shift put a control glyph in a
+  movie's field (it now goes to the player as raw 0x80). Ctrl stays the DOM's 17 on purpose (raw 0x82 emptied the
+  field and read -1 in ActionScript). In a page's field the modifier keys alone typed U+0080-83 and Shift+Tab never went back: fixed
+  (`keyboard-modifiers`). The system clipboard is the file `/var/tmp/webkit-clipboard`: `clipboard-set`, `expect
+  clipboard` prime and read it (`flash-clipboard-out`, `flash-key-modifiers`); `expect text-lacks` is new.
+  One ck:inspector review (Fable): its P1 (tests passing on a leftover clipboard) and P2s are in.
+- **A sound check that failed one run in ten was the instrument's**: finding a stage tap's point takes one to
+  three seconds on a loaded device and a 4 s recording ended before the sound. `sound-watch` prints a 0.2 s
+  envelope and a stage tap its time in the recording; a failed `sound-watched heard` prints the sound server's
+  streams. The audio watch's bound on raises is a rate now (4 a second), not a count for the stream's life.
 - **T-655**: 0 crashes in 18 Etsy loads; the crash capture waits for a recurrence (`docs/rounds/t655-2026-11-16/`).
 - **The corpus's server** (`tools/host/flash-serve.py`, port 8097) was restarted by hand today (it now makes the
   chart's YUI page, the postcards' gallery XML and pictures). Kill it by its port's pid (`ss -ltnp`), never by
   `pkill -f flash-serve` from a command that names the file: the pattern matches the shell that runs it.
-- **Device as left:** the three shells on engine 0113 with today's daemon (the UA token, the audio watch); upright;
+- **Device as left:** the three shells on engine 0113 with today's daemon (the UA token, the audio watch, the held
+  modifiers); the stock bench app removed; upright;
   media volume 23; USB alert closed.
-- **NEXT:** T-658, T-576's leftovers (Wonderputt's start taps, the four low-reacting games, soak scripts, QWOP's
+- **NEXT:** T-576's leftovers (Wonderputt's start taps, the four low-reacting games, soak scripts, QWOP's
   memory), T-578 (videos), T-579..T-584, then T-605/T-606, T-594/T-611. Deferred rows as before, plus T-656.
 
 ## 2026-11-16 (later) — T-653 and T-654 DONE: every test an instrument's; T-655 next (READ FIRST)

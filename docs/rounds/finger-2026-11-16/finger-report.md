@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-16T19:44:19
+# Finger suite report — 2026-11-16T21:35:13
 
 First run 2026-11-16T00:53:38; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
+Shells: enyo, mochi, mojo. Scripts: 8. 39601 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -40,7 +40,7 @@ Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 | enyo | flash-input-cover | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R5 |
 | enyo | flash-input-hold (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-press-rate: 26.5 moves a second sent on (at least 20): ] a press of 1441 ms: 32 moves from the card in 1207 ms, 32 sent on, 232 ms in sending them | cavekit-flash.md R5 |
 | enyo | flash-input-kbdrag | **pass** | 8 ok, 0 failed | CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8) | cavekit-flash.md R5 |
-| enyo | flash-input-kernel | **pass** | 9 ok, 0 failed | kernel keyboard: up | cavekit-flash.md R5 |
+| enyo | flash-input-kernel (rerun) | **pass** | 9 ok, 0 failed | kernel keyboard: up | cavekit-flash.md R5 |
 | enyo | flash-input-keyhold | **pass** | 7 ok, 0 failed | CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-flash.md R6 |
 | enyo | flash-input-keys | **pass** | 13 ok, 0 failed | CHECK ok 31-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-flash.md R5 |
 | enyo | flash-input-lock | **pass** | 15 ok, 0 failed | CHECK ok 31-card-scroll-min: the card's scroll y 100 (at least 30) | cavekit-flash.md R5 |
@@ -57,7 +57,7 @@ Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 | enyo | keyboard-address | **pass** | 2 ok, 0 failed | CHECK ok 11-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-input-bridging.md R2 |
 | enyo | keyboard-arbitration | **pass** | 8 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R7 |
 | enyo | keyboard-fields (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 17-visible: field on the screen at 16,284-522,319 (the reach ends at 600, keyboard 1) | cavekit-input-bridging.md R2 |
-| enyo | keyboard-keys | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
+| enyo | keyboard-keys (rerun) | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
 | enyo | long-press-image | **pass** | 2 ok, 0 failed | WAIT ok 12-differs 0,100,756,900; frames: kept/enyo-long-press-image-hold-image_.jpg | cavekit-ui-shell.md R7 |
 | enyo | long-press-menu | **pass** | 4 ok, 0 failed | CHECK ok 15-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html | cavekit-ui-shell.md R7 |
 | enyo | long-press-text-field (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html; frames: kept/enyo-long-press-text-field-hold-text_.jpg, kept/enyo-long-press-text-field-hold-field_.jpg | cavekit-ui-shell.md R7 |
@@ -134,7 +134,7 @@ Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 | mochi | flash-input-cover | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R5 |
 | mochi | flash-input-hold (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-press-rate: 26.4 moves a second sent on (at least 20): ] a press of 1424 ms: 33 moves from the card in 1248 ms, 33 sent on, 143 ms in sending them | cavekit-flash.md R5 |
 | mochi | flash-input-kbdrag | **pass** | 8 ok, 0 failed | CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8) | cavekit-flash.md R5 |
-| mochi | flash-input-kernel | **pass** | 9 ok, 0 failed | kernel keyboard: up | cavekit-flash.md R5 |
+| mochi | flash-input-kernel (rerun) | **pass** | 9 ok, 0 failed | kernel keyboard: up | cavekit-flash.md R5 |
 | mochi | flash-input-keyhold | **pass** | 7 ok, 0 failed | CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-flash.md R6 |
 | mochi | flash-input-keys | **pass** | 13 ok, 0 failed | CHECK ok 31-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-flash.md R5 |
 | mochi | flash-input-lock | **pass** | 15 ok, 0 failed | CHECK ok 31-card-scroll-min: the card's scroll y 98 (at least 30) | cavekit-flash.md R5 |
@@ -151,7 +151,7 @@ Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 | mochi | keyboard-address | **pass** | 2 ok, 0 failed | CHECK ok 11-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-input-bridging.md R2 |
 | mochi | keyboard-arbitration | **pass** | 8 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R7 |
 | mochi | keyboard-fields (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 17-visible: field on the screen at 16,280-522,315 (the reach ends at 600, keyboard 1) | cavekit-input-bridging.md R2 |
-| mochi | keyboard-keys | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
+| mochi | keyboard-keys (rerun) | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
 | mochi | long-press-image | **pass** | 2 ok, 0 failed | WAIT ok 12-differs 0,100,756,900; frames: kept/mochi-long-press-image-hold-image_.jpg | cavekit-ui-shell.md R7 |
 | mochi | long-press-menu | **pass** | 4 ok, 0 failed | CHECK ok 15-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html | cavekit-ui-shell.md R7 |
 | mochi | long-press-text-field (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html; frames: kept/mochi-long-press-text-field-hold-text_.jpg, kept/mochi-long-press-text-field-hold-field_.jpg | cavekit-ui-shell.md R7 |
@@ -227,7 +227,7 @@ Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 | mojo | flash-input-cover | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R5 |
 | mojo | flash-input-hold (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-press-rate: 26.1 moves a second sent on (at least 20): ] a press of 1360 ms: 32 moves from the card in 1228 ms, 32 sent on, 100 ms in sending them | cavekit-flash.md R5 |
 | mojo | flash-input-kbdrag | **pass** | 8 ok, 0 failed | CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8) | cavekit-flash.md R5 |
-| mojo | flash-input-kernel | **pass** | 9 ok, 0 failed | kernel keyboard: up | cavekit-flash.md R5 |
+| mojo | flash-input-kernel (rerun) | **pass** | 9 ok, 0 failed | kernel keyboard: up | cavekit-flash.md R5 |
 | mojo | flash-input-keyhold | **pass** | 7 ok, 0 failed | CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-flash.md R6 |
 | mojo | flash-input-keys | **pass** | 13 ok, 0 failed | CHECK ok 31-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-flash.md R5 |
 | mojo | flash-input-lock | **pass** | 15 ok, 0 failed | CHECK ok 31-card-scroll-min: the card's scroll y 100 (at least 30) | cavekit-flash.md R5 |
@@ -244,7 +244,7 @@ Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 | mojo | keyboard-address | **pass** | 2 ok, 0 failed | CHECK ok 11-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-input-bridging.md R2 |
 | mojo | keyboard-arbitration | **pass** | 8 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R7 |
 | mojo | keyboard-fields (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 17-visible: field on the screen at 16,275-522,310 (the reach ends at 600, keyboard 1) | cavekit-input-bridging.md R2 |
-| mojo | keyboard-keys | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
+| mojo | keyboard-keys (rerun) | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
 | mojo | long-press-image | **pass** | 2 ok, 0 failed | WAIT ok 12-differs 0,100,756,900; frames: kept/mojo-long-press-image-hold-image_.jpg | cavekit-ui-shell.md R7 |
 | mojo | long-press-menu | **pass** | 4 ok, 0 failed | CHECK ok 15-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html | cavekit-ui-shell.md R7 |
 | mojo | long-press-text-field (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8077/jihad-long-static.html; frames: kept/mojo-long-press-text-field-hold-text_.jpg, kept/mojo-long-press-text-field-hold-field_.jpg | cavekit-ui-shell.md R7 |
@@ -307,7 +307,7 @@ Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 | enyo | flash-app-phonemic (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
 | enyo | flash-app-piano (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1747 frames 45056 hz 492 env 0,0,12626,9057,3514,1911, the speaker amp on, the media volume 23; frames: kept/enyo-flash-app-piano-key_.jpg | cavekit-flash.md R7 |
 | enyo | flash-app-postcards (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 26-flash-drawn: drawn: region 269,370-499,543: colours 309 hash 0536a9b6 rows 173 uniform 67 light 412-519 blue 413-458; frames: kept/enyo-flash-app-postcards-forward_.jpg | cavekit-flash.md R7 |
-| enyo | flash-clipboard-out (rerun) | **known** | 8 ok, 1 failed | the open defect T-658: CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound; frames: kept/enyo-flash-clipboard-out-menu_.jpg, kept/enyo-flash-clipboard-out-24-wait-text_.jpg | cavekit-flash.md R7 |
+| enyo | flash-clipboard-out (rerun) | **pass** | 10 ok, 0 failed | CHECK ok 34-quiet: no line jihad-dl\/dialog  for 4 s; frames: kept/enyo-flash-clipboard-out-menu_.jpg | cavekit-flash.md R7 |
 | mochi | flash-app-calculator (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 33-region-equal: region 165,177-397,233: colours 128 hash 6a298bcf rows 56 uniform 0 light none blue 179-232 = the sample's hash; frames: kept/mochi-flash-app-calculator-keyed-15_.jpg, kept/mochi-flash-app-calculator-sum_.jpg | cavekit-flash.md R7 |
 | mochi | flash-app-chart (rerun) | **pass** | 5 ok, 0 failed | WAIT ok 17-text last = [click 4 May series 0]; frames: kept/mochi-flash-app-chart-chart_.jpg | cavekit-flash.md R7 |
 | mochi | flash-app-clock (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 15-region-changed: region 0,79-300,377: colours 1344 hash 4f3a20c0 rows 298 uniform 25 light 211-212 blue 97-360 against the sample's hash 9b4d8301 | cavekit-flash.md R7 |
@@ -318,7 +318,7 @@ Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 | mochi | flash-app-phonemic (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
 | mochi | flash-app-piano (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1712 frames 45056 hz 514 env 0,0,6,12626,5300,2755, the speaker amp on, the media volume 23; frames: kept/mochi-flash-app-piano-key_.jpg | cavekit-flash.md R7 |
 | mochi | flash-app-postcards (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 26-flash-drawn: drawn: region 269,366-499,539: colours 274 hash 02916fe5 rows 173 uniform 65 light 408-515 blue 409-454; frames: kept/mochi-flash-app-postcards-forward_.jpg | cavekit-flash.md R7 |
-| mochi | flash-clipboard-out (rerun) | **known** | 8 ok, 1 failed | the open defect T-658: CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound; frames: kept/mochi-flash-clipboard-out-menu_.jpg, kept/mochi-flash-clipboard-out-24-wait-text_.jpg | cavekit-flash.md R7 |
+| mochi | flash-clipboard-out (rerun) | **pass** | 10 ok, 0 failed | CHECK ok 34-quiet: no line jihad-dl\/dialog  for 4 s; frames: kept/mochi-flash-clipboard-out-menu_.jpg | cavekit-flash.md R7 |
 | mojo | flash-app-calculator (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 33-region-equal: region 165,172-397,228: colours 115 hash 708ae6c9 rows 56 uniform 0 light none blue 174-227 = the sample's hash; frames: kept/mojo-flash-app-calculator-keyed-15_.jpg, kept/mojo-flash-app-calculator-sum_.jpg | cavekit-flash.md R7 |
 | mojo | flash-app-chart (rerun) | **pass** | 5 ok, 0 failed | WAIT ok 17-text last = [click 4 May series 0]; frames: kept/mojo-flash-app-chart-chart_.jpg | cavekit-flash.md R7 |
 | mojo | flash-app-clock (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 15-region-changed: region 0,74-300,372: colours 1106 hash 84fe1e9b rows 298 uniform 41 light 206-207 blue 92-355 against the sample's hash 193b490a | cavekit-flash.md R7 |
@@ -329,12 +329,18 @@ Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 | mojo | flash-app-phonemic (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
 | mojo | flash-app-piano (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1761 frames 45056 hz 479 env 0,0,12626,6643,3333,1371, the speaker amp on, the media volume 23; frames: kept/mojo-flash-app-piano-key_.jpg | cavekit-flash.md R7 |
 | mojo | flash-app-postcards (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 26-flash-drawn: drawn: region 269,361-499,534: colours 256 hash 7d7798ab rows 173 uniform 67 light 403-510 blue none; frames: kept/mojo-flash-app-postcards-forward_.jpg | cavekit-flash.md R7 |
-| mojo | flash-clipboard-out (rerun) | **known** | 8 ok, 1 failed | the open defect T-658: CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound; frames: kept/mojo-flash-clipboard-out-menu_.jpg, kept/mojo-flash-clipboard-out-24-wait-text_.jpg | cavekit-flash.md R7 |
+| mojo | flash-clipboard-out (rerun) | **pass** | 10 ok, 0 failed | CHECK ok 34-quiet: no line jihad-dl\/dialog  for 4 s; frames: kept/mojo-flash-clipboard-out-menu_.jpg | cavekit-flash.md R7 |
+| enyo | flash-key-modifiers (rerun) | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-flash.md R7 |
+| mochi | flash-key-modifiers (rerun) | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-flash.md R7 |
+| mojo | flash-key-modifiers (rerun) | **pass** | 10 ok, 0 failed | kernel keyboard: up | cavekit-flash.md R7 |
+| enyo | keyboard-modifiers (rerun) | **pass** | 5 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
+| mochi | keyboard-modifiers (rerun) | **pass** | 5 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
+| mojo | keyboard-modifiers (rerun) | **pass** | 5 ok, 0 failed | kernel keyboard: up | cavekit-input-bridging.md R2 |
 
 ## The device at the end
 
 ```
-DEVICE ok job-enyo: (401262/4492792) jihad (start) running, process 20896
+DEVICE ok job-enyo: (410183/452379656) jihad (start) running, process 15710
 DEVICE ok daemons-enyo: one daemon
 DEVICE ok hand-daemon-enyo: none
 DEVICE ok hooks-enyo: none
@@ -344,7 +350,7 @@ DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
 DEVICE ok cards-enyo: none
 DEVICE ok audio-lib-enyo: the device's own
 DEVICE ok look-enyo: {"returnValue":true,"theme":null}
-DEVICE ok job-mochi: (401267/466458420) jihad-mochi (start) running, process 6674
+DEVICE ok job-mochi: (410189/886178172) jihad-mochi (start) running, process 22317
 DEVICE ok daemons-mochi: one daemon
 DEVICE ok hand-daemon-mochi: none
 DEVICE ok hooks-mochi: none
@@ -354,7 +360,7 @@ DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
 DEVICE ok cards-mochi: none
 DEVICE ok audio-lib-mochi: the device's own
 DEVICE ok look-mochi: {"returnValue":true,"theme":null}
-DEVICE ok job-mojo: (401272/118305975) jihad-mojo (start) running, process 24149
+DEVICE ok job-mojo: (410195/618678320) jihad-mojo (start) running, process 29082
 DEVICE ok daemons-mojo: one daemon
 DEVICE ok hand-daemon-mojo: none
 DEVICE ok hooks-mojo: none
@@ -374,7 +380,7 @@ DEVICE ok test-pads-mojo: none
 DEVICE ok dialog-pipes-mojo: none
 DEVICE FAIL tmp-dumps: /tmp/x.out 
 DEVICE ok media-scratch: none
-DEVICE FAIL overall: 16% of /tmp used
+DEVICE FAIL overall: 15% of /tmp used
 novacom: unexpected EOF from server
 ```
 
@@ -737,7 +743,7 @@ novacom: unexpected EOF from server
 
 ### enyo / flash-input-kernel — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +2 s, load done at +8 s, 9 content frames at +8 s; the GPU path, frames off the main thread (the express l
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express l
     WAIT ok 8-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
     CHECK ok 10-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
     WAIT ok 13-text keydown = [keydown 38 0]
@@ -876,7 +882,7 @@ novacom: unexpected EOF from server
 
 ### enyo / flash-text — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +2 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +2 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (t
     WAIT ok 7-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
     CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
     CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
@@ -975,7 +981,7 @@ novacom: unexpected EOF from server
 
 ### enyo / keyboard-keys — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    enyo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     WAIT ok 8-rect plain
     calibrated (enyo): the page's top on the screen 83 (the table said 82, the tap at y 143 landed on document y 77)
     CHECK ok 11-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
@@ -1793,7 +1799,7 @@ novacom: unexpected EOF from server
 
 ### mochi / flash-input-kernel — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +3 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the express 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +3 s, load done at +8 s, 10 content frames at +8 s; the GPU path, frames off the main thread (the express
     WAIT ok 8-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
     CHECK ok 10-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
     WAIT ok 13-text keydown = [keydown 38 0]
@@ -1932,7 +1938,7 @@ novacom: unexpected EOF from server
 
 ### mochi / flash-text — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +3 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (
     WAIT ok 7-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
     CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
     CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
@@ -2031,7 +2037,7 @@ novacom: unexpected EOF from server
 
 ### mochi / keyboard-keys — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 9 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    mochi card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +3 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     WAIT ok 8-rect plain
     calibrated (mochi): the page's top on the screen 79 (the table said 78, the tap at y 139 landed on document y 77)
     CHECK ok 11-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
@@ -2840,7 +2846,7 @@ novacom: unexpected EOF from server
 
 ### mojo / flash-input-kernel — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +2 s, load done at +8 s, 12 content frames at +8 s; the GPU path, frames off the main thread (the express 
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&over=1: connected at +2 s, load done at +8 s, 9 content frames at +8 s; the GPU path, frames off the main thread (the express l
     WAIT ok 8-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
     CHECK ok 10-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
     WAIT ok 13-text keydown = [keydown 38 0]
@@ -2979,7 +2985,7 @@ novacom: unexpected EOF from server
 
 ### mojo / flash-text — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (t
     WAIT ok 7-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
     CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
     CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
@@ -3078,7 +3084,7 @@ novacom: unexpected EOF from server
 
 ### mojo / keyboard-keys — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    mojo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     WAIT ok 8-rect plain
     calibrated (mojo): the page's top on the screen 74 (the table said 73, the tap at y 134 landed on document y 77)
     CHECK ok 11-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
@@ -3718,10 +3724,10 @@ novacom: unexpected EOF from server
 
 ### enyo / flash-app-form — pass
 
-    enyo card on http://192.168.1.245:8097/title/website-viewer: connected at +4 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    enyo card on http://192.168.1.245:8097/title/website-viewer: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
     WAIT ok 11-rect m
     WAIT ok 12-still m
-    CHECK ok 13-flash-drawn: drawn: region 0,83-640,561: colours 4096 hash c4460238 rows 478 uniform 0 light none blue none
+    CHECK ok 13-flash-drawn: drawn: region 0,83-640,561: colours 4096 hash e07ca3aa rows 478 uniform 0 light none blue none
     CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
     CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
     WAIT ok 19-still m
@@ -3749,14 +3755,14 @@ novacom: unexpected EOF from server
 
 ### enyo / flash-app-phonemic — pass
 
-    enyo card on http://192.168.1.245:8097/title/phonemic-chart: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    enyo card on http://192.168.1.245:8097/title/phonemic-chart: connected at +2 s, load done at +8 s, 10 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     WAIT ok 11-rect m
     WAIT ok 12-still m
     CHECK ok 13-flash-drawn: drawn: region 0,83-654,652: colours 3877 hash 6f903e29 rows 569 uniform 0 light 116-634 blue none
     CHECK ok 15-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 860 env 0,0,0,0,0,0,0,0,0,0,0,0,17,7524,2646,824,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
-    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 2064 env 0,0,0,0,0,0,0,0,0,0,0,0,1253,6688,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
-    CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 267 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,1157,1666,1315,326,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 860 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7524,3677,824,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 2064 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,44,6688,2470,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 384 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1666,1638,508,9,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
     CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
 ### enyo / flash-app-piano — pass
@@ -3785,18 +3791,19 @@ novacom: unexpected EOF from server
     CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,140-672,293: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
     CHECK ok 26-flash-drawn: drawn: region 269,370-499,543: colours 309 hash 0536a9b6 rows 173 uniform 67 light 412-519 blue 413-458
 
-### enyo / flash-clipboard-out — known
+### enyo / flash-clipboard-out — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +2 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express l
-    WAIT ok 15-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
-    WAIT ok 17-text clip = [clip set]
-    CHECK ok 19-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
-    WAIT ok 21-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
-    CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound
-    CHECK ok 26-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
-    WAIT ok 28-text file = [file browse false]
-    WAIT ok 30-text file = [file download false]
-    CHECK ok 31-quiet: no line jihad-dl\|dialog  for 4 s
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express l
+    WAIT ok 16-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+    WAIT ok 19-text clip = [clip set]
+    CHECK ok 20-clipboard: the system clipboard holds [jihad-prime-41]
+    CHECK ok 22-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    WAIT ok 24-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
+    WAIT ok 27-text pfv = [pf jihad-prime-41]
+    CHECK ok 29-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    WAIT ok 31-text file = [file browse false]
+    WAIT ok 33-text file = [file download false]
+    CHECK ok 34-quiet: no line jihad-dl\|dialog  for 4 s
 
 ### mochi / flash-app-calculator — pass
 
@@ -3841,10 +3848,10 @@ novacom: unexpected EOF from server
 
 ### mochi / flash-app-form — pass
 
-    mochi card on http://192.168.1.245:8097/title/website-viewer: connected at +2 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    mochi card on http://192.168.1.245:8097/title/website-viewer: connected at +3 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     WAIT ok 11-rect m
     WAIT ok 12-still m
-    CHECK ok 13-flash-drawn: drawn: region 0,79-640,557: colours 4096 hash c4460238 rows 478 uniform 0 light none blue none
+    CHECK ok 13-flash-drawn: drawn: region 0,79-640,557: colours 4096 hash e07ca3aa rows 478 uniform 0 light none blue none
     CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
     CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
     WAIT ok 19-still m
@@ -3872,14 +3879,14 @@ novacom: unexpected EOF from server
 
 ### mochi / flash-app-phonemic — pass
 
-    mochi card on http://192.168.1.245:8097/title/phonemic-chart: connected at +2 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    mochi card on http://192.168.1.245:8097/title/phonemic-chart: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     WAIT ok 11-rect m
     WAIT ok 12-still m
     CHECK ok 13-flash-drawn: drawn: region 0,79-654,648: colours 3877 hash 6f903e29 rows 569 uniform 0 light 112-630 blue none
     CHECK ok 15-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 860 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,7524,6533,1834,216,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
-    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 2064 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,5243,6688,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
-    CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 267 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,1666,1607,469,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 860 env 0,0,0,0,0,0,0,0,0,0,0,0,0,7524,5745,1010,28,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 2064 env 0,0,0,0,0,0,0,0,0,0,0,0,0,301,6688,174,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 267 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1666,1649,508,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
     CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
 ### mochi / flash-app-piano — pass
@@ -3908,18 +3915,19 @@ novacom: unexpected EOF from server
     CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,136-672,289: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
     CHECK ok 26-flash-drawn: drawn: region 269,366-499,539: colours 274 hash 02916fe5 rows 173 uniform 65 light 408-515 blue 409-454
 
-### mochi / flash-clipboard-out — known
+### mochi / flash-clipboard-out — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +1 s, load done at +9 s, 11 content frames at +9 s; the GPU path, frames off the main thread (the express
-    WAIT ok 15-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
-    WAIT ok 17-text clip = [clip set]
-    CHECK ok 19-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
-    WAIT ok 21-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
-    CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound
-    CHECK ok 26-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
-    WAIT ok 28-text file = [file browse false]
-    WAIT ok 30-text file = [file download false]
-    CHECK ok 31-quiet: no line jihad-dl\|dialog  for 4 s
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +1 s, load done at +7 s, 11 content frames at +7 s; the GPU path, frames off the main thread (the express
+    WAIT ok 16-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+    WAIT ok 19-text clip = [clip set]
+    CHECK ok 20-clipboard: the system clipboard holds [jihad-prime-41]
+    CHECK ok 22-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    WAIT ok 24-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
+    WAIT ok 27-text pfv = [pf jihad-prime-41]
+    CHECK ok 29-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    WAIT ok 31-text file = [file browse false]
+    WAIT ok 33-text file = [file download false]
+    CHECK ok 34-quiet: no line jihad-dl\|dialog  for 4 s
 
 ### mojo / flash-app-calculator — pass
 
@@ -3964,7 +3972,7 @@ novacom: unexpected EOF from server
 
 ### mojo / flash-app-form — pass
 
-    mojo card on http://192.168.1.245:8097/title/website-viewer: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    mojo card on http://192.168.1.245:8097/title/website-viewer: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
     WAIT ok 11-rect m
     WAIT ok 12-still m
     CHECK ok 13-flash-drawn: drawn: region 0,74-640,552: colours 4096 hash 82825cf1 rows 478 uniform 0 light none blue none
@@ -3995,14 +4003,14 @@ novacom: unexpected EOF from server
 
 ### mojo / flash-app-phonemic — pass
 
-    mojo card on http://192.168.1.245:8097/title/phonemic-chart: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    mojo card on http://192.168.1.245:8097/title/phonemic-chart: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
     WAIT ok 11-rect m
     WAIT ok 12-still m
     CHECK ok 13-flash-drawn: drawn: region 0,74-654,643: colours 3117 hash ed71f967 rows 569 uniform 0 light 107-625 blue none
     CHECK ok 15-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 860 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7524,3416,824,11,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
-    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 2064 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,151,6688,186,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
-    CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 267 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,20,1666,1492,414,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 1459 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7524,3677,824,12,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,151,6688,199,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 529 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1666,1651,1112,134,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
     CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
 ### mojo / flash-app-piano — pass
@@ -4031,16 +4039,89 @@ novacom: unexpected EOF from server
     CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,131-672,284: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
     CHECK ok 26-flash-drawn: drawn: region 269,361-499,534: colours 256 hash 7d7798ab rows 173 uniform 67 light 403-510 blue none
 
-### mojo / flash-clipboard-out — known
+### mojo / flash-clipboard-out — pass
 
     mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express l
+    WAIT ok 16-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+    WAIT ok 19-text clip = [clip set]
+    CHECK ok 20-clipboard: the system clipboard holds [jihad-prime-41]
+    CHECK ok 22-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 24-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
+    WAIT ok 27-text pfv = [pf jihad-prime-41]
+    CHECK ok 29-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 31-text file = [file browse false]
+    WAIT ok 33-text file = [file download false]
+    CHECK ok 34-quiet: no line jihad-dl\|dialog  for 4 s
+
+### enyo / flash-key-modifiers — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +2 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (t
     WAIT ok 15-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
-    WAIT ok 17-text clip = [clip set]
-    CHECK ok 19-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
-    WAIT ok 21-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
-    CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound
-    CHECK ok 26-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
-    WAIT ok 28-text file = [file browse false]
-    WAIT ok 30-text file = [file download false]
-    CHECK ok 31-quiet: no line jihad-dl\|dialog  for 4 s
+    WAIT ok 20-text text = [text a]
+    WAIT ok 23-text text = [text aB]
+    WAIT ok 24-line: [jihad-bs] key: the modifier mask 0x80 read as 0x4
+    WAIT ok 26-text keydown = [keydown 17 17]
+    WAIT ok 28-text keydown = [keydown 86 118]
+    WAIT ok 29-line: [jihad-bs] key: the modifier mask 0x20 read as 0x1
+    CHECK ok 30-text-has: text = [text aBv] holds [v]
+    CHECK ok 31-text-lacks: text = [text aBv] lacks [prime]
+    CHECK ok 32-clipboard: the system clipboard holds [jihad-prime-42]
+
+### mochi / flash-key-modifiers — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +3 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) 
+    WAIT ok 15-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+    WAIT ok 20-text text = [text a]
+    WAIT ok 23-text text = [text aB]
+    WAIT ok 24-line: [jihad-bs] key: the modifier mask 0x80 read as 0x4
+    WAIT ok 26-text keydown = [keydown 17 17]
+    WAIT ok 28-text keydown = [keydown 86 118]
+    WAIT ok 29-line: [jihad-bs] key: the modifier mask 0x20 read as 0x1
+    CHECK ok 30-text-has: text = [text aBv] holds [v]
+    CHECK ok 31-text-lacks: text = [text aBv] lacks [prime]
+    CHECK ok 32-clipboard: the system clipboard holds [jihad-prime-42]
+
+### mojo / flash-key-modifiers — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (t
+    WAIT ok 15-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+    WAIT ok 20-text text = [text a]
+    WAIT ok 23-text text = [text aB]
+    WAIT ok 24-line: [jihad-bs] key: the modifier mask 0x80 read as 0x4
+    WAIT ok 26-text keydown = [keydown 17 17]
+    WAIT ok 28-text keydown = [keydown 86 118]
+    WAIT ok 29-line: [jihad-bs] key: the modifier mask 0x20 read as 0x1
+    CHECK ok 30-text-has: text = [text aBv] holds [v]
+    CHECK ok 31-text-lacks: text = [text aBv] lacks [prime]
+    CHECK ok 32-clipboard: the system clipboard holds [jihad-prime-42]
+
+### enyo / keyboard-modifiers — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 9 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    WAIT ok 11-rect plain
+    calibrated (enyo): the page's top on the screen 83 (the table said 82, the tap at y 143 landed on document y 77)
+    CHECK ok 14-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    WAIT ok 20-text echo = [plain n=1 c=0 last=[B] value=[B] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+    WAIT ok 22-text echo = [plain n=1 c=1 last=[B] value=[B] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=area keydowns=0]
+    WAIT ok 24-text echo = [plain n=1 c=1 last=[B] value=[B] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+
+### mochi / keyboard-modifiers — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 9 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 11-rect plain
+    calibrated (mochi): the page's top on the screen 79 (the table said 78, the tap at y 139 landed on document y 77)
+    CHECK ok 14-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    WAIT ok 20-text echo = [plain n=1 c=0 last=[B] value=[B] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+    WAIT ok 22-text echo = [plain n=1 c=1 last=[B] value=[B] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=area keydowns=0]
+    WAIT ok 24-text echo = [plain n=1 c=1 last=[B] value=[B] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+
+### mojo / keyboard-modifiers — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-input-echo.html: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    WAIT ok 11-rect plain
+    calibrated (mojo): the page's top on the screen 74 (the table said 73, the tap at y 134 landed on document y 77)
+    CHECK ok 14-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 20-text echo = [plain n=1 c=0 last=[B] value=[B] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
+    WAIT ok 22-text echo = [plain n=1 c=1 last=[B] value=[B] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=area keydowns=0]
+    WAIT ok 24-text echo = [plain n=1 c=1 last=[B] value=[B] area n=0 c=0 last=[] value=[] ctl n=0 c=0 last=[] state=[] value=[] num n=0 c=0 last=[] value=[] focus=plain keydowns=0]
 

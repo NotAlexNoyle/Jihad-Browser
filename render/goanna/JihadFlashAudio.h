@@ -14,8 +14,8 @@
 //
 // libpulse is the device's own (0.9.22), opened with dlopen as the engine's cubeb opens it; the
 // build sysroot's headers are that version's too (pulse/version.h), so the types here are the
-// library's own. A stream is raised at most four times (the policy may zero it again for an alert:
-// an endless answer to that would spin and fill the log), and said once.
+// library's own. A stream is raised at most four times a second (the policy may zero it again for an
+// alert: an endless answer to that would spin), said when it opens and at most once in ten seconds after.
 #ifndef JIHAD_FLASH_AUDIO_H
 #define JIHAD_FLASH_AUDIO_H
 
@@ -29,6 +29,7 @@
 #include <pulse/pulseaudio.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -73,10 +74,10 @@ inline void FlashAudioInfo(pa_context* c, const pa_sink_input_info* i, int eol, 
   // The policy module may zero the stream again later (seen as a symbol cut short or lost, 2026-11-16), so the bound
   // is a rate, not a lifetime count: at most 4 raises a second for one stream, which a fight with another hand cannot
   // turn into a busy loop, and which never leaves a stream silent for good.
-  static uint32_t sIdx[8]; static unsigned char sUsed[8]; static unsigned char sInWin[8]; static long sWinMs[8];
-  static long sLogMs[8]; static unsigned sAgain[8]; static unsigned sNext = 0;   // this thread's alone
+  static uint32_t sIdx[8]; static unsigned char sUsed[8]; static unsigned char sInWin[8]; static int64_t sWinMs[8];
+  static int64_t sLogMs[8]; static unsigned sAgain[8]; static unsigned sNext = 0;   // this thread's alone
   struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
-  const long now = (long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+  const int64_t now = (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
   unsigned slot = 8;
   for (unsigned k = 0; k < 8; ++k) if (sUsed[k] && sIdx[k] == i->index) slot = k;
   const bool first = slot == 8;

@@ -30,9 +30,10 @@
 #   header-away                         Mojo's bar went with a scroll the page made itself: the tools' model says so
 #   kernel-key CODE                     a key of the emulated kernel keyboard (fixture: kernel-kbd), a raw Linux code
 #   kernel-chord MOD CODE               that key with a modifier held (Ctrl+V: 29 47)
+#   clipboard-set TEXT                  the system clipboard's text (the card WebKit's shared file); expect clipboard TEXT reads it
 #   type-keys TEXT | key-hold kb-backspace [MS]     the system keyboard by finger (type TEXT is the inject channel's) | card-to Y | pull-header | key CODE | type TEXT | inject CMD...
 #   expect CHECK ARGS...                fl_check_CHECK: scroll EY KY TOL | card-scroll KY TOL | zoom Z TOL | hit SEL |
-#                                       element-at SEL X Y | text SEL TEXT | text-has SEL TEXT | url PART |
+#                                       element-at SEL X Y | text SEL TEXT | text-has SEL TEXT | text-lacks SEL TEXT | url PART |
 #                                       dialog present|answered [BOUND] | keyboard up|down [BOUND] |
 #                                       content REGION SEL [TEXT] | region-equal REGION [SAMPLE] |
 #                                       region-changed REGION [SAMPLE] | top SEL [TOL]
@@ -71,10 +72,10 @@ REFS = os.path.join(os.environ.get("JIHAD_FLASH_CACHE", os.path.expanduser("~/.c
 SHELLS = ["enyo", "mochi", "mojo"]
 GESTURES = {"turn", "volume-key", "launch-from", "kernel-key", "kernel-chord", "flash-tap", "plugin-signal", "tap", "tap-off", "touch", "dismiss", "tap-at", "chrome", "drag", "drag-off", "drag-slow", "drag-jitter", "drag-paused", "flick", "pinch", "hold", "hold-on", "hold-off", "stage-tap", "stage-drag", "stage-tap", "stage-drag", "dtap", "pick", "card-to", "pull-header", "key", "type", "type-keys", "key-hold", "inject", "launch", "calibrate", "daemon-restart"}
 UNMARKED = {"kernel-key", "kernel-chord", "chrome", "dismiss", "touch", "hold", "hold-on", "hold-off", "stage-tap", "stage-drag", "stage-tap", "stage-drag", "dtap", "pinch", "type-keys", "key-hold"}       # no mark of their own: a wait must follow before an expect
-WAITING_EXPECTS = {"sound", "nav-paint", "volume-hud", "sound-watched", "volume", "lock", "keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
+WAITING_EXPECTS = {"clipboard", "sound", "nav-paint", "volume-hud", "sound-watched", "volume", "lock", "keyboard", "dialog", "flash-at", "flash-rate", "flash-rate-report", "flash-reacted", "plugin", "audio"}            # these expects wait with a bound themselves
 CHECKS = {"scroll": "fl_check_scroll", "card-scroll": "fl_check_card_scroll", "card-scroll-min": "fl_check_card_scroll_min", "zoom": "fl_check_zoom",
           "zoom-min": "fl_check_zoom_min", "zoom-max": "fl_check_zoom_max", "visible": "fl_check_visible", "stream": None, "hit": "fl_check_hit", "file": "fl_check_file",
-          "element-at": "fl_check_element_at", "text": "fl_check_text", "text-has": "fl_check_text_has", "url": "fl_check_url", "probe-has": "fl_check_probe_has",
+          "element-at": "fl_check_element_at", "text": "fl_check_text", "text-has": "fl_check_text_has", "text-lacks": "fl_check_text_lacks", "clipboard": "fl_check_clipboard", "url": "fl_check_url", "probe-has": "fl_check_probe_has",
           "dialog": "fl_check_dialog", "keyboard": "fl_check_keyboard", "content": "fl_check_content",
           "region-equal": "fl_check_region_equal", "region-changed": "fl_check_region_changed", "top": "fl_check_top",
           "flash-at": "fl_check_flash_at", "flash-drawn": "fl_check_flash_drawn", "flash-rate": "fl_check_flash_rate", "flash-rate-report": "fl_check_flash_rate_report", "flash-reacted": "fl_check_flash_reacted",
@@ -99,12 +100,12 @@ def split_args(rest):
         else: cur += c
     if cur: out.append(cur)
     return out
-ARITY = {"turn": (1, 1), "volume-key": (1, 2), "volume-mark": (0, 0), "volume-set": (1, 1), "sound-watch": (0, 1), "launch-from": (2, 2), "show-log": (0, 1), "calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1), "measure": (1, 1),
+ARITY = {"turn": (1, 1), "volume-key": (1, 2), "volume-mark": (0, 0), "volume-set": (1, 1), "clipboard-set": (1, 1), "sound-watch": (0, 1), "launch-from": (2, 2), "show-log": (0, 1), "calibrate": (1, 2), "tap": (1, 1), "dismiss": (2, 2), "tap-off": (3, 3), "dwell": (1, 1), "tap-at": (2, 2), "chrome": (1, 1), "pick": (2, 3), "card-to": (1, 1), "sample": (2, 2), "shoot": (1, 1), "measure": (1, 1),
          "hold-on": (1, 2), "hold-off": (3, 4), "stage-tap": (5, 5), "stage-drag": (7, 8), "touch": (1, 1), "key-hold": (1, 2), "drag": (4, 5), "drag-off": (5, 6), "drag-slow": (4, 4), "drag-jitter": (4, 5), "drag-paused": (4, 6), "flick": (4, 5), "pinch": (4, 5), "hold": (2, 3), "dtap": (2, 4),
          "key": (1, 1), "launch": (1, 2), "pause": (1, 1), "daemon-restart": (1, 1), "stream-start": (0, 9), "stream-stop": (0, 0),
          "header-away": (0, 0), "kernel-key": (1, 1), "kernel-chord": (2, 2), "flash-tap": (6, 6), "flash-control": (2, 2), "plugin-signal": (1, 1), "sig-save": (2, 2), "probe": (2, 2)}
 EXPECT_ARITY = {"above-keyboard": (1, 1), "press-rate": (1, 1), "number": (3, 3), "flash-el": (4, 4), "lock": (1, 2), "flash-behind": (3, 3), "flash-rate-report": (2, 2), "flash-at": (2, 3), "flash-drawn": (2, 2), "flash-rate": (4, 4), "flash-reacted": (3, 3), "plugin": (0, 2), "audio": (1, 2), "screen": (3, 4), "scroll": (3, 3), "card-scroll": (2, 2), "card-scroll-min": (1, 1), "zoom": (2, 2), "zoom-min": (1, 1), "zoom-max": (1, 1), "visible": (1, 1), "stream": (2, 2),
-                "hit": (1, 1), "file": (2, 2), "element-at": (3, 3), "text": (2, 2), "text-has": (2, 2),
+                "hit": (1, 1), "file": (2, 2), "element-at": (3, 3), "text": (2, 2), "text-has": (2, 2), "text-lacks": (2, 2), "clipboard": (1, 1),
                 "url": (1, 1), "dialog": (1, 2), "keyboard": (1, 2), "content": (2, 3), "region-equal": (1, 2), "region-changed": (1, 2), "top": (1, 2), "probe-has": (1, 1), "sound": (1, 4), "volume": (1, 1), "nav-paint": (1, 2), "volume-hud": (0, 1), "sound-watched": (1, 2)}
 
 def parse(path):
@@ -164,7 +165,7 @@ def lint(tests):
                     errs.append(f"{t['id']}:{n}: expect needs a check: {', '.join(sorted(CHECKS))}")
                 elif pending and a[0] not in WAITING_EXPECTS:
                     errs.append(f"{t['id']}:{n}: `expect {a[0]}` after `{pending[1]}` (line {pending[0]}) with no wait between: name the mark")
-            elif verb in ("sample", "shoot", "show-log", "measure", "flash-control", "sig-save", "header-away", "volume-mark", "volume-set", "sound-watch"):
+            elif verb in ("sample", "shoot", "show-log", "measure", "flash-control", "sig-save", "header-away", "volume-mark", "volume-set", "clipboard-set", "sound-watch"):
                 pass
             else:
                 errs.append(f"{t['id']}:{n}: unknown verb `{verb}`")
@@ -254,6 +255,7 @@ def compile_steps(t, shell=None):
         elif verb == "volume-mark": out.append("fl_volume_mark")
         elif verb == "sound-watch": out.append(f"fl_sound_watch {q[0] if q else 3000}")
         elif verb == "volume-set": out.append(f"fl_volume_set {q[0]}")
+        elif verb == "clipboard-set": out.append(f"fl_clipboard_set {q[0]}")
         elif verb == "launch-from": out.append(f"fl_launch_from {q[0]} {q[1]} || fl_check FAIL \"{name}\" \"the other app {a[0]} did not start\"")
         elif verb == "kernel-chord": out.append(f"echo 'chord {a[0]} {a[1]}' > /tmp/uinput.cmd; usleep 600000; echo '  kernel chord {a[0]}+{a[1]}'")
         elif verb == "kernel-key": out.append(f"echo 'key {a[0]} 1' > /tmp/uinput.cmd; usleep 500000; echo '  kernel key {a[0]}'")

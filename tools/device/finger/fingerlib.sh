@@ -144,8 +144,8 @@ fl_chrome() {
     # three-row menu (Bookmarks, History, Downloads) at the top right / above the bottom bar (measured 2026-11-08)
     enyo:downloads-tab) echo 708 55;; mochi:downloads-tab) echo 650 206;; mojo:downloads-tab) echo 552 979;;
     # Paste in the menu a hold on a field raises (measured 2026-11-16 on jihad-frame-field.html's kept frames): Enyo's
-    # popup stands beside the held point, Mochi's sheet hangs under the toolbar, Mojo's popup is centred at the point's height
-    enyo:field-paste) echo $((FL_TX + 36)) $((FL_TY - 16));; mochi:field-paste) echo 143 193;; mojo:field-paste) echo 331 $((FL_TY - 24));;
+    # popup stands beside the held point, Mochi's sheet hangs under the toolbar, Mojo's popup stood right of and above the held point (294-474 across for a point at 223; one field measured)
+    enyo:field-paste) echo $((FL_TX + 36)) $((FL_TY - 16));; mochi:field-paste) echo 143 193;; mojo:field-paste) echo $((FL_TX + 108)) $((FL_TY - 98));;
     # the card's dialog (a page's confirm/alert/prompt; measured 2026-11-05 on jihad-dialogs.html): Enyo a centred
     # popup, Mochi a box under the toolbar, Mojo a sheet at the bottom
     # Enyo's popup is centred and as tall as its text: its buttons counted from its last light row (fl_dialog_last)
@@ -846,6 +846,20 @@ fl_check_text_has() { # NAME SEL TEXT
   t=$(fl_text "$2") || { fl_check FAIL "$1" "no answer for $2"; return 1; }
   case "$t" in *"$3"*) fl_check ok "$1" "$2 = [$t] holds [$3]";; *) fl_check FAIL "$1" "$2 = [$t] lacks [$3]";; esac
 }
+# the system clipboard: the card WebKit's shared file (libWebKitLuna's SharedClipboardFile; plain text, read at each
+# paste, written at each copy: read on the device 2026-11-16). A test primes it and reads it back.
+FL_CLIP=/var/tmp/webkit-clipboard
+fl_clipboard_set() { printf '%s' "$1" > $FL_CLIP; echo "  the system clipboard set to [$1]"; }
+fl_check_clipboard() { # NAME TEXT
+  local t
+  t=$(cat $FL_CLIP 2>/dev/null)
+  [ "$t" = "$2" ] && fl_check ok "$1" "the system clipboard holds [$t]" || fl_check FAIL "$1" "the system clipboard holds [$t], wanted [$2]"
+}
+fl_check_text_lacks() { # NAME SEL TEXT
+  local t
+  t=$(fl_text "$2") || { fl_check FAIL "$1" "no answer for $2"; return 1; }
+  case "$t" in *"$3"*) fl_check FAIL "$1" "$2 = [$t] holds [$3]";; *) fl_check ok "$1" "$2 = [$t] lacks [$3]";; esac
+}
 # a probe inside the page: the compat component's on-demand probe (jihad.compat.trace on for the run; the inject
 # channel's javascript: URL is refused silently by a page's Content-Security-Policy, YouTube's). B64 is the script,
 # base64 on the host (the device has no base64); the answer is FL_PROBE, printed to 300 chars
@@ -1003,6 +1017,7 @@ fl_check_sound_watched() { # NAME heard|silent [MIN_PEAK]
   n=40; while [ $n -gt 0 ] && ! grep -q 'frames\|hwinput:' /tmp/fl-snd.out 2>/dev/null; do usleep 500000; n=$((n-1)); done
   l=$(cat /tmp/fl-snd.out 2>/dev/null); pk=$(echo "$l" | sed -n 's/.*peak \([0-9]*\).*/\1/p'); f=$(echo "$l" | sed -n 's/.*frames \([0-9]*\).*/\1/p')
   amp=$(amixer -c 0 cget numid=87 2>/dev/null | sed -n 's/.*: values=on.*/on/p;s/.*: values=off.*/off/p' | head -1); vol=$(fl_volume)
+  rm -f /tmp/fl-snd.t0
   if [ -z "$pk" ] || [ "${f:-0}" -lt 40000 ] || [ -z "$amp" ] || [ -z "$vol" ]; then fl_check FAIL "$1" "no reading of the sink over the gesture: [$l], the amp ${amp:-unread}, the volume ${vol:-unread}"; return; fi
   case $2 in
     heard) [ "$pk" -ge "${3:-1500}" ] && [ $amp = on ] && [ "$vol" -gt 0 ] && fl_check ok "$1" "sound at the output sink over the gesture: $l, the speaker amp $amp, the media volume $vol" || { fl_sound_why; fl_check FAIL "$1" "the sink over the gesture: $l, the speaker amp $amp, the media volume $vol; wanted heard (a peak of ${3:-1500})"; };;

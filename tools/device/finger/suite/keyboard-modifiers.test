@@ -1,0 +1,24 @@
+# A hardware keyboard's modifier keys in a page's text field (cavekit-input-bridging.md R2; found by the review of
+# T-658): Shift, Ctrl and Alt are keys of their own on this device (raw 0x80-0x83) and went into a focused field
+# as U+0080-U+0083; Shift+Tab never went backward (the mask's Shift is 0x80, not npPalm's 4).
+id: keyboard-modifiers
+section: Keyboard and text
+item: A hardware keyboard's Shift, Ctrl and Alt pressed alone put nothing in a page's field, Shift+b types B, and Shift+Tab moves the focus back to the field before
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-input-echo.html
+kit: cavekit-input-bridging.md R2
+fixture: kernel-kbd
+wait rect plain 20
+calibrate 'sel:#plain'
+tap plain
+expect keyboard up
+pause 1500
+kernel-key 42
+kernel-key 29
+kernel-key 56
+kernel-chord 42 48
+wait text echo 'plain n=1 c=0 last=[B] value=[B]' 5
+kernel-key 15
+wait text echo 'focus=area' 5
+kernel-chord 42 15
+wait text echo 'focus=plain' 5

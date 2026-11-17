@@ -2949,6 +2949,7 @@ void BrowserPageGoanna::clickAt(int x, int y, int numClicks) {
 void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   { FrameLockGuard frameLock; if (mZoomBack.ok) zoomBackDrop(); }   // T-527 (review): the kept frame is from before this input
   if (!mPage) return;
+  modifiers = palmModifiers(modifiers);
   flushKeyUps(key);   // T-576: a held-back release of this key goes before its next press
   mKeyDownMs[key] = jihadNowMs();
   // T-131 instrument (cavekit-preferences-ui.md R6), same JIHAD_LOG_INSERT gate as InsertText's.
@@ -2987,6 +2988,9 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
       return;
     } }
   if (mPage->HasFocusedEditable()) {
+    // T-658: a hardware keyboard's Shift, Alt and Ctrl are keys of their own (raw 0x80-0x83, no character): they
+    // edit nothing. Without this they fell to the character branch below and went into the field as U+0080-U+0083.
+    if (key >= 0x80 && key <= 0x83 && chr == 0) return;
     // webOS delivers editing keys as ASCII control codes where they exist (ESC=27, Backspace=8,
     // Tab=9, Enter=13, DEL=127) and, for the arrows, its own private-use block 0xE0A0-0xE0A3.
     // The code arrives in `key` with `chr`==0, but we accept it from either field. A printable
@@ -3114,6 +3118,7 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   mNeedsPaint = true;
 }
 void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
+  modifiers = palmModifiers(modifiers);
   static const bool kGreKeys = getenv("JIHAD_GRE_KEYS") != nullptr;   // see keyDown
   // T-576: the keyboard's joystick sends an arrow's press and release together, and a game that looks at the keys once
   // a frame (Key.isDown) never saw one: with no text field focused, a key is held down for kKeyHoldMs at least
@@ -3127,6 +3132,18 @@ void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
     fprintf(stderr, "[jihad-bs] keyup %d not held: %s\n", key, it == mKeyDownMs.end() ? "no press recorded" : "a field is focused");
   }
   if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers, kGreKeys); mNeedsPaint = true; }
+}
+// T-658: the modifier mask of a key as the device sends it, into npPalm's (Ctrl 1, Alt 2, Shift 4, Meta 8). A hardware
+// keyboard's key pressed with Ctrl held arrived with the mask 0x20 and with Shift held 0x80 (measured 2026-11-16 on
+// the emulated kernel keyboard; Alt's 0x40 by the same layout), none of which is an npPalm bit: Ctrl+V reached a
+// movie with mods 0, and the engine read 0x20 and 0x80 as CapsLock and FnLock. Nothing else passes.
+int BrowserPageGoanna::palmModifiers(int modifiers) {
+  const int out = (modifiers & 0xF) | ((modifiers & 0x20) ? 1 : 0) | ((modifiers & 0x40) ? 2 : 0) | ((modifiers & 0x80) ? 4 : 0);
+  if (out != modifiers && mModsLogged < 8) {
+    ++mModsLogged;
+    fprintf(stderr, "[jihad-bs] key: the modifier mask 0x%x read as 0x%x\n", modifiers, out);
+  }
+  return out;
 }
 // the releases held back by keyUp: those due, or with a key all of that key's
 void BrowserPageGoanna::flushKeyUps(int onlyKey) {

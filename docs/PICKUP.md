@@ -94,7 +94,41 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
-## 2026-11-16 (evening) — T-577 the Flash apps, T-657 short sounds, the UA's Gecko token (READ FIRST)
+## 2026-11-17 — Flash in play against the stock browser: two causes fixed, one open; T-578's tools (READ FIRST)
+
+- **Commits (unpushed, the owner's):** `965aab42` (T-658, hardware modifier keys), `8d47b966` (the level by events,
+  engine 0114), `2447452d` (the write-up, stacksample). Engine branch head `edb4f3738e`, queue 0001-0114 exact; the
+  gitlink is the owner's.
+- **The stock browser's minute of each game is measured** (`docs/rounds/t576-games-2026-11-16/README.md`, READ IT):
+  games in play ran at a third of its rate. Fixed: (1) the daemon's level scripts every 400 ms while a movie had a
+  sound open (60 % of a core in amixers and `pactl list`): now one subscriber to the audio service's status
+  (`<state>/audio-track.sh`, its pid beside it), one amixer every 2 s, `flash-vol.sh` only without the pulse watch;
+  (2) engine 0114, a whole second tick of the movie before every draw. Achievement Unlocked 6.8 → 12-16 a second
+  (stock 22), Effing Meteors 3.8 → 10.2 (stock 12.2).
+- **OPEN, the next thing to find:** the player's main thread is runnable 94 % of the time and gets 63-70 % of a core
+  (84-87 % in the stock browser) with each core a fifth idle. Ruled out by a run each: nice, the frame reader,
+  quality, timers, our code on its stack. The README lists what is not ruled out. This is R3/R6's rate criterion:
+  not one of the deferred optimisation rows.
+- **A stock reading is void where the stock browser stayed on a menu** (no gesture lock there: Ragdoll Cannon 2,
+  Paper Airplane, Raft Wars): those games go to the software path's bar (`game-round.py --label soft`, not yet run).
+  Run 3 plays in the stock browser and is blank here: open.
+- **Tools:** `game-round.py --threads` (cputop.c, pcsample.c, stacksample.c; the switches by environment are in the
+  README). `thread-top.sh` deleted (it measured itself).
+- **T-578 prepared, not yet run to a verdict:** the instrumented AVM2 movie plays `vars=video=URL` and a press on
+  its bottom band pauses (left), resumes (middle), seeks to `seek=` seconds (right), reporting `vctl`, `vstatus`
+  (with the time) and `vend`; `tools/host/flash-video-clips.sh` makes Spark and H.264 at 240/360/480 into the
+  cache (`gen-*.flv`); `flash-serve.py` `/slow/BPS/STALL_AT/STALL_S/<path>` throttles and stalls;
+  `flash/video-round.py stock|enyo|mochi|mojo DIR` reads each clip's rate (`docs/rounds/t578-2026-11-17/`). A draft
+  script `flash-video-spark-360` exists only in the session's scratch: write the suite's from the round's reading.
+- **Running when this was written:** the video rounds (stock, then the shells), then `game-round.py` for the three
+  shells into `docs/rounds/t576-games-2026-11-16/` and `game-report.py` (`report.md`), some seven hours.
+- **Device as left:** the three shells on engine 0114 with the daemon of `8d47b966`; corpus server on 8097 (started
+  with setsid from tools/host), test pages on 8077; media volume 23.
+- **NEXT:** read the rounds; the open share-of-a-core question; the suite's `flash-video-*` scripts (T-578); then
+  T-576's other leftovers (the four low-reacting games, soak scripts, QWOP's memory), T-579..T-584, T-605/T-606,
+  T-594/T-611. Deferred rows as before.
+
+## 2026-11-16 (evening) — T-577 the Flash apps, T-657 short sounds, the UA's Gecko token
 
 - **T-577 done but for the clipboard** (`docs/rounds/t577-2026-11-16/README.md`): the ten apps each do a task in the
   three shells (`flash-app-*`), judged by the result (a display's picture, a filled part, the chart's row back

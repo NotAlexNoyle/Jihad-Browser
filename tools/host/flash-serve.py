@@ -5,8 +5,9 @@
 # title a page holding it the same way in this browser and in the stock one, so an internet failure is never a Flash verdict.
 #
 #   tools/host/flash-serve.py [--port 8097]            (8078 is jihad-identity-server.py's)
-#   /title/ID[?w=W&h=H&wmode=W]    the movie at the page's top left, fitted to the card's width, element id "m"
+#   /title/ID[?w=W&h=H&wmode=W&quality=Q]    the movie at the page's top left, fitted to the card's width, element id "m"
 #                                   a video: its player with its media; the report elements of jihad-flash-instr.html
+#   /slow/BPS/STALL_AT/STALL_S/PATH a cache file throttled, with one stall
 #   /swf/, /game/ID.swf ...        the cache's own paths
 # Run with python3 -I.
 import argparse, http.server, json, os, socketserver, sys, urllib.parse
@@ -71,6 +72,7 @@ def page(tid, q, host):
     k = min(1.0, CARD_W / float(sw)) if "w" not in q else 1.0
     w = int(q.get("w", [round(sw * k)])[0]); h = int(q.get("h", [round(sh * k)])[0])
     wmode = ('wmode="%s"' % q["wmode"][0]) if "wmode" in q else ""
+    if "quality" in q: wmode += ' quality="%s"' % q["quality"][0]
     return ("""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title>
 <style>body{margin:0;min-width:768px;background:#888;font:14px monospace}#m{display:block}</style></head><body>
 <embed id="m" src="%s" type="application/x-shockwave-flash" width="%d" height="%d" allowScriptAccess="always" allowFullScreen="true" flashvars="%s" %s>
@@ -99,6 +101,27 @@ class H(http.server.SimpleHTTPRequestHandler):
             if tid not in M: self.send_error(404); return
             b = page(tid, urllib.parse.parse_qs(u.query), self.headers.get("Host", "192.168.1.245:8097"))
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b); return
+        if u.path.startswith("/slow/"):         # /slow/BPS/STALL_AT/STALL_S/<a cache path>: a download held to BPS bytes a second
+            # that stops for STALL_S seconds once STALL_AT bytes are out (R8: the throttled, then stalled, progressive download)
+            try:
+                _, _, bps, at, secs, rest = u.path.split("/", 5); bps, at, secs = int(bps), int(at), float(secs)
+                f = open(os.path.join(CACHE, os.path.normpath("/" + rest).lstrip("/")), "rb")
+            except (ValueError, OSError): self.send_error(404); return
+            import time
+            with f:
+                size = os.fstat(f.fileno()).st_size
+                self.send_response(200); self.send_header("Content-Type", self.guess_type(rest)); self.send_header("Content-Length", str(size)); self.end_headers()
+                sent = 0; stalled = False; step = max(1, bps // 10)
+                try:
+                    while True:
+                        b = f.read(step)
+                        if not b: break
+                        self.wfile.write(b); self.wfile.flush(); sent += len(b)
+                        if not stalled and sent >= at:
+                            stalled = True; sys.stderr.write("STALL %s at %d for %g s\n" % (rest, sent, secs)); sys.stderr.flush(); time.sleep(secs)
+                        else: time.sleep(0.1)
+                except (BrokenPipeError, ConnectionResetError): pass
+            return
         if u.path == "/crossdomain.xml":
             b = b'<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*"/></cross-domain-policy>'
             self.send_response(200); self.send_header("Content-Type", "text/xml"); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b); return

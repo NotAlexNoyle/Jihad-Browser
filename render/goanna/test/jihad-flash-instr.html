@@ -14,7 +14,7 @@
 <div id="holder"></div>
 <div id="report">
   <div id="ready">-</div><div id="down">-</div><div id="up">-</div><div id="move">-</div>
-  <div id="keydown">-</div><div id="keyup">-</div><div id="frames">-</div><div id="video">-</div><div id="vmeta">-</div><div id="vstatus">-</div>
+  <div id="keydown">-</div><div id="keyup">-</div><div id="frames">-</div><div id="video">-</div><div id="vmeta">-</div><div id="vstatus">-</div><div id="vctl">-</div><div id="vend">-</div>
   <div id="vars">-</div><div id="so">-</div><div id="echo">-</div><div id="echoback">-</div><div id="geturl">-</div><div id="fscommand">-</div><div id="data">-</div><div id="kid">-</div><div id="fs">-</div><div id="detect">-</div><div id="text">-</div><div id="clip">-</div><div id="file">-</div>
   <div id="n-down">0</div><div id="n-up">0</div><div id="n-move">0</div><div id="heldms">0</div><div id="keyheldms">-</div><div id="moverate">0</div>
   <div id="count">0</div><div id="all"></div>
@@ -30,6 +30,7 @@
       var kind = line.split(" ")[0], e = document.getElementById(kind);
       // the player moves the mouse off the stage when a press ends (-1,-1): the path's end is the line before
       if (e && line != "move -1 -1") { e.textContent = line; }
+      if (line.indexOf("vstatus NetStream.Play.Stop") == 0) { document.getElementById("vend").textContent = "vend " + line.slice(8) + " after " + document.getElementById("video").textContent; }
       // what a check of input reads: how many of each, how long a press lasted, how fast the moves of one came
       var c = document.getElementById("n-" + kind), now = Date.now();
       if (c) { c.textContent = String(Number(c.textContent) + 1); }

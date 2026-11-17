@@ -10,7 +10,7 @@
 // symbol of the phonemic chart, a game's click (2026-11-16: the sink read 0 over a tapped symbol,
 // 7500 over the same symbol when a stream happened to be up). Here a thread subscribes to
 // PulseAudio's sink-input events and sets a new plugin stream to 100 % as it appears; the script
-// stays as the second line (a stream the policy zeroes again later).
+// is the second line, run only while this watch does not stand (no libpulse, the server away).
 //
 // libpulse is the device's own (0.9.22), opened with dlopen as the engine's cubeb opens it; the
 // build sysroot's headers are that version's too (pulse/version.h), so the types here are the
@@ -103,6 +103,10 @@ inline void FlashAudioEvent(pa_context* c, pa_subscription_event_type_t t, uint3
   if (pa_operation* o = f.context_get_sink_input_info(c, idx, FlashAudioInfo, nullptr)) f.operation_unref(o);
 }
 
+// Whether the watch stands (connected and subscribed): while it does, the daemon's once-a-second script is not run
+// (2026-11-17: `pactl list` every second and the level script every 400 ms cost a game most of a core).
+inline volatile int& FlashAudioWatching() { static volatile int on = 0; return on; }
+
 inline void FlashAudioState(pa_context* c, void*) {
   FlashAudioPulse& f = FlashAudioFns();
   const pa_context_state_t s = f.context_get_state(c);
@@ -111,7 +115,9 @@ inline void FlashAudioState(pa_context* c, void*) {
     if (pa_operation* o = f.context_subscribe(c, PA_SUBSCRIPTION_MASK_SINK_INPUT, nullptr, nullptr)) f.operation_unref(o);
     if (pa_operation* o = f.context_get_sink_input_info_list(c, FlashAudioInfo, nullptr)) f.operation_unref(o);   // those already there
     fprintf(stderr, "[jihad-bs] flash audio: watching the sound server for the plugin's streams\n");
+    FlashAudioWatching() = 1;
   } else if (s == PA_CONTEXT_FAILED || s == PA_CONTEXT_TERMINATED) {
+    FlashAudioWatching() = 0;
     f.mainloop_quit(f.loop, 1);
   }
 }
@@ -138,6 +144,7 @@ inline void* FlashAudioThread(void*) {
         f.context_set_state_callback(c, FlashAudioState, nullptr);
         int ret = 0;
         if (f.context_connect(c, nullptr, PA_CONTEXT_NOAUTOSPAWN, nullptr) >= 0) f.mainloop_run(f.loop, &ret);
+        FlashAudioWatching() = 0;
         f.context_disconnect(c); f.context_unref(c);
       }
       f.mainloop_free(f.loop); f.loop = nullptr;
@@ -157,7 +164,7 @@ inline void StartFlashAudioWatch() {
 
 }  // namespace jihad
 #else
-namespace jihad { inline void StartFlashAudioWatch() {} }
+namespace jihad { inline void StartFlashAudioWatch() {} inline volatile int& FlashAudioWatching() { static volatile int on = 0; return on; } }
 #endif
 
 #endif  // JIHAD_FLASH_AUDIO_H

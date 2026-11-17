@@ -422,6 +422,27 @@ def build_avm2():
         c.report(word + " ", lambda y: y.arg1().get("keyCode"), " ", lambda y: y.arg1().get("charCode")); c.ret()
         return a.method(1, c.b)
     mDown, mUp, mMove, mKd, mKu = mouse("down"), mouse("up"), mouse("move"), key("keydown"), key("keyup")
+    # with a video (cavekit-flash.md R8), a press on the bottom band (y > 220) is the player's control: left pause, middle resume,
+    # right a seek to FlashVars seek= seconds; each says what it did and the stream's time as it did it
+    d = C(a); d.this().pushscope()
+    d.report("down ", lambda y: y.arg1().get("stageX"), " ", lambda y: y.arg1().get("stageY"))
+    vt = lambda y: y.this().get("ns").get("time")
+    def ctl(x):
+        def band(y):
+            y.arg1().get("stageX"); y.short(133); y.raw(0xAD)                 # lessthan
+            y.if_false(lambda z: (z.this().get("ns"), z.callvoid("pause", 0), z.report("vctl pause t=", vt)))
+            y.arg1().get("stageX"); y.short(133); y.raw(0xB0)                 # greaterequals
+            def mid(z):
+                z.arg1().get("stageX"); z.short(266); z.raw(0xAE)             # lessequals
+                z.if_false(lambda w: (w.this().get("ns"), w.callvoid("resume", 0), w.report("vctl resume t=", vt)))
+            y.if_false(mid)
+            y.arg1().get("stageX"); y.short(266); y.raw(0xAF)                 # greaterthan
+            y.if_false(lambda z: (z.this().get("ns"), z.this().get("loaderInfo").get("parameters").get("seek"), z.callvoid("seek", 1),
+                                  z.report("vctl seek ", lambda q: q.this().get("loaderInfo").get("parameters").get("seek"), " t=", vt)))
+        x.arg1().get("stageY"); x.short(220); x.raw(0xAF)
+        x.if_false(band)
+    d.this().get("ns"); d.if_false(ctl); d.ret()
+    mDown = a.method(1, d.b)
     # the frame: count, a line every 30th, the video's state, the queue sent
     f = C(a); f.this().pushscope()
     f.this(); f.this().get("fr"); f.raw(0x91); f.set("fr")          # fr = fr + 1
@@ -441,7 +462,7 @@ def build_avm2():
     md.report("vmeta codec=", lambda y: y.arg1().get("videocodecid"), " w=", lambda y: y.arg1().get("width"), " h=", lambda y: y.arg1().get("height"), " d=", lambda y: y.arg1().get("duration")); md.ret()
     mMeta = a.method(1, md.b)
     st = C(a); st.this().pushscope()
-    st.report("vstatus ", lambda y: y.arg1().get("info").get("code")); st.ret()
+    st.report("vstatus ", lambda y: y.arg1().get("info").get("code"), " t=", lambda y: y.this().get("ns").get("time")); st.ret()
     mStatus = a.method(1, st.b)
     # the constructor
     i = C(a); i.this().pushscope(); i.this(); i.raw(0x49); i.b += u30(0)     # super()

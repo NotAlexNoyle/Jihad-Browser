@@ -48,7 +48,7 @@ newlog() {{ since $D/daemon.log "${{B0:-0}}" $D/daemon.log.old; since $D/daemon-
 close_all; usleep 500000
 # a player left from an earlier game would be read as this game's, and it takes the CPU: named and stopped
 for p in $(pgrep -f plugin-container); do echo "STALE $p"; kill -9 $p 2>/dev/null; done
-luna-send -n 1 palm://com.palm.applicationManager/launch '{{"id":"{app}","params":{{"target":"http://{HOST}/title/{t['id']}"}}}}' >/dev/null
+luna-send -n 1 palm://com.palm.applicationManager/launch '{{"id":"{app}","params":{{"target":"http://{HOST}/title/{t['id']}{QUERY}"}}}}' >/dev/null
 sleep {load}
 """]
     # a game's first screen comes when it comes (a sponsor's logos, and a tap on one leaves the page): by its signature
@@ -66,9 +66,10 @@ sleep {load}
     # a press held and a drag are the movie's only under the gesture lock, as a person has it: a double tap, and the keyboard comes with it
     locked = any(f[0] == "dtap" for f in g.get("start", []))
     # the stock browser has no lock: a double tap zooms its page, and the round would read a zoomed page
-    if needs_lock and not locked and "stockbench" not in app:
+    if needs_lock and not locked and "stockbench" not in app and not os.environ.get("JIHAD_NO_LOCK"):   # the switch: an experiment (the game with no keyboard up, as the stock browser has it)
         s.append(f"/tmp/finger dtap {pt(g.get('lock_at', [0.5, 0.5]))}; sleep 6\n")
     s.append("""PID=$(pgrep -n -f plugin-container); echo "PLUGIN0 $PID"\n""")
+    if os.environ.get("JIHAD_PLAYER_NICE"): s.append("for t in /proc/$PID/task/*; do renice %d ${t##*/} >/dev/null 2>&1 || renice %d -p ${t##*/} >/dev/null; done; echo RENICED $(cut -d' ' -f19 /proc/$PID/stat)\n" % ((int(os.environ["JIHAD_PLAYER_NICE"]),) * 2))   # an experiment
     def act(a):
         # a game's own mixed sequence (flash-games.json "seq"): ["tap",x,y], ["drag",x1,y1,x2,y2(,ms)], ["hold",x,y,ms], ["key",name]
         if a[0] == "tap": return f"/tmp/finger tap {pt(a[1:3])}"
@@ -101,10 +102,12 @@ elif [ -f $D/last-load ] && [ "$(sed -n 2p $D/last-load)" != "$LL0" ] && ! sed -
     s.append("AWAY=; LL0=\n")
     for w_i in range(n):
         s.append(f"""if [ -z "$AWAY" ]; then
-/tmp/fbstream /tmp/fl-ctl -C {R} -s {win} -P 2000 >/dev/null 2>&1
-/tmp/fbstream /tmp/fl-win -C {R} -s {win} -P 4000 -B /tmp/fl-ctl > /tmp/fl-win.out 2>&1 &
+{"sleep %d" % win if NOFB else f"/tmp/fbstream /tmp/fl-ctl -C {R} -s {win} -P 2000 >/dev/null 2>&1"}
+{"FP=$(grep -l libflashplayer /proc/[0-9]*/maps 2>/dev/null | head -1 | cut -d/ -f3); echo PCPU%d a $(cut -d' ' -f1 /proc/uptime) $(cut -d' ' -f14-19 /proc/$FP/task/$FP/stat) $(awk '/^cpu /{print $5, $2+$3+$4+$5+$6+$7+$8}' /proc/stat)" % w_i if THREADS else ""}
+{"sleep %d &" % win if NOFB else f"{FBNICE}/tmp/fbstream /tmp/fl-win -C {R} -s {win} -P 4000 -B /tmp/fl-ctl > /tmp/fl-win.out 2>&1 &"}
+FB=$!; {"/tmp/cputop 4 22 > /tmp/fl-tt.out 2>&1 & /tmp/pcsample $FP 4 1000 > /tmp/fl-pc.out 2>&1 & (for k in 1 2 3 4; do echo FREQ $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq) $(cat /sys/devices/system/cpu/online); sleep 1; done > /tmp/fl-fq.out) &" if THREADS and w_i in (2, 4) else ""}
 {block(w_i)}
-wait $!; {"shot w%d; " % w_i if winshots else ""}echo "RSSW $(grep VmRSS /proc/$PID/status 2>/dev/null | tr -s ' ' | cut -d' ' -f2)"; echo "WIN $(sed -n 's/.* new \\([0-9]*\\) of \\([0-9]*\\).*/\\1 \\2/p' /tmp/fl-win.out) $(sed -n 's/.*changes [0-9]* (\\([0-9.]*\\)\\/s).*/\\1/p' /tmp/fl-win.out) $(sed -n 's/.* p90 \\([0-9]*\\) .*/\\1/p' /tmp/fl-win.out)"
+wait $FB; {"echo PCPU%d b $(cut -d' ' -f1 /proc/uptime) $(cut -d' ' -f14-19 /proc/$FP/task/$FP/stat) $(awk '/^cpu /{print $5, $2+$3+$4+$5+$6+$7+$8}' /proc/stat); " % w_i if THREADS else ""}{"wait; sed 's/^/TT%d /' /tmp/fl-tt.out; head -1500 /tmp/fl-pc.out | sed 's/^/PC%d /'; sed 's/^/PC%d /' /tmp/fl-fq.out; " % (w_i, w_i, w_i) if THREADS and w_i in (2, 4) else ""}{"shot w%d; " % w_i if winshots else ""}echo "RSSW $(grep VmRSS /proc/$PID/status 2>/dev/null | tr -s ' ' | cut -d' ' -f2)"; echo "WIN $(sed -n 's/.* new \\([0-9]*\\) of \\([0-9]*\\).*/\\1 \\2/p' /tmp/fl-win.out) $(sed -n 's/.*changes [0-9]* (\\([0-9.]*\\)\\/s).*/\\1/p' /tmp/fl-win.out) $(sed -n 's/.* p90 \\([0-9]*\\) .*/\\1/p' /tmp/fl-win.out)"
 {away}fi
 """)
         # --smaps: the player's resident memory by mapping after the first minute and at the end (what grows, in a soak)
@@ -129,15 +132,31 @@ i=0; while [ $i -lt 35 ] && pgrep -f plugin-container >/dev/null; do sleep 1; i=
 
 
 SMAPS = False
+FBNICE = ""
+NOFB = bool(os.environ.get("JIHAD_FB_OFF"))    # an experiment: the minute played with no frame reading at all (the player's own count in the log is the reading)
+QUERY = os.environ.get("JIHAD_GAME_QUERY", "")     # "?quality=low": the title page's own switches, for an experiment
+THREADS = False
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("shell", choices=list(SHELLS)); ap.add_argument("dir"); ap.add_argument("--only", default="")
     ap.add_argument("--seconds", type=int, default=60); ap.add_argument("--make-refs", action="store_true"); ap.add_argument("--steps", action="store_true")
     ap.add_argument("--winshots", action="store_true"); ap.add_argument("--smaps", action="store_true")
+    # --threads: where a frame's time goes while the game is played, kept in DIR/<name>-<id>-threads.txt: the player's main thread's
+    # share of a core in every window (PCPU), and in the third and fifth every thread's CPU and the device's (TT, cputop.c) and the
+    # player's program counter sampled, running and waiting (PC, pcsample.c)
+    ap.add_argument("--threads", action="store_true")
     # --label soft: the results and pictures under another name, for the shell's daemon on its software path (R3's bar where the
     # stock browser cannot play a game: daemon-start.sh enyo URL JIHAD_GPU_COMPOSITOR=0 first, daemon-stop.sh after)
     ap.add_argument("--label", default=""); o = ap.parse_args(); name = o.label or o.shell
     global SMAPS; SMAPS = o.smaps
+    global FBNICE; FBNICE = "nice -n %s " % os.environ["JIHAD_FB_NICE"] if os.environ.get("JIHAD_FB_NICE") else ""
+    global THREADS; THREADS = o.threads
+    if THREADS:      # cputop.c and pcsample.c, built here: every thread's CPU over the window, and where the player's main thread is
+        tc = os.path.join(ROOT, "build", "webos-oe", "toolchain", "out-toolchain", "x-tools", "arm-webos-linux-gnueabi", "bin", "arm-webos-linux-gnueabi-gcc"); td = tempfile.mkdtemp()
+        for tool in ("cputop", "pcsample"):
+            pc = os.path.join(td, tool)
+            if subprocess.run([tc, "-O2", "-march=armv7-a", "-mfloat-abi=softfp", "-std=gnu99", "-static", "-o", pc, os.path.join(HERE, tool + ".c")]).returncode == 0:
+                subprocess.run(["novacom", "put", "file:///tmp/" + tool], stdin=open(pc, "rb")); subprocess.run(["novacom", "run", "file://bin/chmod", "--", "+x", "/tmp/" + tool], stdin=subprocess.DEVNULL)
     app, top = SHELLS[o.shell]; os.makedirs(o.dir, exist_ok=True); os.makedirs(REFS, exist_ok=True)
     m = {t["id"]: t for t in json.load(open(MANIFEST))["titles"]}; g = json.load(open(GAMES)); only = set(x for x in o.only.split(",") if x)
     out_path = os.path.join(o.dir, name + ".json"); results = json.load(open(out_path)) if os.path.exists(out_path) else {}; tmp = tempfile.mkdtemp()
@@ -148,6 +167,7 @@ def main():
         p = os.path.join(tmp, "s.sh"); open(p, "w").write(text); t0 = time.time()
         for attempt in (1, 2):
             out = subprocess.run([DEVSH, "-t", str(300 + o.seconds * 3 + g[id_].get("extra", 0)), p], capture_output=True, text=True, errors="replace").stdout
+            if THREADS: open(os.path.join(o.dir, f"{name}-{id_}-threads.txt"), "w").write("".join(l + "\n" for l in out.splitlines() if l.startswith(("TT", "WIN", "PC", "PCPU"))))
             if re.search(r"^FAULTS ", out, re.M) or ref == "": break
             # novacom now and then loses the device for a while with it up: wait for it, close what the lost run left, play it again
             open(os.path.join(o.dir, f"{name}-{id_}-incomplete{attempt}.out"), "w").write(out)

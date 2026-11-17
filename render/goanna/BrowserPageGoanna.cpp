@@ -156,6 +156,36 @@ static const char* const kJihadFlashVolScript =
   "done\n"
   "exit 0\n";
 
+// The level followed while a sound plays, by the audio service's own events (2026-11-17, cavekit-flash.md R3).
+// audio-vol.sh was run every 400 ms for that: a luna-send and three amixers each time (70 ms of CPU apiece: amixer
+// reads ALSA's whole configuration), with flash-vol.sh's `pactl list` every second 23-26 new processes a second and
+// some 60 % of a core while a game played, taken from a player that was at 50 % of one and drew 7 frames a second
+// where the stock browser drew 22 (Achievement Unlocked; docs/rounds/t576-games-2026-11-16). One subscriber
+// instead: com.palm.audio/media/status says the volume once and at each change, and the level is set then.
+// `audio-track.sh` starts it (ending one left from before), `audio-track.sh stop` ends it; its pid is kept beside
+// it and believed only while that process is this script.
+static const char* const kJihadAudioTrackScript =
+  "#!/bin/sh\n"
+  "D=$(dirname \"$0\"); A=\"/usr/bin/amixer -c 0\"\n"
+  "P=$(cat \"$D/audio-track.pid\" 2>/dev/null)\n"
+  "if [ -n \"$P\" ] && grep -q audio-track \"/proc/$P/cmdline\" 2>/dev/null; then pkill -P \"$P\" 2>/dev/null; kill \"$P\" 2>/dev/null; fi\n"
+  "rm -f \"$D/audio-track.pid\"\n"
+  "[ \"$1\" = stop ] && exit 0\n"
+  "echo $$ > \"$D/audio-track.pid\"\n"
+  "/usr/bin/luna-send -i palm://com.palm.audio/media/status '{\"subscribe\":true}' 2>/dev/null | while read l; do\n"
+  "  [ -d \"/proc/$1\" ] || break\n"       // the daemon that started it is gone: no level is its to set
+  "  V=$(echo \"$l\" | sed -n 's/.*\"volume\":\\([0-9]*\\).*/\\1/p'); [ -z \"$V\" ] && continue\n"
+  "  lvl=$((V*63/100))\n"
+  "  $A cset numid=87 on >/dev/null 2>&1; $A cset numid=74 $lvl >/dev/null 2>&1; $A cset numid=86 $lvl >/dev/null 2>&1\n"
+  "done\n"
+  "exit 0\n";
+
+// The amp alone, every two seconds while a sound plays (T-614: another variant's daemon may mute it): one amixer.
+static const char* const kJihadAudioAmpScript =
+  "#!/bin/sh\n"
+  "/usr/bin/amixer -c 0 cset numid=87 on >/dev/null 2>&1\n"
+  "exit 0\n";
+
 static void jihadWriteFile(const std::string& path, const char* content, mode_t mode) {
   if (path.empty()) { return; }
   FILE* f = fopen(path.c_str(), "w");
@@ -165,7 +195,7 @@ static void jihadWriteFile(const std::string& path, const char* content, mode_t 
   chmod(path.c_str(), mode);
 }
 
-static void jihadRunAudioScript(const char* script) {
+static void jihadRunAudioScript(const char* script, const char* arg = nullptr) {
   // fork twice so the grandchild (the script) is reparented to init: no zombie to reap, and we
   // never waitpid(-1) which would steal plugin-container's exit. Only async-signal-safe calls
   // between fork and exec. Clean env: an inherited (bundled glibc-2.23) LD_LIBRARY_PATH segfaults
@@ -174,7 +204,7 @@ static void jihadRunAudioScript(const char* script) {
   if (pid == 0) {
     if (fork() == 0) {
       char* const env[] = { (char*)"PATH=/usr/bin:/bin:/usr/sbin:/sbin", nullptr };
-      execle("/bin/sh", "sh", script, (char*)nullptr, env);
+      execle("/bin/sh", "sh", script, arg, (char*)nullptr, env);
       _exit(127);
     }
     _exit(0);
@@ -242,13 +272,15 @@ static void* jihadAudioPollThread(void*) {
   const std::string offp = sd + "/audio-off.sh";
   const std::string volp = sd + "/audio-vol.sh";
   const std::string flashp = sd + "/flash-vol.sh";
+  const std::string trackp = sd + "/audio-track.sh";
+  const std::string ampp = sd + "/audio-amp.sh";
   int prev = 0, prevN = 0, tick = 0, flash = 0, scan = 0;
   for (;;) {
     usleep(200 * 1000);
     if (!jihad_pulse_active_streams) { continue; }
     if ((scan++ % 5) == 0) {   // once a second: a /proc scan, and the plugin's streams raised while it has any
       flash = jihadFlashAudioStreams();
-      if (flash > 0) jihadRunAudioScript(flashp.c_str());
+      if (flash > 0 && !jihad::FlashAudioWatching()) jihadRunAudioScript(flashp.c_str());   // the watch raises them as they open
     }
     int n = jihad_pulse_active_streams() + flash;
     gJihadMediaPlaying = n > 0 ? 1 : 0;
@@ -260,7 +292,10 @@ static void* jihadAudioPollThread(void*) {
     if (amp > 0 && prev == 0) { jihadRunAudioScript(onp.c_str()); tick = 0; }
     else if (amp == 0 && prev > 0) { jihadRunAudioScript(offp.c_str()); }
     else if (n > 0 && prevN == 0) { jihadRunAudioScript(volp.c_str()); tick = 0; }
-    else if (n > 0 && (++tick % 2) == 0) { jihadRunAudioScript(volp.c_str()); }  // ~400ms live track
+    else if (n > 0 && (++tick % 10) == 0) { jihadRunAudioScript(ampp.c_str()); }  // the amp held, every 2 s: one process
+    // the level follows the volume by the audio service's events while a sound plays (audio-track.sh), not by a poll
+    if (n > 0 && prevN == 0) { char me[16]; snprintf(me, sizeof me, "%d", (int)getpid()); jihadRunAudioScript(trackp.c_str(), me); }
+    else if (n == 0 && prevN > 0) jihadRunAudioScript(trackp.c_str(), "stop");
     prev = amp; prevN = n;
   }
   return nullptr;
@@ -282,6 +317,9 @@ static void jihadStartAudioPoll() {
   jihadWriteFile(sd + "/audio-on.sh", kJihadAudioOnScript, 0755);
   jihadWriteFile(sd + "/audio-vol.sh", kJihadAudioVolScript, 0755);
   jihadWriteFile(sd + "/flash-vol.sh", kJihadFlashVolScript, 0755);
+  jihadWriteFile(sd + "/audio-track.sh", kJihadAudioTrackScript, 0755);
+  jihadWriteFile(sd + "/audio-amp.sh", kJihadAudioAmpScript, 0755);
+  jihadRunAudioScript((sd + "/audio-track.sh").c_str(), "stop");   // one left by a daemon that died
   const std::string offp = sd + "/audio-off.sh";
   jihadWriteFile(offp, kJihadAudioOffScript, 0755);
   jihadRunAudioScript(offp.c_str());

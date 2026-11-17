@@ -17,11 +17,17 @@
  * product token and nsIXULAppInfo's name/version both answer "which browser is
  * this, at what version". Keeping them in two files is how they drift. The UA
  * string below is COMPOSED from the macros, so the product token cannot disagree
- * with what the engine reports to chrome JS. (The composed value is byte-identical
- * to the string this file carried before the macros existed.)
+ * with what the engine reports to chrome JS. (The composed value was byte-identical
+ * to the string this file carried before the macros existed; the Gecko/ token came 2026-11-16.)
  *
  * Token rationale (per project UA requirements):
  *   webOS/3.0.5; hpwOS/3.0.5; TouchPad  — the real HP webOS 3 platform tokens
+ *   Gecko/52.9                          — the Gecko the platform was forked from (Mozilla ESR 52.9, the
+ *                                         same version the Firefox/ token names). The owner, 2026-11-16:
+ *                                         "add the gecko version from when pale moon last forked gecko".
+ *                                         Without a Gecko/ token old sniffers take the browser for none
+ *                                         they know: YUI 2 looked for Flash only under Gecko/, AppleWebKit/
+ *                                         or Opera and embedded nothing (found by T-577's chart).
  *   Goanna/6.9                          — the rendering engine (UXP/Goanna)
  *   UXP/<commit>                        — the upstream UXP release commit this build embeds
  *                                         (UXP_SHORT in build/engine/engine-version.env)
@@ -67,7 +73,7 @@
 
 #define JIHAD_USER_AGENT \
   "Mozilla/5.0 (Linux armv7l; webOS/3.0.5; hpwOS/3.0.5; TouchPad) " \
-  "Goanna/6.9 UXP/6b18be9 Firefox/52.9 ECMAScript/2024 " \
+  "Gecko/52.9 Goanna/6.9 UXP/6b18be9 Firefox/52.9 ECMAScript/2024 " \
   JIHAD_APP_NAME "/" JIHAD_APP_VERSION
 
 #endif // JIHAD_USER_AGENT_H

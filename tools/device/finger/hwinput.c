@@ -49,10 +49,15 @@
  * crossings between -peak/4 and +peak/4 (a plain zero-crossing count read a 440 Hz Vorbis tone as 511) */
 #define LV_KEEP (44100 * 4)
 static long long lv_n; static double lv_sq; static int lv_peak; static short lv_left[LV_KEEP]; static int lv_kept;
+/* the envelope: the peak of each 0.2 s (stereo samples at 44100), for a sound cut short to show where it was cut */
+#define LV_WIN 17640
+#define LV_WINS 64
+static int lv_env[LV_WINS];
 static void level_feed(const short* b, size_t k) {
   size_t i;
   for (i = 0; i < k; i++) {
     int v = b[i] < 0 ? -b[i] : b[i]; if (v > lv_peak) lv_peak = v; lv_sq += (double)b[i] * b[i];
+    { size_t w = lv_n / LV_WIN; if (w < LV_WINS && v > lv_env[w]) lv_env[w] = v; }
     if (!(lv_n & 1) && lv_kept < LV_KEEP) lv_left[lv_kept++] = b[i];
     lv_n++;
   }
@@ -68,7 +73,9 @@ static void level_print(int rate) {
     else if (lv_left[i] > thr && low) { cross++; low = 0; if (first < 0) first = i; last = i; }
   }
   if (cross > 1 && last > first) hz = (int)(((cross - 1) * (long long)rate + (last - first) / 2) / (last - first));
-  printf("peak %d rms %d frames %lld hz %d\n", lv_peak, rms, frames, hz);
+  printf("peak %d rms %d frames %lld hz %d env", lv_peak, rms, frames, hz);
+  for (i = 0; i < LV_WINS && (long long)i * LV_WIN < lv_n; i++) printf("%c%d", i ? ',' : ' ', lv_env[i]);
+  printf("\n");
 }
 struct pa_ss { int format; uint32_t rate; uint8_t channels; };
 static int record(const char* source, int ms, const char* stream) {

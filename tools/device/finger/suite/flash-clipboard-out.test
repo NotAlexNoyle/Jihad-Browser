@@ -1,0 +1,31 @@
+# The clipboard from a movie to the page, and FileReference (cavekit-flash.md R7), on the instrumented movie: a
+# press on its left band calls System.setClipboard("jihad-clip-7391"); the page's own field is then held, Paste
+# tapped in the card's menu, and the field must hold that text. Its middle and right bands call
+# FileReference.browse() and .download(): what the player answers is recorded (the device's player has no file
+# dialog: both answer false, and no dialog and no download may come of them).
+# 2026-11-16: the movie reports "clip set" and Paste then puts the clipboard's OLDER text into the field (Enyo,
+# Mochi): the player's clipboard is not the card's. Open as T-658 (the stock browser's reading decides defect or limit).
+id: flash-clipboard-out
+section: Flash
+item: A movie's System.setClipboard reaches the page: Paste in a page field's menu puts the movie's text there; FileReference.browse and .download answer false in this player and start nothing
+shells: enyo mochi mojo
+known: T-658 wait-text
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1
+kit: cavekit-flash.md R7
+wait text ready stage= 30
+flash-tap m 400 300 showAll 60 260
+wait text clip "clip set" 6
+tap pf
+expect keyboard up 8
+hold-on pf 1500
+wait line 'hold at .* editable=1' 6
+shoot menu
+chrome field-paste
+wait text pfv "pf jihad-clip-7391" 8
+chrome kb-hide
+expect keyboard down 8
+flash-tap m 400 300 showAll 200 260
+wait text file "file browse false" 6
+flash-tap m 400 300 showAll 330 260
+wait text file "file download false" 6
+wait quiet 'jihad-dl\|dialog ' 4

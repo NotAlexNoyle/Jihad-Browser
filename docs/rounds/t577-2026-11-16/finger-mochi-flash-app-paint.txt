@@ -1,0 +1,15 @@
+WAIT ok 10-rect m
+WAIT ok 11-still m
+  tap on stage 232,287 at 232 365
+WAIT ok 13-still m
+  frame kept: /media/internal/jihad-finger/poster_.last.raw
+  sample sky of m@480,320:150,40,270,90: hash d0397bfa
+  sample ground of m@480,320:95,205,200,238: hash c0bb1138
+  tap on stage 159,288 at 159 366
+  pause 1200 ms (the slow human)
+  tap on stage 234,70 at 234 148
+WAIT ok 20-differs m@480,320:150,40,270,90
+CHECK ok 21-region-changed: region 150,118-270,168: colours 84 hash 54dc37d8 rows 50 uniform 6 light 118-167 blue 123-154 against the sample's hash d0397bfa
+CHECK ok 22-region-equal: region 95,283-200,316: colours 11 hash c0bb1138 rows 33 uniform 21 light 283-315 blue none = the sample's hash
+  frame kept: /media/internal/jihad-finger/painted_.last.raw
+CHECKS 2 FAILS 0

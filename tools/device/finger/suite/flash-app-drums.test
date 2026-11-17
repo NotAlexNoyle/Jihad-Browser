@@ -1,0 +1,23 @@
+# The drum machine (cavekit-flash.md R7): a toy sequencer that plays by itself; each tap brings players on. The
+# place where the left drummers stand is empty before the taps and drawn after them, and the machine sounds at the
+# output sink across the taps.
+id: flash-app-drums
+section: Flash
+item: A Flash app does its task, the drum machine: tapped, its players come on (their place empty before, drawn after) and it plays at the output sink
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/drum-machine
+kit: cavekit-flash.md R7
+wait rect m 40
+wait still m@900,450:60,300,260,430 40
+expect flash-drawn m@900,450:60,300,260,430 no
+sample empty m@900,450:60,300,260,430
+sound-watch 9000
+stage-tap m 900 450 454 100
+pause 2500
+stage-tap m 900 450 169 352
+pause 2500
+stage-tap m 900 450 454 272
+wait differs m@900,450:60,300,260,430 empty 8
+expect sound-watched heard
+expect flash-drawn m@900,450:60,300,260,430 yes
+shoot players

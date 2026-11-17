@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-16T11:14:19
+# Finger suite report — 2026-11-16T19:44:19
 
 First run 2026-11-16T00:53:38; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
+Shells: enyo, mochi, mojo. Scripts: 4. 34195 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -36,7 +36,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
 | enyo | express-burst-wiki | **pass** | 5 ok, 0 failed | CHECK ok 17-content: region 0,100-756,700: colours 1097 hash 7b6c2598 rows 600 uniform 0 light 101-699 blue 100-584; sel:body on the screen at -1237,-2489-1359,708 | cavekit-gpu-rendering.md R3 |
 | enyo | flash-api | **pass** | 14 ok, 0 failed | CHECK ok 22-text: count = [0] | cavekit-flash.md R4 |
 | enyo | flash-fullscreen | **pass** | 8 ok, 0 failed | CHECK ok 20-flash-behind: the colour 00ff00 in 180 of 192 cells (wanted yes); frames: kept/enyo-flash-fullscreen-fullscreen_.jpg | cavekit-flash.md R4 |
-| enyo | flash-game-sound | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/enyo-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
+| enyo | flash-game-sound (rerun) | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/enyo-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
 | enyo | flash-input-cover | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R5 |
 | enyo | flash-input-hold (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-press-rate: 26.5 moves a second sent on (at least 20): ] a press of 1441 ms: 32 moves from the card in 1207 ms, 32 sent on, 232 ms in sending them | cavekit-flash.md R5 |
 | enyo | flash-input-kbdrag | **pass** | 8 ok, 0 failed | CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8) | cavekit-flash.md R5 |
@@ -47,9 +47,9 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
 | enyo | flash-input-tap | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
 | enyo | flash-lane | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,282: 3.0 s, flips 40 (13.3/s), changes 0 (0.0/s), reads 41, distinct 1, spacing median 67 p90 145 max 174 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | enyo | flash-layout | **pass** | 17 ok, 0 failed | CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
-| enyo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2957 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
+| enyo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | enyo | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 55 (18.3/s), changes 32 (10.7/s), reads 57, distinct 33, spacing median 44 p90 88 max 246 ms (wanted 5..100/s) | cavekit-flash.md R4 |
-| enyo | flash-text | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-flash.md R7 |
+| enyo | flash-text (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-flash.md R7 |
 | enyo | flash-wmode | **pass** | 19 ok, 0 failed | CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
 | enyo | fonts-pick | **pass** | 5 ok, 0 failed | WAIT ok 15-text sel:#status = [The Latin (Western) fonts are back to their defaults.] | cavekit-preferences-ui.md R9 |
 | enyo | forget-identities | **pass** | 3 ok, 0 failed | WAIT ok 12-text sel:.row[data-label='Sites remembered'] = [Sites rememberedNone yet. The browser says it is Firefox 52.9; a site whose bot check turns the page away is given a current Firefox identity and remembered here.] | cavekit-site-identity.md R1 |
@@ -130,7 +130,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
 | mochi | express-burst-wiki | **pass** | 5 ok, 0 failed | CHECK ok 17-content: region 0,100-756,700: colours 1007 hash 48dc43f9 rows 600 uniform 0 light 100-699 blue 520-697; sel:body on the screen at -1237,-2535-1359,676 | cavekit-gpu-rendering.md R3 |
 | mochi | flash-api | **pass** | 14 ok, 0 failed | CHECK ok 22-text: count = [0] | cavekit-flash.md R4 |
 | mochi | flash-fullscreen | **pass** | 8 ok, 0 failed | CHECK ok 20-flash-behind: the colour 00ff00 in 180 of 192 cells (wanted yes); frames: kept/mochi-flash-fullscreen-fullscreen_.jpg | cavekit-flash.md R4 |
-| mochi | flash-game-sound | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/mochi-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
+| mochi | flash-game-sound (rerun) | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/mochi-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
 | mochi | flash-input-cover | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R5 |
 | mochi | flash-input-hold (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-press-rate: 26.4 moves a second sent on (at least 20): ] a press of 1424 ms: 33 moves from the card in 1248 ms, 33 sent on, 143 ms in sending them | cavekit-flash.md R5 |
 | mochi | flash-input-kbdrag | **pass** | 8 ok, 0 failed | CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8) | cavekit-flash.md R5 |
@@ -141,9 +141,9 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
 | mochi | flash-input-tap | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
 | mochi | flash-lane | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,283: 3.0 s, flips 45 (15.0/s), changes 0 (0.0/s), reads 46, distinct 1, spacing median 65 p90 87 max 158 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | mochi | flash-layout | **pass** | 17 ok, 0 failed | CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
-| mochi | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
+| mochi | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | mochi | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 48 (16.0/s), changes 43 (14.3/s), reads 49, distinct 44, spacing median 67 p90 92 max 106 ms (wanted 5..100/s) | cavekit-flash.md R4 |
-| mochi | flash-text | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-flash.md R7 |
+| mochi | flash-text (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-flash.md R7 |
 | mochi | flash-wmode | **pass** | 19 ok, 0 failed | CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
 | mochi | fonts-pick | **pass** | 5 ok, 0 failed | WAIT ok 15-text sel:#status = [The Latin (Western) fonts are back to their defaults.] | cavekit-preferences-ui.md R9 |
 | mochi | forget-identities | **pass** | 3 ok, 0 failed | WAIT ok 12-text sel:.row[data-label='Sites remembered'] = [Sites rememberedNone yet. The browser says it is Firefox 52.9; a site whose bot check turns the page away is given a current Firefox identity and remembered here.] | cavekit-site-identity.md R1 |
@@ -205,7 +205,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
 | mojo | appmenu-find | **pass** | 4 ok, 0 failed | WAIT ok 16-log: [jihad-bs] find 'Zebrafind' -> 1 | cavekit-ui-shell.md R7 |
 | mojo | appmenu-print (rerun) | **pass** | 6 ok, 0 failed | WAIT ok 17-still 0,200,756,960; frames: kept/mojo-appmenu-print-print-dialog_.jpg | cavekit-ui-shell.md R7 |
 | mojo | appmenu-settings-keyboard-down | **pass** | 8 ok, 0 failed | CHECK ok 19-content: region 0,100-768,700: colours 448 hash 7a103668 rows 600 uniform 0 light none blue none; page-title on the screen at 20,91-744,125, text holds [Settings] | cavekit-chrome-look.md R4 |
-| mojo | audio-heard (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-device-build.md R4 |
+| mojo | audio-heard (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 14-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-device-build.md R4 |
 | mojo | busy-script-stop | **pass** | 4 ok, 0 failed | CHECK ok 15-hit: clickAt 491,39 inside sel:h1 at 8,21 964x36; frames: kept/mojo-busy-script-stop-busy-dialog_.jpg | cavekit-modern-web.md R2 |
 | mojo | card-dialog | **pass** | 7 ok, 0 failed | WAIT ok 18-text r = [c: false] | cavekit-browser-services.md R3 |
 | mojo | card-select | **pass** | 1 ok, 0 failed | WAIT ok 9-text picked = [picked: banana] | cavekit-device-build.md R4 |
@@ -223,7 +223,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
 | mojo | express-burst-wiki | **pass** | 5 ok, 0 failed | CHECK ok 17-content: region 0,100-756,700: colours 727 hash 4aaa01d3 rows 600 uniform 0 light 100-699 blue 449-674; sel:body on the screen at -1237,-2606-1359,775 | cavekit-gpu-rendering.md R3 |
 | mojo | flash-api | **pass** | 14 ok, 0 failed | CHECK ok 22-text: count = [0] | cavekit-flash.md R4 |
 | mojo | flash-fullscreen | **pass** | 8 ok, 0 failed | CHECK ok 20-flash-behind: the colour 00ff00 in 192 of 192 cells (wanted yes); frames: kept/mojo-flash-fullscreen-fullscreen_.jpg | cavekit-flash.md R4 |
-| mojo | flash-game-sound | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/mojo-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
+| mojo | flash-game-sound (rerun) | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/mojo-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
 | mojo | flash-input-cover | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R5 |
 | mojo | flash-input-hold (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-press-rate: 26.1 moves a second sent on (at least 20): ] a press of 1360 ms: 32 moves from the card in 1228 ms, 32 sent on, 100 ms in sending them | cavekit-flash.md R5 |
 | mojo | flash-input-kbdrag | **pass** | 8 ok, 0 failed | CHECK ok 23-flash-at: the movie reported down 301,100 for stage 300,100 (within 8) | cavekit-flash.md R5 |
@@ -234,9 +234,9 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
 | mojo | flash-input-tap | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
 | mojo | flash-lane | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,17-440,315: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 66 p90 91 max 210 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | mojo | flash-layout | **pass** | 17 ok, 0 failed | CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
-| mojo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
+| mojo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | mojo | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 43 (14.3/s), changes 36 (12.0/s), reads 44, distinct 37, spacing median 67 p90 82 max 165 ms (wanted 5..100/s) | cavekit-flash.md R4 |
-| mojo | flash-text | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-flash.md R7 |
+| mojo | flash-text (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-flash.md R7 |
 | mojo | flash-wmode | **pass** | 19 ok, 0 failed | CHECK ok 30-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
 | mojo | fonts-pick | **pass** | 5 ok, 0 failed | WAIT ok 15-text sel:#status = [The Latin (Western) fonts are back to their defaults.] | cavekit-preferences-ui.md R9 |
 | mojo | forget-identities | **pass** | 3 ok, 0 failed | WAIT ok 12-text sel:.row[data-label='Sites remembered'] = [Sites rememberedNone yet. The browser says it is Firefox 52.9; a site whose bot check turns the page away is given a current Firefox identity and remembered here.] | cavekit-site-identity.md R1 |
@@ -297,11 +297,44 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26160 s.
 | mochi | volume-keys (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 31-sound: sound at the output sink: peak 2961 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
 | mojo | frame-field-hold (rerun) | **pass** | 14 ok, 0 failed | WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 page: hold: editable=true readOnly=false selected=false; frames: kept/mojo-frame-field-hold-field-menu_.jpg | cavekit-ui-shell.md R7 |
 | mojo | volume-keys (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 31-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
+| enyo | flash-app-calculator (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 33-region-equal: region 165,181-397,237: colours 131 hash 175995c6 rows 56 uniform 0 light none blue 183-236 = the sample's hash; frames: kept/enyo-flash-app-calculator-keyed-15_.jpg, kept/enyo-flash-app-calculator-sum_.jpg | cavekit-flash.md R7 |
+| enyo | flash-app-chart (rerun) | **pass** | 5 ok, 0 failed | WAIT ok 17-text last = [click 4 May series 0]; frames: kept/enyo-flash-app-chart-chart_.jpg | cavekit-flash.md R7 |
+| enyo | flash-app-clock (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 15-region-changed: region 0,83-300,381: colours 1345 hash 57ebf8d7 rows 298 uniform 41 light 215-216 blue 101-364 against the sample's hash d1d62938 | cavekit-flash.md R7 |
+| enyo | flash-app-drums (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 22-flash-drawn: drawn: region 51,338-222,449: colours 73 hash 86a060fd rows 111 uniform 37 light 375-448 blue none; frames: kept/enyo-flash-app-drums-players_.jpg | cavekit-flash.md R7 |
+| enyo | flash-app-form (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer; frames: kept/enyo-flash-app-form-asked_.jpg | cavekit-flash.md R7 |
+| enyo | flash-app-mp3 (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
+| enyo | flash-app-paint (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 22-region-equal: region 95,287-200,320: colours 5 hash ab012dda rows 33 uniform 21 light 287-319 blue none = the sample's hash; frames: kept/enyo-flash-app-paint-poster_.jpg, kept/enyo-flash-app-paint-painted_.jpg | cavekit-flash.md R7 |
+| enyo | flash-app-phonemic (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
+| enyo | flash-app-piano (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1747 frames 45056 hz 492 env 0,0,12626,9057,3514,1911, the speaker amp on, the media volume 23; frames: kept/enyo-flash-app-piano-key_.jpg | cavekit-flash.md R7 |
+| enyo | flash-app-postcards (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 26-flash-drawn: drawn: region 269,370-499,543: colours 309 hash 0536a9b6 rows 173 uniform 67 light 412-519 blue 413-458; frames: kept/enyo-flash-app-postcards-forward_.jpg | cavekit-flash.md R7 |
+| enyo | flash-clipboard-out (rerun) | **known** | 8 ok, 1 failed | the open defect T-658: CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound; frames: kept/enyo-flash-clipboard-out-menu_.jpg, kept/enyo-flash-clipboard-out-24-wait-text_.jpg | cavekit-flash.md R7 |
+| mochi | flash-app-calculator (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 33-region-equal: region 165,177-397,233: colours 128 hash 6a298bcf rows 56 uniform 0 light none blue 179-232 = the sample's hash; frames: kept/mochi-flash-app-calculator-keyed-15_.jpg, kept/mochi-flash-app-calculator-sum_.jpg | cavekit-flash.md R7 |
+| mochi | flash-app-chart (rerun) | **pass** | 5 ok, 0 failed | WAIT ok 17-text last = [click 4 May series 0]; frames: kept/mochi-flash-app-chart-chart_.jpg | cavekit-flash.md R7 |
+| mochi | flash-app-clock (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 15-region-changed: region 0,79-300,377: colours 1344 hash 4f3a20c0 rows 298 uniform 25 light 211-212 blue 97-360 against the sample's hash 9b4d8301 | cavekit-flash.md R7 |
+| mochi | flash-app-drums (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 22-flash-drawn: drawn: region 51,334-222,445: colours 114 hash 6df0297f rows 111 uniform 37 light 371-444 blue none; frames: kept/mochi-flash-app-drums-players_.jpg | cavekit-flash.md R7 |
+| mochi | flash-app-form (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer; frames: kept/mochi-flash-app-form-asked_.jpg | cavekit-flash.md R7 |
+| mochi | flash-app-mp3 (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
+| mochi | flash-app-paint (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 22-region-equal: region 95,283-200,316: colours 11 hash c0bb1138 rows 33 uniform 21 light 283-315 blue none = the sample's hash; frames: kept/mochi-flash-app-paint-poster_.jpg, kept/mochi-flash-app-paint-painted_.jpg | cavekit-flash.md R7 |
+| mochi | flash-app-phonemic (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
+| mochi | flash-app-piano (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1712 frames 45056 hz 514 env 0,0,6,12626,5300,2755, the speaker amp on, the media volume 23; frames: kept/mochi-flash-app-piano-key_.jpg | cavekit-flash.md R7 |
+| mochi | flash-app-postcards (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 26-flash-drawn: drawn: region 269,366-499,539: colours 274 hash 02916fe5 rows 173 uniform 65 light 408-515 blue 409-454; frames: kept/mochi-flash-app-postcards-forward_.jpg | cavekit-flash.md R7 |
+| mochi | flash-clipboard-out (rerun) | **known** | 8 ok, 1 failed | the open defect T-658: CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound; frames: kept/mochi-flash-clipboard-out-menu_.jpg, kept/mochi-flash-clipboard-out-24-wait-text_.jpg | cavekit-flash.md R7 |
+| mojo | flash-app-calculator (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 33-region-equal: region 165,172-397,228: colours 115 hash 708ae6c9 rows 56 uniform 0 light none blue 174-227 = the sample's hash; frames: kept/mojo-flash-app-calculator-keyed-15_.jpg, kept/mojo-flash-app-calculator-sum_.jpg | cavekit-flash.md R7 |
+| mojo | flash-app-chart (rerun) | **pass** | 5 ok, 0 failed | WAIT ok 17-text last = [click 4 May series 0]; frames: kept/mojo-flash-app-chart-chart_.jpg | cavekit-flash.md R7 |
+| mojo | flash-app-clock (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 15-region-changed: region 0,74-300,372: colours 1106 hash 84fe1e9b rows 298 uniform 41 light 206-207 blue 92-355 against the sample's hash 193b490a | cavekit-flash.md R7 |
+| mojo | flash-app-drums (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 22-flash-drawn: drawn: region 51,329-222,440: colours 49 hash 65c12f83 rows 111 uniform 37 light 366-439 blue none; frames: kept/mojo-flash-app-drums-players_.jpg | cavekit-flash.md R7 |
+| mojo | flash-app-form (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer; frames: kept/mojo-flash-app-form-asked_.jpg | cavekit-flash.md R7 |
+| mojo | flash-app-mp3 (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
+| mojo | flash-app-paint (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 22-region-equal: region 95,278-200,311: colours 5 hash ab012dda rows 33 uniform 21 light 278-310 blue none = the sample's hash; frames: kept/mojo-flash-app-paint-poster_.jpg, kept/mojo-flash-app-paint-painted_.jpg | cavekit-flash.md R7 |
+| mojo | flash-app-phonemic (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
+| mojo | flash-app-piano (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1761 frames 45056 hz 479 env 0,0,12626,6643,3333,1371, the speaker amp on, the media volume 23; frames: kept/mojo-flash-app-piano-key_.jpg | cavekit-flash.md R7 |
+| mojo | flash-app-postcards (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 26-flash-drawn: drawn: region 269,361-499,534: colours 256 hash 7d7798ab rows 173 uniform 67 light 403-510 blue none; frames: kept/mojo-flash-app-postcards-forward_.jpg | cavekit-flash.md R7 |
+| mojo | flash-clipboard-out (rerun) | **known** | 8 ok, 1 failed | the open defect T-658: CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound; frames: kept/mojo-flash-clipboard-out-menu_.jpg, kept/mojo-flash-clipboard-out-24-wait-text_.jpg | cavekit-flash.md R7 |
 
 ## The device at the end
 
 ```
-DEVICE ok job-enyo: (369749/518808969) jihad (start) running, process 23034
+DEVICE ok job-enyo: (401262/4492792) jihad (start) running, process 20896
 DEVICE ok daemons-enyo: one daemon
 DEVICE ok hand-daemon-enyo: none
 DEVICE ok hooks-enyo: none
@@ -311,7 +344,7 @@ DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
 DEVICE ok cards-enyo: none
 DEVICE ok audio-lib-enyo: the device's own
 DEVICE ok look-enyo: {"returnValue":true,"theme":null}
-DEVICE ok job-mochi: (369755/729474894) jihad-mochi (start) running, process 11079
+DEVICE ok job-mochi: (401267/466458420) jihad-mochi (start) running, process 6674
 DEVICE ok daemons-mochi: one daemon
 DEVICE ok hand-daemon-mochi: none
 DEVICE ok hooks-mochi: none
@@ -321,7 +354,7 @@ DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
 DEVICE ok cards-mochi: none
 DEVICE ok audio-lib-mochi: the device's own
 DEVICE ok look-mochi: {"returnValue":true,"theme":null}
-DEVICE ok job-mojo: (369762/505554004) jihad-mojo (start) running, process 17547
+DEVICE ok job-mojo: (401272/118305975) jihad-mojo (start) running, process 24149
 DEVICE ok daemons-mojo: one daemon
 DEVICE ok hand-daemon-mojo: none
 DEVICE ok hooks-mojo: none
@@ -339,9 +372,10 @@ DEVICE ok test-pads-mochi: none
 DEVICE ok dialog-pipes-mochi: none
 DEVICE ok test-pads-mojo: none
 DEVICE ok dialog-pipes-mojo: none
-DEVICE ok tmp-dumps: none
+DEVICE FAIL tmp-dumps: /tmp/x.out 
 DEVICE ok media-scratch: none
-DEVICE ok overall: 16% of /tmp used
+DEVICE FAIL overall: 16% of /tmp used
+novacom: unexpected EOF from server
 ```
 
 ## Every test's lines
@@ -452,10 +486,10 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / audio-heard — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 21 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     WAIT ok 9-rect sel:embed
     CHECK ok 10-audio: the movie's audio: open running audible
-    CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 11-sound: sound at the output sink: peak 31141 rms 21986 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
     WAIT ok 12-launch: load done
     WAIT ok 13-text status = [playing]
     CHECK ok 14-sound: sound at the output sink: peak 2957 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
@@ -662,7 +696,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / flash-game-sound — pass
 
-    enyo card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +2 s, load done at +11 s, 10 content frames at +11 s; the GPU path, frames off the main thread (the express lane) (the job's 
+    enyo card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +3 s, load done at +9 s, 3 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     WAIT ok 10-rect sel:embed
     CHECK ok 17-audio: the movie's audio: open running audible
 
@@ -811,15 +845,15 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / flash-sound — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +7 s, 12 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +3 s, load done at +8 s, 14 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     WAIT ok 9-rect sel:embed
     CHECK ok 10-audio: the movie's audio: open running audible
-    CHECK ok 11-sound: sound at the output sink: peak 31138 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 11-sound: sound at the output sink: peak 31144 rms 21983 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
     WAIT ok 12-launch: load done
     CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0
     WAIT ok 14-launch: load done
     WAIT ok 15-text status = [playing]
-    CHECK ok 16-sound: sound at the output sink: peak 2957 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### enyo / flash-tags — pass
 
@@ -842,7 +876,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### enyo / flash-text — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (t
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +2 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (
     WAIT ok 7-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
     CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
     CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
@@ -1539,10 +1573,10 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / audio-heard — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +3 s, load done at +9 s, 10 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     WAIT ok 9-rect sel:embed
     CHECK ok 10-audio: the movie's audio: open running audible
-    CHECK ok 11-sound: sound at the output sink: peak 31141 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 11-sound: sound at the output sink: peak 31144 rms 21983 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
     WAIT ok 12-launch: load done
     WAIT ok 13-text status = [playing]
     CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
@@ -1718,7 +1752,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / flash-game-sound — pass
 
-    mochi card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +2 s, load done at +10 s, 5 content frames at +10 s; the GPU path, frames off the main thread (the express lane) (the job's 
+    mochi card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +1 s, load done at +8 s, 13 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's J
     WAIT ok 10-rect sel:embed
     CHECK ok 17-audio: the movie's audio: open running audible
 
@@ -1867,15 +1901,15 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / flash-sound — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 16 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +7 s, 11 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
     WAIT ok 9-rect sel:embed
     CHECK ok 10-audio: the movie's audio: open running audible
-    CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 11-sound: sound at the output sink: peak 31144 rms 21986 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
     WAIT ok 12-launch: load done
     CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0
     WAIT ok 14-launch: load done
     WAIT ok 15-text status = [playing]
-    CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### mochi / flash-tags — pass
 
@@ -1898,7 +1932,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mochi / flash-text — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +1 s, load done at +7 s, 11 content frames at +7 s; the GPU path, frames off the main thread (the express lane) 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (
     WAIT ok 7-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
     CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
     CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
@@ -2586,13 +2620,13 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / audio-heard — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
     WAIT ok 9-rect sel:embed
     CHECK ok 10-audio: the movie's audio: open running audible
-    CHECK ok 11-sound: sound at the output sink: peak 31141 rms 21986 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
     WAIT ok 12-launch: load done
     WAIT ok 13-text status = [playing]
-    CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 14-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### mojo / busy-script-stop — pass
 
@@ -2765,7 +2799,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / flash-game-sound — pass
 
-    mojo card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +2 s, load done at +10 s, 6 content frames at +10 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    mojo card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +1 s, load done at +8 s, 13 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     WAIT ok 10-rect sel:embed
     CHECK ok 17-audio: the movie's audio: open running audible
 
@@ -2914,15 +2948,15 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / flash-sound — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 10 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
     WAIT ok 9-rect sel:embed
     CHECK ok 10-audio: the movie's audio: open running audible
-    CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 11-sound: sound at the output sink: peak 31138 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
     WAIT ok 12-launch: load done
     CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0
     WAIT ok 14-launch: load done
     WAIT ok 15-text status = [playing]
-    CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2056 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
 
 ### mojo / flash-tags — pass
 
@@ -2945,7 +2979,7 @@ DEVICE ok overall: 16% of /tmp used
 
 ### mojo / flash-text — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +1 s, load done at +7 s, 11 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (t
     WAIT ok 7-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
     CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
     CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
@@ -3640,4 +3674,373 @@ DEVICE ok overall: 16% of /tmp used
     CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2955 rms 2059 frames 45056 hz 440): no sound out
     CHECK ok 30-volume: the media volume 22, higher (marked 0)
     CHECK ok 31-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
+
+### enyo / flash-app-calculator — pass
+
+    enyo card on http://192.168.1.245:8097/title/cyberchase-calculator: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job
+    WAIT ok 10-rect m
+    WAIT ok 11-still m@550,550:165,99,397,155
+    WAIT ok 13-still m@550,550:165,99,397,155
+    WAIT ok 18-still m@550,550:165,99,397,155
+    CHECK ok 20-region-changed: region 165,181-397,237: colours 131 hash 175995c6 rows 56 uniform 0 light none blue 183-236 against the sample's hash 44702382
+    WAIT ok 23-still m@550,550:165,99,397,155
+    CHECK ok 24-region-equal: region 165,181-397,237: colours 131 hash 44702382 rows 56 uniform 0 light none blue 183-236 = the sample's hash
+    WAIT ok 32-still m@550,550:165,99,397,155
+    CHECK ok 33-region-equal: region 165,181-397,237: colours 131 hash 175995c6 rows 56 uniform 0 light none blue 183-236 = the sample's hash
+
+### enyo / flash-app-chart — pass
+
+    enyo card on http://192.168.1.245:8097/title/yui-charts: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 11-rect m
+    WAIT ok 12-text last = [ready]
+    CHECK ok 13-flash-drawn: drawn: region 0,83-500,456: colours 107 hash 88958c2d rows 373 uniform 27 light 83-455 blue 140-427
+    WAIT ok 15-text last = [click 2 Mar series 0]
+    WAIT ok 17-text last = [click 4 May series 0]
+
+### enyo / flash-app-clock — pass
+
+    enyo card on http://192.168.1.245:8097/title/flash-clock: connected at +2 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
+    WAIT ok 9-rect m
+    CHECK ok 10-flash-drawn: drawn: region 0,83-300,381: colours 1355 hash 32ddf3c0 rows 298 uniform 41 light 215-216 blue 101-364
+    WAIT ok 12-differs m
+    WAIT ok 14-differs m
+    CHECK ok 15-region-changed: region 0,83-300,381: colours 1345 hash 57ebf8d7 rows 298 uniform 41 light 215-216 blue 101-364 against the sample's hash d1d62938
+
+### enyo / flash-app-drums — pass
+
+    enyo card on http://192.168.1.245:8097/title/drum-machine: connected at +3 s, load done at +8 s, 28 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD
+    WAIT ok 10-rect m
+    WAIT ok 11-still m@900,450:60,300,260,430
+    CHECK ok 12-flash-drawn: reported not drawn, as it should be: region 51,338-222,449: colours 1 hash a2e425f4 rows 111 uniform 111 light 338-448 blue none
+    WAIT ok 20-differs m@900,450:60,300,260,430
+    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 32685 rms 3370 frames 397312 hz 521 env 508,367,32685,32013,17808,12645,5695,2402,1094,671,366,3994,5492,7350,7700,9238,9529,8169,7567,7881,6243,7646,5866,7352,4667,4268,4639,7869,6157,5979,7307,5629,6182,5963,7296,4921,3870,3856,2951,3312,3436,3117,2732,2164,2874,2363, the speaker amp on, the media volume 23
+    CHECK ok 22-flash-drawn: drawn: region 51,338-222,449: colours 73 hash 86a060fd rows 111 uniform 37 light 375-448 blue none
+
+### enyo / flash-app-form — pass
+
+    enyo card on http://192.168.1.245:8097/title/website-viewer: connected at +4 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    WAIT ok 11-rect m
+    WAIT ok 12-still m
+    CHECK ok 13-flash-drawn: drawn: region 0,83-640,561: colours 4096 hash c4460238 rows 478 uniform 0 light none blue none
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 19-still m
+    CHECK ok 20-flash-drawn: drawn: region 0,83-640,561: colours 4096 hash edc73612 rows 478 uniform 0 light none blue none
+    CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer
+
+### enyo / flash-app-mp3 — pass
+
+    enyo card on http://192.168.1.245:8097/title/mp3-player-multi: connected at +2 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    WAIT ok 9-rect m
+    WAIT ok 10-still m
+    CHECK ok 12-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    CHECK ok 15-sound-watched: sound at the output sink over the gesture: peak 1820 rms 208 frames 353280 hz 482 env 0,0,0,0,0,0,0,0,0,0,0,0,502,509,265,225,1131,1757,1761,1555,1203,1257,930,1537,1106,938,1155,820,605,959,1820,1196,1694,72,674,1127,1126,1068,615,119,122, the speaker amp on, the media volume 23
+    CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+### enyo / flash-app-paint — pass
+
+    enyo card on http://192.168.1.245:8097/title/poster-paint-party: connected at +2 s, load done at +7 s, 10 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's
+    WAIT ok 10-rect m
+    WAIT ok 11-still m
+    WAIT ok 13-still m
+    WAIT ok 20-differs m@480,320:150,40,270,90
+    CHECK ok 21-region-changed: region 150,122-270,172: colours 82 hash 7871ec3e rows 50 uniform 8 light 122-171 blue 127-158 against the sample's hash 42ffb962
+    CHECK ok 22-region-equal: region 95,287-200,320: colours 5 hash ab012dda rows 33 uniform 21 light 287-319 blue none = the sample's hash
+
+### enyo / flash-app-phonemic — pass
+
+    enyo card on http://192.168.1.245:8097/title/phonemic-chart: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    WAIT ok 11-rect m
+    WAIT ok 12-still m
+    CHECK ok 13-flash-drawn: drawn: region 0,83-654,652: colours 3877 hash 6f903e29 rows 569 uniform 0 light 116-634 blue none
+    CHECK ok 15-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 860 env 0,0,0,0,0,0,0,0,0,0,0,0,17,7524,2646,824,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 2064 env 0,0,0,0,0,0,0,0,0,0,0,0,1253,6688,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 267 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,1157,1666,1315,326,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+### enyo / flash-app-piano — pass
+
+    enyo card on http://192.168.1.245:8097/title/virtual-piano: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD
+    WAIT ok 9-rect m
+    WAIT ok 10-still m
+    WAIT ok 12-still m
+    CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+    CHECK ok 15-sound: sound at the output sink: peak 19426 rms 1933 frames 45056 hz 609 env 0,0,1,19426,7372,5467, the speaker amp on, the media volume 23
+    CHECK ok 17-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+    CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1747 frames 45056 hz 492 env 0,0,12626,9057,3514,1911, the speaker amp on, the media volume 23
+
+### enyo / flash-app-postcards — pass
+
+    enyo card on http://192.168.1.245:8097/title/postcard-viewer: connected at +2 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 11-rect m
+    WAIT ok 12-still m
+    CHECK ok 13-flash-drawn: drawn: region 269,370-499,543: colours 258 hash ef79a669 rows 173 uniform 67 light 412-519 blue 413-458
+    CHECK ok 14-flash-drawn: reported not drawn, as it should be: region 96,140-672,293: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
+    WAIT ok 17-differs m
+    WAIT ok 18-still m
+    CHECK ok 20-flash-drawn: drawn: region 96,140-672,293: colours 33 hash 9d62fcb9 rows 153 uniform 65 light 217-225 blue 140-216
+    WAIT ok 23-differs m
+    WAIT ok 24-still m
+    CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,140-672,293: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
+    CHECK ok 26-flash-drawn: drawn: region 269,370-499,543: colours 309 hash 0536a9b6 rows 173 uniform 67 light 412-519 blue 413-458
+
+### enyo / flash-clipboard-out — known
+
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +2 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express l
+    WAIT ok 15-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+    WAIT ok 17-text clip = [clip set]
+    CHECK ok 19-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    WAIT ok 21-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
+    CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound
+    CHECK ok 26-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    WAIT ok 28-text file = [file browse false]
+    WAIT ok 30-text file = [file download false]
+    CHECK ok 31-quiet: no line jihad-dl\|dialog  for 4 s
+
+### mochi / flash-app-calculator — pass
+
+    mochi card on http://192.168.1.245:8097/title/cyberchase-calculator: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the jo
+    WAIT ok 10-rect m
+    WAIT ok 11-still m@550,550:165,99,397,155
+    WAIT ok 13-still m@550,550:165,99,397,155
+    WAIT ok 18-still m@550,550:165,99,397,155
+    CHECK ok 20-region-changed: region 165,177-397,233: colours 128 hash 6a298bcf rows 56 uniform 0 light none blue 179-232 against the sample's hash fb4ff083
+    WAIT ok 23-still m@550,550:165,99,397,155
+    CHECK ok 24-region-equal: region 165,177-397,233: colours 128 hash fb4ff083 rows 56 uniform 0 light none blue 179-232 = the sample's hash
+    WAIT ok 32-still m@550,550:165,99,397,155
+    CHECK ok 33-region-equal: region 165,177-397,233: colours 128 hash 6a298bcf rows 56 uniform 0 light none blue 179-232 = the sample's hash
+
+### mochi / flash-app-chart — pass
+
+    mochi card on http://192.168.1.245:8097/title/yui-charts: connected at +1 s, load done at +7 s, 3 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 11-rect m
+    WAIT ok 12-text last = [ready]
+    CHECK ok 13-flash-drawn: drawn: region 0,79-500,452: colours 107 hash 88958c2d rows 373 uniform 27 light 79-451 blue 136-423
+    WAIT ok 15-text last = [click 2 Mar series 0]
+    WAIT ok 17-text last = [click 4 May series 0]
+
+### mochi / flash-app-clock — pass
+
+    mochi card on http://192.168.1.245:8097/title/flash-clock: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
+    WAIT ok 9-rect m
+    CHECK ok 10-flash-drawn: drawn: region 0,79-300,377: colours 1343 hash a1be4eae rows 298 uniform 25 light 211-212 blue 97-360
+    WAIT ok 12-differs m
+    WAIT ok 14-differs m
+    CHECK ok 15-region-changed: region 0,79-300,377: colours 1344 hash 4f3a20c0 rows 298 uniform 25 light 211-212 blue 97-360 against the sample's hash 9b4d8301
+
+### mochi / flash-app-drums — pass
+
+    mochi card on http://192.168.1.245:8097/title/drum-machine: connected at +1 s, load done at +7 s, 12 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    WAIT ok 10-rect m
+    WAIT ok 11-still m@900,450:60,300,260,430
+    CHECK ok 12-flash-drawn: reported not drawn, as it should be: region 51,334-222,445: colours 1 hash a2e425f4 rows 111 uniform 111 light 334-444 blue none
+    WAIT ok 20-differs m@900,450:60,300,260,430
+    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 9529 rms 1843 frames 397312 hz 818 env 3128,1520,962,495,3792,5465,7380,7169,9238,9529,8169,7567,7881,6243,7646,5866,7352,4667,3872,4639,7869,7155,5979,7307,5629,6182,5963,7296,4921,4377,3856,2951,3190,3436,3164,2841,2164,2874,4129,4945,4779,3745,2990,3627,2523,1799, the speaker amp on, the media volume 23
+    CHECK ok 22-flash-drawn: drawn: region 51,334-222,445: colours 114 hash 6df0297f rows 111 uniform 37 light 371-444 blue none
+
+### mochi / flash-app-form — pass
+
+    mochi card on http://192.168.1.245:8097/title/website-viewer: connected at +2 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 11-rect m
+    WAIT ok 12-still m
+    CHECK ok 13-flash-drawn: drawn: region 0,79-640,557: colours 4096 hash c4460238 rows 478 uniform 0 light none blue none
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 19-still m
+    CHECK ok 20-flash-drawn: drawn: region 0,79-640,557: colours 4096 hash c4460238 rows 478 uniform 0 light none blue none
+    CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer
+
+### mochi / flash-app-mp3 — pass
+
+    mochi card on http://192.168.1.245:8097/title/mp3-player-multi: connected at +2 s, load done at +7 s, 3 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    WAIT ok 9-rect m
+    WAIT ok 10-still m
+    CHECK ok 12-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    CHECK ok 15-sound-watched: sound at the output sink over the gesture: peak 1820 rms 205 frames 353280 hz 398 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,289,502,509,265,1131,1757,1746,1761,1203,1257,1066,1023,1537,1106,1155,1052,820,959,1820,1196,1671,1694,151,1127,1126,1068,723, the speaker amp on, the media volume 23
+    CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+### mochi / flash-app-paint — pass
+
+    mochi card on http://192.168.1.245:8097/title/poster-paint-party: connected at +1 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's
+    WAIT ok 10-rect m
+    WAIT ok 11-still m
+    WAIT ok 13-still m
+    WAIT ok 20-differs m@480,320:150,40,270,90
+    CHECK ok 21-region-changed: region 150,118-270,168: colours 86 hash 16c5703f rows 50 uniform 6 light 118-167 blue 123-154 against the sample's hash d0397bfa
+    CHECK ok 22-region-equal: region 95,283-200,316: colours 11 hash c0bb1138 rows 33 uniform 21 light 283-315 blue none = the sample's hash
+
+### mochi / flash-app-phonemic — pass
+
+    mochi card on http://192.168.1.245:8097/title/phonemic-chart: connected at +2 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 11-rect m
+    WAIT ok 12-still m
+    CHECK ok 13-flash-drawn: drawn: region 0,79-654,648: colours 3877 hash 6f903e29 rows 569 uniform 0 light 112-630 blue none
+    CHECK ok 15-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 860 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,7524,6533,1834,216,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 2064 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,5243,6688,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 267 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,1666,1607,469,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+### mochi / flash-app-piano — pass
+
+    mochi card on http://192.168.1.245:8097/title/virtual-piano: connected at +1 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    WAIT ok 9-rect m
+    WAIT ok 10-still m
+    WAIT ok 12-still m
+    CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+    CHECK ok 15-sound: sound at the output sink: peak 19426 rms 1934 frames 45056 hz 607 env 0,0,2,19426,7372,5467, the speaker amp on, the media volume 23
+    CHECK ok 17-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+    CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1712 frames 45056 hz 514 env 0,0,6,12626,5300,2755, the speaker amp on, the media volume 23
+
+### mochi / flash-app-postcards — pass
+
+    mochi card on http://192.168.1.245:8097/title/postcard-viewer: connected at +1 s, load done at +7 s, 14 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    WAIT ok 11-rect m
+    WAIT ok 12-still m
+    CHECK ok 13-flash-drawn: drawn: region 269,366-499,539: colours 251 hash 098f815d rows 173 uniform 65 light 408-515 blue 409-454
+    CHECK ok 14-flash-drawn: reported not drawn, as it should be: region 96,136-672,289: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
+    WAIT ok 17-differs m
+    WAIT ok 18-still m
+    CHECK ok 20-flash-drawn: drawn: region 96,136-672,289: colours 35 hash 670b63ec rows 153 uniform 44 light 213-221 blue none
+    WAIT ok 23-differs m
+    WAIT ok 24-still m
+    CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,136-672,289: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
+    CHECK ok 26-flash-drawn: drawn: region 269,366-499,539: colours 274 hash 02916fe5 rows 173 uniform 65 light 408-515 blue 409-454
+
+### mochi / flash-clipboard-out — known
+
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +1 s, load done at +9 s, 11 content frames at +9 s; the GPU path, frames off the main thread (the express
+    WAIT ok 15-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+    WAIT ok 17-text clip = [clip set]
+    CHECK ok 19-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    WAIT ok 21-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
+    CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound
+    CHECK ok 26-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    WAIT ok 28-text file = [file browse false]
+    WAIT ok 30-text file = [file download false]
+    CHECK ok 31-quiet: no line jihad-dl\|dialog  for 4 s
+
+### mojo / flash-app-calculator — pass
+
+    mojo card on http://192.168.1.245:8097/title/cyberchase-calculator: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job
+    WAIT ok 10-rect m
+    WAIT ok 11-still m@550,550:165,99,397,155
+    WAIT ok 13-still m@550,550:165,99,397,155
+    WAIT ok 18-still m@550,550:165,99,397,155
+    CHECK ok 20-region-changed: region 165,172-397,228: colours 115 hash 708ae6c9 rows 56 uniform 0 light none blue 174-227 against the sample's hash 17d55502
+    WAIT ok 23-still m@550,550:165,99,397,155
+    CHECK ok 24-region-equal: region 165,172-397,228: colours 115 hash 17d55502 rows 56 uniform 0 light none blue 174-227 = the sample's hash
+    WAIT ok 32-still m@550,550:165,99,397,155
+    CHECK ok 33-region-equal: region 165,172-397,228: colours 115 hash 708ae6c9 rows 56 uniform 0 light none blue 174-227 = the sample's hash
+
+### mojo / flash-app-chart — pass
+
+    mojo card on http://192.168.1.245:8097/title/yui-charts: connected at +1 s, load done at +7 s, 15 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 11-rect m
+    WAIT ok 12-text last = [ready]
+    CHECK ok 13-flash-drawn: drawn: region 0,74-500,447: colours 96 hash 29da18c5 rows 373 uniform 27 light 74-446 blue 131-418
+    WAIT ok 15-text last = [click 2 Mar series 0]
+    WAIT ok 17-text last = [click 4 May series 0]
+
+### mojo / flash-app-clock — pass
+
+    mojo card on http://192.168.1.245:8097/title/flash-clock: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 9-rect m
+    CHECK ok 10-flash-drawn: drawn: region 0,74-300,372: colours 1105 hash a12afe2d rows 298 uniform 41 light 206-207 blue 92-355
+    WAIT ok 12-differs m
+    WAIT ok 14-differs m
+    CHECK ok 15-region-changed: region 0,74-300,372: colours 1106 hash 84fe1e9b rows 298 uniform 41 light 206-207 blue 92-355 against the sample's hash 193b490a
+
+### mojo / flash-app-drums — pass
+
+    mojo card on http://192.168.1.245:8097/title/drum-machine: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
+    WAIT ok 10-rect m
+    WAIT ok 11-still m@900,450:60,300,260,430
+    CHECK ok 12-flash-drawn: reported not drawn, as it should be: region 51,329-222,440: colours 1 hash a2e425f4 rows 111 uniform 111 light 329-439 blue none
+    WAIT ok 20-differs m@900,450:60,300,260,430
+    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 7869 rms 1181 frames 397312 hz 950 env 3324,4639,4700,7869,5940,7307,6666,6182,5269,7296,4085,4921,3870,2951,2026,3312,3436,2841,2307,2432,3539,4129,4945,3864,3622,2990,3627,2523,1815,1694,1505,1171,801,570,372,185,154,160,92,69,50,28,19,16,12,7, the speaker amp on, the media volume 23
+    CHECK ok 22-flash-drawn: drawn: region 51,329-222,440: colours 49 hash 65c12f83 rows 111 uniform 37 light 366-439 blue none
+
+### mojo / flash-app-form — pass
+
+    mojo card on http://192.168.1.245:8097/title/website-viewer: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    WAIT ok 11-rect m
+    WAIT ok 12-still m
+    CHECK ok 13-flash-drawn: drawn: region 0,74-640,552: colours 4096 hash 82825cf1 rows 478 uniform 0 light none blue none
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 19-still m
+    CHECK ok 20-flash-drawn: drawn: region 0,74-640,552: colours 4096 hash 80ac146e rows 478 uniform 0 light none blue none
+    CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer
+
+### mojo / flash-app-mp3 — pass
+
+    mojo card on http://192.168.1.245:8097/title/mp3-player-multi: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 9-rect m
+    WAIT ok 10-still m
+    CHECK ok 12-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    CHECK ok 15-sound-watched: sound at the output sink over the gesture: peak 1820 rms 195 frames 353280 hz 351 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,502,509,265,1131,1757,1746,1761,1531,1033,1257,1023,1537,1106,1155,1052,820,959,694,1820,1528,1694,72,723,794, the speaker amp on, the media volume 23
+    CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+### mojo / flash-app-paint — pass
+
+    mojo card on http://192.168.1.245:8097/title/poster-paint-party: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's 
+    WAIT ok 10-rect m
+    WAIT ok 11-still m
+    WAIT ok 13-still m
+    WAIT ok 20-differs m@480,320:150,40,270,90
+    CHECK ok 21-region-changed: region 150,113-270,163: colours 56 hash 272829a5 rows 50 uniform 8 light 113-162 blue 118-149 against the sample's hash 1b151848
+    CHECK ok 22-region-equal: region 95,278-200,311: colours 5 hash ab012dda rows 33 uniform 21 light 278-310 blue none = the sample's hash
+
+### mojo / flash-app-phonemic — pass
+
+    mojo card on http://192.168.1.245:8097/title/phonemic-chart: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    WAIT ok 11-rect m
+    WAIT ok 12-still m
+    CHECK ok 13-flash-drawn: drawn: region 0,74-654,643: colours 3117 hash ed71f967 rows 569 uniform 0 light 107-625 blue none
+    CHECK ok 15-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 860 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7524,3416,824,11,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 2064 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,151,6688,186,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 267 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,20,1666,1492,414,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+    CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+### mojo / flash-app-piano — pass
+
+    mojo card on http://192.168.1.245:8097/title/virtual-piano: connected at +1 s, load done at +7 s, 10 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA
+    WAIT ok 9-rect m
+    WAIT ok 10-still m
+    WAIT ok 12-still m
+    CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+    CHECK ok 15-sound: sound at the output sink: peak 19426 rms 1974 frames 45056 hz 562 env 0,0,19426,14533,7372,4144, the speaker amp on, the media volume 23
+    CHECK ok 17-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+    CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1761 frames 45056 hz 479 env 0,0,12626,6643,3333,1371, the speaker amp on, the media volume 23
+
+### mojo / flash-app-postcards — pass
+
+    mojo card on http://192.168.1.245:8097/title/postcard-viewer: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    WAIT ok 11-rect m
+    WAIT ok 12-still m
+    CHECK ok 13-flash-drawn: drawn: region 269,361-499,534: colours 147 hash b1fa561e rows 173 uniform 67 light 403-510 blue none
+    CHECK ok 14-flash-drawn: reported not drawn, as it should be: region 96,131-672,284: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
+    WAIT ok 17-differs m
+    WAIT ok 18-still m
+    CHECK ok 20-flash-drawn: drawn: region 96,131-672,284: colours 11 hash 6acb8ae8 rows 153 uniform 58 light 208-216 blue 131-207
+    WAIT ok 23-differs m
+    WAIT ok 24-still m
+    CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,131-672,284: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
+    CHECK ok 26-flash-drawn: drawn: region 269,361-499,534: colours 256 hash 7d7798ab rows 173 uniform 67 light 403-510 blue none
+
+### mojo / flash-clipboard-out — known
+
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express l
+    WAIT ok 15-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+    WAIT ok 17-text clip = [clip set]
+    CHECK ok 19-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 21-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
+    CHECK FAIL 24-wait-text: pfv never read pf jihad-clip-7391 within the bound
+    CHECK ok 26-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 28-text file = [file browse false]
+    WAIT ok 30-text file = [file download false]
+    CHECK ok 31-quiet: no line jihad-dl\|dialog  for 4 s
 

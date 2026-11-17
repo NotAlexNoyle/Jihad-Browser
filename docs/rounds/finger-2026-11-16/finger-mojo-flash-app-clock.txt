@@ -1,0 +1,8 @@
+WAIT ok 9-rect m
+CHECK ok 10-flash-drawn: drawn: region 0,74-300,372: colours 1105 hash a12afe2d rows 298 uniform 41 light 206-207 blue 92-355
+  sample a of m: hash 22f53df7
+WAIT ok 12-differs m
+  sample b of m: hash 193b490a
+WAIT ok 14-differs m
+CHECK ok 15-region-changed: region 0,74-300,372: colours 1106 hash 84fe1e9b rows 298 uniform 41 light 206-207 blue 92-355 against the sample's hash 193b490a
+CHECKS 2 FAILS 0

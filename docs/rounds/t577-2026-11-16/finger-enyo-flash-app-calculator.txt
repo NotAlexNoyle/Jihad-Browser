@@ -1,0 +1,26 @@
+WAIT ok 10-rect m
+WAIT ok 11-still m@550,550:165,99,397,155
+  tap on stage 223,223 at 223 305
+WAIT ok 13-still m@550,550:165,99,397,155
+  sample cleared of m@550,550:165,99,397,155: hash 44702382
+  tap on stage 193,344 at 193 426
+  pause 900 ms (the slow human)
+  tap on stage 251,303 at 251 385
+WAIT ok 18-still m@550,550:165,99,397,155
+  sample fifteen of m@550,550:165,99,397,155: hash 175995c6
+CHECK ok 20-region-changed: region 165,181-397,237: colours 131 hash 175995c6 rows 56 uniform 0 light none blue 183-236 against the sample's hash 44702382
+  frame kept: /media/internal/jihad-finger/keyed-15_.last.raw
+  tap on stage 223,223 at 223 305
+WAIT ok 23-still m@550,550:165,99,397,155
+CHECK ok 24-region-equal: region 165,181-397,237: colours 131 hash 44702382 rows 56 uniform 0 light none blue 183-236 = the sample's hash
+  tap on stage 193,264 at 193 346
+  pause 900 ms (the slow human)
+  tap on stage 365,303 at 365 385
+  pause 900 ms (the slow human)
+  tap on stage 251,264 at 251 346
+  pause 900 ms (the slow human)
+  tap on stage 365,365 at 365 447
+WAIT ok 32-still m@550,550:165,99,397,155
+CHECK ok 33-region-equal: region 165,181-397,237: colours 131 hash 175995c6 rows 56 uniform 0 light none blue 183-236 = the sample's hash
+  frame kept: /media/internal/jihad-finger/sum_.last.raw
+CHECKS 3 FAILS 0

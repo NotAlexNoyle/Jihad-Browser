@@ -94,6 +94,31 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## 2026-11-16 (evening) — T-577 the Flash apps, T-657 short sounds, the UA's Gecko token (READ FIRST)
+
+- **T-577 done but for the clipboard** (`docs/rounds/t577-2026-11-16/README.md`): the ten apps each do a task in the
+  three shells (`flash-app-*`), judged by the result (a display's picture, a filled part, the chart's row back
+  over ExternalInterface, the samples at the sink). New verbs: `stage-tap`, `stage-drag`, a stage rectangle as a
+  region (`m@SW,SH:X0,Y0,X1,Y1`), `sound-watch MS` + `expect sound-watched` (a short sound needs the recorder
+  running ACROSS the tap), `kernel-chord MOD CODE` (the emulated keyboard, rebuilt), `chrome field-paste`.
+- **T-657 done: a movie's short sounds were never heard.** The plugin's streams were raised from the policy's 0 %
+  once a second by a script and the amp came on after a scan. `render/goanna/JihadFlashAudio.h` follows the sound
+  server's events (the device's libpulse 0.9.22 by dlopen; the build sysroot's headers are that version) and raises
+  a plugin's stream as it opens; the amp is held from a plugin's start.
+- **The owner, 2026-11-16, on the user agent: "add the gecko version from when pale moon last forked gecko"**:
+  `Gecko/52.9` before `Goanna/6.9` (JihadUserAgent.h). Asked because YUI 2 found no Flash without a Gecko/ token.
+- **Open, T-658: a movie's `System.setClipboard` does not reach the card's clipboard** (Paste gave the older text);
+  the way in (Ctrl+V from the emulated keyboard) not tried; Mojo's `field-paste` point is a guess that missed.
+  FileReference.browse/download answer false in this player: recorded.
+- **T-655**: 0 crashes in 18 Etsy loads; the crash capture waits for a recurrence (`docs/rounds/t655-2026-11-16/`).
+- **The corpus's server** (`tools/host/flash-serve.py`, port 8097) was restarted by hand today (it now makes the
+  chart's YUI page, the postcards' gallery XML and pictures). Kill it by its port's pid (`ss -ltnp`), never by
+  `pkill -f flash-serve` from a command that names the file: the pattern matches the shell that runs it.
+- **Device as left:** the three shells on engine 0113 with today's daemon (the UA token, the audio watch); upright;
+  media volume 23; USB alert closed.
+- **NEXT:** T-658, T-576's leftovers (Wonderputt's start taps, the four low-reacting games, soak scripts, QWOP's
+  memory), T-578 (videos), T-579..T-584, then T-605/T-606, T-594/T-611. Deferred rows as before, plus T-656.
+
 ## 2026-11-16 (later) — T-653 and T-654 DONE: every test an instrument's; T-655 next (READ FIRST)
 
 - **T-653 done** (`docs/rounds/t653-2026-11-16e/README.md`; the last runs merged into `docs/rounds/finger-2026-11-16/`:

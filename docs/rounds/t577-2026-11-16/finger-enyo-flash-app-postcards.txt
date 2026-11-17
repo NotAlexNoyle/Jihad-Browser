@@ -1,0 +1,17 @@
+WAIT ok 11-rect m
+WAIT ok 12-still m
+CHECK ok 13-flash-drawn: drawn: region 269,370-499,543: colours 237 hash 607e011b rows 173 uniform 71 light 412-519 blue none
+CHECK ok 14-flash-drawn: reported not drawn, as it should be: region 96,140-672,293: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
+  sample overview of m: hash 5be3ecc1
+  tap on stage 336,430 at 323 495
+WAIT ok 17-differs m
+WAIT ok 18-still m
+  sample forward of m: hash 85329c16
+CHECK ok 20-flash-drawn: drawn: region 96,140-672,293: colours 23 hash 4e10b9b0 rows 153 uniform 58 light 217-225 blue 140-215
+  frame kept: /media/internal/jihad-finger/forward_.last.raw
+  tap on stage 400,400 at 384 466
+WAIT ok 23-differs m
+WAIT ok 24-still m
+CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,140-672,293: colours 1 hash 65667185 rows 153 uniform 153 light none blue none
+CHECK ok 26-flash-drawn: drawn: region 269,370-499,543: colours 272 hash e51c4611 rows 173 uniform 71 light 412-519 blue none
+CHECKS 5 FAILS 0

@@ -1,0 +1,9 @@
+WAIT ok 11-rect m
+WAIT ok 12-text last = [ready]
+CHECK ok 13-flash-drawn: drawn: region 0,74-500,447: colours 96 hash 29da18c5 rows 373 uniform 27 light 74-446 blue 131-418
+  tap on stage 255,300 at 255 373
+WAIT ok 15-text last = [click 2 Mar series 0]
+  tap on stage 431,300 at 431 373
+WAIT ok 17-text last = [click 4 May series 0]
+  frame kept: /media/internal/jihad-finger/chart_.last.raw
+CHECKS 1 FAILS 0

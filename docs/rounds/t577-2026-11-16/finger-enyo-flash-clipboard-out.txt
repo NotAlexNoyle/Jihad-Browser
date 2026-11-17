@@ -1,0 +1,20 @@
+WAIT ok 12-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+  flash tap on stage 60,260 (showAll) at 100 382
+WAIT ok 14-text clip = [clip set]
+  tap at 223,467 -> clickAt 224 385
+CHECK ok 16-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  hold on pf at 223 467
+WAIT ok 18-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1
+  frame kept: /media/internal/jihad-finger/menu_.last.raw
+  chrome field-paste tapped at 259 451
+CHECK FAIL 21-wait-text: pfv never read pf jihad-clip-7391 within the bound
+  frame kept: /media/internal/jihad-finger/21-wait-text_.last.raw
+  chrome kb-hide tapped at 732 993
+CHECK ok 23-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  flash tap on stage 200,260 (showAll) at 240 382
+WAIT ok 25-text file = [file browse false]
+  flash tap on stage 330,260 (showAll) at 370 382
+WAIT ok 27-text file = [file download false]
+CHECK ok 28-quiet: no line jihad-dl\|dialog  for 4 s
+CHECKS 4 FAILS 1
+novacom: unexpected EOF from server

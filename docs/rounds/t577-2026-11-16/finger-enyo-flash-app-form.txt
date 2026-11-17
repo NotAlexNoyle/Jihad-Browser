@@ -1,0 +1,12 @@
+WAIT ok 11-rect m
+WAIT ok 12-still m
+CHECK ok 13-flash-drawn: drawn: region 0,83-640,561: colours 4096 hash e07ca3aa rows 478 uniform 0 light none blue none
+  tap on stage 320,240 at 320 322
+CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+  frame kept: /media/internal/jihad-finger/asked_.last.raw
+  chrome dialog-ok tapped at 384 520
+CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 19-still m
+CHECK ok 20-flash-drawn: drawn: region 0,83-640,561: colours 4096 hash edc73612 rows 478 uniform 0 light none blue none
+CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer
+CHECKS 5 FAILS 0

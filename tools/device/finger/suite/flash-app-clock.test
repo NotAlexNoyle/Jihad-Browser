@@ -1,0 +1,15 @@
+# The clock (cavekit-flash.md R7): it takes no input; its task is to keep the time, so its picture must move on by
+# itself, and again.
+id: flash-app-clock
+section: Flash
+item: A Flash app does its task, the clock: its hands move on by themselves, twice in a row, with no input
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/flash-clock
+kit: cavekit-flash.md R7
+wait rect m 40
+expect flash-drawn m yes
+sample a m
+wait differs m a 5
+sample b m
+wait differs m b 5
+expect region-changed m b

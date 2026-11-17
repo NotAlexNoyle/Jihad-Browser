@@ -20,7 +20,46 @@ CARD_W = 768
 def path_of(t): return "/%s/%s%s" % (t["class"], t["id"], os.path.splitext(urllib.parse.urlparse(t["source"]).path)[1].lower())
 
 
+GALLERY_COLOURS = [(200, 40, 40), (40, 160, 60), (40, 80, 200), (220, 180, 30), (150, 60, 170), (30, 170, 180)]
+
+
+def gallery_jpeg(n):
+    # the postcard viewer's cards, made here (the repository holds no pictures): a flat colour and its number in bars
+    from PIL import Image, ImageDraw
+    import io
+    im = Image.new("RGB", (400, 300), GALLERY_COLOURS[n % len(GALLERY_COLOURS)]); d = ImageDraw.Draw(im)
+    for k in range(n + 1): d.rectangle((30 + 50 * k, 100, 60 + 50 * k, 200), fill=(255, 255, 255))
+    b = io.BytesIO(); im.save(b, "JPEG", quality=85, progressive=False); return b.getvalue()
+
+
+GALLERY_XML = ('<?xml version="1.0" encoding="UTF-8"?>\n<gallery cellDimension="400" columns="3" zoomOutPerc="15" zoomInPerc="100" frameWidth="10" '
+               'frameColor="0xFFFFFF" captionColor="0xFFFFFF" enableRightClickOpen="false">\n'
+               + "".join("<image><url>/gallery/%d.jpg</url><caption>card %d</caption></image>\n" % (i, i + 1) for i in range(6)) + "</gallery>\n").encode()
+
+YUI_PAGE = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>yui-charts</title>
+<style>body{margin:0;min-width:768px;background:#888;font:14px monospace}#m{display:block;width:500px;height:375px;background:#fff}</style>
+%s</head><body>
+<div id="m"></div>
+<div id="count">0</div><div id="last">-</div>
+<script>var n=0;function jihadFlash(s){n++;document.getElementById("count").textContent=n;document.getElementById("last").textContent=s;}
+window.onerror = function(m, f, l){ jihadFlash("error " + m + " " + String(f).split("/").pop() + ":" + l); };
+// YUI 2 Charts as its own page uses it: the data goes to the movie by ExternalInterface, a tapped column comes back as an event
+// YUI 2 looks for Flash only in a browser its sniffing knows (Gecko/, AppleWebKit/ or Opera in the user agent). The
+// page gives it no help: until the user agent carried Gecko/52.9 (2026-11-16) its detection said "no Flash" here and
+// nothing was embedded, so this chart drawing at all is also the test of that token.
+YAHOO.widget.Chart.SWFURL = "/app/yui-charts.swf";
+var rows = [{month:"Jan",rent:880,util:894},{month:"Feb",rent:880,util:901},{month:"Mar",rent:880,util:889},{month:"Apr",rent:880,util:890},{month:"May",rent:910,util:903}];
+var ds = new YAHOO.util.DataSource(rows); ds.responseType = YAHOO.util.DataSource.TYPE_JSARRAY; ds.responseSchema = {fields:["month","rent","util"]};
+var chart = new YAHOO.widget.ColumnChart("m", ds, {xField:"month", series:[{displayName:"Rent",yField:"rent"},{displayName:"Utilities",yField:"util"}], wmode:"window"});
+chart.subscribe("contentReady", function(){ jihadFlash("ready"); });
+chart.subscribe("itemClickEvent", function(e){ jihadFlash("click " + e.index + " " + e.item.month + " series " + e.seriesIndex); });
+chart.subscribe("itemMouseOverEvent", function(e){ document.title = "over " + e.index; });
+</script></body></html>"""
+
+
 def page(tid, q, host):
+    if tid == "yui-charts":
+        return (YUI_PAGE % "".join('<script src="/asset/%s.js"></script>' % a for a in ("yui-yahoo-dom-event", "yui-element", "yui-json", "yui-datasource", "yui-swfdetect", "yui-swf", "yui-charts-js"))).encode()
     t = M[tid]; movie = path_of(t); fv = ""; sw, sh = t.get("width") or 640, t.get("height") or 480
     if t.get("player"):                         # a video: its player, the media by FlashVars as that player takes them
         p = M[t["player"]]; media = "http://%s%s" % (host, path_of(t)); movie = path_of(p)
@@ -50,6 +89,11 @@ class H(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*"); super().end_headers()
     def do_GET(self):
         u = urllib.parse.urlparse(self.path)
+        if u.path.endswith("/gallery.xml"):     # the postcard viewer asks for it beside its page
+            self.send_response(200); self.send_header("Content-Type", "text/xml"); self.send_header("Content-Length", str(len(GALLERY_XML))); self.end_headers(); self.wfile.write(GALLERY_XML); return
+        if u.path.startswith("/gallery/") and u.path.endswith(".jpg") and u.path[9:-4].isdigit():
+            b = gallery_jpeg(int(u.path[9:-4]))
+            self.send_response(200); self.send_header("Content-Type", "image/jpeg"); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b); return
         if u.path.startswith("/title/"):
             tid = u.path[7:]
             if tid not in M: self.send_error(404); return

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2026 NotAlexNoyle. Apache-2.0.
 #
-# title-shots.py DIR [enyo] [--only id,id] -- each game's first screen, and the screen after a tap on the movie's middle, as pictures: what
+# title-shots.py DIR [--only id,id] [--cls game|app] -- each game's first screen, and the screen after a tap on the movie's middle, as pictures: what
 # a script for it has to start from (cavekit-flash.md R6, T-576). HOST side; flash-serve.py running. Run with python3 -I.
 import argparse, json, os, subprocess, tempfile
 from PIL import Image
@@ -15,10 +15,10 @@ def shot(name):
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("dir"); ap.add_argument("--only", default=""); o = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument("dir"); ap.add_argument("--only", default=""); ap.add_argument("--cls", default="game", help="the corpus class: game or app"); o = ap.parse_args()
     os.makedirs(o.dir, exist_ok=True); m = json.load(open(MANIFEST)); only = set(x for x in o.only.split(",") if x); tmp = tempfile.mkdtemp()
     for t in m["titles"]:
-        if t["class"] != "game" or (only and t["id"] not in only): continue
+        if t["class"] != o.cls or (only and t["id"] not in only): continue
         sw, sh = t.get("width") or 640, t.get("height") or 480; k = min(1.0, 768.0 / sw); w, h = round(sw * k), round(sh * k)
         load = 14 + min(30, t["size"] // 400000)
         p = os.path.join(tmp, "s.sh"); open(p, "w").write(f"""

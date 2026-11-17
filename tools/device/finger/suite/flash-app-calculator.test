@@ -1,0 +1,34 @@
+# The Talking Calculator (cavekit-flash.md R7): a sum keyed in shows its answer. No reference picture and no reading
+# of digits: the display after "7 + 8 =" must be the display after "1 5" keyed directly, and must not be the display
+# after Clear.
+id: flash-app-calculator
+section: Flash
+item: A Flash app does its task, the calculator: 7 + 8 = shows what keying 15 shows (the display's picture equal), and not what Clear shows
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/cyberchase-calculator
+kit: cavekit-flash.md R7
+wait rect m 40
+wait still m@550,550:165,99,397,155 20
+stage-tap m 550 550 223 223
+wait still m@550,550:165,99,397,155 6
+sample cleared m@550,550:165,99,397,155
+stage-tap m 550 550 193 344
+pause 900
+stage-tap m 550 550 251 303
+wait still m@550,550:165,99,397,155 6
+sample fifteen m@550,550:165,99,397,155
+expect region-changed m@550,550:165,99,397,155 cleared
+shoot keyed-15
+stage-tap m 550 550 223 223
+wait still m@550,550:165,99,397,155 6
+expect region-equal m@550,550:165,99,397,155 cleared
+stage-tap m 550 550 193 264
+pause 900
+stage-tap m 550 550 365 303
+pause 900
+stage-tap m 550 550 251 264
+pause 900
+stage-tap m 550 550 365 365
+wait still m@550,550:165,99,397,155 6
+expect region-equal m@550,550:165,99,397,155 fifteen
+shoot sum

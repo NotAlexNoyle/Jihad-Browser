@@ -14,6 +14,7 @@ extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOver
 #include "GoannaRenderPage.h"
 #include "BrowserOffscreenInfo.h"   // isis shmem header (from render/browserserver/Src)
 #include "JihadFrameWindow.h"       // T-517: the frame window trailer (render/browserserver/Src)
+#include "JihadFlashAudio.h"   // the plugin's sound streams raised as they open (T-657)
 #include "JihadLogo.h"              // JIHAD_LOGO_B64 (app icon for about: pages)
 #include "JihadRuntimePaths.h"      // the ONE runtime-state dir (T-057 / R8)
 #include "JihadCrashGuard.h"        // do not reopen a page that just killed the daemon twice
@@ -192,11 +193,14 @@ static volatile int gJihadMediaPlaying = -1;   // -1 unknown, 0 silent, 1 playin
 // child plugin-container mapping libasound_module_pcm_pulse is a Flash movie with sound. Without counting it, the
 // speaker amp stayed muted at rest (audio-off.sh) and every Flash game was silent (the owner, 2026-11-11; Flash
 // audio was heard on 2026-08-10, before this routing landed on 08-15).
+// T-657: the plugin processes alive, with or without a sound open: the speaker amp is held on for them, so a
+// movie's first short sound does not fall into the second the scan and audio-on.sh take.
+static int gJihadPluginsAlive = 0;
 static int jihadFlashAudioStreams() {
-  int n = 0;
+  int n = 0, alive = 0;
   const pid_t me = getpid();
   DIR* d = opendir("/proc");
-  if (!d) return 0;
+  if (!d) { gJihadPluginsAlive = 0; return 0; }
   while (struct dirent* e = readdir(d)) {
     if (e->d_name[0] < '1' || e->d_name[0] > '9') continue;
     char path[64], buf[256];
@@ -216,6 +220,7 @@ static int jihadFlashAudioStreams() {
       for (size_t i = 0; i < cn; i++) if (!cl[i]) cl[i] = ' ';
     } else continue;
     if (!strstr(cl, "plugin-container")) continue;
+    ++alive;
     snprintf(path, sizeof path, "/proc/%s/maps", e->d_name);
     if (FILE* m = fopen(path, "r")) {
       char line[512];
@@ -226,6 +231,7 @@ static int jihadFlashAudioStreams() {
     }
   }
   closedir(d);
+  gJihadPluginsAlive = alive;
   return n;
 }
 
@@ -236,7 +242,7 @@ static void* jihadAudioPollThread(void*) {
   const std::string offp = sd + "/audio-off.sh";
   const std::string volp = sd + "/audio-vol.sh";
   const std::string flashp = sd + "/flash-vol.sh";
-  int prev = 0, tick = 0, flash = 0, scan = 0;
+  int prev = 0, prevN = 0, tick = 0, flash = 0, scan = 0;
   for (;;) {
     usleep(200 * 1000);
     if (!jihad_pulse_active_streams) { continue; }
@@ -246,10 +252,16 @@ static void* jihadAudioPollThread(void*) {
     }
     int n = jihad_pulse_active_streams() + flash;
     gJihadMediaPlaying = n > 0 ? 1 : 0;
-    if (n > 0 && prev == 0) { jihadRunAudioScript(onp.c_str()); tick = 0; }
-    else if (n == 0 && prev > 0) { jihadRunAudioScript(offp.c_str()); }
+    // the amp and the level also while a plugin lives without a sound open (T-657); "playing" above stays the streams'
+    // A silent plugin holds the amp by the one audio-on.sh of its start: nothing is run again until a sound
+    // plays (no script every 400 ms on every page with a movie, no route asserted over and over while silent);
+    // the level is read anew the moment a sound starts, then tracked as before.
+    const int amp = n + gJihadPluginsAlive;
+    if (amp > 0 && prev == 0) { jihadRunAudioScript(onp.c_str()); tick = 0; }
+    else if (amp == 0 && prev > 0) { jihadRunAudioScript(offp.c_str()); }
+    else if (n > 0 && prevN == 0) { jihadRunAudioScript(volp.c_str()); tick = 0; }
     else if (n > 0 && (++tick % 2) == 0) { jihadRunAudioScript(volp.c_str()); }  // ~400ms live track
-    prev = n;
+    prev = amp; prevN = n;
   }
   return nullptr;
 }
@@ -275,6 +287,7 @@ static void jihadStartAudioPoll() {
   jihadRunAudioScript(offp.c_str());
   pthread_t t;
   if (pthread_create(&t, nullptr, jihadAudioPollThread, nullptr) == 0) { pthread_detach(t); }
+  jihad::StartFlashAudioWatch();   // T-657: a new plugin stream raised as it opens, not a second later
 }
 
 // T-515: the express lane's pages (under the frame lock) and its thread (defined further down)

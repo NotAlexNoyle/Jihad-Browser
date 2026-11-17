@@ -1,0 +1,1369 @@
+{
+ "date": "2026-11-16T14:47:37",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "audio-heard",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 65,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "enyo: (377258/667073885) jihad (start) running, process 22611; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-calculator",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the calculator: 7 + 8 = shows what keying 15 shows (the display's picture equal), and not what Clear shows",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m@550,550:165,99,397,155",
+    "WAIT ok 13-still m@550,550:165,99,397,155",
+    "WAIT ok 18-still m@550,550:165,99,397,155",
+    "CHECK ok 20-region-changed: region 165,181-397,237: colours 131 hash 175995c6 rows 56 uniform 0 light none blue 183-236 against the sample's hash 44702382",
+    "WAIT ok 23-still m@550,550:165,99,397,155",
+    "CHECK ok 24-region-equal: region 165,181-397,237: colours 131 hash 44702382 rows 56 uniform 0 light none blue 183-236 = the sample's hash",
+    "WAIT ok 32-still m@550,550:165,99,397,155",
+    "CHECK ok 33-region-equal: region 165,181-397,237: colours 131 hash 175995c6 rows 56 uniform 0 light none blue 183-236 = the sample's hash"
+   ],
+   "kept": [
+    "kept/enyo-flash-app-calculator-keyed-15_.jpg",
+    "kept/enyo-flash-app-calculator-sum_.jpg"
+   ],
+   "seconds": 138,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/cyberchase-calculator: connected at +2 s, load done at +7 s, 10 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the jo",
+   "restore": "enyo: (377396/477919339) jihad (start) running, process 30045; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-chart",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the chart: it draws the page's rows and a tapped column comes back to the page as that column's row (March, then May)",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-rect m",
+    "WAIT ok 12-text last = [ready]",
+    "CHECK ok 13-flash-drawn: drawn: region 0,83-500,456: colours 107 hash 88958c2d rows 373 uniform 27 light 83-455 blue 140-427",
+    "WAIT ok 15-text last = [click 2 Mar series 0]",
+    "WAIT ok 17-text last = [click 4 May series 0]"
+   ],
+   "kept": [
+    "kept/enyo-flash-app-chart-chart_.jpg"
+   ],
+   "seconds": 54,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/yui-charts: connected at +2 s, load done at +8 s, 4 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP",
+   "restore": "enyo: (380687/77815887) jihad (start) running, process 15698; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-clock",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the clock: its hands move on by themselves, twice in a row, with no input",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect m",
+    "CHECK ok 10-flash-drawn: drawn: region 0,83-300,381: colours 1340 hash 27a120e6 rows 298 uniform 25 light 215-216 blue 101-364",
+    "WAIT ok 12-differs m",
+    "WAIT ok 14-differs m",
+    "CHECK ok 15-region-changed: region 0,83-300,381: colours 1348 hash 29cc2d0c rows 298 uniform 25 light 215-216 blue 101-364 against the sample's hash c99c6107"
+   ],
+   "kept": [],
+   "seconds": 57,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/flash-clock: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "enyo: (377512/53447762) jihad (start) running, process 4377; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-drums",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the drum machine: tapped, its players come on (their place empty before, drawn after) and it plays at the output sink",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m@900,450:60,300,260,430",
+    "CHECK ok 12-flash-drawn: reported not drawn, as it should be: region 51,338-222,449: colours 1 hash a2e425f4 rows 111 uniform 111 light 338-448 blue none",
+    "WAIT ok 20-differs m@900,450:60,300,260,430",
+    "CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 32768 rms 5337 frames 397312 hz 285, the speaker amp on, the media volume 23",
+    "CHECK ok 22-flash-drawn: drawn: region 51,338-222,449: colours 74 hash 7bd0a9f1 rows 111 uniform 37 light 375-448 blue none"
+   ],
+   "kept": [
+    "kept/enyo-flash-app-drums-players_.jpg"
+   ],
+   "seconds": 94,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/drum-machine: connected at +2 s, load done at +7 s, 26 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD",
+   "restore": "enyo: (377606/148828484) jihad (start) running, process 10198; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-mp3",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the MP3 player: silent until its play button is tapped, the tune at the output sink after, silent again when paused",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect m",
+    "WAIT ok 10-still m",
+    "CHECK ok 12-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0",
+    "CHECK ok 15-sound-watched: sound at the output sink over the gesture: peak 1820 rms 208 frames 353280 hz 482, the speaker amp on, the media volume 23",
+    "CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0"
+   ],
+   "kept": [],
+   "seconds": 75,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/mp3-player-multi: connected at +2 s, load done at +8 s, 16 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "enyo: (377681/389504470) jihad (start) running, process 14137; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-paint",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the colouring book: a colour picked and the sky tapped, the sky's picture changes and the untouched ground's does not",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m",
+    "WAIT ok 13-still m",
+    "WAIT ok 20-differs m@480,320:150,40,270,90",
+    "CHECK ok 21-region-changed: region 150,122-270,172: colours 82 hash 7871ec3e rows 50 uniform 8 light 122-171 blue 127-158 against the sample's hash 42ffb962",
+    "CHECK ok 22-region-equal: region 95,287-200,320: colours 5 hash ab012dda rows 33 uniform 21 light 287-319 blue none = the sample's hash"
+   ],
+   "kept": [
+    "kept/enyo-flash-app-paint-poster_.jpg",
+    "kept/enyo-flash-app-paint-painted_.jpg"
+   ],
+   "seconds": 74,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/poster-paint-party: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's ",
+   "restore": "enyo: (380761/319874983) jihad (start) running, process 20271; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-phonemic",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the phonemic chart: the first symbol tapped is pronounced at the output sink, and two more, with silence before and after",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m",
+    "CHECK ok 12-flash-drawn: drawn: region 0,83-654,652: colours 3877 hash 6f903e29 rows 569 uniform 0 light 116-634 blue none",
+    "CHECK ok 14-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0",
+    "CHECK ok 17-sound-watched: sound at the output sink over the gesture: peak 7524 rms 282 frames 177152 hz 793, the speaker amp on, the media volume 23",
+    "CHECK ok 20-sound-watched: sound at the output sink over the gesture: peak 6688 rms 157 frames 177152 hz 1901, the speaker amp on, the media volume 23",
+    "CHECK ok 23-sound-watched: sound at the output sink over the gesture: peak 1666 rms 174 frames 177152 hz 259, the speaker amp on, the media volume 23",
+    "CHECK ok 25-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0"
+   ],
+   "kept": [],
+   "seconds": 76,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/phonemic-chart: connected at +4 s, load done at +9 s, 10 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "enyo: (377820/272914665) jihad (start) running, process 22670; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-piano",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the piano: a tapped key sounds at the output sink, silence follows the note, another key sounds again",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect m",
+    "WAIT ok 10-still m",
+    "WAIT ok 12-still m",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "CHECK ok 15-sound: sound at the output sink: peak 19426 rms 1900 frames 45056 hz 647, the speaker amp on, the media volume 23",
+    "CHECK ok 17-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1704 frames 45056 hz 521, the speaker amp on, the media volume 23"
+   ],
+   "kept": [
+    "kept/enyo-flash-app-piano-key_.jpg"
+   ],
+   "seconds": 64,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/virtual-piano: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD",
+   "restore": "enyo: (377884/116580874) jihad (start) running, process 26686; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-postcards",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the postcard viewer: its gallery loads, a tapped card comes forward and a second tap puts it back (the band above the cards covered by the card, then plain again)",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-rect m",
+    "WAIT ok 12-still m",
+    "CHECK ok 13-flash-drawn: drawn: region 269,370-499,543: colours 237 hash 607e011b rows 173 uniform 71 light 412-519 blue none",
+    "CHECK ok 14-flash-drawn: reported not drawn, as it should be: region 96,140-672,293: colours 1 hash 65667185 rows 153 uniform 153 light none blue none",
+    "WAIT ok 17-differs m",
+    "WAIT ok 18-still m",
+    "CHECK ok 20-flash-drawn: drawn: region 96,140-672,293: colours 23 hash 4e10b9b0 rows 153 uniform 58 light 217-225 blue 140-215",
+    "WAIT ok 23-differs m",
+    "WAIT ok 24-still m",
+    "CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,140-672,293: colours 1 hash 65667185 rows 153 uniform 153 light none blue none",
+    "CHECK ok 26-flash-drawn: drawn: region 269,370-499,543: colours 272 hash e51c4611 rows 173 uniform 71 light 412-519 blue none"
+   ],
+   "kept": [
+    "kept/enyo-flash-app-postcards-forward_.jpg"
+   ],
+   "seconds": 69,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/postcard-viewer: connected at +2 s, load done at +8 s, 19 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (377952/783443380) jihad (start) running, process 30901; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-game-sound",
+   "kit": "cavekit-flash.md R9",
+   "item": "A Flash game's sound is audible: Winterbells tapped into, its stream above 0 % and the speaker amp on",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect sel:embed",
+    "CHECK ok 17-audio: the movie's audio: open running audible"
+   ],
+   "kept": [
+    "kept/enyo-flash-game-sound-game_.jpg"
+   ],
+   "seconds": 67,
+   "note": "",
+   "start": "enyo card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +3 s, load done at +9 s, 5 content frames at +10 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (378019/362609293) jihad (start) running, process 1779; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-sound",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31138 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2049 frames 45056 hz 436, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 67,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 11 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (378086/495054317) jihad (start) running, process 5553; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-text",
+   "kit": "cavekit-flash.md R7",
+   "item": "Text typed on the system keyboard lands exact in a movie's input field: mixed case, digits, space and Backspace, by the movie's own report of its field",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 15-text text = [text Hello]",
+    "WAIT ok 17-text text = [text Hello World 123]",
+    "WAIT ok 19-text text = [text Hello World x9]",
+    "CHECK ok 20-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)"
+   ],
+   "kept": [],
+   "seconds": 68,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "enyo: (378154/128442452) jihad (start) running, process 9018; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK ok 13-sound: sound at the output sink: peak 2955 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build",
+    "CHECK ok 17-volume: the media volume 66, higher (marked 44)",
+    "CHECK ok 18-sound: sound at the output sink: peak 2958 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz",
+    "CHECK ok 21-volume: the media volume 44, lower (marked 66)",
+    "CHECK ok 22-sound: sound at the output sink: peak 2963 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 26-volume: the media volume 0, zero (marked 66)",
+    "CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2958 rms 2060 frames 45056 hz 440): no sound out",
+    "CHECK ok 30-volume: the media volume 22, higher (marked 0)",
+    "CHECK ok 31-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 80,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +7 s, 18 content frames at +7 s; the GPU path, frames off the main thread",
+   "restore": "enyo: (378234/17607325) jihad (start) running, process 12691; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "audio-heard",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31141 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 62,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 10 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (378296/341383018) jihad-mochi (start) running, process 16109; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-calculator",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the calculator: 7 + 8 = shows what keying 15 shows (the display's picture equal), and not what Clear shows",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m@550,550:165,99,397,155",
+    "WAIT ok 13-still m@550,550:165,99,397,155",
+    "WAIT ok 18-still m@550,550:165,99,397,155",
+    "CHECK ok 20-region-changed: region 165,177-397,233: colours 128 hash 6a298bcf rows 56 uniform 0 light none blue 179-232 against the sample's hash fb4ff083",
+    "WAIT ok 23-still m@550,550:165,99,397,155",
+    "CHECK ok 24-region-equal: region 165,177-397,233: colours 128 hash fb4ff083 rows 56 uniform 0 light none blue 179-232 = the sample's hash",
+    "WAIT ok 32-still m@550,550:165,99,397,155",
+    "CHECK ok 33-region-equal: region 165,177-397,233: colours 128 hash 6a298bcf rows 56 uniform 0 light none blue 179-232 = the sample's hash"
+   ],
+   "kept": [
+    "kept/mochi-flash-app-calculator-keyed-15_.jpg",
+    "kept/mochi-flash-app-calculator-sum_.jpg"
+   ],
+   "seconds": 104,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/cyberchase-calculator: connected at +2 s, load done at +8 s, 15 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the j",
+   "restore": "mochi: (378400/797761219) jihad-mochi (start) running, process 22787; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-chart",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the chart: it draws the page's rows and a tapped column comes back to the page as that column's row (March, then May)",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-rect m",
+    "WAIT ok 12-text last = [ready]",
+    "CHECK ok 13-flash-drawn: drawn: region 0,79-500,452: colours 107 hash 88958c2d rows 373 uniform 27 light 79-451 blue 136-423",
+    "WAIT ok 15-text last = [click 2 Mar series 0]",
+    "WAIT ok 17-text last = [click 4 May series 0]"
+   ],
+   "kept": [
+    "kept/mochi-flash-app-chart-chart_.jpg"
+   ],
+   "seconds": 55,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/yui-charts: connected at +1 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "mochi: (381116/506307509) jihad-mochi (start) running, process 4142; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-clock",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the clock: its hands move on by themselves, twice in a row, with no input",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect m",
+    "CHECK ok 10-flash-drawn: drawn: region 0,79-300,377: colours 1347 hash 24299cea rows 298 uniform 28 light 211-212 blue 97-360",
+    "WAIT ok 12-differs m",
+    "WAIT ok 14-differs m",
+    "CHECK ok 15-region-changed: region 0,79-300,377: colours 1345 hash fe55eb5c rows 298 uniform 28 light 211-212 blue 97-360 against the sample's hash 85181fdf"
+   ],
+   "kept": [],
+   "seconds": 48,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/flash-clock: connected at +2 s, load done at +7 s, 11 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD",
+   "restore": "mochi: (378503/809589347) jihad-mochi (start) running, process 29298; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-drums",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the drum machine: tapped, its players come on (their place empty before, drawn after) and it plays at the output sink",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m@900,450:60,300,260,430",
+    "CHECK ok 12-flash-drawn: reported not drawn, as it should be: region 51,334-222,445: colours 1 hash a2e425f4 rows 111 uniform 111 light 334-444 blue none",
+    "WAIT ok 20-differs m@900,450:60,300,260,430",
+    "CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 9529 rms 1897 frames 397312 hz 738, the speaker amp on, the media volume 23",
+    "CHECK ok 22-flash-drawn: drawn: region 51,334-222,445: colours 115 hash 25236ca7 rows 111 uniform 37 light 371-444 blue none"
+   ],
+   "kept": [
+    "kept/mochi-flash-app-drums-players_.jpg"
+   ],
+   "seconds": 92,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/drum-machine: connected at +1 s, load done at +7 s, 11 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA",
+   "restore": "mochi: (378596/204770218) jihad-mochi (start) running, process 2120; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-mp3",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the MP3 player: silent until its play button is tapped, the tune at the output sink after, silent again when paused",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect m",
+    "WAIT ok 10-still m",
+    "CHECK ok 12-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0",
+    "CHECK ok 15-sound-watched: sound at the output sink over the gesture: peak 1820 rms 203 frames 353280 hz 395, the speaker amp on, the media volume 23",
+    "CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0"
+   ],
+   "kept": [],
+   "seconds": 69,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/mp3-player-multi: connected at +1 s, load done at +7 s, 17 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's ",
+   "restore": "mochi: (378664/844059835) jihad-mochi (start) running, process 6037; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-paint",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the colouring book: a colour picked and the sky tapped, the sky's picture changes and the untouched ground's does not",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m",
+    "WAIT ok 13-still m",
+    "WAIT ok 20-differs m@480,320:150,40,270,90",
+    "CHECK ok 21-region-changed: region 150,118-270,168: colours 84 hash 54dc37d8 rows 50 uniform 6 light 118-167 blue 123-154 against the sample's hash d0397bfa",
+    "CHECK ok 22-region-equal: region 95,283-200,316: colours 11 hash c0bb1138 rows 33 uniform 21 light 283-315 blue none = the sample's hash"
+   ],
+   "kept": [
+    "kept/mochi-flash-app-paint-poster_.jpg",
+    "kept/mochi-flash-app-paint-painted_.jpg"
+   ],
+   "seconds": 81,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/poster-paint-party: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's",
+   "restore": "mochi: (381198/14036530) jihad-mochi (start) running, process 8953; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-phonemic",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the phonemic chart: the first symbol tapped is pronounced at the output sink, and two more, with silence before and after",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m",
+    "CHECK ok 12-flash-drawn: drawn: region 0,79-654,648: colours 3877 hash 6f903e29 rows 569 uniform 0 light 112-630 blue none",
+    "CHECK ok 14-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0",
+    "CHECK ok 17-sound-watched: sound at the output sink over the gesture: peak 7524 rms 282 frames 177152 hz 793, the speaker amp on, the media volume 23",
+    "CHECK ok 20-sound-watched: sound at the output sink over the gesture: peak 6688 rms 157 frames 177152 hz 1901, the speaker amp on, the media volume 23",
+    "CHECK ok 23-sound-watched: sound at the output sink over the gesture: peak 1666 rms 174 frames 177152 hz 259, the speaker amp on, the media volume 23",
+    "CHECK ok 25-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0"
+   ],
+   "kept": [],
+   "seconds": 76,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/phonemic-chart: connected at +1 s, load done at +7 s, 9 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mochi: (378807/994009585) jihad-mochi (start) running, process 14530; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-piano",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the piano: a tapped key sounds at the output sink, silence follows the note, another key sounds again",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect m",
+    "WAIT ok 10-still m",
+    "WAIT ok 12-still m",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "CHECK ok 15-sound: sound at the output sink: peak 19426 rms 1890 frames 45056 hz 663, the speaker amp on, the media volume 23",
+    "CHECK ok 17-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1681 frames 45056 hz 533, the speaker amp on, the media volume 23"
+   ],
+   "kept": [
+    "kept/mochi-flash-app-piano-key_.jpg"
+   ],
+   "seconds": 70,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/virtual-piano: connected at +2 s, load done at +8 s, 14 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mochi: (378878/200572979) jihad-mochi (start) running, process 18574; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-postcards",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the postcard viewer: its gallery loads, a tapped card comes forward and a second tap puts it back (the band above the cards covered by the card, then plain again)",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-rect m",
+    "WAIT ok 12-still m",
+    "CHECK ok 13-flash-drawn: drawn: region 269,366-499,539: colours 244 hash 65ec63a8 rows 173 uniform 68 light 408-515 blue 469-514",
+    "CHECK ok 14-flash-drawn: reported not drawn, as it should be: region 96,136-672,289: colours 1 hash 65667185 rows 153 uniform 153 light none blue none",
+    "WAIT ok 17-differs m",
+    "WAIT ok 18-still m",
+    "CHECK ok 20-flash-drawn: drawn: region 96,136-672,289: colours 29 hash e79983c9 rows 153 uniform 57 light 212-221 blue none",
+    "WAIT ok 23-differs m",
+    "WAIT ok 24-still m",
+    "CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,136-672,289: colours 1 hash 65667185 rows 153 uniform 153 light none blue none",
+    "CHECK ok 26-flash-drawn: drawn: region 269,366-499,539: colours 276 hash ef64f90b rows 173 uniform 68 light 408-515 blue 469-514"
+   ],
+   "kept": [
+    "kept/mochi-flash-app-postcards-forward_.jpg"
+   ],
+   "seconds": 74,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/postcard-viewer: connected at +2 s, load done at +8 s, 15 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (378952/387008075) jihad-mochi (start) running, process 22970; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-game-sound",
+   "kit": "cavekit-flash.md R9",
+   "item": "A Flash game's sound is audible: Winterbells tapped into, its stream above 0 % and the speaker amp on",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect sel:embed",
+    "CHECK ok 17-audio: the movie's audio: open running audible"
+   ],
+   "kept": [
+    "kept/mochi-flash-game-sound-game_.jpg"
+   ],
+   "seconds": 67,
+   "note": "",
+   "start": "mochi card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +1 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mochi: (379019/491120211) jihad-mochi (start) running, process 26436; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-sound",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31141 rms 21984 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 66,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +7 s, 3 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mochi: (379085/482940495) jihad-mochi (start) running, process 30111; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-text",
+   "kit": "cavekit-flash.md R7",
+   "item": "Text typed on the system keyboard lands exact in a movie's input field: mixed case, digits, space and Backspace, by the movie's own report of its field",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 15-text text = [text Hello]",
+    "WAIT ok 17-text text = [text Hello World 123]",
+    "WAIT ok 19-text text = [text Hello World x9]",
+    "CHECK ok 20-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)"
+   ],
+   "kept": [],
+   "seconds": 67,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +1 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main thread (the express lane) ",
+   "restore": "mochi: (379152/863611296) jihad-mochi (start) running, process 1092; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK ok 13-sound: sound at the output sink: peak 2958 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build",
+    "CHECK ok 17-volume: the media volume 66, higher (marked 44)",
+    "CHECK ok 18-sound: sound at the output sink: peak 2964 rms 2061 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz",
+    "CHECK ok 21-volume: the media volume 44, lower (marked 66)",
+    "CHECK ok 22-sound: sound at the output sink: peak 2953 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 26-volume: the media volume 0, zero (marked 66)",
+    "CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2958 rms 2058 frames 45056 hz 440): no sound out",
+    "CHECK ok 30-volume: the media volume 22, higher (marked 0)",
+    "CHECK ok 31-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 81,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main threa",
+   "restore": "mochi: (379233/788062243) jihad-mochi (start) running, process 5028; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "audio-heard",
+   "kit": "cavekit-device-build.md R4",
+   "item": "Flash sound heard; an HTML audio element heard on the speaker (a signal at the output sink and the speaker amp on, for each)",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text status = [playing]",
+    "CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 66,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mojo: (379300/193537786) jihad-mojo (start) running, process 8651; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-calculator",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the calculator: 7 + 8 = shows what keying 15 shows (the display's picture equal), and not what Clear shows",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m@550,550:165,99,397,155",
+    "WAIT ok 13-still m@550,550:165,99,397,155",
+    "WAIT ok 18-still m@550,550:165,99,397,155",
+    "CHECK ok 20-region-changed: region 165,172-397,228: colours 115 hash 708ae6c9 rows 56 uniform 0 light none blue 174-227 against the sample's hash 17d55502",
+    "WAIT ok 23-still m@550,550:165,99,397,155",
+    "CHECK ok 24-region-equal: region 165,172-397,228: colours 115 hash 17d55502 rows 56 uniform 0 light none blue 174-227 = the sample's hash",
+    "WAIT ok 32-still m@550,550:165,99,397,155",
+    "CHECK ok 33-region-equal: region 165,172-397,228: colours 115 hash 708ae6c9 rows 56 uniform 0 light none blue 174-227 = the sample's hash"
+   ],
+   "kept": [
+    "kept/mojo-flash-app-calculator-keyed-15_.jpg",
+    "kept/mojo-flash-app-calculator-sum_.jpg"
+   ],
+   "seconds": 118,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/cyberchase-calculator: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job",
+   "restore": "mojo: (379418/91988874) jihad-mojo (start) running, process 15808; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-chart",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the chart: it draws the page's rows and a tapped column comes back to the page as that column's row (March, then May)",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-rect m",
+    "WAIT ok 12-text last = [ready]",
+    "CHECK ok 13-flash-drawn: drawn: region 0,74-500,447: colours 96 hash 29da18c5 rows 373 uniform 27 light 74-446 blue 131-418",
+    "WAIT ok 15-text last = [click 2 Mar series 0]",
+    "WAIT ok 17-text last = [click 4 May series 0]"
+   ],
+   "kept": [
+    "kept/mojo-flash-app-chart-chart_.jpg"
+   ],
+   "seconds": 64,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/yui-charts: connected at +1 s, load done at +6 s, 14 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "mojo: (381604/27155266) jihad-mojo (start) running, process 25224; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-clock",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the clock: its hands move on by themselves, twice in a row, with no input",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect m",
+    "CHECK ok 10-flash-drawn: drawn: region 0,74-300,372: colours 1119 hash 0d895ed7 rows 298 uniform 38 light 206-207 blue 92-355",
+    "WAIT ok 12-differs m",
+    "WAIT ok 14-differs m",
+    "CHECK ok 15-region-changed: region 0,74-300,372: colours 1116 hash 26847597 rows 298 uniform 38 light 206-207 blue 92-355 against the sample's hash 4ddd93ac"
+   ],
+   "kept": [],
+   "seconds": 58,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/flash-clock: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "mojo: (379530/575478778) jihad-mojo (start) running, process 22255; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-drums",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the drum machine: tapped, its players come on (their place empty before, drawn after) and it plays at the output sink",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m@900,450:60,300,260,430",
+    "CHECK ok 12-flash-drawn: reported not drawn, as it should be: region 51,329-222,440: colours 1 hash a2e425f4 rows 111 uniform 111 light 329-439 blue none",
+    "WAIT ok 20-differs m@900,450:60,300,260,430",
+    "CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 8526 rms 1075 frames 397312 hz 680, the speaker amp on, the media volume 23",
+    "CHECK ok 22-flash-drawn: drawn: region 51,329-222,440: colours 49 hash 65c12f83 rows 111 uniform 37 light 366-439 blue none"
+   ],
+   "kept": [
+    "kept/mojo-flash-app-drums-players_.jpg"
+   ],
+   "seconds": 93,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/drum-machine: connected at +1 s, load done at +8 s, 24 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD",
+   "restore": "mojo: (379623/415041724) jihad-mojo (start) running, process 27039; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-mp3",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the MP3 player: silent until its play button is tapped, the tune at the output sink after, silent again when paused",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect m",
+    "WAIT ok 10-still m",
+    "CHECK ok 12-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0",
+    "CHECK ok 15-sound-watched: sound at the output sink over the gesture: peak 1820 rms 191 frames 353280 hz 667, the speaker amp on, the media volume 23",
+    "CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0"
+   ],
+   "kept": [],
+   "seconds": 73,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/mp3-player-multi: connected at +1 s, load done at +6 s, 9 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (379696/876344523) jihad-mojo (start) running, process 30787; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-paint",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the colouring book: a colour picked and the sky tapped, the sky's picture changes and the untouched ground's does not",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m",
+    "WAIT ok 13-still m",
+    "WAIT ok 20-differs m@480,320:150,40,270,90",
+    "CHECK ok 21-region-changed: region 150,113-270,163: colours 56 hash 272829a5 rows 50 uniform 8 light 113-162 blue 118-149 against the sample's hash 1b151848",
+    "CHECK ok 22-region-equal: region 95,278-200,311: colours 5 hash ab012dda rows 33 uniform 21 light 278-310 blue none = the sample's hash"
+   ],
+   "kept": [
+    "kept/mojo-flash-app-paint-poster_.jpg",
+    "kept/mojo-flash-app-paint-painted_.jpg"
+   ],
+   "seconds": 86,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/poster-paint-party: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's ",
+   "restore": "mojo: (381689/958000138) jihad-mojo (start) running, process 30005; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-phonemic",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the phonemic chart: the first symbol tapped is pronounced at the output sink, and two more, with silence before and after",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect m",
+    "WAIT ok 11-still m",
+    "CHECK ok 12-flash-drawn: drawn: region 0,74-654,643: colours 3117 hash ed71f967 rows 569 uniform 0 light 107-625 blue none",
+    "CHECK ok 14-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0",
+    "CHECK ok 17-sound-watched: sound at the output sink over the gesture: peak 7524 rms 282 frames 177152 hz 793, the speaker amp on, the media volume 23",
+    "CHECK ok 20-sound-watched: sound at the output sink over the gesture: peak 6688 rms 157 frames 177152 hz 1901, the speaker amp on, the media volume 23",
+    "CHECK ok 23-sound-watched: sound at the output sink over the gesture: peak 1666 rms 167 frames 177152 hz 309, the speaker amp on, the media volume 23",
+    "CHECK ok 25-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0"
+   ],
+   "kept": [],
+   "seconds": 76,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/phonemic-chart: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA",
+   "restore": "mojo: (379849/882898717) jihad-mojo (start) running, process 7246; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-piano",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the piano: a tapped key sounds at the output sink, silence follows the note, another key sounds again",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect m",
+    "WAIT ok 10-still m",
+    "WAIT ok 12-still m",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "CHECK ok 15-sound: sound at the output sink: peak 19426 rms 1951 frames 45056 hz 594, the speaker amp on, the media volume 23",
+    "CHECK ok 17-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1735 frames 45056 hz 501, the speaker amp on, the media volume 23"
+   ],
+   "kept": [
+    "kept/mojo-flash-app-piano-key_.jpg"
+   ],
+   "seconds": 73,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/virtual-piano: connected at +2 s, load done at +7 s, 9 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD",
+   "restore": "mojo: (379923/38263738) jihad-mojo (start) running, process 11499; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-postcards",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the postcard viewer: its gallery loads, a tapped card comes forward and a second tap puts it back (the band above the cards covered by the card, then plain again)",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-rect m",
+    "WAIT ok 12-still m",
+    "CHECK ok 13-flash-drawn: drawn: region 269,361-499,534: colours 138 hash 248eeb78 rows 173 uniform 68 light 403-510 blue 404-509",
+    "CHECK ok 14-flash-drawn: reported not drawn, as it should be: region 96,131-672,284: colours 1 hash 65667185 rows 153 uniform 153 light none blue none",
+    "WAIT ok 17-differs m",
+    "WAIT ok 18-still m",
+    "CHECK ok 20-flash-drawn: drawn: region 96,131-672,284: colours 22 hash 5e5dbe6c rows 153 uniform 47 light 208-217 blue none",
+    "WAIT ok 23-differs m",
+    "WAIT ok 24-still m",
+    "CHECK ok 25-flash-drawn: reported not drawn, as it should be: region 96,131-672,284: colours 1 hash 65667185 rows 153 uniform 153 light none blue none",
+    "CHECK ok 26-flash-drawn: drawn: region 269,361-499,534: colours 178 hash d85d5257 rows 173 uniform 68 light 403-510 blue 404-509"
+   ],
+   "kept": [
+    "kept/mojo-flash-app-postcards-forward_.jpg"
+   ],
+   "seconds": 79,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/postcard-viewer: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mojo: (380001/665306391) jihad-mojo (start) running, process 15748; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-game-sound",
+   "kit": "cavekit-flash.md R9",
+   "item": "A Flash game's sound is audible: Winterbells tapped into, its stream above 0 % and the speaker amp on",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 10-rect sel:embed",
+    "CHECK ok 17-audio: the movie's audio: open running audible"
+   ],
+   "kept": [
+    "kept/mojo-flash-game-sound-game_.jpg"
+   ],
+   "seconds": 72,
+   "note": "",
+   "start": "mojo card on http://www.ferryhalim.com/orisinal/g3/bells.htm: connected at +1 s, load done at +8 s, 16 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (380073/499040302) jihad-mojo (start) running, process 19307; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-sound",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them)",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-rect sel:embed",
+    "CHECK ok 10-audio: the movie's audio: open running audible",
+    "CHECK ok 11-sound: sound at the output sink: peak 31139 rms 21985 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz",
+    "WAIT ok 12-launch: load done",
+    "CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0",
+    "WAIT ok 14-launch: load done",
+    "WAIT ok 15-text status = [playing]",
+    "CHECK ok 16-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440, the speaker amp on, the media volume 23, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 69,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mojo: (380142/64555549) jihad-mojo (start) running, process 22848; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-text",
+   "kit": "cavekit-flash.md R7",
+   "item": "Text typed on the system keyboard lands exact in a movie's input field: mixed case, digits, space and Backspace, by the movie's own report of its field",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]",
+    "CHECK ok 9-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "CHECK ok 12-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 15-text text = [text Hello]",
+    "WAIT ok 17-text text = [text Hello World 123]",
+    "WAIT ok 19-text text = [text Hello World x9]",
+    "CHECK ok 20-card-scroll: the card's scroll y 0 (want 0 within 5); the engine's 0",
+    "CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)"
+   ],
+   "kept": [],
+   "seconds": 68,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "mojo: (380209/632948572) jihad-mojo (start) running, process 26291; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "volume-keys",
+   "kit": "cavekit-finger-testing.md R7",
+   "item": "The hardware volume keys while a page plays sound: the media volume goes up and down with them and the sound keeps reaching the output sink; keyed down to nothing the sound reads muted, and heard again after",
+   "section": "Media and sound",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 9-text status = [playing]",
+    "CHECK ok 13-sound: sound at the output sink: peak 2975 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build",
+    "CHECK ok 17-volume: the media volume 66, higher (marked 44)",
+    "CHECK ok 18-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 66, the pitch wanted 440 Hz",
+    "CHECK ok 21-volume: the media volume 44, lower (marked 66)",
+    "CHECK ok 22-sound: sound at the output sink: peak 2958 rms 2058 frames 45056 hz 440, the speaker amp on, the media volume 44, the pitch wanted 440 Hz",
+    "CHECK ok 26-volume: the media volume 0, zero (marked 66)",
+    "CHECK ok 27-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2959 rms 2057 frames 45056 hz 440): no sound out",
+    "CHECK ok 30-volume: the media volume 22, higher (marked 0)",
+    "CHECK ok 31-sound: sound at the output sink: peak 2961 rms 2059 frames 45056 hz 440, the speaker amp on, the media volume 22, the pitch wanted 440 Hz"
+   ],
+   "kept": [],
+   "seconds": 83,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +7 s, 21 content frames at +7 s; the GPU path, frames off the main thread",
+   "restore": "mojo: (380292/404605742) jihad-mojo (start) running, process 29997; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "ddg-results",
+   "kit": "cavekit-modern-web.md R2",
+   "item": "DuckDuckGo's regular results page renders its results (T-498/T-499)",
+   "section": "Sites",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-launch: load done",
+    "WAIT ok 9-line: [jihad-bs] titleAndUrl title=[webOS at DuckDuckGo] uri=https://duckduckgo.com/?q=webOS&ia=web back=1 fwd=0",
+    "CHECK ok 10-content: region 0,100-756,900: colours 1689 hash 89c1489e rows 800 uniform 160 light 100-899 blue 148-152; sel:body on the screen at 0,82-768,2007"
+   ],
+   "kept": [],
+   "seconds": 87,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (380499/885888665) jihad (start) running, process 7161; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "enyo",
+   "id": "everyday-browsing",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Everyday browsing on the engine: a real site loads and scrolls, a search box takes the keyboard, back comes back \u2014 nothing slower or odder than before",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-rect sel:textarea[name='q']",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 440 landed on document y 358)",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 12-launch: load done",
+    "calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 158 landed on document y 110)",
+    "CHECK ok 15-card-scroll-min: the card's scroll y 844 (at least 300)",
+    "WAIT ok 17-url: https://duckduckgo.com/"
+   ],
+   "kept": [],
+   "seconds": 133,
+   "note": "",
+   "start": "enyo card on https://duckduckgo.com/: connected at +3 s, load done at +34 s, 25 content frames at +34 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "restore": "enyo: (380632/604898861) jihad (start) running, process 12575; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-tags",
+   "kit": "cavekit-flash.md R4",
+   "item": "An embed, an object with data, an object with a movie param, nested objects and a direct navigation to a movie each draw and take a tap; the detection script reads 10.3",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [10.3]",
+    "CHECK ok 11-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [mime yes]",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 23-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 24-launch: load done",
+    "CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 55 (18.3/s), changes 41 (13.7/s), reads 56, distinct 42, spacing median 62 p90 74 max 103 ms (wanted 5..100/s)"
+   ],
+   "kept": [],
+   "seconds": 86,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +7 s, 12 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (",
+   "restore": "enyo: (380847/696508301) jihad (start) running, process 24098; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mochi",
+   "id": "ddg-results",
+   "kit": "cavekit-modern-web.md R2",
+   "item": "DuckDuckGo's regular results page renders its results (T-498/T-499)",
+   "section": "Sites",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-launch: load done",
+    "WAIT ok 9-line: [jihad-bs] titleAndUrl title=[webOS at DuckDuckGo] uri=https://duckduckgo.com/?q=webOS&ia=web back=1 fwd=0",
+    "CHECK ok 10-content: region 0,100-756,900: colours 1568 hash 32e4b9ad rows 800 uniform 162 light 100-899 blue 144-148; sel:body on the screen at 0,78-768,1987"
+   ],
+   "kept": [],
+   "seconds": 89,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-card-events.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (380936/836848728) jihad-mochi (start) running, process 28510; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mochi",
+   "id": "everyday-browsing",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Everyday browsing on the engine: a real site loads and scrolls, a search box takes the keyboard, back comes back \u2014 nothing slower or odder than before",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-rect sel:textarea[name='q']",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 437 landed on document y 359)",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 12-launch: load done",
+    "calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 154 landed on document y 110)",
+    "CHECK ok 15-card-scroll-min: the card's scroll y 873 (at least 300)",
+    "WAIT ok 17-url: https://duckduckgo.com/"
+   ],
+   "kept": [],
+   "seconds": 124,
+   "note": "",
+   "start": "mochi card on https://duckduckgo.com/: connected at +3 s, load done at +33 s, 25 content frames at +33 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "restore": "mochi: (381061/219412407) jihad-mochi (start) running, process 796; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-tags",
+   "kit": "cavekit-flash.md R4",
+   "item": "An embed, an object with data, an object with a movie param, nested objects and a direct navigation to a movie each draw and take a tap; the detection script reads 10.3",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [10.3]",
+    "CHECK ok 11-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [mime yes]",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 23-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 24-launch: load done",
+    "CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 44 (14.7/s), changes 37 (12.3/s), reads 46, distinct 38, spacing median 65 p90 94 max 230 ms (wanted 5..100/s)"
+   ],
+   "kept": [],
+   "seconds": 92,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +7 s, 12 content frames at +7 s; the GPU path, frames off the main thread (the express lane) ",
+   "restore": "mochi: (381290/377114733) jihad-mochi (start) running, process 12887; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mojo",
+   "id": "ddg-results",
+   "kit": "cavekit-modern-web.md R2",
+   "item": "DuckDuckGo's regular results page renders its results (T-498/T-499)",
+   "section": "Sites",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-launch: load done",
+    "WAIT ok 9-line: [jihad-bs] titleAndUrl title=[webOS at DuckDuckGo] uri=https://duckduckgo.com/?q=webOS&ia=web back=1 fwd=0",
+    "CHECK ok 10-content: region 0,100-756,900: colours 1186 hash 56f5cde4 rows 800 uniform 155 light 100-899 blue 139-142; sel:body on the screen at 0,73-768,1966"
+   ],
+   "kept": [],
+   "seconds": 120,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +6 s, 2 content frames at +36 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mojo: (381410/798973673) jihad-mojo (start) running, process 17348; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mojo",
+   "id": "everyday-browsing",
+   "kit": "cavekit-engine-update.md R8",
+   "item": "Everyday browsing on the engine: a real site loads and scrolls, a search box takes the keyboard, back comes back \u2014 nothing slower or odder than before",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 8-rect sel:textarea[name='q']",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 436 landed on document y 363)",
+    "CHECK ok 10-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 12-launch: load done",
+    "calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 149 landed on document y 110)",
+    "CHECK ok 15-card-scroll-min: the card's scroll y 808 (at least 300)",
+    "WAIT ok 17-url: https://duckduckgo.com/"
+   ],
+   "kept": [],
+   "seconds": 129,
+   "note": "",
+   "start": "mojo card on https://duckduckgo.com/: connected at +1 s, load done at +30 s, 21 content frames at +30 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)",
+   "restore": "mojo: (381539/854918537) jihad-mojo (start) running, process 21891; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-tags",
+   "kit": "cavekit-flash.md R4",
+   "item": "An embed, an object with data, an object with a movie param, nested objects and a direct navigation to a movie each draw and take a tap; the detection script reads 10.3",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "CHECK ok 10-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [10.3]",
+    "CHECK ok 11-text-has: detect = [detect plugin Shockwave Flash 10.3 d185 mime yes] holds [mime yes]",
+    "WAIT ok 12-launch: load done",
+    "WAIT ok 13-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 15-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 16-launch: load done",
+    "WAIT ok 17-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 19-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 20-launch: load done",
+    "WAIT ok 21-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]",
+    "CHECK ok 23-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)",
+    "WAIT ok 24-launch: load done",
+    "CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 50 (16.7/s), changes 39 (13.0/s), reads 51, distinct 40, spacing median 67 p90 78 max 93 ms (wanted 5..100/s)"
+   ],
+   "kept": [],
+   "seconds": 97,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (t",
+   "restore": "mojo: (381787/92690339) jihad-mojo (start) running, process 1648; daemons running: 1",
+   "rerun": "2026-11-16T14:13:02"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-app-form",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the form whose script runs away without its site: the player's \"Kill this Action Script?\" dialog comes, the finger answers it and the page stays",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-rect m",
+    "WAIT ok 12-still m",
+    "CHECK ok 13-flash-drawn: drawn: region 0,83-640,561: colours 4096 hash e07ca3aa rows 478 uniform 0 light none blue none",
+    "CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo",
+    "CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)",
+    "WAIT ok 19-still m",
+    "CHECK ok 20-flash-drawn: drawn: region 0,83-640,561: colours 4096 hash edc73612 rows 478 uniform 0 light none blue none",
+    "CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer"
+   ],
+   "kept": [
+    "kept/enyo-flash-app-form-asked_.jpg"
+   ],
+   "seconds": 82,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8097/title/website-viewer: connected at +3 s, load done at +9 s, 8 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA",
+   "restore": "enyo: (382071/704783027) jihad (start) running, process 15820; daemons running: 1",
+   "rerun": "2026-11-16T14:39:20"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-app-form",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the form whose script runs away without its site: the player's \"Kill this Action Script?\" dialog comes, the finger answers it and the page stays",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-rect m",
+    "WAIT ok 12-still m",
+    "CHECK ok 13-flash-drawn: drawn: region 0,79-640,557: colours 4096 hash c4460238 rows 478 uniform 0 light none blue none",
+    "CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo",
+    "CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)",
+    "WAIT ok 19-still m",
+    "CHECK ok 20-flash-drawn: drawn: region 0,79-640,557: colours 4096 hash c4460238 rows 478 uniform 0 light none blue none",
+    "CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer"
+   ],
+   "kept": [
+    "kept/mochi-flash-app-form-asked_.jpg"
+   ],
+   "seconds": 79,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8097/title/website-viewer: connected at +2 s, load done at +8 s, 7 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIH",
+   "restore": "mochi: (382150/291964049) jihad-mochi (start) running, process 19838; daemons running: 1",
+   "rerun": "2026-11-16T14:39:20"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-app-form",
+   "kit": "cavekit-flash.md R7",
+   "item": "A Flash app does its task, the form whose script runs away without its site: the player's \"Kill this Action Script?\" dialog comes, the finger answers it and the page stays",
+   "section": "Flash",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 11-rect m",
+    "WAIT ok 12-still m",
+    "CHECK ok 13-flash-drawn: drawn: region 0,74-640,552: colours 4096 hash 82825cf1 rows 478 uniform 0 light none blue none",
+    "CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo",
+    "CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)",
+    "WAIT ok 19-still m",
+    "CHECK ok 20-flash-drawn: drawn: region 0,74-640,552: colours 4096 hash 80ac146e rows 478 uniform 0 light none blue none",
+    "CHECK ok 21-url: load done uri=http://192.168.1.245:8097/title/website-viewer"
+   ],
+   "kept": [
+    "kept/mojo-flash-app-form-asked_.jpg"
+   ],
+   "seconds": 76,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8097/title/website-viewer: connected at +1 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHA",
+   "restore": "mojo: (382226/572839145) jihad-mojo (start) running, process 23707; daemons running: 1",
+   "rerun": "2026-11-16T14:39:20"
+  },
+  {
+   "shell": "enyo",
+   "id": "flash-clipboard-out",
+   "kit": "cavekit-flash.md R7",
+   "item": "A movie's System.setClipboard reaches the page: Paste in a page field's menu puts the movie's text there; FileReference.browse and .download answer false in this player and start nothing",
+   "section": "Flash",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 12-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]",
+    "WAIT ok 14-text clip = [clip set]",
+    "CHECK ok 16-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 18-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1",
+    "CHECK FAIL 21-wait-text: pfv never read pf jihad-clip-7391 within the bound",
+    "CHECK ok 23-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)",
+    "WAIT ok 25-text file = [file browse false]",
+    "WAIT ok 27-text file = [file download false]",
+    "CHECK ok 28-quiet: no line jihad-dl\\|dialog  for 4 s"
+   ],
+   "kept": [
+    "kept/enyo-flash-clipboard-out-menu_.jpg",
+    "kept/enyo-flash-clipboard-out-21-wait-text_.jpg"
+   ],
+   "seconds": 83,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +1 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express l",
+   "restore": "enyo: (382570/394691226) jihad (start) running, process 5027; daemons running: 1",
+   "rerun": "2026-11-16T14:47:37"
+  },
+  {
+   "shell": "mochi",
+   "id": "flash-clipboard-out",
+   "kit": "cavekit-flash.md R7",
+   "item": "A movie's System.setClipboard reaches the page: Paste in a page field's menu puts the movie's text there; FileReference.browse and .download answer false in this player and start nothing",
+   "section": "Flash",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 12-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]",
+    "WAIT ok 14-text clip = [clip set]",
+    "CHECK ok 16-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 18-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1",
+    "CHECK FAIL 21-wait-text: pfv never read pf jihad-clip-7391 within the bound",
+    "CHECK ok 23-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)",
+    "WAIT ok 25-text file = [file browse false]",
+    "WAIT ok 27-text file = [file download false]",
+    "CHECK ok 28-quiet: no line jihad-dl\\|dialog  for 4 s"
+   ],
+   "kept": [
+    "kept/mochi-flash-clipboard-out-menu_.jpg",
+    "kept/mochi-flash-clipboard-out-21-wait-text_.jpg"
+   ],
+   "seconds": 84,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +1 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main thread (the express",
+   "restore": "mochi: (382654/774853432) jihad-mochi (start) running, process 9278; daemons running: 1",
+   "rerun": "2026-11-16T14:47:37"
+  },
+  {
+   "shell": "mojo",
+   "id": "flash-clipboard-out",
+   "kit": "cavekit-flash.md R7",
+   "item": "A movie's System.setClipboard reaches the page: Paste in a page field's menu puts the movie's text there; FileReference.browse and .download answer false in this player and start nothing",
+   "section": "Flash",
+   "verdict": "fail",
+   "checks": [
+    "WAIT ok 12-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]",
+    "WAIT ok 14-text clip = [clip set]",
+    "CHECK ok 16-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 18-line: [jihad-bs] hold at 224,385 editable=1 wasFocused=1",
+    "CHECK FAIL 21-wait-text: pfv never read pf jihad-clip-7391 within the bound",
+    "CHECK ok 23-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)",
+    "WAIT ok 25-text file = [file browse false]",
+    "WAIT ok 27-text file = [file download false]",
+    "CHECK ok 28-quiet: no line jihad-dl\\|dialog  for 4 s"
+   ],
+   "kept": [
+    "kept/mojo-flash-clipboard-out-menu_.jpg",
+    "kept/mojo-flash-clipboard-out-21-wait-text_.jpg"
+   ],
+   "seconds": 82,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=text&clip=1: connected at +1 s, load done at +7 s, 12 content frames at +7 s; the GPU path, frames off the main thread (the express ",
+   "restore": "mojo: (382736/750464823) jihad-mojo (start) running, process 13367; daemons running: 1",
+   "rerun": "2026-11-16T14:47:37"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (382736/860470601) jihad (start) running, process 5027\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (382742/296260082) jihad-mochi (start) running, process 9278\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (382747/184106748) jihad-mojo (start) running, process 13367\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok media-scratch: none\nDEVICE ok overall: 16% of /tmp used",
+ "seconds": 5035,
+ "first_date": "2026-11-16T13:19:23"
+}

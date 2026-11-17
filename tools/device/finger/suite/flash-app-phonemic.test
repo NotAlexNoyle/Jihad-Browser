@@ -1,0 +1,26 @@
+# The phonemic chart (cavekit-flash.md R7): a tapped symbol is pronounced, by the samples at the output sink; the
+# chart is silent before and after. A symbol is some 0.4 s of sound: the first one tapped is the test of T-657 (the
+# plugin's stream audible as it opens, the amp already on). The recording runs 7 s for each: finding the tap's point on
+# the stage takes one to three seconds of it on a loaded device (a 4 s recording ended before the sound, 2026-11-16).
+id: flash-app-phonemic
+section: Flash
+item: A Flash app does its task, the phonemic chart: the first symbol tapped is pronounced at the output sink, and two more, with silence before and after
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/phonemic-chart
+kit: cavekit-flash.md R7
+wait rect m 40
+wait still m 40
+expect flash-drawn m yes
+sound-watch 3000
+expect sound-watched silent
+sound-watch 7000
+stage-tap m 654 571 78 100
+expect sound-watched heard
+sound-watch 7000
+stage-tap m 654 571 78 495
+expect sound-watched heard
+sound-watch 7000
+stage-tap m 654 571 330 100
+expect sound-watched heard
+sound-watch 3000
+expect sound-watched silent

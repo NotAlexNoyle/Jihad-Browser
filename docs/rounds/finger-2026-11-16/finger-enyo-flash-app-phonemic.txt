@@ -1,0 +1,17 @@
+WAIT ok 11-rect m
+WAIT ok 12-still m
+CHECK ok 13-flash-drawn: drawn: region 0,83-654,652: colours 3877 hash 6f903e29 rows 569 uniform 0 light 116-634 blue none
+  the sink recorded for 3000 ms from here
+CHECK ok 15-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  the sink recorded for 7000 ms from here
+  tap on stage 78,100 at 78 182, 2270 ms after the recording was asked for
+CHECK ok 18-sound-watched: sound at the output sink over the gesture: peak 7524 rms 213 frames 309248 hz 860 env 0,0,0,0,0,0,0,0,0,0,0,0,17,7524,2646,824,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+  the sink recorded for 7000 ms from here
+  tap on stage 78,495 at 78 577, 1950 ms after the recording was asked for
+CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 6688 rms 119 frames 309248 hz 2064 env 0,0,0,0,0,0,0,0,0,0,0,0,1253,6688,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+  the sink recorded for 7000 ms from here
+  tap on stage 330,100 at 330 182, 2300 ms after the recording was asked for
+CHECK ok 24-sound-watched: sound at the output sink over the gesture: peak 1666 rms 132 frames 309248 hz 267 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,1157,1666,1315,326,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, the speaker amp on, the media volume 23
+  the sink recorded for 3000 ms from here
+CHECK ok 26-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+CHECKS 6 FAILS 0

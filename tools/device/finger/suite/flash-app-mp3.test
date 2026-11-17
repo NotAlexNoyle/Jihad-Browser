@@ -1,0 +1,19 @@
+# The MP3 player (cavekit-flash.md R7): its play button starts the tune at the output sink, the same button pauses
+# it. The corpus's tune is quiet (its peak some 1800 of 32768), so the bar is a peak of 600.
+id: flash-app-mp3
+section: Flash
+item: A Flash app does its task, the MP3 player: silent until its play button is tapped, the tune at the output sink after, silent again when paused
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/mp3-player-multi
+kit: cavekit-flash.md R7
+wait rect m 40
+wait still m 15
+sound-watch 3000
+expect sound-watched silent 600
+sound-watch 8000
+stage-tap m 200 20 37 10
+expect sound-watched heard 600
+stage-tap m 200 20 37 10
+pause 1500
+sound-watch 3000
+expect sound-watched silent 600

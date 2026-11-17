@@ -1,0 +1,26 @@
+# PostcardViewer (cavekit-flash.md R7): the gallery comes from an XML file and six pictures beside the page (made by
+# the corpus's server). In the overview the cards stand small in the middle and the band above them is the plain
+# background; a tapped card comes forward over that band; a tap on it puts it back and the band is plain again.
+# (The overview is not the same picture to the pixel after the trip: the cards settle a little differently.)
+id: flash-app-postcards
+section: Flash
+item: A Flash app does its task, the postcard viewer: its gallery loads, a tapped card comes forward and a second tap puts it back (the band above the cards covered by the card, then plain again)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/postcard-viewer
+kit: cavekit-flash.md R7
+wait rect m 40
+wait still m 30
+expect flash-drawn m@800,800:280,300,520,480 yes
+expect flash-drawn m@800,800:100,60,700,220 no
+sample overview m
+stage-tap m 800 800 336 430
+wait differs m overview 8
+wait still m 8
+sample forward m
+expect flash-drawn m@800,800:100,60,700,220 yes
+shoot forward
+stage-tap m 800 800 400 400
+wait differs m forward 8
+wait still m 8
+expect flash-drawn m@800,800:100,60,700,220 no
+expect flash-drawn m@800,800:280,300,520,480 yes

@@ -1,0 +1,18 @@
+# YUI 2 Charts (cavekit-flash.md R7): the page hands the movie its rows by ExternalInterface, the movie draws them and
+# answers a tapped column with that column's row: data across the bridge both ways, and the tap landing on the bar
+# it was aimed at (the third month's first series, then the fifth's). YUI 2 embeds the movie only when its own
+# sniffing finds Flash, which needs a Gecko/ token in the user agent: the chart drawing is that token's test too.
+id: flash-app-chart
+section: Flash
+item: A Flash app does its task, the chart: it draws the page's rows and a tapped column comes back to the page as that column's row (March, then May)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/yui-charts
+kit: cavekit-flash.md R7
+wait rect m 40
+wait text last ready 30
+expect flash-drawn m yes
+stage-tap m 500 375 255 300
+wait text last "click 2 Mar series 0" 6
+stage-tap m 500 375 431 300
+wait text last "click 4 May series 0" 6
+shoot chart

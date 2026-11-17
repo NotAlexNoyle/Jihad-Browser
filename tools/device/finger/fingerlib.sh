@@ -143,6 +143,9 @@ fl_chrome() {
     # Downloads from the history button: Enyo's toaster has it as the third tab icon, Mochi's and Mojo's button opens a
     # three-row menu (Bookmarks, History, Downloads) at the top right / above the bottom bar (measured 2026-11-08)
     enyo:downloads-tab) echo 708 55;; mochi:downloads-tab) echo 650 206;; mojo:downloads-tab) echo 552 979;;
+    # Paste in the menu a hold on a field raises (measured 2026-11-16 on jihad-frame-field.html's kept frames): Enyo's
+    # popup stands beside the held point, Mochi's sheet hangs under the toolbar, Mojo's popup is centred at the point's height
+    enyo:field-paste) echo $((FL_TX + 36)) $((FL_TY - 16));; mochi:field-paste) echo 143 193;; mojo:field-paste) echo 331 $((FL_TY - 24));;
     # the card's dialog (a page's confirm/alert/prompt; measured 2026-11-05 on jihad-dialogs.html): Enyo a centred
     # popup, Mochi a box under the toolbar, Mojo a sheet at the bottom
     # Enyo's popup is centred and as tall as its text: its buttons counted from its last light row (fl_dialog_last)
@@ -499,6 +502,18 @@ fl_flash_point() { # SEL SW SH MODE SX SY
     printf "%d %d\n", x0 + (w - sw * kx) / 2 + sx * kx + 0.5, y0 + (h - sh * ky) / 2 + sy * ky + 0.5 }'
 }
 # a tap on a stage point; the report's count changed is its mark (a movie's tap has no clickAt when the lock holds it)
+# a real title has no report to wait on: the raw tap and drag at a stage point (showAll), the caller's wait the mark
+fl_stage_tap() { # SEL SW SH SX SY
+  local p
+  p=$(fl_flash_point "$1" $2 $3 showAll $4 $5) || { echo "  stage tap: no element $1"; return 1; }
+  FL_TX=${p% *}; FL_TY=${p#* }; fl_mark; /tmp/finger tap $p; echo "  tap on stage $4,$5 at $p$(fl_sound_at)"
+}
+fl_stage_drag() { # SEL SW SH X0 Y0 X1 Y1 [MS]
+  local p q
+  p=$(fl_flash_point "$1" $2 $3 showAll $4 $5) || { echo "  stage drag: no element $1"; return 1; }
+  q=$(fl_flash_point "$1" $2 $3 showAll $6 $7) || return 1
+  fl_mark; /tmp/finger drag $p $q ${8:-600}; echo "  drag on stage $4,$5 to $6,$7 ($p to $q)"
+}
 fl_flash_tap() { # SEL SW SH MODE SX SY
   local p c0 n
   p=$(fl_flash_point "$@") || { echo "  flash tap: no element $1"; return 1; }
@@ -749,10 +764,14 @@ fl_keep() { # the shown frame, whole, for a failed check
 # a region: "X0,Y0,X1,Y1" as given, or an element (sel:/id) as its screen rect now, cut at column 756 (the card's
 # scroll indicator stands in 757..767) — a fixed part is checked where it now is (Mojo's page moves up by its
 # address bar once the card is scrolled)
-fl_region_of() {
-  local x1
+fl_region_of() { # X0,Y0,X1,Y1 on the screen | SEL (the element's box) | SEL@SW,SH:X0,Y0,X1,Y1 (a rectangle of a movie's stage, showAll)
+  local x1 a b sel st rc
   case "$1" in
     [0-9]*,*) echo "$1";;
+    *@*:*) sel=${1%%@*}; st=${1#*@}; rc=${st#*:}; st=${st%%:*}
+      a=$(fl_flash_point "$sel" ${st%,*} ${st#*,} showAll $(echo $rc | cut -d, -f1) $(echo $rc | cut -d, -f2)) || return 1
+      b=$(fl_flash_point "$sel" ${st%,*} ${st#*,} showAll $(echo $rc | cut -d, -f3) $(echo $rc | cut -d, -f4)) || return 1
+      echo "${a% *},${a#* },${b% *},${b#* }";;
     *) set -- $(fl_screen_rect "$1") || return 1; x1=$3; [ $x1 -gt 756 ] && x1=756; echo "$1,$(($2 + 1)),$x1,$(($4 - 1))";;
   esac
 }
@@ -959,6 +978,37 @@ fl_check_sound() { # NAME heard|silent|muted [BOUND] [MIN_RMS] [HZ]: HZ, the pit
     n=$((n-2))
   done
   fl_check FAIL "$1" "sound at the output sink: $l, the speaker amp ${amp:-unread}, the media volume ${vol:-unread}; wanted $2${5:+ at $5 Hz}"
+}
+# a short sound (a drum hit, a spoken symbol) is over before a recorder started after the tap connects: the recorder
+# runs ACROSS the gesture. `sound-watch MS` starts it and waits for it to be connected; the gestures follow;
+# `expect sound-watched heard|silent [MIN_PEAK]` waits for its end and reads the window's peak (a hit's rms over
+# seconds is small) with the way out open, as fl_check_sound does.
+# the centiseconds since the boot; and, while a recording runs, how long after its start a gesture came (the envelope's
+# steps are 0.2 s: the two together are the time from the finger to the sound)
+fl_cs() { sed 's/ .*//; s/\.//' /proc/uptime; }
+fl_sound_at() { [ -f /tmp/fl-snd.t0 ] && echo ", $(( ($(fl_cs) - $(cat /tmp/fl-snd.t0)) * 10 )) ms after the recording was asked for"; }
+fl_sound_watch() { # MS
+  rm -f /tmp/fl-snd.out; fl_cs > /tmp/fl-snd.t0
+  /tmp/hwinput record pcm_output.monitor ${1:-3000} > /tmp/fl-snd.out 2>&1 &
+  usleep 900000; echo "  the sink recorded for ${1:-3000} ms from here"
+}
+# why a sound was not heard, into the run's text: the sound server's streams with their volumes, and what the daemon
+# said of the plugin's stream over the whole run
+fl_sound_why() {
+  pactl list 2>/dev/null | awk '/^Sink Input #/ {i=1; s=$3; v=""; c=""} /^[^ \t]/ && !/^Sink Input #/ {i=0} i && /^\tVolume:/ {v=$0} i && /^\tCorked:/ {c=$2} i && /application.name = / {print "  stream " s " corked " c " " v " " $0}' | tr -s ' \t' ' ' | cut -c1-220
+  grep -a 'flash audio\|audio-on\|audio-off\|audio: ' $FL_LOG 2>/dev/null | tail -n 12 | cut -c1-200 | sed 's/^/  log: /'
+}
+fl_check_sound_watched() { # NAME heard|silent [MIN_PEAK]
+  local n l pk f amp vol
+  n=40; while [ $n -gt 0 ] && ! grep -q 'frames\|hwinput:' /tmp/fl-snd.out 2>/dev/null; do usleep 500000; n=$((n-1)); done
+  l=$(cat /tmp/fl-snd.out 2>/dev/null); pk=$(echo "$l" | sed -n 's/.*peak \([0-9]*\).*/\1/p'); f=$(echo "$l" | sed -n 's/.*frames \([0-9]*\).*/\1/p')
+  amp=$(amixer -c 0 cget numid=87 2>/dev/null | sed -n 's/.*: values=on.*/on/p;s/.*: values=off.*/off/p' | head -1); vol=$(fl_volume)
+  if [ -z "$pk" ] || [ "${f:-0}" -lt 40000 ] || [ -z "$amp" ] || [ -z "$vol" ]; then fl_check FAIL "$1" "no reading of the sink over the gesture: [$l], the amp ${amp:-unread}, the volume ${vol:-unread}"; return; fi
+  case $2 in
+    heard) [ "$pk" -ge "${3:-1500}" ] && [ $amp = on ] && [ "$vol" -gt 0 ] && fl_check ok "$1" "sound at the output sink over the gesture: $l, the speaker amp $amp, the media volume $vol" || { fl_sound_why; fl_check FAIL "$1" "the sink over the gesture: $l, the speaker amp $amp, the media volume $vol; wanted heard (a peak of ${3:-1500})"; };;
+    silent) [ "$pk" -lt "${3:-1500}" ] && fl_check ok "$1" "no sound at the output sink over the gesture: $l" || fl_check FAIL "$1" "the sink over the gesture: $l; wanted silent";;
+    *) fl_check FAIL "$1" "sound-watched takes heard or silent";;
+  esac
 }
 # another app in front, then the browser asked for a page the way an app asks (the application manager's launch with a
 # target: what Email and Messaging send for a tapped link)

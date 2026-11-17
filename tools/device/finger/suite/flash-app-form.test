@@ -1,0 +1,21 @@
+# Website Viewer (cavekit-flash.md R7), the corpus's form: it draws, and without its own site's data
+# (humbird0.com) its ActionScript runs away once it is tapped. That is the task it can do here: the player asks
+# "Kill this Action Script?" through the card's dialog, the finger answers, the dialog goes and the card still
+# shows the movie's page. A limit of the title, not of the browser: the same file needs its site anywhere.
+id: flash-app-form
+section: Flash
+item: A Flash app does its task, the form whose script runs away without its site: the player's "Kill this Action Script?" dialog comes, the finger answers it and the page stays
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/website-viewer
+kit: cavekit-flash.md R7
+wait rect m 40
+wait still m 25
+expect flash-drawn m yes
+stage-tap m 640 480 320 240
+expect dialog present 30
+shoot asked
+chrome dialog-ok
+expect dialog answered 8
+wait still m 10
+expect flash-drawn m yes
+expect url website-viewer

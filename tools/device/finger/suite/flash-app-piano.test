@@ -1,0 +1,19 @@
+# The Virtual Keyboard (cavekit-flash.md R7): a key tapped sounds, by the samples at the output sink, and the
+# instrument is silent again when the note has died; a second key sounds again.
+id: flash-app-piano
+section: Flash
+item: A Flash app does its task, the piano: a tapped key sounds at the output sink, silence follows the note, another key sounds again
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/virtual-piano
+kit: cavekit-flash.md R7
+wait rect m 40
+wait still m 25
+stage-tap m 725 317 362 120
+wait still m 8
+expect sound silent 12
+stage-tap m 725 317 177 270
+expect sound heard 4
+shoot key
+expect sound silent 16
+stage-tap m 725 317 322 270
+expect sound heard 4

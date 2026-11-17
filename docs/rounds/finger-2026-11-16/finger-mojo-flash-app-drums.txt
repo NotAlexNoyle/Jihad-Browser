@@ -1,0 +1,15 @@
+WAIT ok 10-rect m
+WAIT ok 11-still m@900,450:60,300,260,430
+CHECK ok 12-flash-drawn: reported not drawn, as it should be: region 51,329-222,440: colours 1 hash a2e425f4 rows 111 uniform 111 light 329-439 blue none
+  sample empty of m@900,450:60,300,260,430: hash a2e425f4
+  the sink recorded for 9000 ms from here
+  tap on stage 454,100 at 387 158, 2590 ms after the recording was asked for
+  pause 2500 ms (the slow human)
+  tap on stage 169,352 at 144 373, 7500 ms after the recording was asked for
+  pause 2500 ms (the slow human)
+  tap on stage 454,272 at 387 305, 13040 ms after the recording was asked for
+WAIT ok 20-differs m@900,450:60,300,260,430
+CHECK ok 21-sound-watched: sound at the output sink over the gesture: peak 7869 rms 1181 frames 397312 hz 950 env 3324,4639,4700,7869,5940,7307,6666,6182,5269,7296,4085,4921,3870,2951,2026,3312,3436,2841,2307,2432,3539,4129,4945,3864,3622,2990,3627,2523,1815,1694,1505,1171,801,570,372,185,154,160,92,69,50,28,19,16,12,7, the speaker amp on, the media volume 23
+CHECK ok 22-flash-drawn: drawn: region 51,329-222,440: colours 49 hash 65c12f83 rows 111 uniform 37 light 366-439 blue none
+  frame kept: /media/internal/jihad-finger/players_.last.raw
+CHECKS 3 FAILS 0

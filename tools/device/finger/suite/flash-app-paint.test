@@ -1,0 +1,23 @@
+# Poster Paint Party (cavekit-flash.md R7): a colouring book. A colour picked and a part of the poster tapped: that
+# part takes the colour (its picture changes) and a part not tapped keeps its picture (the lower left hills: the
+# movie's brush follows the tap and hangs below it, so the untouched part is taken well away from it).
+id: flash-app-paint
+section: Flash
+item: A Flash app does its task, the colouring book: a colour picked and the sky tapped, the sky's picture changes and the untouched ground's does not
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/poster-paint-party
+kit: cavekit-flash.md R7
+wait rect m 40
+wait still m 30
+stage-tap m 480 320 232 287
+wait still m 10
+shoot poster
+sample sky m@480,320:150,40,270,90
+sample ground m@480,320:95,205,200,238
+stage-tap m 480 320 159 288
+pause 1200
+stage-tap m 480 320 234 70
+wait differs m@480,320:150,40,270,90 sky 6
+expect region-changed m@480,320:150,40,270,90 sky
+expect region-equal m@480,320:95,205,200,238 ground
+shoot painted

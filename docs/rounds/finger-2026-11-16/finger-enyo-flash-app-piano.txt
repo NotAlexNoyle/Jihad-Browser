@@ -1,0 +1,12 @@
+WAIT ok 9-rect m
+WAIT ok 10-still m
+  tap on stage 362,120 at 362 202, 59800 ms after the recording was asked for
+WAIT ok 12-still m
+CHECK ok 13-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+  tap on stage 177,270 at 177 352, 65540 ms after the recording was asked for
+CHECK ok 15-sound: sound at the output sink: peak 19426 rms 1933 frames 45056 hz 609 env 0,0,1,19426,7372,5467, the speaker amp on, the media volume 23
+  frame kept: /media/internal/jihad-finger/key_.last.raw
+CHECK ok 17-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+  tap on stage 322,270 at 322 352, 71660 ms after the recording was asked for
+CHECK ok 19-sound: sound at the output sink: peak 12626 rms 1747 frames 45056 hz 492 env 0,0,12626,9057,3514,1911, the speaker amp on, the media volume 23
+CHECKS 4 FAILS 0

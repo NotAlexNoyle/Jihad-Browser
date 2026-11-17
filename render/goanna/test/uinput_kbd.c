@@ -23,6 +23,7 @@
 //   uinput_kbd /tmp/uinput.cmd &        # create the device and poll for commands
 //   echo "key 108 5" > /tmp/uinput.cmd  # 5 presses of KEY_DOWN (108)
 //   echo "hold 106 600" > /tmp/uinput.cmd # KEY_RIGHT held 600 ms
+//   echo "chord 29 47" > /tmp/uinput.cmd  # Ctrl (29) held over one press of V (47)
 //   echo "quit"      > /tmp/uinput.cmd  # destroy the device and exit
 //
 // Key codes are raw Linux input codes: KEY_UP=103, KEY_LEFT=105, KEY_RIGHT=106, KEY_DOWN=108,
@@ -121,7 +122,19 @@ int main(int argc, char** argv)
           return 0;
         }
         int ms = 0;
-        if (sscanf(line, "hold %d %d", &code, &ms) == 2) {
+        int mod = 0;
+        if (sscanf(line, "chord %d %d", &mod, &code) == 2) {
+          // a key with a modifier held (Ctrl+V: 29 47): the modifier down, the key's press, the modifier up
+          fprintf(stderr, "[uinput-kbd] chord %d+%d\n", mod, code);
+          fflush(stderr);
+          emit(EV_KEY, mod, 1);
+          emit(EV_SYN, SYN_REPORT, 0);
+          usleep(60000);
+          tap(code);
+          emit(EV_KEY, mod, 0);
+          emit(EV_SYN, SYN_REPORT, 0);
+          usleep(70000);
+        } else if (sscanf(line, "hold %d %d", &code, &ms) == 2) {
           // one press held MS ms: a game that reads the key's state once a frame (ActionScript 2's Key.isDown)
           // misses a 30 ms press
           fprintf(stderr, "[uinput-kbd] hold %d %d ms\n", code, ms);

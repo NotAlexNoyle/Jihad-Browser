@@ -36,6 +36,7 @@ extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOver
 #include <poll.h>       // wait for the card's answer with a deadline
 #include <unistd.h>
 #include <pthread.h>    // Jihad audio-scenario poll thread
+#include <signal.h>     // kill: the level subscriber's process group
 #include <sys/wait.h>   // waitpid for the detached audio-route helper
 #include <cerrno>
 #include <cstring>
@@ -162,16 +163,12 @@ static const char* const kJihadFlashVolScript =
 // some 60 % of a core while a game played, taken from a player that was at 50 % of one and drew 7 frames a second
 // where the stock browser drew 22 (Achievement Unlocked; docs/rounds/t576-games-2026-11-16). One subscriber
 // instead: com.palm.audio/media/status says the volume once and at each change, and the level is set then.
-// `audio-track.sh` starts it (ending one left from before), `audio-track.sh stop` ends it; its pid is kept beside
-// it and believed only while that process is this script.
+// The daemon's audio thread holds it: started in a process group of its own when a sound starts, the group ended
+// when the sound stops, started again if it has gone while a sound plays (jihadTrackStart/Stop below; a pid file and
+// a `stop` run as a second script raced with the start, the review of 2026-11-17). $1 is the daemon's pid.
 static const char* const kJihadAudioTrackScript =
   "#!/bin/sh\n"
-  "D=$(dirname \"$0\"); A=\"/usr/bin/amixer -c 0\"\n"
-  "P=$(cat \"$D/audio-track.pid\" 2>/dev/null)\n"
-  "if [ -n \"$P\" ] && grep -q audio-track \"/proc/$P/cmdline\" 2>/dev/null; then pkill -P \"$P\" 2>/dev/null; kill \"$P\" 2>/dev/null; fi\n"
-  "rm -f \"$D/audio-track.pid\"\n"
-  "[ \"$1\" = stop ] && exit 0\n"
-  "echo $$ > \"$D/audio-track.pid\"\n"
+  "A=\"/usr/bin/amixer -c 0\"\n"
   "/usr/bin/luna-send -i palm://com.palm.audio/media/status '{\"subscribe\":true}' 2>/dev/null | while read l; do\n"
   "  [ -d \"/proc/$1\" ] || break\n"       // the daemon that started it is gone: no level is its to set
   "  V=$(echo \"$l\" | sed -n 's/.*\"volume\":\\([0-9]*\\).*/\\1/p'); [ -z \"$V\" ] && continue\n"
@@ -180,7 +177,7 @@ static const char* const kJihadAudioTrackScript =
   "done\n"
   "exit 0\n";
 
-// The amp alone, every two seconds while a sound plays (T-614: another variant's daemon may mute it): one amixer.
+// The amp alone, every second while a sound plays (T-614: another variant's daemon may mute it): one amixer.
 static const char* const kJihadAudioAmpScript =
   "#!/bin/sh\n"
   "/usr/bin/amixer -c 0 cset numid=87 on >/dev/null 2>&1\n"
@@ -195,22 +192,62 @@ static void jihadWriteFile(const std::string& path, const char* content, mode_t 
   chmod(path.c_str(), mode);
 }
 
+// The scripts' environment: an inherited (bundled glibc-2.23) LD_LIBRARY_PATH segfaults /bin/sh and the device's
+// luna-send and amixer, so exec gets a minimal device PATH and nothing else. execve with the argument list built
+// here: execle with a null argument before the list's own null took that null for the list's end and the next
+// one for the environment (2026-11-17, a day: the scripts ran on the shell's default PATH).
+static void jihadExecScript(const char* script, const char* arg) {
+  char* const env[] = { (char*)"PATH=/usr/bin:/bin:/usr/sbin:/sbin", nullptr };
+  char* const argv[] = { (char*)"sh", (char*)script, (char*)arg, nullptr };
+  execve("/bin/sh", argv, env);
+  _exit(127);
+}
+
 static void jihadRunAudioScript(const char* script, const char* arg = nullptr) {
   // fork twice so the grandchild (the script) is reparented to init: no zombie to reap, and we
   // never waitpid(-1) which would steal plugin-container's exit. Only async-signal-safe calls
-  // between fork and exec. Clean env: an inherited (bundled glibc-2.23) LD_LIBRARY_PATH segfaults
-  // /bin/sh + the device luna-send/amixer, so hand exec a minimal device PATH and nothing else.
+  // between fork and exec.
   pid_t pid = fork();
   if (pid == 0) {
-    if (fork() == 0) {
-      char* const env[] = { (char*)"PATH=/usr/bin:/bin:/usr/sbin:/sbin", nullptr };
-      execle("/bin/sh", "sh", script, arg, (char*)nullptr, env);
-      _exit(127);
-    }
+    if (fork() == 0) jihadExecScript(script, arg);
     _exit(0);
   } else if (pid > 0) {
     waitpid(pid, nullptr, 0);   // reap only our short-lived intermediate child
   }
+}
+
+// The level's subscriber (audio-track.sh): our own child, the leader of a process group, so the script, its
+// luna-send and the amixer it may be running end together and in order. Only the audio thread calls these.
+static pid_t gJihadTrackPid = 0;
+// reaped here if it has ended; should something else in the process have reaped it (no child of that pid: -1), the
+// pid's own existence answers
+static bool jihadTrackAlive() {
+  const pid_t r = waitpid(gJihadTrackPid, nullptr, WNOHANG);
+  if (r == gJihadTrackPid) return false;
+  if (r == 0) return true;
+  return kill(gJihadTrackPid, 0) == 0;
+}
+static void jihadTrackStop() {
+  if (gJihadTrackPid <= 0) return;
+  kill(-gJihadTrackPid, SIGTERM);
+  for (int i = 0; i < 10 && jihadTrackAlive(); ++i) usleep(20 * 1000);   // not gone at once: a moment, then for certain
+  if (jihadTrackAlive()) { kill(-gJihadTrackPid, SIGKILL); waitpid(gJihadTrackPid, nullptr, 0); }
+  gJihadTrackPid = 0;
+}
+static void jihadTrackStart(const char* script) {
+  jihadTrackStop();
+  char me[16]; snprintf(me, sizeof me, "%d", (int)getpid());
+  const pid_t pid = fork();
+  if (pid == 0) { setsid(); jihadExecScript(script, me); }
+  if (pid > 0) { setpgid(pid, pid); gJihadTrackPid = pid; }
+}
+// gone by itself (the audio service or the bus restarted): true once, and the pid forgotten
+static bool jihadTrackGone() {
+  if (gJihadTrackPid <= 0) return false;
+  if (jihadTrackAlive()) return false;
+  kill(-gJihadTrackPid, SIGTERM);   // what it left behind
+  gJihadTrackPid = 0;
+  return true;
 }
 
 // T-599 (cavekit-gre-widgets.md R1, from Atlas 0.9.6): whether a page's media plays, as the poll below sees it
@@ -292,10 +329,11 @@ static void* jihadAudioPollThread(void*) {
     if (amp > 0 && prev == 0) { jihadRunAudioScript(onp.c_str()); tick = 0; }
     else if (amp == 0 && prev > 0) { jihadRunAudioScript(offp.c_str()); }
     else if (n > 0 && prevN == 0) { jihadRunAudioScript(volp.c_str()); tick = 0; }
-    else if (n > 0 && (++tick % 10) == 0) { jihadRunAudioScript(ampp.c_str()); }  // the amp held, every 2 s: one process
-    // the level follows the volume by the audio service's events while a sound plays (audio-track.sh), not by a poll
-    if (n > 0 && prevN == 0) { char me[16]; snprintf(me, sizeof me, "%d", (int)getpid()); jihadRunAudioScript(trackp.c_str(), me); }
-    else if (n == 0 && prevN > 0) jihadRunAudioScript(trackp.c_str(), "stop");
+    else if (n > 0 && (++tick % 5) == 0) { jihadRunAudioScript(ampp.c_str()); }  // the amp held, every second: one process
+    // the level follows the volume by the audio service's events while a sound plays (audio-track.sh), not by a poll;
+    // a subscriber that has gone while the sound plays is started again (its first line sets the level anew)
+    if (n > 0 && (prevN == 0 || jihadTrackGone())) jihadTrackStart(trackp.c_str());
+    else if (n == 0 && prevN > 0) jihadTrackStop();
     prev = amp; prevN = n;
   }
   return nullptr;
@@ -319,7 +357,6 @@ static void jihadStartAudioPoll() {
   jihadWriteFile(sd + "/flash-vol.sh", kJihadFlashVolScript, 0755);
   jihadWriteFile(sd + "/audio-track.sh", kJihadAudioTrackScript, 0755);
   jihadWriteFile(sd + "/audio-amp.sh", kJihadAudioAmpScript, 0755);
-  jihadRunAudioScript((sd + "/audio-track.sh").c_str(), "stop");   // one left by a daemon that died
   const std::string offp = sd + "/audio-off.sh";
   jihadWriteFile(offp, kJihadAudioOffScript, 0755);
   jihadRunAudioScript(offp.c_str());

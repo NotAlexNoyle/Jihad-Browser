@@ -49,6 +49,7 @@ static void counts(unsigned long* forks, unsigned long* ctxt) {
   if (s) fclose(s);
 }
 // each core's idle and total, and how long it was online: a core the governor takes away is not a core
+// (a core that is offline has no line: its total reads 0 and the report says so, never a share since boot)
 static void cores(unsigned long idle[2], unsigned long all[2]) {
   FILE* s = fopen("/proc/stat", "r"); char l[512]; idle[0] = idle[1] = all[0] = all[1] = 0;
   while (s && fgets(l, sizeof l, s)) {
@@ -79,7 +80,10 @@ int main(int argc, char** argv) {
   printf("device:");
   for (int i = 0; i < 7; i++) printf(" %s %.0f%%", names[i], t1 > t0 ? 200.0 * (kind[1][i] - kind[0][i]) / (t1 - t0) : 0);
   counts(&f1, &c1); cores(ci1, ca1);
-  for (int c = 0; c < 2; c++) printf(", core %d online %.0f%% of the window and busy %.0f%% of that", c, 100.0 * (ca1[c] - ca0[c]) / hz / win, ca1[c] > ca0[c] ? 100.0 * ((ca1[c] - ca0[c]) - (ci1[c] - ci0[c])) / (ca1[c] - ca0[c]) : 0);
+  for (int c = 0; c < 2; c++) {
+    if (!ca0[c] || !ca1[c]) { printf(", core %d offline at a reading", c); continue; }
+    printf(", core %d online %.0f%% of the window and busy %.0f%% of that", c, 100.0 * (ca1[c] - ca0[c]) / hz / win, ca1[c] > ca0[c] ? 100.0 * ((ca1[c] - ca0[c]) - (ci1[c] - ci0[c])) / (ca1[c] - ca0[c]) : 0);
+  }
   printf(", new processes and threads %.0f/s, context switches %.0f/s\n", (f1 - f0) / win, (c1 - c0) / win);
   return 0;
 }

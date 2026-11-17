@@ -955,8 +955,18 @@ fl_volume_set() { # N: the media volume put at a known level before the keys (th
   luna-send -n 1 palm://com.palm.audio/media/setVolume '{"volume":'"$1"'}' >/dev/null 2>&1; usleep 500000
   echo "  the media volume set to $1: it reads $(fl_volume)"
 }
-fl_check_volume() { # NAME higher|lower|same|zero: against fl_volume_mark's reading
-  local v; v=$(fl_volume)
+fl_check_volume() { # NAME higher|lower|same|zero: against fl_volume_mark's reading; level: the codec follows it
+  local v n l; v=$(fl_volume)
+  # level: the speaker's output level (WM8994 numid 74, 0..63) is the media volume's, within two seconds of a change.
+  # The daemon sets it from the audio service's events while a sound plays (audio-track.sh): nothing else read it
+  if [ "$2" = level ]; then
+    n=10; while [ $n -gt 0 ]; do
+      v=$(fl_volume); l=$(amixer -c 0 cget numid=74 2>/dev/null | sed -n 's/.*: values=\([0-9]*\).*/\1/p' | head -1)
+      [ -n "$v" ] && [ -n "$l" ] && [ "$l" -eq $((v * 63 / 100)) ] && { fl_check ok "$1" "the codec's output level $l of 63 for the media volume $v"; return; }
+      usleep 200000; n=$((n-1))
+    done
+    fl_check FAIL "$1" "the codec's output level ${l:-unread} of 63, the media volume ${v:-unread} wants $(( ${v:-0} * 63 / 100 ))"; return
+  fi
   [ -n "$v" ] || { fl_check FAIL "$1" "the audio service gave no media volume"; return; }
   case "$2" in higher|lower|same) [ -n "$FL_VOL" ] || { fl_check FAIL "$1" "no marked volume to compare with (volume-mark read nothing)"; return; };; esac
   case "$2" in

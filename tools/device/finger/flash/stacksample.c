@@ -13,6 +13,7 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/ptrace.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <sys/user.h>
 
@@ -41,7 +42,8 @@ static void read_maps(int pid) {
 static int find(unsigned long a) { for (int i = 0; i < nmaps; i++) if (a >= maps[i].lo && a < maps[i].hi) return i; return -1; }
 static void add(unsigned long off, int lib) {
   unsigned h = ((off ^ (unsigned)lib * 40503u) * 2654435761u) >> 16;
-  for (;;) { if (!tab[h].n) { tab[h].a = off; tab[h].lib = lib; tab[h].n = 1; return; } if (tab[h].a == off && tab[h].lib == lib) { tab[h].n++; return; } h = (h + 1) & (MAX - 1); }
+  // bounded: a full table must not spin while the thread is held
+  for (unsigned tries = 0; tries < 4096; tries++) { if (!tab[h].n) { tab[h].a = off; tab[h].lib = lib; tab[h].n = 1; return; } if (tab[h].a == off && tab[h].lib == lib) { tab[h].n++; return; } h = (h + 1) & (MAX - 1); }
 }
 static int cmp(const void* x, const void* y) { return (int)((const Slot*)y)->n - (int)((const Slot*)x)->n; }
 static double now(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return t.tv_sec + t.tv_nsec / 1e9; }
@@ -54,7 +56,16 @@ int main(int argc, char** argv) {
   while (now() - t0 < secs) {
     double a = now();
     if (ptrace(PTRACE_ATTACH, tid, 0, 0) < 0) { fprintf(stderr, "attach: %s\n", strerror(errno)); break; }
-    int st; if (waitpid(tid, &st, __WALL) < 0) { fprintf(stderr, "wait: %s\n", strerror(errno)); break; }
+    // until the attach's own stop: another signal met on the way is kept and given back at the detach (dropped, and
+    // the attach's SIGSTOP left to arrive after it, the player would stand stopped)
+    int st, give = 0, ok = 0;
+    for (int k = 0; k < 8; k++) {
+      if (waitpid(tid, &st, __WALL) < 0) break;
+      if (!WIFSTOPPED(st)) break;
+      if (WSTOPSIG(st) == SIGSTOP) { ok = 1; break; }
+      give = WSTOPSIG(st); ptrace(PTRACE_CONT, tid, 0, 0);
+    }
+    if (!ok) { fprintf(stderr, "no stop from the attach\n"); ptrace(PTRACE_DETACH, tid, 0, (void*)(long)give); break; }
     struct user_regs r;
     if (ptrace(PTRACE_GETREGS, tid, 0, &r) == 0) {
       unsigned long pc = r.uregs[15], lr = r.uregs[14], sp = r.uregs[13]; unsigned char seen[256] = {0};
@@ -68,7 +79,7 @@ int main(int argc, char** argv) {
       }
       for (int i = 0; i < nlibs; i++) incl[i] += seen[i];
     }
-    ptrace(PTRACE_DETACH, tid, 0, 0); stopped += now() - a;
+    ptrace(PTRACE_DETACH, tid, 0, (void*)(long)give); stopped += now() - a;
     usleep(period);
   }
   printf("samples %u, the thread held %.0f ms of %.0f\n", samples, stopped * 1e3, (now() - t0) * 1e3);

@@ -61,7 +61,7 @@ Surveyed for how a shipping offscreen webOS browser solved these:
 ## Interaction with the shipped audio fix
 
 The daemon's `audio-vol.sh` forces the WM8994 output level (numid 74/86) from the SYSTEM media volume
-every ~400ms. The player's volume slider sets `video.volume` → (should) scale the cubeb/pulse stream,
+at each change of it (since 2026-11-17 by the audio service's own events, `audio-track.sh`; a 400 ms poll before). The player's volume slider sets `video.volume` → (should) scale the cubeb/pulse stream,
 which is UPSTREAM of the hardware mixer, so both should apply multiplicatively. If the pulse sink-input
 stays 100% when the slider moves, `video.volume`→cubeb is not wired (engine gap) — that would make the
 player volume widget inert regardless of input.

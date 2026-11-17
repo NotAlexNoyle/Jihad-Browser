@@ -104,7 +104,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         if u.path.startswith("/slow/"):         # /slow/BPS/STALL_AT/STALL_S/<a cache path>: a download held to BPS bytes a second
             # that stops for STALL_S seconds once STALL_AT bytes are out (R8: the throttled, then stalled, progressive download)
             try:
-                _, _, bps, at, secs, rest = u.path.split("/", 5); bps, at, secs = int(bps), int(at), float(secs)
+                _, _, bps, at, secs, rest = u.path.split("/", 5); bps, at, secs = int(bps), int(at), float(secs); rest = urllib.parse.unquote(rest)
                 f = open(os.path.join(CACHE, os.path.normpath("/" + rest).lstrip("/")), "rb")
             except (ValueError, OSError): self.send_error(404); return
             import time

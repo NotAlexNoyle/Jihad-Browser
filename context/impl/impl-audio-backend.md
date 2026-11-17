@@ -667,8 +667,9 @@ stream — that path never opened. Empirically established this session:
 **Shipped mechanism** (`render/goanna/BrowserPageGoanna.cpp`, commit ed6cced6; pairs with UXP-Jihad
 cubeb bd49435b): a daemon poll thread watches `jihad_pulse_active_streams()` and on the 0↔N
 transition runs `audio-on.sh` (level from `getVolume`, then close the switches) / `audio-off.sh`
-(mute `numid=87`), and every ~400ms while playing runs `audio-vol.sh` (re-mirror `getVolume` onto
-74/86) so volume buttons TRACK live. All four files + `pulse.props` are (re)written from embedded
+(mute `numid=87`), and while playing keeps `audio-track.sh` running (one subscriber to
+`com.palm.audio/media/status`: the volume onto 74/86 at each change; until 2026-11-17 `audio-vol.sh` every ~400ms,
+which cost a Flash game 60 % of a core) so volume buttons TRACK live; `audio-amp.sh` holds the amp once a second. All four files + `pulse.props` are (re)written from embedded
 constants into the daemon state dir every startup — device edits are not durable by design. Muting
 the amp at rest kills the max-volume burst the hold-scenario approach had. Non-ear verified: scripts
 provision after deletion, level tracks 20→12 and 60→37, daemon does not crash.

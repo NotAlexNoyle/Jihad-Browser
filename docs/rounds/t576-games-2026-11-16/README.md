@@ -7,13 +7,14 @@ R3 and R6 hold a game to. `enyo|mochi|mojo.json` and `report.md`: the three shel
 ## What the stock round says
 
 - Where both browsers stand on the same screen the stock browser drew two to three times the frames in play:
-  Achievement Unlocked 23.2 a second against 6.8, Hobo 2 14.8 against 4.0, Effing Meteors 12.2 against 3.8. At rest
+  Achievement Unlocked 23.2 a second against 6.8 (20-22 in the later single runs), Hobo 2 14.8 against 4.0, Effing Meteors 12.2 against 3.8. At rest
   (title-round, 2026-11-06) the two were equal, so it is play, and sound, that costs.
 - The stock reading is no bar where the stock browser never left a menu: its page has no gesture lock, so a drag
   pans its page and the keyboard's place is the page's (Ragdoll Cannon 2, Paper Airplane, Raft Wars' level card; the
   frames `stock-<game>-play.jpg`). Those games are held to the software path's minute, as R3 says.
-- Run 3 plays in the stock browser (8.6 a second) and is blank here: open, it was recorded as blank in both on
-  2026-11-13.
+- A changing rectangle is not a game: Run 3 reads 8.6 changes a second in the stock browser and its frame is one
+  colour (`stock-run-3-play.jpg`, black), as it is here: blank in both, a limit as recorded on 2026-11-13.
+  Fantastic Contraption and Samorost's intro read one colour at the end there too.
 
 ## Found and fixed
 
@@ -43,6 +44,10 @@ poll are exact to the millisecond on this kernel), what stands on its stack (sta
 Not ruled out: what the two cores' other work is in each browser at the scheduler's scale (4000 context switches a
 second here, 3100 there; this kernel has no schedstats), and the player's own threads' locks (pthread_spin_lock and
 pthread_cond_timedwait stand in the samples here and not in the stock browser's).
+
+A caution on the two shares: the stock browser's thread is its BrowserServer's main thread, which carries WebKit's
+page work beside the player's; here the thread is the plugin's own. The like-for-like numbers are per frame: 45 ms
+of wall and 38 ms of CPU there, 65 ms and 41-47 ms here.
 
 ## The tools this left
 

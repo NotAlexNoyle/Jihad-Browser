@@ -3,7 +3,7 @@
 // profile at the timer's rate, biased a little to system calls: it needs no symbols on the device and
 // costs the thread nothing.
 //
-//   pcsample TID SECONDS [PERIOD_US]   prints: samples, then "COUNT PC-OFFSET LIBRARY" lines by exact pc; a line ending WAITING is where the thread slept (user addresses on this device are below 2 GB)
+//   pcsample TID SECONDS [PERIOD_US]   prints: samples, then "COUNT PC-OFFSET LIBRARY" lines by exact pc; a line ending WAITING is where the thread slept
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,15 +11,15 @@
 #include <time.h>
 #include <fcntl.h>
 
-typedef struct { unsigned long pc; unsigned n; } Slot;
+typedef struct { unsigned long pc; unsigned n; int asleep; } Slot;
 enum { MAX = 65536 };
 static Slot tab[MAX];
 
-static void add(unsigned long pc) {
-  unsigned h = (pc * 2654435761u) >> 16;
-  for (;;) {
-    if (!tab[h].n) { tab[h].pc = pc; tab[h].n = 1; return; }
-    if (tab[h].pc == pc) { tab[h].n++; return; }
+static void add(unsigned long pc, int asleep) {
+  unsigned h = ((pc ^ (unsigned)asleep) * 2654435761u) >> 16;
+  for (unsigned tries = 0; tries < MAX; tries++) {
+    if (!tab[h].n) { tab[h].pc = pc; tab[h].asleep = asleep; tab[h].n = 1; return; }
+    if (tab[h].pc == pc && tab[h].asleep == asleep) { tab[h].n++; return; }
     h = (h + 1) & (MAX - 1);
   }
 }
@@ -57,15 +57,15 @@ int main(int argc, char** argv) {
     char state = *q; int field = 3; char* s = q;    // state is field 3; kstkeip is field 30
     while (field < 30 && (s = strchr(s, ' '))) { s++; field++; }
     total++;
-    if (state == 'R' && s) { running++; add(strtoul(s, NULL, 10)); }
-    // not running: where it waits (the program counter of the system call it sleeps in), kept apart by the top bit
-    else if (s) add(strtoul(s, NULL, 10) | 0x80000000ul);
+    if (state == 'R' && s) { running++; add(strtoul(s, NULL, 10), 0); }
+    // not running: where it waits (the program counter of the system call it sleeps in), kept apart
+    else if (s) add(strtoul(s, NULL, 10), 1);
     usleep(period);
   }
   qsort(tab, MAX, sizeof tab[0], cmp);
   printf("samples %u, running %u (%.0f%%)\n", total, running, total ? 100.0 * running / total : 0);
   for (int i = 0; i < MAX && tab[i].n; i++) {
-    int asleep = (tab[i].pc & 0x80000000ul) != 0; tab[i].pc &= 0x7ffffffful;
+    int asleep = tab[i].asleep;
     const char* name = "?"; unsigned long off = tab[i].pc;
     for (int j = 0; j < nmaps; j++) if (tab[i].pc >= maps[j].lo && tab[i].pc < maps[j].hi) { name = maps[j].name; off = tab[i].pc - maps[j].lo + maps[j].off; break; }
     printf("%u %lx %s%s\n", tab[i].n, off, name, asleep ? " WAITING" : "");

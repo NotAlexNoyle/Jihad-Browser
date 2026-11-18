@@ -1,0 +1,109 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Tue, 17 Nov 2026 13:52:25 -0500
+Subject: [PATCH] plugins: a stream's pieces to the player 10 ms apart, not
+ 100, when it asks for a wait
+
+The device's Flash asks for a wait (NPP_WriteReady 0) between the pieces of a
+stream it takes. Mozilla's plugin host answers with a 100 ms timer; at that pace
+a progressive video's download ran far behind what the stock browser delivers,
+and a seek ahead of the delivered part ran to the clip's end (cavekit-flash.md
+R8). The timer is 10 ms (JIHAD_STREAM_RETRY_MS for a measurement), and the bytes
+delivered, the writes and the waits asked are logged every two seconds while
+bytes move.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfKTnbF5UuSGLUYcN1P
+---
+ dom/plugins/ipc/BrowserStreamChild.cpp | 45 ++++++++++++++++++++++++--
+ 1 file changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/dom/plugins/ipc/BrowserStreamChild.cpp b/dom/plugins/ipc/BrowserStreamChild.cpp
+index 24c533c5ea..abc3363b11 100644
+--- a/dom/plugins/ipc/BrowserStreamChild.cpp
++++ b/dom/plugins/ipc/BrowserStreamChild.cpp
+@@ -3,6 +3,9 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
++#include "prinrval.h"
++#include <stdlib.h>
++#include <stdio.h>
+ #include "mozilla/plugins/BrowserStreamChild.h"
+ 
+ #include "mozilla/Attributes.h"
+@@ -260,6 +263,27 @@ BrowserStreamChild::Deliver()
+   }
+ }
+ 
++// Jihad (cavekit-flash.md R8): what the player took of its streams and how often it asked for a wait, every two seconds
++// while bytes move. A progressive video is sought only inside what has been delivered, so the delivery's rate is the
++// player's seek range.
++static void
++JihadStreamCount(int32_t aBytes, bool aSuspended)
++{
++  static uint64_t sBytes = 0;
++  static uint32_t sSuspends = 0, sWrites = 0;
++  static PRIntervalTime sSince = 0;
++  PRIntervalTime now = PR_IntervalNow();
++  if (!sSince) sSince = now;
++  if (aSuspended) sSuspends++; else { sBytes += aBytes; sWrites++; }
++  uint32_t ms = PR_IntervalToMilliseconds(now - sSince);
++  if (ms >= 2000) {
++    fprintf(stderr, "[jihad-npapi-child] streams: %llu bytes in %u ms (%llu kB/s), %u writes, %u waits asked\n",
++            (unsigned long long)sBytes, ms, (unsigned long long)(sBytes / ms), sWrites, sSuspends);
++    fflush(stderr);
++    sBytes = 0; sSuspends = 0; sWrites = 0; sSince = now;
++  }
++}
++
+ bool
+ BrowserStreamChild::DeliverPendingData()
+ {
+@@ -272,8 +296,10 @@ BrowserStreamChild::DeliverPendingData()
+     int32_t r = mInstance->mPluginIface->writeready(&mInstance->mData, &mStream);
+     if (kStreamOpen != mStreamStatus)
+       return false;
+-    if (0 == r) // plugin wants to suspend delivery
++    if (0 == r) { // plugin wants to suspend delivery
++      JihadStreamCount(0, true);
+       return true;
++    }
+ 
+     r = mInstance->mPluginIface->write(
+       &mInstance->mData, &mStream,
+@@ -289,18 +315,33 @@ BrowserStreamChild::DeliverPendingData()
+       return false;
+     }
+     mPendingData[0].curpos += r;
++    JihadStreamCount(r, false);
+   }
+   mPendingData.RemoveElementAt(0);
+   return false;
+ }
+ 
++static int
++JihadStreamRetryMs()
++{
++  static int sMs = -1;
++  if (sMs < 0) {
++    const char* e = getenv("JIHAD_STREAM_RETRY_MS");
++    sMs = e && atoi(e) > 0 ? atoi(e) : 10;
++  }
++  return sMs;
++}
++
+ void
+ BrowserStreamChild::SetSuspendedTimer()
+ {
+   if (mSuspendedTimer.IsRunning())
+     return;
+   mSuspendedTimer.Start(
+-    base::TimeDelta::FromMilliseconds(100), // 100ms copied from Mozilla plugin host
++    // Jihad (cavekit-flash.md R8): 100 ms in Mozilla's plugin host. The device's Flash asks for a wait after each
++    // piece it takes, so 100 ms held a video's download to a few pieces a second, under what the stock browser gives
++    // it: a seek ahead found nothing there and ran to the clip's end. JIHAD_STREAM_RETRY_MS sets it for a measurement.
++    base::TimeDelta::FromMilliseconds(JihadStreamRetryMs()),
+     this, &BrowserStreamChild::Deliver);
+ }
+ 

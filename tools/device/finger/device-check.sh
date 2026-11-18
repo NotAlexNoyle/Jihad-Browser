@@ -39,6 +39,10 @@ for v in enyo mochi mojo; do case $v in enyo) id=net.riverstonerelay.jihad-brows
   p=$(ls $A/$id/profile/extensions 2>/dev/null | grep -c '@jihad.test'); [ "$p" = 0 ] && ok "test-pads-$v" "none" || bad "test-pads-$v" "$p test extension(s) left in the profile"
   q=$(ls /var/palm/jihad/$v/dialog-*.fifo 2>/dev/null | wc -l); [ "$q" = 0 ] && ok "dialog-pipes-$v" "none" || bad "dialog-pipes-$v" "$q reply pipe(s) left"; done
 du=$(ls /tmp/frame.raw /tmp/frames.raw /tmp/*.png /tmp/fl-region* /tmp/x.* 2>/dev/null | tr '\n' ' '); [ -z "$du" ] && ok "tmp-dumps" "none" || bad "tmp-dumps" "$du"
+# the daemon's volume subscriber (audio-track.sh) lives only under a live daemon with a sound playing: one left by a daemon
+# that was killed stays on the bus for ever (2026-11-17: 73 of them, the device's sessions dropping)
+sb=0; for p in $(ps auxww | grep 'audio-track.sh' | grep -v grep | sed 's/.*audio-track.sh *//'); do [ -d /proc/$p ] || sb=$((sb+1)); done
+[ "$sb" = 0 ] && ok "volume-subscribers" "none without its daemon" || bad "volume-subscribers" "$sb audio-track.sh whose daemon is gone"
 ms=$(ls -d /media/internal/jihad-finger /media/internal/jihad-stream 2>/dev/null | tr '\n' ' '); [ -z "$ms" ] && ok "media-scratch" "none" || bad "media-scratch" "$ms"
 echo "DEVICE $( [ $fail = 0 ] && echo ok || echo FAIL ) overall: $(df /tmp | tail -1 | awk '{print $5}') of /tmp used"
 exit $fail

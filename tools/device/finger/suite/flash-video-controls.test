@@ -1,0 +1,35 @@
+# Pause, resume and seek on the instrumented player (cavekit-flash.md R8, T-578), the corpus's VP6 clip of 272 rows
+# (87 s, with sound). A press on the movie's bottom band: left pauses (the picture holds still, the sink falls silent),
+# middle resumes (the picture moves, the sound is back), right seeks to 70 s (the stream's time is there at its next
+# report and the picture follows); the clip then plays to its end. The seek is ahead of what has played: it lands only
+# if the clip's bytes were delivered to the player ahead of its playing, as the stock browser delivers them (2026-11-17:
+# with 100 ms between the pieces the player took, a seek ahead ran to the clip's end).
+id: flash-video-controls
+section: Flash
+item: A Flash video pauses (the picture still, the sound gone), resumes (the picture moving, the sound back) and seeks ahead (the time at the target, the picture following), then plays to its end
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=70
+kit: cavekit-flash.md R8
+wait text vmeta "codec=4" 30
+wait text video "video t=" 10
+expect flash-drawn m yes
+expect sound heard 10
+flash-tap m 400 300 showAll 60 260
+wait text vctl "vctl pause" 5
+wait still m 6
+sample paused m
+expect sound silent 6
+expect region-equal m paused
+flash-tap m 400 300 showAll 200 260
+wait text vctl "vctl resume" 5
+wait differs m paused 5
+expect sound heard 10
+sample before m
+flash-tap m 400 300 showAll 330 260
+wait text vctl "vctl seek 70" 5
+wait differs m before 3
+wait text video "video t=7" 3
+expect number vtime 68 80
+wait text vend "Play.Stop" 40
+expect number vendtime 84.3 87.3
+expect plugin 3 alive

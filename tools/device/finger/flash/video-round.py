@@ -57,6 +57,7 @@ def main():
         if m and m.group(3): r["spacing"] = [int(m.group(3)), int(m.group(4)), int(m.group(5))]
         png = os.path.join(tmp, "v.png")
         g = subprocess.run("novacom get file:///tmp/fl-video.png > %s" % png, shell=True, capture_output=True)
+        subprocess.run(["novacom", "run", "file://bin/rm", "--", "-f", "/tmp/fl-video.png"], stdin=subprocess.DEVNULL, capture_output=True)
         try: Image.open(png).convert("RGB").rotate(-90, expand=True).save(os.path.join(o.dir, "%s-%s.jpg" % (o.browser, cid)), quality=80)
         except Exception as e: r["shot"] = "none: %s" % e
         res[cid] = r; json.dump(res, open(out_json, "w"), indent=1); open(out_json, "a").write("\n")

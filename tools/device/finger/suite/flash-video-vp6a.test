@@ -1,0 +1,24 @@
+# A clip on the instrumented player, to its end (cavekit-flash.md R8, T-578): On2 VP6 with alpha, 430 rows, 14.0 s at 15 frames a second,
+# from the corpus cache (tools/host/flash-video-clips.sh makes the gen-* clips). The player's own reports are the checks:
+# the stream's metadata, its time moving, NetStream.Play.Stop with the time at the clip's length, and the dropped frames
+# counted to the end (a number of the report for R8's table, bounded here only by the clip's frames: what a size costs is the table's to say).
+# The picture is read too: drawn while playing and at the end, and its content rate over ten seconds (the minimum is
+# set from the stock browser's reading on the same page, docs/rounds/t578-2026-11-17).
+id: flash-video-vp6a
+section: Flash
+item: A On2 VP6 with alpha video of 430 rows plays to its end in the instrumented player: the stream's time reaches the clip's length, the picture is never blank, the dropped frames are counted
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv
+kit: cavekit-flash.md R8
+wait text vmeta "codec=5" 30
+wait text video "video t=" 10
+expect flash-drawn m yes
+expect audio running 10
+expect flash-rate m 10 9.8 40
+expect flash-drawn m yes
+expect audio running 4
+wait text vend "Play.Stop" 39
+expect number vendtime 11.5 14.5
+expect number venddropped 0 209
+expect flash-drawn m yes
+expect plugin 3 alive

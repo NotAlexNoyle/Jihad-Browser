@@ -169,6 +169,10 @@ static const char* const kJihadFlashVolScript =
 static const char* const kJihadAudioTrackScript =
   "#!/bin/sh\n"
   "A=\"/usr/bin/amixer -c 0\"\n"
+  // A daemon that is killed stops nothing itself, and the subscriber would wait on the bus for ever (2026-11-17: one left
+  // by every daemon a test round restarted, dozens on the bus, the device's sessions dropping). The script leads its own
+  // process group: a watcher ends the whole group within two seconds of the daemon's going.
+  "( while [ -d \"/proc/$1\" ]; do sleep 2; done; kill 0 ) &\n"
   "/usr/bin/luna-send -i palm://com.palm.audio/media/status '{\"subscribe\":true}' 2>/dev/null | while read l; do\n"
   "  [ -d \"/proc/$1\" ] || break\n"       // the daemon that started it is gone: no level is its to set
   "  V=$(echo \"$l\" | sed -n 's/.*\"volume\":\\([0-9]*\\).*/\\1/p'); [ -z \"$V\" ] && continue\n"

@@ -70,6 +70,8 @@ sleep {load}
         s.append(f"/tmp/finger dtap {pt(g.get('lock_at', [0.5, 0.5]))}; sleep 6\n")
     s.append("""PID=$(pgrep -n -f plugin-container); echo "PLUGIN0 $PID"\n""")
     if os.environ.get("JIHAD_PLAYER_NICE"): s.append("for t in /proc/$PID/task/*; do renice %d ${t##*/} >/dev/null 2>&1 || renice %d -p ${t##*/} >/dev/null; done; echo RENICED $(cut -d' ' -f19 /proc/$PID/stat)\n" % ((int(os.environ["JIHAD_PLAYER_NICE"]),) * 2))   # an experiment
+    if os.environ.get("JIHAD_PIN"):   # an experiment: "P D" = the player's main thread to the cores of mask P, every thread of the daemon to mask D
+        pm, dm = os.environ["JIHAD_PIN"].split(); s.append("DPID=$(cut -d' ' -f4 /proc/$PID/stat); /tmp/pin %s $PID main; /tmp/pin %s $DPID; echo \"PIN daemon $DPID $(tr '\\0' ' ' < /proc/$DPID/cmdline | cut -c1-60)\"\n" % (pm, dm))
     def act(a):
         # a game's own mixed sequence (flash-games.json "seq"): ["tap",x,y], ["drag",x1,y1,x2,y2(,ms)], ["hold",x,y,ms], ["key",name]
         if a[0] == "tap": return f"/tmp/finger tap {pt(a[1:3])}"
@@ -155,7 +157,7 @@ def main():
     global THREADS; THREADS = o.threads
     if THREADS:      # cputop.c and pcsample.c, built here: every thread's CPU over the window, and where the player's main thread is
         tc = os.path.join(ROOT, "build", "webos-oe", "toolchain", "out-toolchain", "x-tools", "arm-webos-linux-gnueabi", "bin", "arm-webos-linux-gnueabi-gcc"); td = tempfile.mkdtemp()
-        for tool in ("cputop", "pcsample", "stacksample"):
+        for tool in ("cputop", "pcsample", "stacksample", "pin"):
             pc = os.path.join(td, tool)
             if subprocess.run([tc, "-O2", "-march=armv7-a", "-mfloat-abi=softfp", "-std=gnu99", "-static", "-o", pc, os.path.join(HERE, tool + ".c")]).returncode == 0:
                 subprocess.run(["novacom", "put", "file:///tmp/" + tool], stdin=open(pc, "rb")); subprocess.run(["novacom", "run", "file://bin/chmod", "--", "+x", "/tmp/" + tool], stdin=subprocess.DEVNULL)

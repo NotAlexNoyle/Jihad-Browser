@@ -1,23 +1,23 @@
 WAIT ok 9-text status = [playing]
   the media volume is 23
   the media volume set to 44: it reads 44
-CHECK ok 13-sound: sound at the output sink: peak 2955 rms 2058 frames 45056 hz 440 env 2950,2938,2948,2955,2949,2930, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+CHECK ok 13-sound: sound at the output sink: peak 2958 rms 2058 frames 45056 hz 440 env 2939,2958,2943,2940,2952,2943, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
   the media volume is 44
   volume key up x2: the media volume now 66
 CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build
 CHECK ok 17-volume: the media volume 66, higher (marked 44)
 CHECK ok 18-volume: the codec's output level 41 of 63 for the media volume 66
-CHECK ok 19-sound: sound at the output sink: peak 2958 rms 2057 frames 45056 hz 440 env 2938,2942,2958,2950,2956,2923, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
+CHECK ok 19-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440 env 2938,2944,2950,2937,2955,2943, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
   the media volume is 66
   volume key down x2: the media volume now 44
 CHECK ok 22-volume: the media volume 44, lower (marked 66)
 CHECK ok 23-volume: the codec's output level 27 of 63 for the media volume 44
-CHECK ok 24-sound: sound at the output sink: peak 2963 rms 2057 frames 45056 hz 440 env 2963,2943,2953,2938,2943,2929, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+CHECK ok 24-sound: sound at the output sink: peak 2963 rms 2058 frames 45056 hz 440 env 2950,2941,2951,2963,2941,2925, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
   volume key down x8: the media volume now 0
 CHECK ok 28-volume: the media volume 0, zero (marked 66)
-CHECK ok 29-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2958 rms 2060 frames 45056 hz 440 env 2952,2941,2946,2958,2946,2950): no sound out
+CHECK ok 29-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2956 rms 2059 frames 45056 hz 440 env 2955,2938,2946,2956,2944,2924): no sound out
   the media volume is 0
   volume key up x2: the media volume now 22
 CHECK ok 32-volume: the media volume 22, higher (marked 0)
-CHECK ok 33-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440 env 2950,2954,2940,2949,2954,2909, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
+CHECK ok 33-sound: sound at the output sink: peak 2952 rms 2057 frames 45056 hz 440 env 2936,2946,2952,2941,2940,2931, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
 CHECKS 12 FAILS 0

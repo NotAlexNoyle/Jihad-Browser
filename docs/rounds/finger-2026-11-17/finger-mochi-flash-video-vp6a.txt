@@ -1,13 +1,15 @@
 WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-WAIT ok 14-text video = [video t=1.4 dropped=3 fps=16.46090534979424]
-CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2603 hash e064dcca rows 298 uniform 0 light none blue none
+WAIT ok 14-text video = [video t=3.343 dropped=3 fps=15.717092337917485]
+CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2574 hash e9714908 rows 298 uniform 0 light none blue none
 CHECK ok 16-audio: the movie's audio: open running audible
-CHECK ok 17-flash-rate: content 40,119-440,417: 10.0 s, flips 121 (12.1/s), changes 105 (10.5/s), reads 127, distinct 106, spacing median 71 p90 142 max 262 ms (wanted 9.8..40/s)
+CHECK FAIL 17-flash-rate: content 40,119-440,417: 10.0 s, flips 120 (12.0/s), changes 96 (9.6/s), reads 124, distinct 94, spacing median 61 p90 180 max 284 ms (wanted 9.8..40/s)
+  frame kept: /media/internal/jihad-finger/17-flash-rate_.last.raw
 CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
 CHECK ok 19-audio: the movie's audio: open running audible
-WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.975 dropped=47 fps=10.344827586206897]
+WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.975 dropped=35 fps=14.52081316553727]
 CHECK ok 21-number: vendtime = 13.975 (wanted 11.5..14.5)
-CHECK ok 22-number: venddropped = 47 (wanted 0..209)
+CHECK ok 22-number: venddropped = 35 (wanted 0..125)
 CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
-CHECK ok 24-plugin: plugin-container 1363: alive (state S, cpu ticks 564 to 575)
-CHECKS 9 FAILS 0
+CHECK ok 24-plugin: plugin-container 484: alive (state S, cpu ticks 580 to 591)
+CHECKS 9 FAILS 1
+novacom: unexpected EOF from server

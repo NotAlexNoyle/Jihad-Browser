@@ -1,14 +1,14 @@
 WAIT ok 13-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
-WAIT ok 14-text video = [video t=1.202 dropped=2 fps=0]
-CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 8576bd13 rows 298 uniform 0 light none blue none
+WAIT ok 14-text video = [video t=1.384 dropped=1 fps=0]
+CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 865ce821 rows 298 uniform 0 light none blue 301-358
 CHECK ok 16-audio: the movie's audio: open running audible
-CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3897,3896,3896,3895,3896,3895, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 171 (17.1/s), changes 161 (16.1/s), reads 172, distinct 162, spacing median 45 p90 114 max 165 ms (wanted 10.3..40/s)
-CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash d53ed227 rows 298 uniform 0 light none blue none
+CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3894,3895,3898,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 186 (18.6/s), changes 184 (18.4/s), reads 189, distinct 185, spacing median 44 p90 84 max 276 ms (wanted 10.3..40/s)
+CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 13413180 rows 298 uniform 0 light none blue 129-145
 CHECK ok 20-audio: the movie's audio: open running audible
-WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.304 dropped=104 fps=22.692889561270803]
-CHECK ok 22-number: vendtime = 19.304 (wanted 17.5..20.5)
-CHECK ok 23-number: venddropped = 104 (wanted 0..480)
-CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash ea789dc8 rows 298 uniform 0 light none blue none
-CHECK ok 25-plugin: plugin-container 29009: alive (state S, cpu ticks 503 to 513)
+WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=93 fps=23.076923076923077]
+CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
+CHECK ok 23-number: venddropped = 93 (wanted 0..288)
+CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash d44a7aba rows 298 uniform 0 light none blue none
+CHECK ok 25-plugin: plugin-container 10170: alive (state S, cpu ticks 515 to 527)
 CHECKS 10 FAILS 0

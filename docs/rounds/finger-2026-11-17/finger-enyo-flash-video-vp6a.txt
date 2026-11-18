@@ -1,13 +1,13 @@
 WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-WAIT ok 14-text video = [video t=3.526 dropped=14 fps=16.216216216216218]
+WAIT ok 14-text video = [video t=3.604 dropped=13 fps=16.597510373443985]
 CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 2592 hash 0fb2e28e rows 298 uniform 0 light none blue none
 CHECK ok 16-audio: the movie's audio: open running audible
-CHECK ok 17-flash-rate: content 40,123-440,421: 10.0 s, flips 121 (12.1/s), changes 103 (10.3/s), reads 126, distinct 102, spacing median 63 p90 178 max 301 ms (wanted 9.8..40/s)
-CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
+CHECK ok 17-flash-rate: content 40,123-440,421: 10.0 s, flips 124 (12.4/s), changes 105 (10.5/s), reads 129, distinct 106, spacing median 64 p90 167 max 388 ms (wanted 9.8..40/s)
+CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
 CHECK ok 19-audio: the movie's audio: open running audible
-WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.975 dropped=45 fps=14.272121788772598]
-CHECK ok 21-number: vendtime = 13.975 (wanted 11.5..14.5)
-CHECK ok 22-number: venddropped = 45 (wanted 0..209)
-CHECK ok 23-flash-drawn: drawn: region 40,123-440,421: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
-CHECK ok 24-plugin: plugin-container 12154: alive (state S, cpu ticks 553 to 563)
+WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.635 dropped=39 fps=15.670910871694417]
+CHECK ok 21-number: vendtime = 13.635 (wanted 11.5..14.5)
+CHECK ok 22-number: venddropped = 39 (wanted 0..125)
+CHECK ok 23-flash-drawn: drawn: region 40,123-440,421: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
+CHECK ok 24-plugin: plugin-container 30510: alive (state S, cpu ticks 574 to 585)
 CHECKS 9 FAILS 0

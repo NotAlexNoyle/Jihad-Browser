@@ -94,33 +94,29 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
-## 2026-11-18 — STOPPED: the device's battery died mid-round; what is built and not yet on it (READ FIRST)
+## 2026-11-18 — Flash video rerun on the pinned build; a paused video flips between two frames (READ FIRST)
 
-The TouchPad went off (battery) during the pinning experiment; `novacom -l` lists nothing. When it is back: it has
-restarted, so close the USB alert, and the daemons start on first launch.
+**State of the device:** the three shells on engine 0115 (queue exact, head `abfe97ca13`) and the daemon of commit
+7af318c3; charged (its battery died on 2026-11-17 mid-round: on the host's USB it gains little under a round's load,
+`batt.sh`'s query is `luna-send palm://com.palm.power/com/palm/power/batteryStatusQuery` with a `batteryStatus` match
+added first); USB alert closed; servers on 8097 and 8077. Commits from `965aab42` on are unpushed (the owner's).
 
-**Built, NOT on the device:** the daemon of this commit (`/out/jihad-browserserver-arm`: the tracker's "no such child"
-read as gone). Push it first: `build/webos-oe/push-engine-update.sh --daemon-only enyo mochi mojo`.
+**Done since the section below:** ck:inspector's review of the video batch applied (the stall's proof, each run's own
+day in FINGER-TESTS.md, the dropped-frames bound, the decoder check, the subscriber check); every `flash-video-*`
+script rerun in the three shells on the pinned build; `docs/rounds/t578-2026-11-17/README.md` rewritten with the stock
+browser's dropped frames beside the shells'. R8: the table and the slow download ticked.
 
-**Then, in order (the review of the video batch by ck:inspector, its findings applied on the host only):**
-1. Run every `flash-video-*` script in the three shells again, with the end check, into a NEW whole round or merged
-   into `docs/rounds/finger-2026-11-17` (30 of its 48 video runs were made on the 10 ms stream timer build that was
-   taken out again; the scripts have since changed too: the stall's proof (`vmaxgap`, `vgapat`), a dropped-frames
-   bound of 60 %, a second rate check in the two real players, `expect decoder ok` after the metadata). Test pages
-   are cached by the daemons: a first run may read "(no element)" for the page's new elements; run again.
-2. If `flash-video-slow` passes with `vmaxgap` 8000 or more in the three shells, tick R8's fifth criterion again
-   (unticked after the review: the first runs saw only the throttle's short underrun).
-3. The round's README (`docs/rounds/t578-2026-11-17/README.md`) still wants: the two plain VP6 clips' rows, a stock
-   column of dropped frames per second read off the kept pictures, the summary sentence corrected (H.264 360 drops
-   12-15 %, the 8.8 s 480-row clip over half), and the first video round's H.264-240 readings in the shells after the
-   restart (3.5, 0.3, 0.1 a second against the stock browser's 9.5; the suite's later runs read 16-17) explained or
-   measured again with `video-round.py`.
-4. T-659 (new): 39 daemon deaths in that round's `crash-*.txt`, the engine's own MOZ_CRASH when `/dev/kgsl-3d0`
-   cannot be opened (cavekit-gpu-rendering.md R1, a new unticked criterion).
-5. The pinning experiment, one reading only before the battery went: Achievement Unlocked on Enyo 11.2/s unpinned,
-   10.2/s with the player's main thread on cpu1 and the daemon on cpu0 (`JIHAD_PIN="2 1"`). No gain in that one run;
-   finish the three games and the other layout (`JIHAD_PIN="1 2"`) before dropping the idea. `JIHAD_PIN` needs
-   `--threads` (it builds `/tmp/pin`).
+**Next, in order:**
+1. **T-660 (new, a real defect):** a paused Flash video's picture flips between two neighbouring frames whenever the
+   page beside it repaints (probe and reading in the round's README). `flash-video-controls` is its script (fails in
+   one shell or another each round). Start in the frame path's buffers: which slot holds the movie's last frame.
+2. **H.264 at 360 rows drops more frames here than in the stock browser** (README's table): few readings; measure
+   again, then look at how the hardware decoder's frames reach the screen here.
+3. T-659: the engine's MOZ_CRASH when `/dev/kgsl-3d0` cannot be opened (39 deaths in a degraded device state).
+4. T-576's open question (the player's share of a core): the pinning experiment gave one reading before the battery
+   went (Achievement Unlocked, Enyo: 11.2/s unpinned, 10.2/s with `JIHAD_PIN="2 1"`); `JIHAD_PIN` needs `--threads`.
+5. T-578's rest: two real pages; the audio over a clip's whole length; five stock runs for the bars; the first H.264
+   clip after a restart.
 
 ## 2026-11-17 (later) — Flash video (T-578): the scripts, the decoder's dead boot, two wrong turns undone (READ FIRST)
 

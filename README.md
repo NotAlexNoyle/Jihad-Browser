@@ -44,7 +44,7 @@ and touches nothing else.
 | Touch and keyboard | `████████████████████` 100 % | taps, gestures, the on-screen keyboard |
 | Settings and services | `███████████████████░` 96 % | the settings panes, downloads, history, printing |
 | Add-ons and Personas | `███████████████████░` 96 % | XPI add-ons, plugins, Personas, the add-on site |
-| Flash, finished | `████████░░░░░░░░░░░░` 43 % | the device's own Flash Player proven on real games, apps and videos in every shell |
+| Flash, finished | `█████████░░░░░░░░░░░` 45 % | the device's own Flash Player proven on real games, apps and videos in every shell |
 | Privacy and security | `███████████████████░` 95 % | the ad and tracker blocker, proxies, certificates |
 | Building and updating | `███████████████████░` 95 % | one repository builds every package; engine updates; the SDK; licences |
 | Tabs | `░░░░░░░░░░░░░░░░░░░░` held | groundwork only, held by the owner's decision |

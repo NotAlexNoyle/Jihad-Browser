@@ -1,0 +1,20 @@
+# A corrupt or hostile library in the plugin folder (cavekit-flash.md R10, T-580; PICKUP's "the in-daemon plugin scan is a
+# landmine"). The fixture puts four into the shell's own plugin folder, the first the daemon searches, and drops the
+# plugin registry so the folder is scanned: random bytes named .so, a library whose constructor never returns, one whose
+# constructor aborts, one that is no plugin. The daemon reads each in a scanner process of its own under a 10 s limit
+# (engine patch 0118): the page with the tone movie loads, the movie plays, navigator.plugins holds Flash and none of
+# the four, and the daemon's log says what became of each.
+id: flash-hostile-plugins
+section: Flash
+item: Four bad libraries in the plugin folder (random bytes, a constructor that never returns, one that aborts, one that is no plugin) leave the daemon serving: the page loads, Flash plays, and none of the four is a plugin
+shells: enyo mochi mojo
+fixture: hostile-plugins
+prefs: jihad.compat.trace=true
+page: http://192.168.1.245:8077/jihad-flash-tone.html
+kit: cavekit-flash.md R10
+wait rect 'sel:embed' 40
+expect audio audible 20
+show-log 'plugin scan'
+probe plugins '(function(){var a=[],bad=0;for(var i=0;i<navigator.plugins.length;i++){var f=navigator.plugins[i].filename;a.push(f);if(/jihad/.test(f))bad++;}return (bad?"HOSTILE ":"clean ")+a.join(" ");})()'
+expect probe-has clean
+expect probe-has libflashplayer.so

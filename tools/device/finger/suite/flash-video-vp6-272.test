@@ -3,7 +3,7 @@
 # 40 s, the stream's time is at the target within the bound, and the clip plays to NetStream.Play.Stop at its length.
 id: flash-video-vp6-272
 section: Flash
-item: A On2 VP6 video of 272 rows plays, is sought ahead and plays out: the time follows the seek, the stream ends at the clip's length, the picture is never blank
+item: An On2 VP6 video of 272 rows plays, is sought ahead and plays out: the time follows the seek, the stream ends at the clip's length, the picture is never blank
 shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40
 kit: cavekit-flash.md R8
@@ -11,6 +11,7 @@ wait text vmeta "codec=4" 30
 wait text video "video t=" 10
 wait content m 15
 expect audio running 10
+audio-watch
 expect flash-rate m 10 7.1 40
 expect flash-drawn m yes
 sample before m
@@ -19,7 +20,7 @@ wait text vctl "vctl seek 40" 5
 wait differs m before 5
 wait text video "video t=4" 4
 expect number vtime 38 58
-expect audio running 4
 wait text vend "Play.Stop" 70
+expect audio-watched running
 expect number vendtime 84.3 87.3
 expect plugin 3 alive

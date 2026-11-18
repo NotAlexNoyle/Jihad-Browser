@@ -1,0 +1,24 @@
+# A movie's sound ends with the movie (cavekit-flash.md R9, T-579): the tone movie's stream on the sound server closes
+# when the card navigates away, when the page is reloaded (the old stream gone, the new movie's own open), and when the
+# card is closed, and plugin-container, which outlives its last movie by 30 s, holds none open. The bound is counted
+# from the end of the gesture's own wait (about:blank's load, well under a second; the reload and the close: at once).
+id: flash-sound-close
+section: Media and sound
+item: A Flash movie's sound stream closes within 2 s of navigating away, of a reload (the new movie's own stream then opens) and of closing the card, and plugin-container holds none open after
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-tone.html
+kit: cavekit-flash.md R9
+wait rect 'sel:embed' 30
+expect audio audible 20
+launch about:blank
+expect audio closed 2
+launch http://192.168.1.245:8077/jihad-flash-tone.html
+wait rect 'sel:embed' 30
+expect audio audible 20
+audio-mark
+chrome reload
+expect audio-renewed 2
+expect audio audible 20
+card-close
+expect audio closed 2
+expect sound silent 4

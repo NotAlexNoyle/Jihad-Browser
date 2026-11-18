@@ -564,11 +564,20 @@ fl_check_flash_reacted() { # NAME REGION SECONDS yes|no: reads showing what the 
   if [ "${b:-0}" -gt 0 ] && [ $((${a:-0} * 2)) -ge ${b:-0} ]; then v=yes; else v=no; fi
   [ "$v" = "$4" ] && fl_check ok "$1" "reacted: $v ($l)" || fl_check FAIL "$1" "reacted: $v, wanted $4 ($l)"
 }
+# a device path a script names: APP/... is in the shell's own app directory (its profile: APP/profile/...)
+fl_path() { case "$1" in APP/*) echo "$FL_APP/${1#APP/}";; *) echo "$1";; esac; }
 fl_check_file() { # NAME GLOB TEXT: the newest file the glob names on the device holds the text (a download's bytes over USB)
   local f
-  f=$(ls -t $2 2>/dev/null | head -1)
+  f=$(ls -t $(fl_path "$2") 2>/dev/null | head -1)
   [ -n "$f" ] || { fl_check FAIL "$1" "no file $2 on the device"; return 1; }
   if grep -q -- "$3" "$f" 2>/dev/null; then fl_check ok "$1" "$f ($(wc -c < "$f") bytes) holds [$3]"; else fl_check FAIL "$1" "$f lacks [$3]"; fi
+}
+fl_check_file_lacks() { # NAME GLOB TEXT: the newest file the glob names is there and does not hold the text (a secret kept
+  # encrypted: logins.json)
+  local f
+  f=$(ls -t $(fl_path "$2") 2>/dev/null | head -1)
+  [ -n "$f" ] || { fl_check FAIL "$1" "no file $2 on the device"; return 1; }
+  if grep -q -- "$3" "$f" 2>/dev/null; then fl_check FAIL "$1" "$f holds [$3]"; else fl_check ok "$1" "$f ($(wc -c < "$f") bytes) lacks [$3]"; fi
 }
 fl_check_decoder() { # NAME ok: the kernel's hardware video decoder (Flash's H.264, the system's video player) usable on this boot.
   # A boot was seen (2026-11-17, five days up after a panic) on which every start of it failed, in the stock browser and the
@@ -877,6 +886,13 @@ fl_probe() { # NAME B64
   local l
   fl_mark; fl_inject "setpref s jihad.compat.probe $2"; l=$(fl_wait 'probe \[' 30) || return 1
   FL_PROBE=$(echo "$l" | sed 's/.*probe \[[^]]*\] //'); echo "  probe $1: $(echo "$FL_PROBE" | cut -c1-300)"
+  # the pref emptied once answered: left set, the probe ran again in each page loaded after it, 25 s on (a form
+  # submitted again, a dialog no step asked for)
+  # (the mark kept: a line the probe made is still the next step's to read)
+  fl_inject "setpref s jihad.compat.probe "; fl_wait 'jihad.compat.probe =  -> ok=1' 5 >/dev/null
+}
+fl_check_probe_lacks() { # NAME TEXT
+  case "$FL_PROBE" in *"$2"*) fl_check FAIL "$1" "the probe's answer [$(echo "$FL_PROBE" | cut -c1-200)] holds [$2]";; *) fl_check ok "$1" "the probe's answer lacks [$2]";; esac
 }
 fl_check_probe_has() { # NAME TEXT
   case "$FL_PROBE" in *"$2"*) fl_check ok "$1" "the probe's answer holds [$2]";; *) fl_check FAIL "$1" "the probe's answer [$(echo "$FL_PROBE" | cut -c1-200)] lacks [$2]";; esac
@@ -892,6 +908,11 @@ fl_check_dialog() { # NAME present|answered [BOUND]: since the mark
     n=$(( ${3:-10} * 3 ))
     while [ $n -gt 0 ]; do l=$(ls $FL_STATE/dialog-*.fifo 2>/dev/null | tail -1); [ -n "$l" ] && { fl_check ok "$1" "the dialog's reply pipe stands: $l"; return 0; }; usleep 300000; n=$((n-1)); done
     fl_check FAIL "$1" "no dialog's reply pipe in $FL_STATE within ${3:-10} s"; return 1
+  fi
+  if [ "$2" = none ]; then   # nothing asked within the bound (cavekit-site-data.md R1: a switch off, a never-saved site)
+    n=$(( ${3:-5} * 3 ))
+    while [ $n -gt 0 ]; do l=$(ls $FL_STATE/dialog-*.fifo 2>/dev/null | tail -1); [ -n "$l" ] && { fl_check FAIL "$1" "a dialog was raised: $l"; return 1; }; usleep 300000; n=$((n-1)); done
+    fl_check ok "$1" "no dialog within ${3:-5} s"; return 0
   fi
   case $2 in answered) pat='dialog .* -> ';; *) pat="$2";; esac
   l=$(fl_wait "$pat" ${3:-10}) && fl_check ok "$1" "$l" || fl_check FAIL "$1" "no '$pat' in the daemon log within ${3:-10} s"
@@ -1033,6 +1054,34 @@ fl_check_sound() { # NAME heard|silent|muted [BOUND] [MIN_RMS] [HZ]: HZ, the pit
 # steps are 0.2 s: the two together are the time from the finger to the sound)
 fl_cs() { sed 's/ .*//; s/\.//' /proc/uptime; }
 fl_sound_at() { [ -f /tmp/fl-snd.t0 ] && echo ", $(( ($(fl_cs) - $(cat /tmp/fl-snd.t0)) * 10 )) ms after the recording was asked for"; }
+fl_audio_watch() { # the player's audio stream read every second in the background (cavekit-flash.md R8: open and running for a
+  # clip's whole length) until fl_check_audio_watched: the codec's PCM state each second (a file read), and every fifth
+  # second that the stream on the sound server is the plugin's (pactl, ~50 ms of a core: not each second, beside a
+  # rate being measured). Bounded at ten minutes whatever happens to the script.
+  rm -f /tmp/fl-aw.out /tmp/fl-aw.stop
+  ( local p i s f; p=$(fl_plugin_pid); i=0
+    while [ ! -e /tmp/fl-aw.stop ] && [ $i -lt 600 ]; do
+      s=stopped; for f in /proc/asound/card*/pcm*p/sub*/status; do grep -q 'state: RUNNING' $f 2>/dev/null && s=running; done
+      [ -n "$p" ] && [ -d /proc/$p ] || s=no-plugin
+      if [ $((i % 5)) = 0 ] && [ $s = running ]; then pactl list 2>/dev/null | grep -q "application.process.id = \"$p\"" || s=not-the-plugin; fi
+      echo "$(fl_cs) $s" >> /tmp/fl-aw.out; i=$((i+1)); sleep 1
+    done ) >/dev/null 2>&1 &
+  echo "  the audio watched every second from here"
+}
+fl_check_audio_watched() { # NAME running: every reading since fl_audio_watch running, but those of the last 3 s (the
+  # stream closes at the clip's end, which the script has just read)
+  local now l t st n bad first last
+  touch /tmp/fl-aw.stop; usleep 1200000; now=$(fl_cs); n=0; bad=""; first=""; last=""
+  while read -r t st; do
+    [ $((now - t)) -lt 300 ] && continue
+    n=$((n+1)); [ -z "$first" ] && first=$t; last=$t
+    [ "$st" = running ] || { [ -z "$bad" ] && bad="$st at +$(( (t - first) / 100 )) s"; }
+  done < /tmp/fl-aw.out
+  rm -f /tmp/fl-aw.out /tmp/fl-aw.stop
+  if [ $n -lt 3 ]; then fl_check FAIL "$1" "the audio watched: $n readings, too few"
+  elif [ -n "$bad" ]; then fl_check FAIL "$1" "the audio watched: $n readings over $(( (last - first) / 100 )) s, not running: $bad"
+  else fl_check ok "$1" "the audio watched: $n readings over $(( (last - first) / 100 )) s, all running, the stream the plugin's"; fi
+}
 fl_sound_watch() { # MS
   rm -f /tmp/fl-snd.out; fl_cs > /tmp/fl-snd.t0
   /tmp/hwinput record pcm_output.monitor ${1:-3000} > /tmp/fl-snd.out 2>&1 &
@@ -1068,6 +1117,55 @@ fl_launch_from() { # OTHER_APP_ID URL
   fl_mark
   luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"'"$FL_ID"'","params":{"target":"'"$2"'"}}' >/dev/null 2>&1
   echo "  $1 in front (process $pid), then the browser launched with the target $2"
+}
+# The card's life (cavekit-flash.md R9, R10): this shell's card closed by the application manager, sent behind another
+# app, and brought back from the card view
+fl_card_close() { local pid n=0; for pid in $(fl_app_pids "$FL_ID"); do luna-send -n 1 palm://com.palm.applicationManager/close '{"processId":"'"$pid"'"}' >/dev/null 2>&1; n=$((n+1)); done; fl_cs > /tmp/fl-closed-at; echo "  the card closed ($n process(es))"; }
+fl_card_away() { # OTHER_APP_ID
+  luna-send -n 1 palm://com.palm.applicationManager/launch '{"id":"'"$1"'"}' >/dev/null 2>&1; fl_mark; echo "$1" > /tmp/fl-other-app; fl_cs > /tmp/fl-away-at
+  echo "  $1 asked to the front (the log marked), the card behind it"
+}
+# Back: the app in front closed (the system then shows its card view, this card in the middle) and the card tapped there,
+# as a person does. A launch with no target is NOT a way back: both this browser and the stock one open a new card for it.
+fl_card_back() {
+  local pid
+  for pid in $(fl_app_pids "$(cat /tmp/fl-other-app 2>/dev/null)"); do luna-send -n 1 palm://com.palm.applicationManager/close '{"processId":"'"$pid"'"}' >/dev/null 2>&1; done
+  rm -f /tmp/fl-other-app; sleep 3; /tmp/finger tap 384 512; fl_mark; fl_cs > /tmp/fl-back-at; echo "  the other app closed and the card tapped in the card view (the log marked)"
+}
+# the plugin's streams on the sound server, by their index: marked, then gone (a reload: the old stream closed, a new
+# one may open)
+fl_audio_streams() { local p; p=$(fl_plugin_pid); [ -n "$p" ] || return 0; pactl list sink-inputs 2>/dev/null | awk -v p="\"$p\"" '/^Sink Input #/ {i=substr($3,2)} /application.process.id = / && $3 == p {print i}'; }
+fl_audio_mark() { fl_audio_streams > /tmp/fl-audio-mark; echo "  the plugin's streams marked: $(tr '\n' ' ' < /tmp/fl-audio-mark)"; }
+fl_check_audio_renewed() { # NAME [BOUND]: every stream marked is gone within the bound (from the last gesture); the ones open now are named
+  local n i left now
+  n=$(( ${2:-2} * 4 )); left=x
+  while [ $n -gt 0 ]; do
+    now=$(fl_audio_streams | tr '\n' ' '); left=""
+    for i in $(cat /tmp/fl-audio-mark 2>/dev/null); do case " $now " in *" $i "*) left="$left $i";; esac; done
+    [ -z "$left" ] && break; usleep 250000; n=$((n-1))
+  done
+  if [ ! -s /tmp/fl-audio-mark ]; then fl_check FAIL "$1" "no stream was marked"
+  elif [ -z "$left" ]; then fl_check ok "$1" "the marked streams ($(tr '\n' ' ' < /tmp/fl-audio-mark)) are gone within ${2:-2} s; open now: ${now:-none}"
+  else fl_check FAIL "$1" "still open after ${2:-2} s:$left (open now: $now)"; fi
+}
+# The movie's life (cavekit-flash.md R10): every plugin-container of this shell, and the daemon's resident memory
+fl_plugin_pids() { local p c; for p in $(pgrep -f plugin-container 2>/dev/null); do c=$(tr '\0' ' ' < /proc/$p/cmdline 2>/dev/null); case "$c" in *applications/$FL_ID/*plugin-container*) echo $p;; esac; done; }
+fl_check_plugins() { # NAME MAX: at most MAX plugin-containers of this shell, none stopped or in a disk wait
+  local n p st l=""
+  n=0; for p in $(fl_plugin_pids); do st=$(sed 's/.*) //' /proc/$p/stat 2>/dev/null | cut -d' ' -f1); l="$l $p:$st"; n=$((n+1)); case "$st" in T|D|Z) n=$((n+100));; esac; done
+  if [ $n -le $2 ]; then fl_check ok "$1" "plugin-containers:${l:- none} (at most $2)"; else fl_check FAIL "$1" "plugin-containers:$l (wanted at most $2, none stopped)"; fi
+}
+fl_daemon_pid() { initctl status $FL_JOB 2>/dev/null | sed -n 's/.*process \([0-9]*\).*/\1/p'; }
+fl_rss_kb() { sed -n 's/^VmRSS: *\([0-9]*\) kB/\1/p' /proc/$(fl_daemon_pid)/status 2>/dev/null; }
+fl_rss_mark() { fl_rss_kb > /tmp/fl-rss0; echo "$(fl_daemon_pid)" > /tmp/fl-rss0.pid; echo "  the daemon's resident memory marked: $(cat /tmp/fl-rss0) kB (process $(cat /tmp/fl-rss0.pid))"; }
+fl_check_rss_within() { # NAME KB: the daemon's resident memory now within KB of the mark, the same process
+  local a b
+  a=$(cat /tmp/fl-rss0 2>/dev/null); b=$(fl_rss_kb)
+  if [ -z "$a" ] || [ -z "$b" ]; then fl_check FAIL "$1" "no reading (marked ${a:-none}, now ${b:-none})"
+  elif [ "$(fl_daemon_pid)" != "$(cat /tmp/fl-rss0.pid)" ]; then fl_check FAIL "$1" "the daemon is another process than at the mark"
+  elif [ $((b - a)) -le $2 ]; then fl_check ok "$1" "the daemon's resident memory $b kB, $((b - a)) kB from the mark (at most $2)"
+  else fl_check FAIL "$1" "the daemon's resident memory $b kB, $((b - a)) kB over the mark (at most $2)"; fi
+  rm -f /tmp/fl-rss0 /tmp/fl-rss0.pid
 }
 fl_hw_restore() {
   local pid

@@ -428,6 +428,21 @@ MainAssistant.prototype.listen = function () {
 		rb.addEventListener("mouseup", this.handleReloadUp, false);
 		rb.addEventListener("mouseout", this.handleReloadUp, false);
 	}
+	// T-580: the card's own turns in front (another app over it, the card view): the page frozen behind, thawed in front
+	this.handleStageActivate = this.cardActivated.bind(this, true);
+	this.handleStageDeactivate = this.cardActivated.bind(this, false);
+	Mojo.Event.listen(this.controller.stageController.document, Mojo.Event.stageActivate, this.handleStageActivate);
+	Mojo.Event.listen(this.controller.stageController.document, Mojo.Event.stageDeactivate, this.handleStageDeactivate);
+};
+
+//* T-580 (cavekit-flash.md R10): the adapter told whether the card is in front (its cardActivated): behind, the page is
+//* frozen (no frames, its buffers given back, the Flash player's CPU boost with every card behind); in front, thawed.
+MainAssistant.prototype.cardActivated = function (on) {
+	var view = this.controller.get(this.WEB_VIEW_ID);
+	var wa = view && view._mojoController && view._mojoController.assistant;
+	if (wa && wa.adapter && wa.adapter.cardActivated) {
+		try { wa.adapter.cardActivated(!!on); } catch (e) { Mojo.Log.error("[T-580] cardActivated: " + e); }
+	}
 };
 
 //* `result` is what a scene we pushed handed back when it popped — the history
@@ -1473,6 +1488,10 @@ MainAssistant.prototype.verifyEngineRouting = function () {
 };
 
 MainAssistant.prototype.cleanup = function () {
+	if (this.handleStageActivate) {
+		Mojo.Event.stopListening(this.controller.stageController.document, Mojo.Event.stageActivate, this.handleStageActivate);
+		Mojo.Event.stopListening(this.controller.stageController.document, Mojo.Event.stageDeactivate, this.handleStageDeactivate);
+	}
 	if (this._fitOnResize) {
 		this.controller.window.removeEventListener("resize", this._fitOnResize, false);
 		this._fitOnResize = null;

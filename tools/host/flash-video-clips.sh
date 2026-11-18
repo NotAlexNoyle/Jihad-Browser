@@ -21,3 +21,9 @@ for size in 426x240:400k 640x360:700k 854x480:1200k; do
     echo "gen-$c-$h.flv $k $wh $n frames $(stat -c %s "$f") bytes"
   done
 done
+# R9's ten-minute music player (suite/flash-app-music-10min): a 630 s track for mp3-player-multi (flash-serve.py's title page
+# takes ?mp3=/asset/tone-630s.mp3), a 440 Hz tone that a fifth of a second of silence breaks every 5 s, so a dropout of the
+# player's own reads as a longer gap than the track holds
+A="${JIHAD_FLASH_CACHE:-$HOME/.cache/jihad-flash}/asset"; mkdir -p "$A"
+ff -f lavfi -i "sine=frequency=440:duration=630,volume='if(lt(mod(t,5),4.8),1,0)':eval=frame" -c:a libmp3lame -ar 44100 -b:a 96k "$A/tone-630s.mp3"
+echo "tone-630s.mp3 $(ffprobe -v error -show_entries format=duration -of csv=p=0 "$A/tone-630s.mp3") s"

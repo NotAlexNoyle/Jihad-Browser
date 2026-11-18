@@ -1,0 +1,20 @@
+# A music player app for ten minutes (cavekit-flash.md R9, T-579): mp3-player-multi with a 630 s track
+# (tools/host/flash-video-clips.sh makes it: a tone broken by a fifth of a second of silence every 5 s), its play button
+# tapped. The player's stream is read every second for the ten minutes (audio-watch: the codec's PCM running, the
+# stream the plugin's every fifth second, the plugin process the one that started): one reading not running, or the
+# plugin gone, fails it. Clicks and dropouts by ear are R14's.
+id: flash-app-music-10min
+section: Media and sound
+item: A Flash music player plays for ten minutes: its stream open and running at every reading, a second apart, the plugin the same process throughout, the daemon never down
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/mp3-player-multi?mp3=/asset/tone-630s.mp3
+kit: cavekit-flash.md R9
+wait rect m 40
+wait still m 15
+stage-tap m 200 20 37 10
+expect audio running 10
+audio-watch
+wait quiet 'FATAL SIGNAL' 600
+expect audio-watched running
+expect plugin 3 alive
+expect sound heard 10

@@ -2,7 +2,7 @@
 # from the corpus cache (tools/host/flash-video-clips.sh makes the gen-* clips). The player's own reports are the checks:
 # the stream's metadata, its time moving, NetStream.Play.Stop with the time at the clip's length, and the dropped frames
 # counted to the end (a number of the report for R8's table; the bound is 60 % of the clip's frames, above the worst reading of 2026-11-17).
-# The picture is read too: drawn while playing and at the end, and its content rate over ten seconds (the minimum is
+# The audio stream is read every second from its start to the clip's end (audio-watch). The picture is read too: drawn while playing and at the end, and its content rate over ten seconds (the minimum is
 # set from the stock browser's reading on the same page, docs/rounds/t578-2026-11-17).
 id: flash-video-spark-240
 section: Flash
@@ -14,11 +14,12 @@ wait text vmeta "codec=2" 30
 wait text video "video t=" 10
 expect flash-drawn m yes
 expect audio running 10
+audio-watch
 expect sound heard 10 60 440
 expect flash-rate m 10 10.3 40
 expect flash-drawn m yes
-expect audio running 4
 wait text vend "Play.Stop" 45
+expect audio-watched running
 expect number vendtime 17.5 20.5
 expect number venddropped 0 288
 expect flash-drawn m yes

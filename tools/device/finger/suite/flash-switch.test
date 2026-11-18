@@ -1,0 +1,23 @@
+# The Flash switch (cavekit-flash.md R10, T-580): plugin.state.flash, the card's own switch and Settings' "Adobe Flash"
+# row. Off: on a corpus game's page no plugin instantiates (the daemon's log), navigator.plugins holds no Flash and the
+# kept picture shows what the page says in the movie's place. On again (the pref set live, the page reloaded): the movie
+# draws. The page left, the CPU boost the movie took is given back.
+id: flash-switch
+section: Flash
+item: The Flash switch off: no plugin instantiates on a corpus page and the page says so; on again, a reload brings the movie back; the page left, the CPU boost is given back
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true plugin.state.flash=0
+page: http://192.168.1.245:8097/title/bloxorz
+kit: cavekit-flash.md R10
+wait quiet 'InstantiatePluginInstance rv=0x0' 6
+shoot off
+probe off '(function(){var p=navigator.plugins["Shockwave Flash"],m=document.getElementById("m"),r=m.getBoundingClientRect();return (p?"flash "+p.description:"noflash")+" embed "+Math.round(r.width)+"x"+Math.round(r.height)+" typeof-PercentLoaded "+(typeof m.PercentLoaded);})()'
+expect probe-has noflash
+setpref i plugin.state.flash 2
+chrome reload
+wait rect m 30
+wait content m 30
+wait changed m 20
+expect flash-drawn m yes
+launch about:blank
+wait line 'cpu boost release' 10

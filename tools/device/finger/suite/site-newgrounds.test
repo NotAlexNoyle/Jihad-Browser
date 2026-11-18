@@ -1,0 +1,17 @@
+# A real site, visited (cavekit-flash.md R4 and R8, T-578): the outcome is not this script's verdict but its record:
+# whether the page offered a movie, by which player (the device's Flash, or Ruffle in the page), whether it drew,
+# read from the daemon's log (show-log), the page itself (probe) and the kept picture; site-report.py makes the
+# table by host. The script fails only when the page does not load (a site down is recorded as down, no verdict
+# on Flash) or the daemon falls over (the runner sees that). Newgrounds: a portal movie (Alien Hominid); the site answered the host's request with the browser's identity 403
+id: site-newgrounds
+section: Flash
+item: A real site that carries movies (Newgrounds: a portal movie (Alien Hominid); the site answered the host's request with the browser's identity 403): visited, its outcome recorded by host (tools/device/finger/flash/site-report.py); the daemon and the plugin stay up
+shells: enyo mochi mojo
+needs: internet
+prefs: jihad.compat.trace=true
+page: https://www.newgrounds.com/portal/view/59593
+kit: cavekit-flash.md R4
+wait quiet 'FATAL SIGNAL' 15
+shoot page
+show-log 'NPP_New \|NPP_SetWindow\|InstantiatePluginInstance rv\|palm draw:\|plugin lane open\|FATAL\|identity: \|loaderr failed=1'
+probe what '(function(){function scan(d,o){if(!d)return;o.embeds+=d.querySelectorAll("embed,object").length;o.ruffle+=d.querySelectorAll("ruffle-player,ruffle-embed,ruffle-object").length;o.videos+=d.querySelectorAll("video").length;var f=d.querySelectorAll("iframe");for(var i=0;i<f.length;i++){var c=null;try{c=f[i].contentDocument}catch(e){}if(c)scan(c,o);else o.xframes.push((f[i].src||"").slice(0,70))}}var o={embeds:0,ruffle:0,videos:0,xframes:[]};try{scan(document,o)}catch(e){o.err=String(e)}var p=navigator.plugins["Shockwave Flash"];return JSON.stringify({flash:p?p.description:"none",embeds:o.embeds,ruffle:o.ruffle,rufflejs:!!window.RufflePlayer,videos:o.videos,err:o.err,title:document.title.slice(0,50),url:location.href.slice(0,80),xframes:o.xframes.slice(0,3)});})()'

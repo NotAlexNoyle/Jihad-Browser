@@ -250,6 +250,11 @@ enyo.kind({
 	markActive: function() {
 		return this._call("pageFocused", [true]);
 	},
+	//* T-580 (cavekit-flash.md R10): the card in front or not (the adapter's cardActivated): behind, the page is frozen
+	//* (no frames, its buffers given back, the Flash player's CPU boost with every card behind); in front, thawed.
+	cardActivated: function(on) {
+		return this._call("cardActivated", [!!on]);
+	},
 	//* Load `url` even if it is what the `url` property already holds — a published setter
 	//* does nothing for an unchanged value, and "fetch this again" is exactly that case.
 	load: function(url) {

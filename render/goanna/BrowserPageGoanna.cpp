@@ -373,6 +373,14 @@ static std::set<BrowserPageGoanna*>* gXPages = nullptr;
 static std::thread* gXThread = nullptr;   // under the frame lock
 static void jihadExpressThread();
 
+// T-580 (cavekit-flash.md R10): the plugin's CPU boost while every card of this daemon is in the background is given
+// back (engine patch 0119), and taken again when one comes to the front
+extern "C" void jihad_plugin_boost_background(int aBackground) __attribute__((weak));
+static int gJihadPagesLive = 0, gJihadPagesFrozen = 0;
+static void jihadBoostFollowCards() {
+  if (jihad_plugin_boost_background) jihad_plugin_boost_background(gJihadPagesLive > 0 && gJihadPagesFrozen >= gJihadPagesLive ? 1 : 0);
+}
+
 BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   : mHost(host), mSink(sink), mPage(nullptr),
     mKey1(0), mKey2(0), mBufSize(0), mActiveKey(0),
@@ -381,6 +389,7 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
     mLastScrollX(-1), mLastScrollY(-1), mZoom(1.0),
     mAdapterScrollX(0), mAdapterScrollY(0), mFrozen(false), mHadContent(false), mBlankSinceMs(0), mBlankRetryAtMs(0), mGeometryDirty(false), mGeometryTries(0),
     mNavGen(0), mLastScrollMs(0) {
+  gJihadPagesLive++; jihadBoostFollowCards();   // T-580: a new card is in front
   for (int i = 0; i < 3; ++i) { mShmBuf[i] = nullptr; mShmId[i] = -1; }
   jihadStartAudioPoll();   // Jihad: hold the audiod media scenario + speaker route during playback
 
@@ -1097,6 +1106,7 @@ bool BrowserPageGoanna::writeThumbnail(const unsigned char* src, int w, int h, c
 }
 
 BrowserPageGoanna::~BrowserPageGoanna() {
+  gJihadPagesLive--; if (mFrozen) gJihadPagesFrozen--; jihadBoostFollowCards();   // T-580
   if (mLane.on) { mLane.on = false; gJihadLanesOpen--; if (mPage) mPage->PluginLaneSet(0, nullptr, 0); }   // T-576
   // T-515: out of the express lane's reach first; its frame in flight is waited out with the jobs
   FrameLockGuard frameLock;
@@ -1366,7 +1376,7 @@ void BrowserPageGoanna::freeze() {
   // so holding an attach keeps them alive and can exhaust the device's scarce shared
   // memory while backgrounded. thaw() re-validates and maybePaint() re-attaches on demand.
   FrameLockGuard frameLock;   // T-515
-  mFrozen = true;
+  if (!mFrozen) { gJihadPagesFrozen++; mFrozen = true; jihadBoostFollowCards(); }
   if (mLane.on) pluginLaneClose("frozen");   // T-576
   mLane.drain = false;
   zoomBackDrop();   // T-527: its memory too
@@ -1403,7 +1413,7 @@ void BrowserPageGoanna::thaw(int key1, int key2, int size) {
   mLatestSlot = -1; mGrowOwed = false; mSweepLeft = 0; mSweepRow = 0; gpuSlotsReset();
   if (mPage) mPage->ResetGpuDisplayPort();   // T-502 round 110: per document, from its first scroll
   mDamageValid = false; mDamageForceFull = true;
-  mFrozen = false;
+  if (mFrozen) { gJihadPagesFrozen--; mFrozen = false; jihadBoostFollowCards(); }
   if (mPage) mPage->SetActive(true);
   mNeedsPaint = true;
 }

@@ -383,7 +383,8 @@ uint32_t AdapterGetMethods(const char*** outNames, const JSMethodPtr **outMethod
         "mouseHoldAt",
         "handleFlick",
         "setVisibleSize",
-        "setDNSServers"
+        "setDNSServers",
+        "cardActivated"
     };
 
     const size_t kExposedMethodCount = G_N_ELEMENTS(names);
@@ -457,7 +458,8 @@ uint32_t AdapterGetMethods(const char*** outNames, const JSMethodPtr **outMethod
         BrowserAdapter::js_mouseHoldAt,
         BrowserAdapter::js_handleFlick,
         BrowserAdapter::js_setVisibleSize,
-        BrowserAdapter::js_setDNSServers
+        BrowserAdapter::js_setDNSServers,
+        BrowserAdapter::js_cardActivated
     };
 
     static NPIdentifier ids[kExposedMethodCount] = {NULL};
@@ -3606,6 +3608,31 @@ const char* BrowserAdapter::js_setViewportSize(AdapterBase *adapter, const NPVar
  *
  * @param [0] Comma seperated list of DNS servers.
  */
+// Jihad (cavekit-flash.md R10, T-580): the card's own turns in front, from the shell (Enyo's window activated and
+// deactivated, Mochi's stage bridge, Mojo's scene). The plugin's focus events are no such signal: the page loses the
+// plugin focus to the card's own address bar as well. Out of front the page is frozen as isis froze a second card of the
+// same process when another came to the front (the daemon stops its frames, gives back its buffers and, with every
+// card of the daemon behind, the plugin's CPU boost); the card view draws the frozen picture. In front again it is
+// thawed, and any other card of this process frozen, through the same manager. The YAP messages are the contract's own
+// freeze and thaw.
+const char* BrowserAdapter::js_cardActivated(AdapterBase *adapter, const NPVariant *args, uint32_t argCount, NPVariant *result)
+{
+    BrowserAdapter *a = GetAndInitAdapter(adapter);
+    bool on = true;
+    if (argCount >= 1 && IsBooleanVariant(args[0]))
+        on = VariantToBoolean(args[0]);
+    if (!a->mBrowserServerConnected)
+        return NULL;
+    g_message("%s: %p: %s", __PRETTY_FUNCTION__, a, on ? "in front" : "behind");
+    if (on) {
+        if (a->mFrozen)
+            BrowserAdapterManager::instance()->adapterActivated(a, true);
+    } else {
+        a->freeze();
+    }
+    return NULL;
+}
+
 const char* BrowserAdapter::js_setDNSServers(AdapterBase *adapter, const NPVariant *args, uint32_t argCount, NPVariant *result)
 {
     TRACE;

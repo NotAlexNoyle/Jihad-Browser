@@ -1,0 +1,196 @@
+# Twenty cycles of a movie's life on a corpus game (Bloxorz) (cavekit-flash.md R10, T-580): navigated away (about:blank), back, reloaded,
+# the card closed and the page opened in a new one; after each, at most one plugin-container of this shell and none
+# stopped. The daemon's resident memory is marked after the first cycle and read after the last (10 MB at most more);
+# the last card closed, the player must be gone 35 s on (the engine keeps it 30 s after its last movie): no orphan.
+id: flash-life-cycles-game
+section: Flash
+item: Twenty cycles of navigating away, back, reload and closing the card on a corpus game (Bloxorz): never a second plugin-container nor a wedged one, the daemon's memory within 10 MB of cycle 1's, and no plugin-container left 35 s after the last card
+shells: enyo mochi mojo
+page: http://192.168.1.245:8097/title/bloxorz
+kit: cavekit-flash.md R10
+wait rect m 40
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+rss-mark
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+launch about:blank
+chrome back
+wait rect m 30
+chrome reload
+wait rect m 30
+card-close
+launch http://192.168.1.245:8097/title/bloxorz 60
+wait rect m 40
+expect plugins 1
+expect rss-within 10240
+card-close
+wait quiet 'FATAL SIGNAL' 36
+expect plugin 1 gone

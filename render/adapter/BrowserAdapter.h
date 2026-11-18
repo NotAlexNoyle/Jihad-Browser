@@ -150,6 +150,7 @@ public:
     static const char* js_handleFlick(AdapterBase *adapter, const NPVariant *args, uint32_t argCount, NPVariant *result);
     static const char* js_setVisibleSize(AdapterBase *adapter, const NPVariant *args, uint32_t argCount, NPVariant *result);
     static const char* js_setDNSServers(AdapterBase *adapter, const NPVariant *args, uint32_t argCount, NPVariant *result);
+    static const char* js_cardActivated(AdapterBase *adapter, const NPVariant *args, uint32_t argCount, NPVariant *result);
     static const int kRecordBufferEmptyError = -10;
 
     static const int kExceptionMessageLength = 128;

@@ -1148,11 +1148,13 @@ enyo.kind({
 	//* The card's turns in front, from the Mojo bridge in index.html (sysmgr's stageActivated/Deactivated, show/hide).
 	jihadStageActivated: function() {
 		this._cardInFront = true;
+		this.$.view.cardActivated(true);   // T-580
 		if (this._mediaOn || this._videoOn) { this.setScreenHold(true); }
 		if (this._videoOn) { this.$.lockButton.show(); }   // the lock dropped on the way out comes back with a video still playing
 	},
 	jihadStageDeactivated: function() {
 		this._cardInFront = false;
+		this.$.view.cardActivated(false);   // T-580
 		this.setScreenHold(false);
 		this.dropScreenLock();
 	},

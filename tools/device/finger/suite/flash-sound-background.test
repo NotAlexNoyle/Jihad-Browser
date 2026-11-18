@@ -1,0 +1,20 @@
+# A movie's sound with its card behind another app, and back (cavekit-flash.md R9, T-579). The stock browser on the same
+# page (measured 2026-11-18): its Flash stream stays open and running in front, behind Notes, in the card view and back,
+# at the policy's 0 % throughout (the stock browser's Flash is never heard on this device). This browser keeps the
+# stream open and running behind as the stock one does, and heard; the card comes back from the card view (Notes
+# closed, the card tapped) with the sound as it was.
+id: flash-sound-background
+section: Media and sound
+item: A Flash movie's sound with the card behind another app goes on as the stock browser's stream does (open and running) and is heard, and it is there when the card comes back
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-flash-tone.html
+kit: cavekit-flash.md R9
+wait rect 'sel:embed' 30
+expect audio audible 20
+expect sound heard 10 60 440
+card-away com.palm.app.notes
+expect audio running 4
+expect sound heard 10 60 440
+card-back
+expect audio audible 4
+expect sound heard 10 60 440

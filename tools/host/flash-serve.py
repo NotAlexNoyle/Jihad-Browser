@@ -10,7 +10,7 @@
 #   /slow/BPS/STALL_AT/STALL_S/PATH a cache file throttled, with one stall
 #   /swf/, /game/ID.swf ...        the cache's own paths
 # Run with python3 -I.
-import argparse, http.server, json, os, socketserver, sys, urllib.parse
+import argparse, http.server, json, os, re, socketserver, sys, urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.environ.get("JIHAD_FLASH_CACHE", os.path.expanduser("~/.cache/jihad-flash"))
@@ -68,7 +68,10 @@ def page(tid, q, host):
         elif t["player"] == "mediaelement": fv = "file=" + urllib.parse.quote(media) + "&autoplay=true&isvideo=true&timerrate=250"
         else: fv = "src=" + urllib.parse.quote(media)
         sw, sh = t.get("width") or 640, t.get("height") or 360
-    if t["id"] == "mp3-player-multi": fv = "mp3=" + urllib.parse.quote("http://%s%s" % (host, path_of(M["sample-mp3"])))
+    if t["id"] == "mp3-player-multi":         # ?mp3=/asset/<file>: another track from the cache (R9's ten minutes)
+        mp3 = q.get("mp3", [path_of(M["sample-mp3"])])[0]
+        if not re.match(r"^/asset/[A-Za-z0-9._-]+\.mp3$", mp3): mp3 = path_of(M["sample-mp3"])
+        fv = "mp3=" + urllib.parse.quote("http://%s%s" % (host, mp3))
     k = min(1.0, CARD_W / float(sw)) if "w" not in q else 1.0
     w = int(q.get("w", [round(sw * k)])[0]); h = int(q.get("h", [round(sh * k)])[0])
     wmode = ('wmode="%s"' % q["wmode"][0]) if "wmode" in q else ""

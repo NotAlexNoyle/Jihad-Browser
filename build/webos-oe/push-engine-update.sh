@@ -204,6 +204,10 @@ for v in $VARIANTS; do
   # at 10:53:03, before the daemon's rename), and a plain start is then a no-op that leaves the OLD daemon running.
   say "[$v] (re)starting $J"
   novacom run file://sbin/stop -- "$J" >/dev/null 2>&1 || true
+  # The engine's startup cache keeps compiled chrome and component scripts across restarts and is not told that a
+  # pushed file changed: a JS component pushed here ran its OLD text until the cache was removed (2026-11-18,
+  # components/jihadLogins.js). Removed with the daemon stopped, so it is rebuilt from what was just pushed.
+  novacom run file://bin/sh -- -c "rm -rf $APP/cache/startupCache* $APP/profile/startupCache*" < /dev/null >/dev/null 2>&1 || true
   novacom run file://sbin/start -- "$J" >/dev/null 2>&1 || true
   trap 'rm -rf "$TMP"' EXIT           # variant done: back to plain temp cleanup
 done

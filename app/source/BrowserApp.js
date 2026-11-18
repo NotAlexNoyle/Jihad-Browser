@@ -397,6 +397,8 @@ enyo.kind({
 		if (this.isBrowserShowing()) {
 			this.$.browser.viewCall("activate");
 		}
+		// T-580 (cavekit-flash.md R10): the adapter told the card is in front again: its page thawed
+		this.$.browser.viewCall("cardActivated", [true]);
 		this.refreshDownloads();
 		this._cardInFront = true;
 		if (this._mediaOn || this._videoOn) { this.setScreenHold(true); }
@@ -406,6 +408,9 @@ enyo.kind({
 		if (this.isBrowserShowing()) {
 			this.$.browser.viewCall("deactivate");
 		}
+		// T-580: behind another app or in the card view: the page frozen (no frames, its buffers given back, the Flash
+		// player's CPU boost with every card behind)
+		this.$.browser.viewCall("cardActivated", [false]);
 		this._cardInFront = false;
 		this.setScreenHold(false);
 		this.$.browser.dropScreenLock();   // T-602: the lock does not outlive the card's turn in front

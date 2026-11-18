@@ -96,7 +96,7 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 
 ## 2026-11-18 — Flash video rerun on the pinned build; the table against the stock browser (READ FIRST)
 
-**State of the device:** the three shells on engine 0115 (queue exact, head `abfe97ca13`) and the daemon of commit
+**State of the device:** the three shells on engine 0116 (queue 0001-0116 exact, head `e18fe759e2`) and the daemon of commit
 7af318c3; charged (its battery died on 2026-11-17 mid-round: on the host's USB it gains little under a round's load,
 `batt.sh`'s query is `luna-send palm://com.palm.power/com/palm/power/batteryStatusQuery` with a `batteryStatus` match
 added first); USB alert closed; servers on 8097 and 8077. Commits from `965aab42` on are unpushed (the owner's).
@@ -111,9 +111,11 @@ browser's dropped frames beside the shells'. R8: the table and the slow download
    apart; look at the pixels before believing two hashes. `expect region-near` is the comparison for a movie's rect.)
 2. **H.264 at 360 rows drops more frames here than in the stock browser** (README's table): few readings; measure
    again, then look at how the hardware decoder's frames reach the screen here.
-3. T-659: the engine's MOZ_CRASH when `/dev/kgsl-3d0` cannot be opened (39 deaths in a degraded device state).
-4. T-576's open question (the player's share of a core): the pinning experiment gave one reading before the battery
-   went (Achievement Unlocked, Enyo: 11.2/s unpinned, 10.2/s with `JIHAD_PIN="2 1"`); `JIHAD_PIN` needs `--threads`.
+3. (T-659 done: engine patch 0116; test switch `JIHAD_GPU_TEST_PBUFFER_FAIL_AFTER=0` with `tools/device/t502/gpu-spike-start.sh`.)
+4. T-576's open question (the player's share of a core). Pinning gave nothing (2026-11-18, Enyo, content rate
+   unpinned / player on cpu1 and daemon on cpu0 / the reverse): Achievement Unlocked 12.8 / 12.4 / 11.2, Effing
+   Meteors 9.4 / 6.8 / 8.2, Hobo 2 7.0 / 6.4 / 5.8. (The `pinned` line was not kept in the round's output: `pin` ran
+   under `--threads`, its answer was not read back.) Left: the context switches per thread, the sync messages a frame.
 5. T-578's rest: two real pages; the audio over a clip's whole length; five stock runs for the bars; the first H.264
    clip after a restart.
 

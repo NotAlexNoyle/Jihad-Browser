@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-18T05:54:11
+# Finger suite report — 2026-11-18T06:43:58
 
 First run 2026-11-17T11:47:07; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
+Shells: enyo, mochi, mojo. Scripts: 3. 27603 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -321,21 +321,21 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 | enyo | autoplay-sound | **pass** | 3 ok, 0 failed | WAIT ok 13-text status = [playing]; frames: kept/enyo-autoplay-sound-refused_.jpg | cavekit-gre-widgets.md R1 |
 | enyo | flash-app-mp3 | **pass** | 5 ok, 0 failed | CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
 | enyo | flash-game-sound | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/enyo-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
-| enyo | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,284: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 42, distinct 1, spacing median 66 p90 146 max 172 ms (wanted 0..4/s) | cavekit-flash.md R3 |
+| enyo | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,284: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 162 max 197 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | enyo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440 env 2937,2951,2956,2939,2950,2924, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
-| enyo | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2952 rms 2057 frames 45056 hz 440 env 2936,2946,2952,2941,2940,2931, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
+| enyo | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440 env 2938,2946,2956,2944,2950,2933, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
 | mochi | audio-heard | **pass** | 6 ok, 0 failed | CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440 env 2951,2956,2939,2950,2955,2919, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-device-build.md R4 |
 | mochi | flash-app-mp3 | **pass** | 5 ok, 0 failed | CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
 | mochi | flash-game-sound | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/mochi-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
-| mochi | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 86 max 180 ms (wanted 0..4/s) | cavekit-flash.md R3 |
+| mochi | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 44 (14.7/s), changes 0 (0.0/s), reads 45, distinct 1, spacing median 66 p90 137 max 185 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | mochi | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440 env 2942,2951,2948,2956,2935,2950, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
-| mochi | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2058 frames 45056 hz 440 env 2941,2952,2935,2955,2946,2925, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
+| mochi | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440 env 2943,2950,2954,2936,2949,2949, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
 | mojo | audio-heard | **pass** | 6 ok, 0 failed | CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440 env 2951,2956,2939,2950,2955,2919, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-device-build.md R4 |
 | mojo | flash-app-mp3 | **pass** | 5 ok, 0 failed | CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
 | mojo | flash-game-sound | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/mojo-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
-| mojo | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,275: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 67 p90 98 max 161 ms (wanted 0..4/s) | cavekit-flash.md R3 |
+| mojo | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 42, distinct 1, spacing median 67 p90 145 max 188 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | mojo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2957 rms 2056 frames 45056 hz 440 env 2955,2938,2951,2957,2944,2935, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
-| mojo | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440 env 2935,2946,2955,2948,2944,2921, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
+| mojo | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440 env 2950,2948,2946,2955,2949,2935, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
 | enyo | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 15926: alive (state S, cpu ticks 2249 to 2260) | cavekit-flash.md R8 |
 | enyo | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 10076: alive (state S, cpu ticks 766 to 779) | cavekit-flash.md R8 |
 | enyo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 13646: alive (state S, cpu ticks 1133 to 1145) | cavekit-flash.md R8 |
@@ -345,7 +345,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 | enyo | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 19454: alive (state S, cpu ticks 635 to 642) | cavekit-flash.md R8 |
 | enyo | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 31032: alive (state S, cpu ticks 676 to 687) | cavekit-flash.md R8 |
 | enyo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 3179: alive (state R, cpu ticks 559 to 571) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 6756: alive (state S, cpu ticks 687 to 698) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 13452: alive (state S, cpu ticks 642 to 654) | cavekit-flash.md R8 |
 | enyo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 10545: alive (state S, cpu ticks 784 to 796) | cavekit-flash.md R8 |
 | enyo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 13913: alive (state S, cpu ticks 314 to 325) | cavekit-flash.md R8 |
 | enyo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 17162: alive (state S, cpu ticks 433 to 444) | cavekit-flash.md R8 |
@@ -361,7 +361,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 | mochi | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 22658: alive (state R, cpu ticks 631 to 639) | cavekit-flash.md R8 |
 | mochi | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 1958: alive (state S, cpu ticks 678 to 690) | cavekit-flash.md R8 |
 | mochi | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 6132: alive (state R, cpu ticks 564 to 575) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 9659: alive (state R, cpu ticks 671 to 681) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 24449: alive (state S, cpu ticks 683 to 694) | cavekit-flash.md R8 |
 | mochi | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 13202: alive (state S, cpu ticks 820 to 830) | cavekit-flash.md R8 |
 | mochi | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 16524: alive (state S, cpu ticks 316 to 327) | cavekit-flash.md R8 |
 | mochi | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 19841: alive (state S, cpu ticks 439 to 450) | cavekit-flash.md R8 |
@@ -377,7 +377,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 | mojo | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 25823: alive (state S, cpu ticks 470 to 477) | cavekit-flash.md R8 |
 | mojo | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 5715: alive (state S, cpu ticks 647 to 659) | cavekit-flash.md R8 |
 | mojo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 10170: alive (state S, cpu ticks 515 to 527) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 13648: alive (state S, cpu ticks 630 to 642) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 3212: alive (state S, cpu ticks 627 to 638) | cavekit-flash.md R8 |
 | mojo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 17036: alive (state S, cpu ticks 749 to 761) | cavekit-flash.md R8 |
 | mojo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 20515: alive (state S, cpu ticks 303 to 314) | cavekit-flash.md R8 |
 | mojo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 23891: alive (state S, cpu ticks 414 to 425) | cavekit-flash.md R8 |
@@ -388,7 +388,48 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 ## The device at the end
 
 ```
-(not checked)
+DEVICE ok job-enyo: (31087/425572203) jihad (start) running, process 19057
+DEVICE ok daemons-enyo: one daemon
+DEVICE ok hand-daemon-enyo: none
+DEVICE ok hooks-enyo: none
+DEVICE ok adapter-gates-enyo: none
+DEVICE ok proxy-enyo: network.proxy.type unset
+DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
+DEVICE ok cards-enyo: none
+DEVICE ok audio-lib-enyo: the device's own
+DEVICE ok look-enyo: {"returnValue":true,"theme":null}
+DEVICE ok job-mochi: (31093/665765386) jihad-mochi (start) running, process 30176
+DEVICE ok daemons-mochi: one daemon
+DEVICE ok hand-daemon-mochi: none
+DEVICE ok hooks-mochi: none
+DEVICE ok adapter-gates-mochi: none
+DEVICE ok proxy-mochi: network.proxy.type unset
+DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
+DEVICE ok cards-mochi: none
+DEVICE ok audio-lib-mochi: the device's own
+DEVICE ok look-mochi: {"returnValue":true,"theme":null}
+DEVICE ok job-mojo: (31098/255818718) jihad-mojo (start) running, process 8859
+DEVICE ok daemons-mojo: one daemon
+DEVICE ok hand-daemon-mojo: none
+DEVICE ok hooks-mojo: none
+DEVICE ok adapter-gates-mojo: none
+DEVICE ok proxy-mojo: network.proxy.type unset
+DEVICE ok history-mojo: browser.sessionhistory.max_entries the default
+DEVICE ok cards-mojo: none
+DEVICE ok audio-lib-mojo: the device's own
+DEVICE ok look-mojo: {"returnValue":true,"theme":null}
+DEVICE ok gate-files: none in /tmp
+DEVICE ok device-scripts: none left in /tmp
+DEVICE ok test-pads-enyo: none
+DEVICE ok dialog-pipes-enyo: none
+DEVICE ok test-pads-mochi: none
+DEVICE ok dialog-pipes-mochi: none
+DEVICE ok test-pads-mojo: none
+DEVICE ok dialog-pipes-mojo: none
+DEVICE ok tmp-dumps: none
+DEVICE ok volume-subscribers: none without its daemon
+DEVICE ok media-scratch: none
+DEVICE ok overall: 47% of /tmp used
 ```
 
 ## Every test's lines
@@ -3970,14 +4011,14 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
 ### enyo / flash-lane — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +2 s, load done at +8 s, 15 content frames at +8 s; the GPU path, frames off t
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +2 s, load done at +8 s, 16 content frames at +8 s; the GPU path, frames off t
     WAIT ok 7-rect toggle
-    CHECK ok 9-flash-rate: content 40,123-440,421: 3.0 s, flips 43 (14.3/s), changes 41 (13.7/s), reads 44, distinct 42, spacing median 67 p90 86 max 181 ms (wanted 8..100/s)
-    CHECK ok 11-flash-rate: content 40,123-440,421: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 87 max 167 ms (wanted 0..4/s)
-    CHECK ok 13-flash-rate: content 40,123-440,421: 3.0 s, flips 42 (14.0/s), changes 40 (13.3/s), reads 44, distinct 41, spacing median 66 p90 88 max 220 ms (wanted 8..100/s)
+    CHECK ok 9-flash-rate: content 40,123-440,421: 3.0 s, flips 43 (14.3/s), changes 41 (13.7/s), reads 44, distinct 42, spacing median 68 p90 85 max 168 ms (wanted 8..100/s)
+    CHECK ok 11-flash-rate: content 40,123-440,421: 3.0 s, flips 43 (14.3/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 67 p90 87 max 136 ms (wanted 0..4/s)
+    CHECK ok 13-flash-rate: content 40,123-440,421: 3.0 s, flips 44 (14.7/s), changes 43 (14.3/s), reads 45, distinct 44, spacing median 66 p90 83 max 159 ms (wanted 8..100/s)
     WAIT ok 15-settled: the card's scroll 0 138
-    CHECK ok 16-flash-rate: content 40,0-440,284: 3.0 s, flips 42 (14.0/s), changes 31 (10.3/s), reads 43, distinct 32, spacing median 68 p90 86 max 196 ms (wanted 8..100/s)
-    CHECK ok 18-flash-rate: content 40,0-440,284: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 42, distinct 1, spacing median 66 p90 146 max 172 ms (wanted 0..4/s)
+    CHECK ok 16-flash-rate: content 40,0-440,284: 3.0 s, flips 43 (14.3/s), changes 27 (9.0/s), reads 44, distinct 28, spacing median 68 p90 85 max 182 ms (wanted 8..100/s)
+    CHECK ok 18-flash-rate: content 40,0-440,284: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 162 max 197 ms (wanted 0..4/s)
 
 ### enyo / flash-sound — pass
 
@@ -3993,20 +4034,20 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
 ### enyo / volume-keys — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +7 s, 15 content frames at +7 s; the GPU path, frames off the main thread
+    enyo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +2 s, load done at +8 s, 18 content frames at +8 s; the GPU path, frames off the main thread
     WAIT ok 9-text status = [playing]
-    CHECK ok 13-sound: sound at the output sink: peak 2958 rms 2058 frames 45056 hz 440 env 2939,2958,2943,2940,2952,2943, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 13-sound: sound at the output sink: peak 2952 rms 2058 frames 45056 hz 440 env 2952,2943,2950,2938,2948,2946, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
     CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build
     CHECK ok 17-volume: the media volume 66, higher (marked 44)
     CHECK ok 18-volume: the codec's output level 41 of 63 for the media volume 66
-    CHECK ok 19-sound: sound at the output sink: peak 2955 rms 2057 frames 45056 hz 440 env 2938,2944,2950,2937,2955,2943, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
+    CHECK ok 19-sound: sound at the output sink: peak 2956 rms 2057 frames 45056 hz 440 env 2941,2939,2956,2938,2942,2937, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
     CHECK ok 22-volume: the media volume 44, lower (marked 66)
     CHECK ok 23-volume: the codec's output level 27 of 63 for the media volume 44
-    CHECK ok 24-sound: sound at the output sink: peak 2963 rms 2058 frames 45056 hz 440 env 2950,2941,2951,2963,2941,2925, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 24-sound: sound at the output sink: peak 2963 rms 2059 frames 45056 hz 440 env 2943,2945,2963,2963,2941,2920, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
     CHECK ok 28-volume: the media volume 0, zero (marked 66)
-    CHECK ok 29-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2956 rms 2059 frames 45056 hz 440 env 2955,2938,2946,2956,2944,2924): no sound out
+    CHECK ok 29-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2955 rms 2059 frames 45056 hz 440 env 2948,2953,2955,2949,2952,2941): no sound out
     CHECK ok 32-volume: the media volume 22, higher (marked 0)
-    CHECK ok 33-sound: sound at the output sink: peak 2952 rms 2057 frames 45056 hz 440 env 2936,2946,2952,2941,2940,2931, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
+    CHECK ok 33-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440 env 2938,2946,2956,2944,2950,2933, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
 
 ### mochi / audio-heard — pass
 
@@ -4035,14 +4076,14 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
 ### mochi / flash-lane — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +2 s, load done at +9 s, 9 content frames at +9 s; the GPU path, frames off t
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +3 s, load done at +9 s, 19 content frames at +9 s; the GPU path, frames off 
     WAIT ok 7-rect toggle
-    CHECK ok 9-flash-rate: content 40,119-440,417: 3.0 s, flips 44 (14.7/s), changes 42 (14.0/s), reads 46, distinct 43, spacing median 67 p90 92 max 223 ms (wanted 8..100/s)
-    CHECK ok 11-flash-rate: content 40,119-440,417: 3.0 s, flips 43 (14.3/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 67 p90 94 max 178 ms (wanted 0..4/s)
-    CHECK ok 13-flash-rate: content 40,119-440,417: 3.0 s, flips 45 (15.0/s), changes 44 (14.7/s), reads 46, distinct 45, spacing median 68 p90 81 max 160 ms (wanted 8..100/s)
+    CHECK ok 9-flash-rate: content 40,119-440,417: 3.0 s, flips 44 (14.7/s), changes 41 (13.7/s), reads 45, distinct 42, spacing median 68 p90 86 max 186 ms (wanted 8..100/s)
+    CHECK ok 11-flash-rate: content 40,119-440,417: 3.0 s, flips 39 (13.0/s), changes 0 (0.0/s), reads 40, distinct 1, spacing median 68 p90 137 max 161 ms (wanted 0..4/s)
+    CHECK ok 13-flash-rate: content 40,119-440,417: 3.0 s, flips 43 (14.3/s), changes 42 (14.0/s), reads 44, distinct 43, spacing median 68 p90 83 max 152 ms (wanted 8..100/s)
     WAIT ok 15-settled: the card's scroll 0 140
-    CHECK ok 16-flash-rate: content 40,0-440,278: 3.0 s, flips 44 (14.7/s), changes 24 (8.0/s), reads 45, distinct 25, spacing median 67 p90 82 max 149 ms (wanted 8..100/s)
-    CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 86 max 180 ms (wanted 0..4/s)
+    CHECK ok 16-flash-rate: content 40,0-440,278: 3.0 s, flips 44 (14.7/s), changes 25 (8.3/s), reads 45, distinct 26, spacing median 67 p90 87 max 152 ms (wanted 8..100/s)
+    CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 44 (14.7/s), changes 0 (0.0/s), reads 45, distinct 1, spacing median 66 p90 137 max 185 ms (wanted 0..4/s)
 
 ### mochi / flash-sound — pass
 
@@ -4058,20 +4099,20 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
 ### mochi / volume-keys — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +7 s, 13 content frames at +7 s; the GPU path, frames off the main threa
+    mochi card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +7 s, 14 content frames at +7 s; the GPU path, frames off the main threa
     WAIT ok 9-text status = [playing]
-    CHECK ok 13-sound: sound at the output sink: peak 2958 rms 2057 frames 45056 hz 440 env 2946,2958,2933,2952,2949,2916, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 13-sound: sound at the output sink: peak 2955 rms 2058 frames 45056 hz 440 env 2950,2938,2948,2955,2949,2939, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
     CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build
     CHECK ok 17-volume: the media volume 66, higher (marked 44)
     CHECK ok 18-volume: the codec's output level 41 of 63 for the media volume 66
-    CHECK ok 19-sound: sound at the output sink: peak 2955 rms 2058 frames 45056 hz 440 env 2955,2943,2942,2949,2942,2955, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
+    CHECK ok 19-sound: sound at the output sink: peak 2958 rms 2057 frames 45056 hz 440 env 2938,2942,2958,2950,2956,2923, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
     CHECK ok 22-volume: the media volume 44, lower (marked 66)
     CHECK ok 23-volume: the codec's output level 27 of 63 for the media volume 44
-    CHECK ok 24-sound: sound at the output sink: peak 2958 rms 2058 frames 45056 hz 440 env 2954,2938,2938,2946,2958,2944, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 24-sound: sound at the output sink: peak 2963 rms 2058 frames 45056 hz 440 env 2963,2941,2953,2940,2938,2943, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
     CHECK ok 28-volume: the media volume 0, zero (marked 66)
-    CHECK ok 29-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2954 rms 2059 frames 45056 hz 440 env 2954,2936,2949,2954,2948,2949): no sound out
+    CHECK ok 29-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2958 rms 2059 frames 45056 hz 440 env 2949,2952,2946,2958,2944,2941): no sound out
     CHECK ok 32-volume: the media volume 22, higher (marked 0)
-    CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2058 frames 45056 hz 440 env 2941,2952,2935,2955,2946,2925, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
+    CHECK ok 33-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440 env 2943,2950,2954,2936,2949,2949, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
 
 ### mojo / audio-heard — pass
 
@@ -4100,14 +4141,14 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
 ### mojo / flash-lane — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +1 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off th
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +1 s, load done at +7 s, 11 content frames at +7 s; the GPU path, frames off t
     WAIT ok 7-rect toggle
-    CHECK ok 9-flash-rate: content 40,114-440,412: 3.0 s, flips 42 (14.0/s), changes 40 (13.3/s), reads 43, distinct 41, spacing median 69 p90 108 max 154 ms (wanted 8..100/s)
-    CHECK ok 11-flash-rate: content 40,114-440,412: 3.0 s, flips 39 (13.0/s), changes 0 (0.0/s), reads 40, distinct 1, spacing median 68 p90 104 max 186 ms (wanted 0..4/s)
-    CHECK ok 13-flash-rate: content 40,114-440,412: 3.0 s, flips 44 (14.7/s), changes 43 (14.3/s), reads 45, distinct 44, spacing median 67 p90 83 max 145 ms (wanted 8..100/s)
-    WAIT ok 15-settled: the card's scroll 0 93
-    CHECK ok 16-flash-rate: content 40,0-440,275: 3.0 s, flips 43 (14.3/s), changes 34 (11.3/s), reads 44, distinct 35, spacing median 66 p90 89 max 149 ms (wanted 8..100/s)
-    CHECK ok 18-flash-rate: content 40,0-440,275: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 67 p90 98 max 161 ms (wanted 0..4/s)
+    CHECK ok 9-flash-rate: content 40,114-440,412: 3.0 s, flips 43 (14.3/s), changes 42 (14.0/s), reads 44, distinct 43, spacing median 69 p90 86 max 154 ms (wanted 8..100/s)
+    CHECK ok 11-flash-rate: content 40,114-440,412: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 111 max 198 ms (wanted 0..4/s)
+    CHECK ok 13-flash-rate: content 40,114-440,412: 3.0 s, flips 41 (13.7/s), changes 40 (13.3/s), reads 42, distinct 41, spacing median 68 p90 91 max 168 ms (wanted 8..100/s)
+    WAIT ok 15-settled: the card's scroll 0 90
+    CHECK ok 16-flash-rate: content 40,0-440,278: 3.0 s, flips 43 (14.3/s), changes 33 (11.0/s), reads 44, distinct 34, spacing median 67 p90 87 max 186 ms (wanted 8..100/s)
+    CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 42, distinct 1, spacing median 67 p90 145 max 188 ms (wanted 0..4/s)
 
 ### mojo / flash-sound — pass
 
@@ -4123,20 +4164,20 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
 ### mojo / volume-keys — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +6 s, 12 content frames at +6 s; the GPU path, frames off the main thread
+    mojo card on http://192.168.1.245:8077/jihad-media-test.html?src=clip60av.webm&wide=1&sound=1: connected at +1 s, load done at +7 s, 26 content frames at +7 s; the GPU path, frames off the main thread
     WAIT ok 9-text status = [playing]
-    CHECK ok 13-sound: sound at the output sink: peak 2958 rms 2059 frames 45056 hz 440 env 2955,2938,2949,2939,2958,2939, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 13-sound: sound at the output sink: peak 2958 rms 2058 frames 45056 hz 440 env 2947,2949,2939,2946,2958,2932, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
     CHECK ok 16-volume-hud: the window server raised its alert for the key (syslog: void LockWindow::slotTransientAlertActivated(): has displayable content); it draws no HUD in the frame buffer on this build
     CHECK ok 17-volume: the media volume 66, higher (marked 44)
     CHECK ok 18-volume: the codec's output level 41 of 63 for the media volume 66
-    CHECK ok 19-sound: sound at the output sink: peak 2964 rms 2060 frames 45056 hz 440 env 2955,2964,2937,2960,2940,2930, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
+    CHECK ok 19-sound: sound at the output sink: peak 2964 rms 2060 frames 45056 hz 440 env 2955,2964,2937,2960,2943,2918, the speaker amp on, the media volume 66, the pitch wanted 440 Hz
     CHECK ok 22-volume: the media volume 44, lower (marked 66)
     CHECK ok 23-volume: the codec's output level 27 of 63 for the media volume 44
-    CHECK ok 24-sound: sound at the output sink: peak 2953 rms 2059 frames 45056 hz 440 env 2946,2953,2951,2940,2950,2934, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
+    CHECK ok 24-sound: sound at the output sink: peak 2953 rms 2059 frames 45056 hz 440 env 2946,2953,2951,2950,2947,2931, the speaker amp on, the media volume 44, the pitch wanted 440 Hz
     CHECK ok 28-volume: the media volume 0, zero (marked 66)
-    CHECK ok 29-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2958 rms 2058 frames 45056 hz 440 env 2949,2953,2958,2948,2942,2930): no sound out
+    CHECK ok 29-sound: the route muted (the speaker amp on, the media volume 0) with the signal still at the sink (peak 2958 rms 2058 frames 45056 hz 440 env 2938,2949,2954,2958,2938,2942): no sound out
     CHECK ok 32-volume: the media volume 22, higher (marked 0)
-    CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440 env 2935,2946,2955,2948,2944,2921, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
+    CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440 env 2950,2948,2946,2955,2949,2935, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
 
 ### enyo / flash-video-controls — pass
 
@@ -4290,20 +4331,20 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
 ### enyo / flash-video-spark-360 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +2 s, load done at +7 s, 6 content frames at +7 s; t
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +2 s, load done at +8 s, 14 content frames at +8 s; 
     WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.233 dropped=16 fps=0]
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 1525cca5 rows 298 uniform 0 light none blue 138-148
+    WAIT ok 14-text video = [video t=4.545 dropped=29 fps=24.169184290030213]
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 1bbfa2ce rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3897,3897,3898,3897,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 195 (19.5/s), changes 190 (19.0/s), reads 198, distinct 191, spacing median 42 p90 92 max 215 ms (wanted 12.8..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 3952 hash 47f9809d rows 298 uniform 0 light none blue none
+    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3897,3893,3895,3896,3894,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 172 (17.2/s), changes 161 (16.1/s), reads 174, distinct 162, spacing median 44 p90 107 max 293 ms (wanted 12.8..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.67 dropped=86 fps=24.84472049689441]
-    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 86 (wanted 0..288)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.487 dropped=128 fps=23.696682464454977]
+    CHECK ok 22-number: vendtime = 19.487 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 128 (wanted 0..288)
     CHECK ok 24-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 6756: alive (state S, cpu ticks 687 to 698)
+    CHECK ok 25-plugin: plugin-container 13452: alive (state S, cpu ticks 642 to 654)
 
 ### enyo / flash-video-spark-480 — pass
 
@@ -4556,20 +4597,20 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
 ### mochi / flash-video-spark-360 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +6 s, 7 content frames at +6 s; 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +7 s, 7 content frames at +7 s; 
     WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=2.403 dropped=18 fps=20.512820512820515]
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash d7a7bf53 rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=1.567 dropped=5 fps=20.356234096692113]
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 3565 hash ee8c95b6 rows 298 uniform 0 light none blue 332-344
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3897,3896,3895,3895,3895, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 187 (18.7/s), changes 174 (17.4/s), reads 188, distinct 175, spacing median 43 p90 106 max 162 ms (wanted 12.8..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 3ad48c44 rows 298 uniform 0 light none blue none
+    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3896,3895,3898,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 208 (20.8/s), changes 202 (20.2/s), reads 210, distinct 203, spacing median 43 p90 80 max 207 ms (wanted 12.8..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash e85337d8 rows 298 uniform 0 light none blue 127-139
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=93 fps=24.3531202435312]
-    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 93 (wanted 0..288)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.122 dropped=82 fps=15.182186234817813]
+    CHECK ok 22-number: vendtime = 19.122 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 82 (wanted 0..288)
     CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70587089 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 9659: alive (state R, cpu ticks 671 to 681)
+    CHECK ok 25-plugin: plugin-container 24449: alive (state S, cpu ticks 683 to 694)
 
 ### mochi / flash-video-spark-480 — pass
 
@@ -4824,18 +4865,18 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
     mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +6 s, 9 content frames at +6 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.108 dropped=11 fps=10.457516339869281]
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 3661 hash 30a10a74 rows 298 uniform 0 light none blue 165-178
+    WAIT ok 14-text video = [video t=1.019 dropped=5 fps=0]
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 3513 hash 48ec57db rows 298 uniform 0 light none blue 315-328
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3897,3896,3897,3898,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 171 (17.1/s), changes 165 (16.5/s), reads 173, distinct 166, spacing median 44 p90 114 max 230 ms (wanted 12.8..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 3871 hash 1093fd0a rows 298 uniform 0 light none blue none
+    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3896,3894,3895,3898, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 187 (18.7/s), changes 183 (18.3/s), reads 189, distinct 184, spacing median 43 p90 87 max 220 ms (wanted 12.8..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash b63ee6a6 rows 298 uniform 0 light none blue 140-153
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=104 fps=24.115755627009648]
-    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 104 (wanted 0..288)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.853 dropped=114 fps=20.1765447667087]
+    CHECK ok 22-number: vendtime = 19.853 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 114 (wanted 0..288)
     CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash eb1248d8 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 13648: alive (state S, cpu ticks 630 to 642)
+    CHECK ok 25-plugin: plugin-container 3212: alive (state S, cpu ticks 627 to 638)
 
 ### mojo / flash-video-spark-480 — pass
 

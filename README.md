@@ -37,7 +37,7 @@ and touches nothing else.
 | Area | Progress | What it covers |
 |---|---|---|
 | Engine and page drawing | `██████████████████░░` 94 % | Goanna inside the webOS card, frames to the card, the card's messages |
-| Drawing on the GPU | `█████████████████░░░` 88 % | the Adreno 220 composes the page; WebGL; pan and zoom speed |
+| Drawing on the GPU | `██████████████████░░` 90 % | the Adreno 220 composes the page; WebGL; pan and zoom speed |
 | The modern web | `█████████████████░░░` 87 % | today's sites: TLS, missing features filled in, video |
 | Speed and memory | `███████████████░░░░░` 78 % | the engine tuned for the TouchPad; no page can starve the device; YouTube made light |
 | The three interfaces | `███████████████████░` 95 % | Enyo, Mochi and Mojo |

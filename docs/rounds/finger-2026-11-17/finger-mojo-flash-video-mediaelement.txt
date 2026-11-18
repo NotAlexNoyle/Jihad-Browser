@@ -1,9 +1,9 @@
 WAIT ok 10-rect m
 WAIT ok 11-content m
 CHECK ok 12-decoder: the kernel's video decoder: no arena fault in the last two minutes
-CHECK ok 13-flash-rate: content 0,74-640,432: 5.0 s, flips 151 (30.2/s), changes 126 (25.2/s), reads 152, distinct 127, spacing median 30 p90 42 max 159 ms (wanted 5..40/s)
-CHECK ok 14-flash-drawn: drawn: region 0,74-640,432: colours 4096 hash 007e2ab6 rows 358 uniform 0 light none blue none
+CHECK ok 13-flash-rate: content 0,74-640,432: 5.0 s, flips 132 (26.4/s), changes 106 (21.2/s), reads 133, distinct 107, spacing median 31 p90 48 max 185 ms (wanted 5..40/s)
+CHECK ok 14-flash-drawn: drawn: region 0,74-640,432: colours 4096 hash 18dfd5c4 rows 358 uniform 0 light none blue none
 WAIT ok 15-still m
-CHECK ok 16-flash-drawn: drawn: region 0,74-640,432: colours 4096 hash 007e2ab6 rows 358 uniform 0 light none blue none
-CHECK ok 17-plugin: plugin-container 25823: alive (state S, cpu ticks 470 to 477)
+CHECK ok 16-flash-drawn: drawn: region 0,74-640,432: colours 4096 hash 18dfd5c4 rows 358 uniform 0 light none blue none
+CHECK ok 17-plugin: plugin-container 13521: alive (state S, cpu ticks 451 to 458)
 CHECKS 5 FAILS 0

@@ -48,10 +48,20 @@ What the sizes cost on this device:
 - **Spark and VP6 (the player's own decoders): as the stock browser.** Every size drops frames, more with the rows:
   about one in five at 240 and 360 rows, one in four to one in three at 480, half of the 480-row clip at 25 frames a
   second, one in ten at 120 rows and 12 frames. The stock browser's first eight seconds read the same order.
-- **H.264 (the kernel's hardware decoder): more dropped here than in the stock browser at 360 rows.** The stock
-  browser dropped none in its first eight seconds of either 360-row clip, three runs each; Mochi and Mojo dropped 3.5 to
-  7.4 a second there, Enyo 0.2. To the end of the clips the shells drop 15 to 25 % at every size. This is a defect to
-  find, not a limit: the two readings are few, and the suite cannot read the stock browser's count to a clip's end.
+- **H.264 (the kernel's hardware decoder): frames dropped here, none in the stock browser.** Confirmed on 2026-11-18
+  over three more rounds of the three H.264 clips: the stock browser's report line reads `dropped=0` in every kept
+  picture (nine readings at 1.4 to 7.4 s); the shells read 0 to 32 at the same moments, most often 10 to 25, and the
+  player's own rate reads 30 to 50 a second for a 24 or 30 frame clip (it is catching up). The first H.264 clip a card
+  plays also starts late here (1.7 to 4.3 changes a second on the screen over its first ten seconds, against 11.5 to
+  13.7 in the stock browser; twice no report line at all by the picture). Open, with these ruled out by measurement:
+  - the page's own reports. A movie's call into its page waits for the daemon (20 to 40 ms a call, three a line; the
+    child's readout of engine patch 0117, `waits on the parent`), queued behind the daemon's paint of the page the
+    line just changed. The page now applies a video's lines four times a second: the drops stayed.
+  - waking the daemon's loop as such a call arrives: the wait stayed (it is behind work, not behind the tick).
+  - the plugin process's glib loop being polled (4 or 16 ms) where the stock host runs it: polling again at once
+    after a source ran changed neither the drops nor three games' rates (12.0, 9.4, 7.2 against 12.8, 9.4, 7.0).
+  Not yet looked at: how the decoder's frames get from the player to the screen here (the draw event's cost at video
+  size, the two-surface turn), and the decoder's own threads' share of the cores.
 - The content rate on the screen is above each clip's bar in every shell but one reading (Mochi's VP6-alpha, 9.6
   against 9.8; Mojo read 9.4 the day before): inside the stock browser's own spread of 9.0 to 11.6 over three runs. The
   bars are loose (the stock browser's lowest run is under its own bar for 11 of the 12 clips) and want five runs over
@@ -85,8 +95,7 @@ difference per channel, 2 or less), and T-660 is closed as not a defect.
 
 ## Open
 
-- H.264's dropped frames against the stock browser's at 360 rows (above).
-- The first H.264 clip after a restart of the device, in the shells.
+- H.264: dropped frames and the late start of a card's first clip (above).
 - The audio stream over a clip's whole length (it is read at the start and after the rate's ten seconds).
 - Two real pages with a Flash video player.
 - The bars: five stock runs over the suite's window.

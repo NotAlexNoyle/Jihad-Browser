@@ -1,24 +1,24 @@
 WAIT ok 13-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-WAIT ok 14-text video = [video t=2 dropped=9 fps=22.377622377622377]
+WAIT ok 14-text video = [video t=1.279 dropped=3 fps=0]
 WAIT ok 15-content m
-CHECK ok 16-sound: sound at the output sink: peak 2083 rms 420 frames 45056 hz 173 env 858,1292,1132,1400,2083,1729, the speaker amp on, the media volume 23
+CHECK ok 16-sound: sound at the output sink: peak 870 rms 126 frames 45056 hz 124 env 23,55,165,591,870,594, the speaker amp on, the media volume 23
   flash tap on stage 60,260 (showAll) at 100 378
-WAIT ok 18-text vctl = [vctl pause t=9.639]
+WAIT ok 18-text vctl = [vctl pause t=7.706]
 WAIT ok 19-still m
-  sample paused of m: hash 437dd651
+  sample paused of m: hash 70c47d1e
 CHECK ok 21-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
 CHECK ok 22-region-near: the picture against the sample paused: difference 0.0 (2 or less)
   flash tap on stage 200,260 (showAll) at 240 378
-WAIT ok 24-text vctl = [vctl resume t=9.639]
+WAIT ok 24-text vctl = [vctl resume t=7.706]
 WAIT ok 25-differs m
-CHECK ok 26-sound: sound at the output sink: peak 4231 rms 958 frames 45056 hz 249 env 2283,2166,3263,3734,4231,2905, the speaker amp on, the media volume 23
-  sample before of m: hash 6d1bc377
+CHECK ok 26-sound: sound at the output sink: peak 8401 rms 1529 frames 45056 hz 434 env 8401,5474,4721,4647,4617,3114, the speaker amp on, the media volume 23
+  sample before of m: hash d20e98ef
   flash tap on stage 330,260 (showAll) at 370 378
-WAIT ok 29-text vctl = [vctl seek 40 t=21.315]
+WAIT ok 29-text vctl = [vctl seek 40 t=15.281]
 WAIT ok 30-differs m
-WAIT ok 31-text video = [video t=44.434 dropped=133 fps=25.6]
-CHECK ok 32-number: vtime = 44.434 (wanted 38..58)
-WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.308 dropped=353 fps=23.21981424148607]
-CHECK ok 34-number: vendtime = 86.308 (wanted 84.3..87.3)
-CHECK ok 35-plugin: plugin-container 21098: alive (state S, cpu ticks 2258 to 2268)
+WAIT ok 31-text video = [video t=41.456 dropped=51 fps=26.016260162601625]
+CHECK ok 32-number: vtime = 41.456 (wanted 38..58)
+WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.595 dropped=219 fps=25.848142164781905]
+CHECK ok 34-number: vendtime = 86.595 (wanted 84.3..87.3)
+CHECK ok 35-plugin: plugin-container 14669: alive (state S, cpu ticks 2172 to 2184)
 CHECKS 7 FAILS 0

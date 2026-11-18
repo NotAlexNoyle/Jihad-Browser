@@ -1,15 +1,13 @@
 WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-WAIT ok 14-text video = [video t=3.343 dropped=3 fps=15.717092337917485]
-CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2574 hash e9714908 rows 298 uniform 0 light none blue none
+WAIT ok 14-text video = [video t=1.097 dropped=1 fps=0]
+CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2431 hash 1ac840d2 rows 298 uniform 0 light none blue none
 CHECK ok 16-audio: the movie's audio: open running audible
-CHECK FAIL 17-flash-rate: content 40,119-440,417: 10.0 s, flips 120 (12.0/s), changes 96 (9.6/s), reads 124, distinct 94, spacing median 61 p90 180 max 284 ms (wanted 9.8..40/s)
-  frame kept: /media/internal/jihad-finger/17-flash-rate_.last.raw
-CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
+CHECK ok 17-flash-rate: content 40,119-440,417: 10.0 s, flips 144 (14.4/s), changes 140 (14.0/s), reads 146, distinct 141, spacing median 60 p90 118 max 216 ms (wanted 9.8..40/s)
+CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
 CHECK ok 19-audio: the movie's audio: open running audible
-WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.975 dropped=35 fps=14.52081316553727]
-CHECK ok 21-number: vendtime = 13.975 (wanted 11.5..14.5)
-CHECK ok 22-number: venddropped = 35 (wanted 0..125)
-CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
-CHECK ok 24-plugin: plugin-container 484: alive (state S, cpu ticks 580 to 591)
-CHECKS 9 FAILS 1
-novacom: unexpected EOF from server
+WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.818 dropped=20 fps=15.873015873015873]
+CHECK ok 21-number: vendtime = 13.818 (wanted 11.5..14.5)
+CHECK ok 22-number: venddropped = 20 (wanted 0..125)
+CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
+CHECK ok 24-plugin: plugin-container 8220: alive (state S, cpu ticks 586 to 597)
+CHECKS 9 FAILS 0

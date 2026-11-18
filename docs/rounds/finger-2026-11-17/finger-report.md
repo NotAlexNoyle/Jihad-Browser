@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-18T06:43:58
+# Finger suite report — 2026-11-18T10:30:41
 
 First run 2026-11-17T11:47:07; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 3. 27603 s.
+Shells: enyo, mochi, mojo. Scripts: 1. 32704 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -32,7 +32,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 27603 s.
 | enyo | etsy-search (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 12-content: region 0,100-768,900: colours 4096 hash 105343fb rows 800 uniform 119 light 100-899 blue none; sel:body on the screen at 0,82-768,8849 | cavekit-modern-web.md R2 |
 | enyo | everyday-browsing | **pass** | 5 ok, 0 failed | WAIT ok 17-url: https://duckduckgo.com/ | cavekit-engine-update.md R8 |
 | enyo | express-burst-wiki | **pass** | 5 ok, 0 failed | CHECK ok 17-content: region 0,100-756,700: colours 1097 hash 7b6c2598 rows 600 uniform 0 light 101-699 blue 100-584; sel:body on the screen at -1237,-2489-1359,708 | cavekit-gpu-rendering.md R3 |
-| enyo | flash-api | **pass** | 14 ok, 0 failed | CHECK ok 22-text: count = [0] | cavekit-flash.md R4 |
+| enyo | flash-api (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 22-text: count = [0] | cavekit-flash.md R4 |
 | enyo | flash-fullscreen | **pass** | 8 ok, 0 failed | CHECK ok 20-flash-behind: the colour 00ff00 in 180 of 192 cells (wanted yes); frames: kept/enyo-flash-fullscreen-fullscreen_.jpg | cavekit-flash.md R4 |
 | enyo | flash-input-cover | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R5 |
 | enyo | flash-input-hold (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-press-rate: 26.5 moves a second sent on (at least 20): ] a press of 1441 ms: 32 moves from the card in 1207 ms, 32 sent on, 232 ms in sending them | cavekit-flash.md R5 |
@@ -41,7 +41,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 27603 s.
 | enyo | flash-input-keyhold | **pass** | 7 ok, 0 failed | CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-flash.md R6 |
 | enyo | flash-input-keys | **pass** | 13 ok, 0 failed | CHECK ok 31-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-flash.md R5 |
 | enyo | flash-input-lock | **pass** | 15 ok, 0 failed | CHECK ok 31-card-scroll-min: the card's scroll y 100 (at least 30) | cavekit-flash.md R5 |
-| enyo | flash-input-tap | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
+| enyo | flash-input-tap (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
 | enyo | flash-layout | **pass** | 17 ok, 0 failed | CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
 | enyo | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 55 (18.3/s), changes 32 (10.7/s), reads 57, distinct 33, spacing median 44 p90 88 max 246 ms (wanted 5..100/s) | cavekit-flash.md R4 |
 | enyo | flash-text (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused) | cavekit-flash.md R7 |
@@ -122,7 +122,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 27603 s.
 | mochi | etsy-search (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 12-content: region 0,100-768,900: colours 4096 hash db85be2b rows 800 uniform 162 light 100-899 blue none; sel:body on the screen at 0,78-768,8821 | cavekit-modern-web.md R2 |
 | mochi | everyday-browsing | **pass** | 5 ok, 0 failed | WAIT ok 17-url: https://duckduckgo.com/ | cavekit-engine-update.md R8 |
 | mochi | express-burst-wiki | **pass** | 5 ok, 0 failed | CHECK ok 17-content: region 0,100-756,700: colours 1007 hash 48dc43f9 rows 600 uniform 0 light 100-699 blue 520-697; sel:body on the screen at -1237,-2535-1359,676 | cavekit-gpu-rendering.md R3 |
-| mochi | flash-api | **pass** | 14 ok, 0 failed | CHECK ok 22-text: count = [0] | cavekit-flash.md R4 |
+| mochi | flash-api (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 22-text: count = [0] | cavekit-flash.md R4 |
 | mochi | flash-fullscreen | **pass** | 8 ok, 0 failed | CHECK ok 20-flash-behind: the colour 00ff00 in 180 of 192 cells (wanted yes); frames: kept/mochi-flash-fullscreen-fullscreen_.jpg | cavekit-flash.md R4 |
 | mochi | flash-input-cover | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R5 |
 | mochi | flash-input-hold (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-press-rate: 26.4 moves a second sent on (at least 20): ] a press of 1424 ms: 33 moves from the card in 1248 ms, 33 sent on, 143 ms in sending them | cavekit-flash.md R5 |
@@ -131,7 +131,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 27603 s.
 | mochi | flash-input-keyhold | **pass** | 7 ok, 0 failed | CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-flash.md R6 |
 | mochi | flash-input-keys | **pass** | 13 ok, 0 failed | CHECK ok 31-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-flash.md R5 |
 | mochi | flash-input-lock | **pass** | 15 ok, 0 failed | CHECK ok 31-card-scroll-min: the card's scroll y 98 (at least 30) | cavekit-flash.md R5 |
-| mochi | flash-input-tap | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
+| mochi | flash-input-tap (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
 | mochi | flash-layout | **pass** | 17 ok, 0 failed | CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
 | mochi | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 48 (16.0/s), changes 43 (14.3/s), reads 49, distinct 44, spacing median 67 p90 92 max 106 ms (wanted 5..100/s) | cavekit-flash.md R4 |
 | mochi | flash-text (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused) | cavekit-flash.md R7 |
@@ -211,7 +211,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 27603 s.
 | mojo | etsy-search (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 12-content: region 0,100-768,900: colours 4096 hash ff3f3399 rows 800 uniform 139 light 100-899 blue 502-537; sel:body on the screen at 0,73-768,8785 | cavekit-modern-web.md R2 |
 | mojo | everyday-browsing | **pass** | 5 ok, 0 failed | WAIT ok 17-url: https://duckduckgo.com/ | cavekit-engine-update.md R8 |
 | mojo | express-burst-wiki | **pass** | 5 ok, 0 failed | CHECK ok 17-content: region 0,100-756,700: colours 727 hash 4aaa01d3 rows 600 uniform 0 light 100-699 blue 449-674; sel:body on the screen at -1237,-2606-1359,775 | cavekit-gpu-rendering.md R3 |
-| mojo | flash-api | **pass** | 14 ok, 0 failed | CHECK ok 22-text: count = [0] | cavekit-flash.md R4 |
+| mojo | flash-api (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 22-text: count = [0] | cavekit-flash.md R4 |
 | mojo | flash-fullscreen | **pass** | 8 ok, 0 failed | CHECK ok 20-flash-behind: the colour 00ff00 in 192 of 192 cells (wanted yes); frames: kept/mojo-flash-fullscreen-fullscreen_.jpg | cavekit-flash.md R4 |
 | mojo | flash-input-cover | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R5 |
 | mojo | flash-input-hold (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-press-rate: 26.1 moves a second sent on (at least 20): ] a press of 1360 ms: 32 moves from the card in 1228 ms, 32 sent on, 100 ms in sending them | cavekit-flash.md R5 |
@@ -220,7 +220,7 @@ Shells: enyo, mochi, mojo. Scripts: 3. 27603 s.
 | mojo | flash-input-keyhold | **pass** | 7 ok, 0 failed | CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-flash.md R6 |
 | mojo | flash-input-keys | **pass** | 13 ok, 0 failed | CHECK ok 31-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-flash.md R5 |
 | mojo | flash-input-lock | **pass** | 15 ok, 0 failed | CHECK ok 31-card-scroll-min: the card's scroll y 100 (at least 30) | cavekit-flash.md R5 |
-| mojo | flash-input-tap | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
+| mojo | flash-input-tap (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 22-number: n-up = 1 (wanted 1..1) | cavekit-flash.md R5 |
 | mojo | flash-layout | **pass** | 17 ok, 0 failed | CHECK ok 31-flash-at: the movie reported down 201,150 for stage 200,150 (within 3) | cavekit-flash.md R4 |
 | mojo | flash-tags | **pass** | 15 ok, 0 failed | CHECK ok 25-flash-rate: content 0,100-756,1000: 3.0 s, flips 43 (14.3/s), changes 36 (12.0/s), reads 44, distinct 37, spacing median 67 p90 82 max 165 ms (wanted 5..100/s) | cavekit-flash.md R4 |
 | mojo | flash-text (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 22-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused) | cavekit-flash.md R7 |
@@ -321,115 +321,74 @@ Shells: enyo, mochi, mojo. Scripts: 3. 27603 s.
 | enyo | autoplay-sound | **pass** | 3 ok, 0 failed | WAIT ok 13-text status = [playing]; frames: kept/enyo-autoplay-sound-refused_.jpg | cavekit-gre-widgets.md R1 |
 | enyo | flash-app-mp3 | **pass** | 5 ok, 0 failed | CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
 | enyo | flash-game-sound | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/enyo-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
-| enyo | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,284: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 162 max 197 ms (wanted 0..4/s) | cavekit-flash.md R3 |
+| enyo | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,284: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 67 p90 162 max 222 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | enyo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440 env 2937,2951,2956,2939,2950,2924, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | enyo | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2956 rms 2059 frames 45056 hz 440 env 2938,2946,2956,2944,2950,2933, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
 | mochi | audio-heard | **pass** | 6 ok, 0 failed | CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440 env 2951,2956,2939,2950,2955,2919, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-device-build.md R4 |
 | mochi | flash-app-mp3 | **pass** | 5 ok, 0 failed | CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
 | mochi | flash-game-sound | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/mochi-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
-| mochi | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 44 (14.7/s), changes 0 (0.0/s), reads 45, distinct 1, spacing median 66 p90 137 max 185 ms (wanted 0..4/s) | cavekit-flash.md R3 |
+| mochi | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,280: 3.0 s, flips 39 (13.0/s), changes 0 (0.0/s), reads 41, distinct 1, spacing median 68 p90 147 max 210 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | mochi | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440 env 2942,2951,2948,2956,2935,2950, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | mochi | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2954 rms 2059 frames 45056 hz 440 env 2943,2950,2954,2936,2949,2949, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
 | mojo | audio-heard | **pass** | 6 ok, 0 failed | CHECK ok 14-sound: sound at the output sink: peak 2956 rms 2058 frames 45056 hz 440 env 2951,2956,2939,2950,2955,2919, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-device-build.md R4 |
 | mojo | flash-app-mp3 | **pass** | 5 ok, 0 failed | CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 | cavekit-flash.md R7 |
 | mojo | flash-game-sound | **pass** | 2 ok, 0 failed | CHECK ok 17-audio: the movie's audio: open running audible; frames: kept/mojo-flash-game-sound-game_.jpg | cavekit-flash.md R9 |
-| mojo | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 42, distinct 1, spacing median 67 p90 145 max 188 ms (wanted 0..4/s) | cavekit-flash.md R3 |
+| mojo | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,29-440,327: 3.0 s, flips 40 (13.3/s), changes 0 (0.0/s), reads 41, distinct 1, spacing median 68 p90 150 max 176 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | mojo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2957 rms 2056 frames 45056 hz 440 env 2955,2938,2951,2957,2944,2935, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | mojo | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440 env 2950,2948,2946,2955,2949,2935, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
-| enyo | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 15926: alive (state S, cpu ticks 2249 to 2260) | cavekit-flash.md R8 |
-| enyo | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 10076: alive (state S, cpu ticks 766 to 779) | cavekit-flash.md R8 |
-| enyo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 13646: alive (state S, cpu ticks 1133 to 1145) | cavekit-flash.md R8 |
-| enyo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 17197: alive (state S, cpu ticks 1037 to 1049) | cavekit-flash.md R8 |
-| enyo | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 20563: alive (state S, cpu ticks 1136 to 1147) | cavekit-flash.md R8 |
-| enyo | flash-video-h264-mp4 (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 24122: alive (state S, cpu ticks 573 to 581) | cavekit-flash.md R8 |
-| enyo | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 19454: alive (state S, cpu ticks 635 to 642) | cavekit-flash.md R8 |
-| enyo | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 31032: alive (state S, cpu ticks 676 to 687) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 3179: alive (state R, cpu ticks 559 to 571) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 13452: alive (state S, cpu ticks 642 to 654) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 10545: alive (state S, cpu ticks 784 to 796) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 13913: alive (state S, cpu ticks 314 to 325) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 17162: alive (state S, cpu ticks 433 to 444) | cavekit-flash.md R8 |
-| enyo | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 20993: alive (state S, cpu ticks 2682 to 2693) | cavekit-flash.md R8 |
-| enyo | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 25922: alive (state S, cpu ticks 2285 to 2296) | cavekit-flash.md R8 |
-| enyo | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 24-plugin: plugin-container 30510: alive (state S, cpu ticks 574 to 585) | cavekit-flash.md R8 |
-| mochi | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 21098: alive (state S, cpu ticks 2258 to 2268) | cavekit-flash.md R8 |
-| mochi | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 13427: alive (state S, cpu ticks 789 to 802) | cavekit-flash.md R8 |
-| mochi | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 16871: alive (state S, cpu ticks 1086 to 1097) | cavekit-flash.md R8 |
-| mochi | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 20281: alive (state S, cpu ticks 999 to 1010) | cavekit-flash.md R8 |
-| mochi | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 23743: alive (state S, cpu ticks 1133 to 1143) | cavekit-flash.md R8 |
-| mochi | flash-video-h264-mp4 (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 27323: alive (state S, cpu ticks 550 to 558) | cavekit-flash.md R8 |
-| mochi | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 22658: alive (state R, cpu ticks 631 to 639) | cavekit-flash.md R8 |
-| mochi | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 1958: alive (state S, cpu ticks 678 to 690) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 6132: alive (state R, cpu ticks 564 to 575) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 24449: alive (state S, cpu ticks 683 to 694) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 13202: alive (state S, cpu ticks 820 to 830) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 16524: alive (state S, cpu ticks 316 to 327) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 19841: alive (state S, cpu ticks 439 to 450) | cavekit-flash.md R8 |
-| mochi | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 23671: alive (state S, cpu ticks 2608 to 2620) | cavekit-flash.md R8 |
-| mochi | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 28468: alive (state S, cpu ticks 2368 to 2379) | cavekit-flash.md R8 |
-| mochi | flash-video-vp6a (rerun) | **fail** | 11 ok, 1 failed | CHECK FAIL 17-flash-rate: content 40,119-440,417: 10.0 s, flips 120 (12.0/s), changes 96 (9.6/s), reads 124, distinct 94, spacing median 61 p90 180 max 284 ms (wanted 9.8..40/s); frames: kept/mochi-flash-video-vp6a-17-flash-rate_.jpg | cavekit-flash.md R8 |
-| mojo | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 26171: alive (state S, cpu ticks 2028 to 2039) | cavekit-flash.md R8 |
-| mojo | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 17081: alive (state S, cpu ticks 753 to 766) | cavekit-flash.md R8 |
-| mojo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 20671: alive (state S, cpu ticks 972 to 984) | cavekit-flash.md R8 |
-| mojo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 24135: alive (state S, cpu ticks 793 to 805) | cavekit-flash.md R8 |
-| mojo | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 27655: alive (state S, cpu ticks 1003 to 1014) | cavekit-flash.md R8 |
-| mojo | flash-video-h264-mp4 (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 31206: alive (state S, cpu ticks 437 to 445) | cavekit-flash.md R8 |
-| mojo | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 25823: alive (state S, cpu ticks 470 to 477) | cavekit-flash.md R8 |
-| mojo | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 5715: alive (state S, cpu ticks 647 to 659) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 10170: alive (state S, cpu ticks 515 to 527) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 3212: alive (state S, cpu ticks 627 to 638) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 17036: alive (state S, cpu ticks 749 to 761) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 20515: alive (state S, cpu ticks 303 to 314) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 23891: alive (state S, cpu ticks 414 to 425) | cavekit-flash.md R8 |
-| mojo | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 27656: alive (state S, cpu ticks 2318 to 2328) | cavekit-flash.md R8 |
-| mojo | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 302: alive (state S, cpu ticks 2090 to 2101) | cavekit-flash.md R8 |
-| mojo | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 24-plugin: plugin-container 4914: alive (state S, cpu ticks 538 to 548) | cavekit-flash.md R8 |
+| enyo | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 7664: alive (state S, cpu ticks 2275 to 2286) | cavekit-flash.md R8 |
+| enyo | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 12829: alive (state S, cpu ticks 814 to 828) | cavekit-flash.md R8 |
+| enyo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 16425: alive (state S, cpu ticks 1044 to 1056) | cavekit-flash.md R8 |
+| enyo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 19939: alive (state S, cpu ticks 953 to 965) | cavekit-flash.md R8 |
+| enyo | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 23340: alive (state S, cpu ticks 1154 to 1166) | cavekit-flash.md R8 |
+| enyo | flash-video-h264-mp4 (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 26932: alive (state S, cpu ticks 563 to 571) | cavekit-flash.md R8 |
+| enyo | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 30265: alive (state S, cpu ticks 617 to 625) | cavekit-flash.md R8 |
+| enyo | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 1020: alive (state S, cpu ticks 707 to 717) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 5378: alive (state S, cpu ticks 585 to 597) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 8871: alive (state S, cpu ticks 681 to 691) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 12326: alive (state S, cpu ticks 821 to 833) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 15681: alive (state S, cpu ticks 325 to 336) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 19026: alive (state S, cpu ticks 442 to 453) | cavekit-flash.md R8 |
+| enyo | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 22818: alive (state S, cpu ticks 2829 to 2840) | cavekit-flash.md R8 |
+| enyo | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 27693: alive (state S, cpu ticks 2417 to 2429) | cavekit-flash.md R8 |
+| enyo | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 24-plugin: plugin-container 31973: alive (state S, cpu ticks 575 to 586) | cavekit-flash.md R8 |
+| mochi | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 14669: alive (state S, cpu ticks 2172 to 2184) | cavekit-flash.md R8 |
+| mochi | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 19766: alive (state S, cpu ticks 762 to 775) | cavekit-flash.md R8 |
+| mochi | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 23411: alive (state S, cpu ticks 1140 to 1151) | cavekit-flash.md R8 |
+| mochi | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 26890: alive (state S, cpu ticks 1047 to 1059) | cavekit-flash.md R8 |
+| mochi | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 30570: alive (state S, cpu ticks 1152 to 1164) | cavekit-flash.md R8 |
+| mochi | flash-video-h264-mp4 (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 1740: alive (state S, cpu ticks 568 to 575) | cavekit-flash.md R8 |
+| mochi | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 4974: alive (state S, cpu ticks 624 to 632) | cavekit-flash.md R8 |
+| mochi | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 8265: alive (state S, cpu ticks 712 to 724) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 12789: alive (state S, cpu ticks 591 to 602) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 16246: alive (state S, cpu ticks 695 to 707) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 19736: alive (state S, cpu ticks 818 to 829) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 23196: alive (state S, cpu ticks 333 to 344) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 26774: alive (state R, cpu ticks 453 to 463) | cavekit-flash.md R8 |
+| mochi | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 30795: alive (state S, cpu ticks 2667 to 2678) | cavekit-flash.md R8 |
+| mochi | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 3833: alive (state R, cpu ticks 2304 to 2315) | cavekit-flash.md R8 |
+| mochi | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 24-plugin: plugin-container 8220: alive (state S, cpu ticks 586 to 597) | cavekit-flash.md R8 |
+| mojo | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 23063: alive (state S, cpu ticks 2090 to 2106) | cavekit-flash.md R8 |
+| mojo | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 28336: alive (state S, cpu ticks 804 to 816) | cavekit-flash.md R8 |
+| mojo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 31978: alive (state S, cpu ticks 936 to 946) | cavekit-flash.md R8 |
+| mojo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 3179: alive (state S, cpu ticks 815 to 826) | cavekit-flash.md R8 |
+| mojo | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 6683: alive (state S, cpu ticks 1020 to 1031) | cavekit-flash.md R8 |
+| mojo | flash-video-h264-mp4 (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 10288: alive (state S, cpu ticks 428 to 436) | cavekit-flash.md R8 |
+| mojo | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 13521: alive (state S, cpu ticks 451 to 458) | cavekit-flash.md R8 |
+| mojo | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 16770: alive (state S, cpu ticks 651 to 663) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 20901: alive (state S, cpu ticks 539 to 551) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 24358: alive (state S, cpu ticks 643 to 655) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 27897: alive (state S, cpu ticks 758 to 770) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 31332: alive (state R, cpu ticks 324 to 335) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 2536: alive (state S, cpu ticks 427 to 438) | cavekit-flash.md R8 |
+| mojo | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 6256: alive (state S, cpu ticks 2489 to 2500) | cavekit-flash.md R8 |
+| mojo | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 11137: alive (state S, cpu ticks 2158 to 2170) | cavekit-flash.md R8 |
+| mojo | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 24-plugin: plugin-container 15403: alive (state S, cpu ticks 570 to 581) | cavekit-flash.md R8 |
 
 ## The device at the end
 
 ```
-DEVICE ok job-enyo: (31087/425572203) jihad (start) running, process 19057
-DEVICE ok daemons-enyo: one daemon
-DEVICE ok hand-daemon-enyo: none
-DEVICE ok hooks-enyo: none
-DEVICE ok adapter-gates-enyo: none
-DEVICE ok proxy-enyo: network.proxy.type unset
-DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
-DEVICE ok cards-enyo: none
-DEVICE ok audio-lib-enyo: the device's own
-DEVICE ok look-enyo: {"returnValue":true,"theme":null}
-DEVICE ok job-mochi: (31093/665765386) jihad-mochi (start) running, process 30176
-DEVICE ok daemons-mochi: one daemon
-DEVICE ok hand-daemon-mochi: none
-DEVICE ok hooks-mochi: none
-DEVICE ok adapter-gates-mochi: none
-DEVICE ok proxy-mochi: network.proxy.type unset
-DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
-DEVICE ok cards-mochi: none
-DEVICE ok audio-lib-mochi: the device's own
-DEVICE ok look-mochi: {"returnValue":true,"theme":null}
-DEVICE ok job-mojo: (31098/255818718) jihad-mojo (start) running, process 8859
-DEVICE ok daemons-mojo: one daemon
-DEVICE ok hand-daemon-mojo: none
-DEVICE ok hooks-mojo: none
-DEVICE ok adapter-gates-mojo: none
-DEVICE ok proxy-mojo: network.proxy.type unset
-DEVICE ok history-mojo: browser.sessionhistory.max_entries the default
-DEVICE ok cards-mojo: none
-DEVICE ok audio-lib-mojo: the device's own
-DEVICE ok look-mojo: {"returnValue":true,"theme":null}
-DEVICE ok gate-files: none in /tmp
-DEVICE ok device-scripts: none left in /tmp
-DEVICE ok test-pads-enyo: none
-DEVICE ok dialog-pipes-enyo: none
-DEVICE ok test-pads-mochi: none
-DEVICE ok dialog-pipes-mochi: none
-DEVICE ok test-pads-mojo: none
-DEVICE ok dialog-pipes-mojo: none
-DEVICE ok tmp-dumps: none
-DEVICE ok volume-subscribers: none without its daemon
-DEVICE ok media-scratch: none
-DEVICE ok overall: 47% of /tmp used
+(not checked)
 ```
 
 ## Every test's lines
@@ -702,7 +661,7 @@ DEVICE ok overall: 47% of /tmp used
 
 ### enyo / flash-api — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, f
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1: connected at +2 s, load done at +8 s, 6 content frames at +8 s; the GPU path, f
     WAIT ok 7-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]
     WAIT ok 8-text vars = [vars a=hello]
     WAIT ok 9-text so = [so n=1]
@@ -827,7 +786,7 @@ DEVICE ok overall: 47% of /tmp used
 
 ### enyo / flash-input-tap — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +8 s, 9 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (t
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (t
     WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
     CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
     CHECK ok 10-number: n-down = 1 (wanted 1..1)
@@ -1719,7 +1678,7 @@ DEVICE ok overall: 47% of /tmp used
 
 ### mochi / flash-api — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1: connected at +1 s, load done at +8 s, 8 content frames at +8 s; the GPU path, 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1: connected at +1 s, load done at +8 s, 9 content frames at +8 s; the GPU path, 
     WAIT ok 7-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]
     WAIT ok 8-text vars = [vars a=hello]
     WAIT ok 9-text so = [so n=1]
@@ -1844,7 +1803,7 @@ DEVICE ok overall: 47% of /tmp used
 
 ### mochi / flash-input-tap — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +7 s, 10 content frames at +7 s; the GPU path, frames off the main thread (the express lane) 
     WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
     CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
     CHECK ok 10-number: n-down = 1 (wanted 1..1)
@@ -2727,7 +2686,7 @@ DEVICE ok overall: 47% of /tmp used
 
 ### mojo / flash-api — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1: connected at +1 s, load done at +7 s, 4 content frames at +7 s; the GPU path, f
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-instr-features.swf&api=1&vars=a=hello%26reset=1: connected at +1 s, load done at +7 s, 11 content frames at +7 s; the GPU path, 
     WAIT ok 7-text ready = [ready features ver=WEB 10,3,185,65 stage=400x300]
     WAIT ok 8-text vars = [vars a=hello]
     WAIT ok 9-text so = [so n=1]
@@ -2852,7 +2811,7 @@ DEVICE ok overall: 47% of /tmp used
 
 ### mojo / flash-input-tap — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2: connected at +1 s, load done at +6 s, 10 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (
     WAIT ok 7-text ready = [ready avm2 ver=WEB 10,3,185,65 stage=400x300 ei=true]
     CHECK ok 9-flash-at: the movie reported down 201,150 for stage 200,150 (within 3)
     CHECK ok 10-number: n-down = 1 (wanted 1..1)
@@ -4011,14 +3970,14 @@ DEVICE ok overall: 47% of /tmp used
 
 ### enyo / flash-lane — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +2 s, load done at +8 s, 16 content frames at +8 s; the GPU path, frames off t
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +3 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off th
     WAIT ok 7-rect toggle
-    CHECK ok 9-flash-rate: content 40,123-440,421: 3.0 s, flips 43 (14.3/s), changes 41 (13.7/s), reads 44, distinct 42, spacing median 68 p90 85 max 168 ms (wanted 8..100/s)
-    CHECK ok 11-flash-rate: content 40,123-440,421: 3.0 s, flips 43 (14.3/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 67 p90 87 max 136 ms (wanted 0..4/s)
-    CHECK ok 13-flash-rate: content 40,123-440,421: 3.0 s, flips 44 (14.7/s), changes 43 (14.3/s), reads 45, distinct 44, spacing median 66 p90 83 max 159 ms (wanted 8..100/s)
+    CHECK ok 9-flash-rate: content 40,123-440,421: 3.0 s, flips 41 (13.7/s), changes 39 (13.0/s), reads 43, distinct 40, spacing median 62 p90 142 max 194 ms (wanted 8..100/s)
+    CHECK ok 11-flash-rate: content 40,123-440,421: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 67 p90 129 max 173 ms (wanted 0..4/s)
+    CHECK ok 13-flash-rate: content 40,123-440,421: 3.0 s, flips 41 (13.7/s), changes 39 (13.0/s), reads 43, distinct 40, spacing median 69 p90 103 max 207 ms (wanted 8..100/s)
     WAIT ok 15-settled: the card's scroll 0 138
-    CHECK ok 16-flash-rate: content 40,0-440,284: 3.0 s, flips 43 (14.3/s), changes 27 (9.0/s), reads 44, distinct 28, spacing median 68 p90 85 max 182 ms (wanted 8..100/s)
-    CHECK ok 18-flash-rate: content 40,0-440,284: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 162 max 197 ms (wanted 0..4/s)
+    CHECK ok 16-flash-rate: content 40,0-440,284: 3.0 s, flips 45 (15.0/s), changes 40 (13.3/s), reads 46, distinct 41, spacing median 67 p90 85 max 150 ms (wanted 8..100/s)
+    CHECK ok 18-flash-rate: content 40,0-440,284: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 67 p90 162 max 222 ms (wanted 0..4/s)
 
 ### enyo / flash-sound — pass
 
@@ -4076,14 +4035,14 @@ DEVICE ok overall: 47% of /tmp used
 
 ### mochi / flash-lane — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +3 s, load done at +9 s, 19 content frames at +9 s; the GPU path, frames off 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +1 s, load done at +7 s, 9 content frames at +7 s; the GPU path, frames off t
     WAIT ok 7-rect toggle
-    CHECK ok 9-flash-rate: content 40,119-440,417: 3.0 s, flips 44 (14.7/s), changes 41 (13.7/s), reads 45, distinct 42, spacing median 68 p90 86 max 186 ms (wanted 8..100/s)
-    CHECK ok 11-flash-rate: content 40,119-440,417: 3.0 s, flips 39 (13.0/s), changes 0 (0.0/s), reads 40, distinct 1, spacing median 68 p90 137 max 161 ms (wanted 0..4/s)
-    CHECK ok 13-flash-rate: content 40,119-440,417: 3.0 s, flips 43 (14.3/s), changes 42 (14.0/s), reads 44, distinct 43, spacing median 68 p90 83 max 152 ms (wanted 8..100/s)
-    WAIT ok 15-settled: the card's scroll 0 140
-    CHECK ok 16-flash-rate: content 40,0-440,278: 3.0 s, flips 44 (14.7/s), changes 25 (8.3/s), reads 45, distinct 26, spacing median 67 p90 87 max 152 ms (wanted 8..100/s)
-    CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 44 (14.7/s), changes 0 (0.0/s), reads 45, distinct 1, spacing median 66 p90 137 max 185 ms (wanted 0..4/s)
+    CHECK ok 9-flash-rate: content 40,119-440,417: 3.0 s, flips 44 (14.7/s), changes 40 (13.3/s), reads 45, distinct 41, spacing median 67 p90 94 max 182 ms (wanted 8..100/s)
+    CHECK ok 11-flash-rate: content 40,119-440,417: 3.0 s, flips 43 (14.3/s), changes 0 (0.0/s), reads 44, distinct 1, spacing median 67 p90 85 max 147 ms (wanted 0..4/s)
+    CHECK ok 13-flash-rate: content 40,119-440,417: 3.0 s, flips 43 (14.3/s), changes 42 (14.0/s), reads 45, distinct 43, spacing median 66 p90 91 max 213 ms (wanted 8..100/s)
+    WAIT ok 15-settled: the card's scroll 0 138
+    CHECK ok 16-flash-rate: content 40,0-440,280: 3.0 s, flips 43 (14.3/s), changes 28 (9.3/s), reads 44, distinct 29, spacing median 68 p90 82 max 159 ms (wanted 8..100/s)
+    CHECK ok 18-flash-rate: content 40,0-440,280: 3.0 s, flips 39 (13.0/s), changes 0 (0.0/s), reads 41, distinct 1, spacing median 68 p90 147 max 210 ms (wanted 0..4/s)
 
 ### mochi / flash-sound — pass
 
@@ -4141,14 +4100,14 @@ DEVICE ok overall: 47% of /tmp used
 
 ### mojo / flash-lane — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +1 s, load done at +7 s, 11 content frames at +7 s; the GPU path, frames off t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?swf=jihad-plant-rate15.swf&w=400&h=300&over=1: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off th
     WAIT ok 7-rect toggle
-    CHECK ok 9-flash-rate: content 40,114-440,412: 3.0 s, flips 43 (14.3/s), changes 42 (14.0/s), reads 44, distinct 43, spacing median 69 p90 86 max 154 ms (wanted 8..100/s)
-    CHECK ok 11-flash-rate: content 40,114-440,412: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 66 p90 111 max 198 ms (wanted 0..4/s)
-    CHECK ok 13-flash-rate: content 40,114-440,412: 3.0 s, flips 41 (13.7/s), changes 40 (13.3/s), reads 42, distinct 41, spacing median 68 p90 91 max 168 ms (wanted 8..100/s)
-    WAIT ok 15-settled: the card's scroll 0 90
-    CHECK ok 16-flash-rate: content 40,0-440,278: 3.0 s, flips 43 (14.3/s), changes 33 (11.0/s), reads 44, distinct 34, spacing median 67 p90 87 max 186 ms (wanted 8..100/s)
-    CHECK ok 18-flash-rate: content 40,0-440,278: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 42, distinct 1, spacing median 67 p90 145 max 188 ms (wanted 0..4/s)
+    CHECK ok 9-flash-rate: content 40,114-440,412: 3.0 s, flips 39 (13.0/s), changes 38 (12.7/s), reads 40, distinct 39, spacing median 68 p90 144 max 200 ms (wanted 8..100/s)
+    CHECK ok 11-flash-rate: content 40,114-440,412: 3.0 s, flips 41 (13.7/s), changes 0 (0.0/s), reads 42, distinct 1, spacing median 66 p90 155 max 202 ms (wanted 0..4/s)
+    CHECK ok 13-flash-rate: content 40,114-440,412: 3.0 s, flips 44 (14.7/s), changes 42 (14.0/s), reads 45, distinct 43, spacing median 66 p90 77 max 154 ms (wanted 8..100/s)
+    WAIT ok 15-settled: the card's scroll 0 41
+    CHECK ok 16-flash-rate: content 40,29-440,327: 3.0 s, flips 44 (14.7/s), changes 42 (14.0/s), reads 45, distinct 43, spacing median 67 p90 81 max 146 ms (wanted 8..100/s)
+    CHECK ok 18-flash-rate: content 40,29-440,327: 3.0 s, flips 40 (13.3/s), changes 0 (0.0/s), reads 41, distinct 1, spacing median 68 p90 150 max 176 ms (wanted 0..4/s)
 
 ### mojo / flash-sound — pass
 
@@ -4181,651 +4140,651 @@ DEVICE ok overall: 47% of /tmp used
 
 ### enyo / flash-video-controls — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +3 s, load done at +8 s, 7 content frame
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +4 s, load done at +9 s, 6 content frame
     WAIT ok 13-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 14-text video = [video t=2.951 dropped=18 fps=25.252525252525253]
+    WAIT ok 14-text video = [video t=3.134 dropped=19 fps=26.31578947368421]
     WAIT ok 15-content m
-    CHECK ok 16-sound: sound at the output sink: peak 3872 rms 865 frames 45056 hz 248 env 2769,1990,2858,3350,3872,3299, the speaker amp on, the media volume 23
-    WAIT ok 18-text vctl = [vctl pause t=10.866]
+    CHECK ok 16-sound: sound at the output sink: peak 2065 rms 369 frames 45056 hz 159 env 870,735,1292,1132,2065,1248, the speaker amp on, the media volume 23
+    WAIT ok 18-text vctl = [vctl pause t=9.822]
     WAIT ok 19-still m
     CHECK ok 21-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
-    CHECK ok 22-region-near: the picture against the sample paused: difference 0.0 (2 or less)
-    WAIT ok 24-text vctl = [vctl resume t=10.866]
+    CHECK ok 22-region-near: the picture against the sample paused: difference 0.1 (2 or less)
+    WAIT ok 24-text vctl = [vctl resume t=9.822]
     WAIT ok 25-differs m
-    CHECK ok 26-sound: sound at the output sink: peak 4231 rms 1156 frames 45056 hz 151 env 3263,3734,4231,3581,3456,2120, the speaker amp on, the media volume 23
-    WAIT ok 29-text vctl = [vctl seek 40 t=20.662]
+    CHECK ok 26-sound: sound at the output sink: peak 4231 rms 1005 frames 45056 hz 218 env 2234,3263,3734,4231,2948,2747, the speaker amp on, the media volume 23
+    WAIT ok 29-text vctl = [vctl seek 40 t=21.708]
     WAIT ok 30-differs m
-    WAIT ok 31-text video = [video t=43.128 dropped=121 fps=23.054755043227665]
-    CHECK ok 32-number: vtime = 44.434 (wanted 38..58)
-    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.778 dropped=384 fps=24.65331278890601]
+    WAIT ok 31-text video = [video t=43.023 dropped=92 fps=19.9203187250996]
+    CHECK ok 32-number: vtime = 45.714 (wanted 38..58)
+    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.778 dropped=328 fps=23.357664233576642]
     CHECK ok 34-number: vendtime = 86.778 (wanted 84.3..87.3)
-    CHECK ok 35-plugin: plugin-container 15926: alive (state S, cpu ticks 2249 to 2260)
+    CHECK ok 35-plugin: plugin-container 7664: alive (state S, cpu ticks 2275 to 2286)
 
 ### enyo / flash-video-flowplayer — pass
 
-    enyo card on http://192.168.1.245:8097/title/i004-vp6a: connected at +2 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU
+    enyo card on http://192.168.1.245:8097/title/i004-vp6a: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU
     WAIT ok 10-rect m
     WAIT ok 11-content m
-    CHECK ok 12-flash-rate: content 0,83-478,511: 5.0 s, flips 72 (14.4/s), changes 72 (14.4/s), reads 74, distinct 73, spacing median 66 p90 81 max 216 ms (wanted 5..40/s)
+    CHECK ok 12-flash-rate: content 0,83-478,511: 5.0 s, flips 66 (13.2/s), changes 66 (13.2/s), reads 68, distinct 67, spacing median 67 p90 92 max 361 ms (wanted 5..40/s)
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-drawn: drawn: region 0,83-478,511: colours 3082 hash a1da3786 rows 428 uniform 95 light 83-510 blue none
-    CHECK ok 15-flash-rate: content 0,83-478,511: 3.0 s, flips 45 (15.0/s), changes 45 (15.0/s), reads 46, distinct 46, spacing median 66 p90 76 max 132 ms (wanted 5..40/s)
+    CHECK ok 14-flash-drawn: drawn: region 0,83-478,511: colours 3069 hash 45f157a0 rows 428 uniform 95 light 83-510 blue none
+    CHECK ok 15-flash-rate: content 0,83-478,511: 3.0 s, flips 46 (15.3/s), changes 46 (15.3/s), reads 47, distinct 47, spacing median 67 p90 74 max 81 ms (wanted 5..40/s)
     WAIT ok 16-still m
     CHECK ok 17-flash-drawn: drawn: region 0,83-478,511: colours 4096 hash 6b8e994c rows 428 uniform 103 light 83-483 blue none
-    CHECK ok 18-plugin: plugin-container 10076: alive (state S, cpu ticks 766 to 779)
+    CHECK ok 18-plugin: plugin-container 12829: alive (state S, cpu ticks 814 to 828)
 
 ### enyo / flash-video-h264-240 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +2 s, load done at +7 s, 4 content frames at +7 s; th
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +2 s, load done at +7 s, 5 content frames at +7 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.463 dropped=1 fps=0]
+    WAIT ok 14-text video = [video t=1.067 dropped=0 fps=20.775623268698062]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 2caf4596 rows 298 uniform 0 light none blue 230-249
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 81a8ea81 rows 298 uniform 0 light none blue 187-206
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3895,3897,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 232 (23.2/s), changes 175 (17.5/s), reads 233, distinct 176, spacing median 32 p90 81 max 169 ms (wanted 11.2..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 9ad51c47 rows 298 uniform 0 light none blue none
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3897,3896,3897,3897,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 226 (22.6/s), changes 187 (18.7/s), reads 227, distinct 188, spacing median 38 p90 77 max 191 ms (wanted 11.2..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash e43e58d7 rows 298 uniform 0 light none blue none
     CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.487 dropped=91 fps=40.21447721179624]
-    CHECK ok 23-number: vendtime = 19.487 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 91 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash dc32b4a7 rows 298 uniform 0 light none blue none
-    CHECK ok 26-plugin: plugin-container 13646: alive (state S, cpu ticks 1133 to 1145)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.122 dropped=37 fps=22.624434389140273]
+    CHECK ok 23-number: vendtime = 19.122 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 37 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 63582f90 rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 16425: alive (state S, cpu ticks 1044 to 1056)
 
 ### enyo / flash-video-h264-360 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +3 s, load done at +8 s, 6 content frames at +8 s; th
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +2 s, load done at +8 s, 8 content frames at +8 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.097 dropped=0 fps=0]
+    WAIT ok 14-text video = [video t=2.116 dropped=11 fps=10.504201680672269]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 3766 hash 95739b3f rows 298 uniform 0 light none blue 123-420
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 3782 hash eee45459 rows 298 uniform 0 light none blue 123-420 (TORN)
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3896,3897,3896,3897,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 229 (22.9/s), changes 168 (16.8/s), reads 230, distinct 169, spacing median 32 p90 88 max 199 ms (wanted 13.4..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 3502 hash 288bfa35 rows 298 uniform 0 light none blue 123-420 (TORN)
+    CHECK ok 18-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3896,3895,3895,3896,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 265 (26.5/s), changes 192 (19.2/s), reads 266, distinct 193, spacing median 29 p90 66 max 197 ms (wanted 13.4..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 3809 hash 7d43f379 rows 298 uniform 0 light none blue 123-420
     CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=70 fps=43.22766570605187]
-    CHECK ok 23-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 70 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 3879 hash c85fd65e rows 298 uniform 0 light none blue 123-420
-    CHECK ok 26-plugin: plugin-container 17197: alive (state S, cpu ticks 1037 to 1049)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.275 dropped=65 fps=26.08695652173913]
+    CHECK ok 23-number: vendtime = 19.275 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 65 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 3867 hash a9c9b9af rows 298 uniform 0 light none blue 123-420
+    CHECK ok 26-plugin: plugin-container 19939: alive (state S, cpu ticks 953 to 965)
 
 ### enyo / flash-video-h264-480 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +2 s, load done at +7 s, 8 content frames at +7 s; th
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +2 s, load done at +8 s, 8 content frames at +8 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=1.75 dropped=9 fps=15.706806282722512]
+    WAIT ok 14-text video = [video t=2.037 dropped=8 fps=14.6484375]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 3464 hash 5b5a4544 rows 298 uniform 0 light none blue 123-420
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 3193 hash 4a96b328 rows 298 uniform 0 light none blue 123-420
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3897,3897,3898,3897,3896,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 209 (20.9/s), changes 166 (16.6/s), reads 210, distinct 167, spacing median 41 p90 89 max 198 ms (wanted 9.3..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 3085 hash 5af6551e rows 298 uniform 0 light none blue 123-420
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3897,3896,3896,3895,3895, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 204 (20.4/s), changes 175 (17.5/s), reads 208, distinct 176, spacing median 38 p90 80 max 254 ms (wanted 9.3..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 3391 hash 0f6afb65 rows 298 uniform 0 light none blue 123-420
     CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.592 dropped=119 fps=21.802325581395348]
-    CHECK ok 23-number: vendtime = 19.592 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 119 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 3521 hash ede5a831 rows 298 uniform 0 light none blue 123-420
-    CHECK ok 26-plugin: plugin-container 20563: alive (state S, cpu ticks 1136 to 1147)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=83 fps=24.077046548956663]
+    CHECK ok 23-number: vendtime = 20.01 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 83 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 3495 hash e242d890 rows 298 uniform 0 light none blue 123-420
+    CHECK ok 26-plugin: plugin-container 23340: alive (state S, cpu ticks 1154 to 1166)
 
 ### enyo / flash-video-h264-mp4 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/bbb-h264-360.mp4: connected at +2 s, load done at +7 s, 6 content frames at +7 s; th
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/bbb-h264-360.mp4: connected at +2 s, load done at +7 s, 3 content frames at +7 s; th
     WAIT ok 13-text vmeta = [vmeta codec=avc1 w=640 h=360 d=10]
-    WAIT ok 14-text video = [video t=1.367 dropped=16 fps=0]
+    WAIT ok 14-text video = [video t=0.967 dropped=8 fps=0]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 2d72ce6e rows 298 uniform 0 light none blue none
-    CHECK ok 17-flash-rate: content 40,123-440,421: 5.0 s, flips 157 (31.4/s), changes 115 (23.0/s), reads 158, distinct 116, spacing median 23 p90 51 max 153 ms (wanted 7.5..40/s)
-    CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash a2abfc80 rows 298 uniform 0 light none blue none
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=10 after video t=9.1 dropped=33 fps=51.90311418685121]
-    CHECK ok 20-number: vendtime = 9.1 (wanted 7.5..10.5)
-    CHECK ok 21-number: venddropped = 33 (wanted 0..180)
-    CHECK ok 22-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7332d9d2 rows 298 uniform 0 light none blue none
-    CHECK ok 23-plugin: plugin-container 24122: alive (state S, cpu ticks 573 to 581)
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash ebfbee0b rows 298 uniform 0 light none blue none
+    CHECK ok 17-flash-rate: content 40,123-440,421: 5.0 s, flips 141 (28.2/s), changes 100 (20.0/s), reads 143, distinct 101, spacing median 26 p90 54 max 217 ms (wanted 7.5..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 48d56f1b rows 298 uniform 0 light none blue none
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=10 after video t=9.8 dropped=25 fps=48.07692307692308]
+    CHECK ok 20-number: vendtime = 9.8 (wanted 7.5..10.5)
+    CHECK ok 21-number: venddropped = 25 (wanted 0..180)
+    CHECK ok 22-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 48d56f1b rows 298 uniform 0 light none blue none
+    CHECK ok 23-plugin: plugin-container 26932: alive (state S, cpu ticks 563 to 571)
 
 ### enyo / flash-video-mediaelement — pass
 
-    enyo card on http://192.168.1.245:8097/title/bbb-h264-360: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
+    enyo card on http://192.168.1.245:8097/title/bbb-h264-360: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
     WAIT ok 10-rect m
     WAIT ok 11-content m
     CHECK ok 12-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 13-flash-rate: content 0,83-640,441: 5.0 s, flips 197 (39.4/s), changes 152 (30.4/s), reads 198, distinct 153, spacing median 24 p90 33 max 94 ms (wanted 5..40/s)
+    CHECK ok 13-flash-rate: content 0,83-640,441: 5.0 s, flips 170 (34.0/s), changes 113 (22.6/s), reads 171, distinct 114, spacing median 24 p90 34 max 192 ms (wanted 5..40/s)
     CHECK ok 14-flash-drawn: drawn: region 0,83-640,441: colours 4096 hash 561b5711 rows 358 uniform 0 light none blue none
     WAIT ok 15-still m
     CHECK ok 16-flash-drawn: drawn: region 0,83-640,441: colours 4096 hash 561b5711 rows 358 uniform 0 light none blue none
-    CHECK ok 17-plugin: plugin-container 19454: alive (state S, cpu ticks 635 to 642)
+    CHECK ok 17-plugin: plugin-container 30265: alive (state S, cpu ticks 617 to 625)
 
 ### enyo / flash-video-slow — pass
 
     enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/slow/40000/500000/10/video/gen-spark-240.flv: connected at +2 s, load done at +7 s, 6 cont
     WAIT ok 14-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
     WAIT ok 15-text video = [video t=0.025 dropped=0 fps=0]
-    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4004 hash 03060258 rows 298 uniform 0 light none blue 198-217
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 3906 hash 28d6e5f7 rows 298 uniform 0 light none blue 198-217
     WAIT ok 17-text vstatus = [vstatus NetStream.Buffer.Empty t=4.023]
-    CHECK ok 18-plugin: plugin-container 31032: alive (state S, cpu ticks 210 to 226)
-    WAIT ok 19-text vstatus = [vstatus NetStream.Buffer.Full t=4.127]
+    CHECK ok 18-plugin: plugin-container 1020: alive (state S, cpu ticks 213 to 229)
+    WAIT ok 19-text vstatus = [vstatus NetStream.Buffer.Full t=4.023]
     WAIT ok 21-differs m
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.775 dropped=64 fps=24.077046548956663]
-    CHECK ok 23-number: vmaxgap = 16640 (wanted 8000..30000)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.722 dropped=15 fps=23.25581395348837]
+    CHECK ok 23-number: vmaxgap = 16760 (wanted 8000..30000)
     CHECK ok 24-number: vgapat = 4.023 (wanted 4..16)
-    CHECK ok 25-number: vendtime = 19.775 (wanted 17.5..20.5)
-    CHECK ok 26-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 53017963 rows 298 uniform 0 light none blue none
-    CHECK ok 27-plugin: plugin-container 31032: alive (state S, cpu ticks 676 to 687)
+    CHECK ok 25-number: vendtime = 19.722 (wanted 17.5..20.5)
+    CHECK ok 26-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash c2e9e7b1 rows 298 uniform 0 light none blue none
+    CHECK ok 27-plugin: plugin-container 1020: alive (state S, cpu ticks 707 to 717)
 
 ### enyo / flash-video-spark-240 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +1 s, load done at +6 s, 5 content frames at +6 s; t
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +2 s, load done at +7 s, 6 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.202 dropped=11 fps=0]
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 6c2e90e7 rows 298 uniform 0 light none blue 160-177
+    WAIT ok 14-text video = [video t=3.344 dropped=14 fps=22.058823529411764]
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 4bd60fbc rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3895,3897,3896,3897,3897,3896, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 197 (19.7/s), changes 184 (18.4/s), reads 198, distinct 185, spacing median 42 p90 92 max 190 ms (wanted 10.3..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 8c42db00 rows 298 uniform 0 light none blue none
+    CHECK ok 17-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3896,3895,3895,3896,3896,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 200 (20.0/s), changes 195 (19.5/s), reads 202, distinct 196, spacing median 41 p90 83 max 223 ms (wanted 10.3..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 64dfa9ac rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=87 fps=20.915032679738562]
-    CHECK ok 22-number: vendtime = 20.01 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 87 (wanted 0..288)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.304 dropped=52 fps=24.232633279483036]
+    CHECK ok 22-number: vendtime = 19.304 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 52 (wanted 0..288)
     CHECK ok 24-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 53017963 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 3179: alive (state R, cpu ticks 559 to 571)
+    CHECK ok 25-plugin: plugin-container 5378: alive (state S, cpu ticks 585 to 597)
 
 ### enyo / flash-video-spark-360 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +2 s, load done at +8 s, 14 content frames at +8 s; 
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +2 s, load done at +7 s, 8 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=4.545 dropped=29 fps=24.169184290030213]
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 1bbfa2ce rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=3.526 dropped=27 fps=22.008253094910593]
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7aa9f516 rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3897,3893,3895,3896,3894,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 172 (17.2/s), changes 161 (16.1/s), reads 174, distinct 162, spacing median 44 p90 107 max 293 ms (wanted 12.8..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
+    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3896,3896,3897,3895,3896,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 192 (19.2/s), changes 189 (18.9/s), reads 194, distinct 190, spacing median 43 p90 91 max 227 ms (wanted 12.8..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 70587089 rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.487 dropped=128 fps=23.696682464454977]
-    CHECK ok 22-number: vendtime = 19.487 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 128 (wanted 0..288)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.957 dropped=86 fps=13.250883392226148]
+    CHECK ok 22-number: vendtime = 19.957 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 86 (wanted 0..288)
     CHECK ok 24-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 13452: alive (state S, cpu ticks 642 to 654)
+    CHECK ok 25-plugin: plugin-container 8871: alive (state S, cpu ticks 681 to 691)
 
 ### enyo / flash-video-spark-480 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +4 s, load done at +9 s, 7 content frames at +9 s; t
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +2 s, load done at +8 s, 11 content frames at +8 s; 
     WAIT ok 13-text vmeta = [vmeta codec=2 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=3.605 dropped=28 fps=21.77068214804064]
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 3975 hash 0be4df26 rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=3.971 dropped=38 fps=17.921146953405017]
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4020 hash 44fccd81 rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3896,3896,3895,3895,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 176 (17.6/s), changes 160 (16.0/s), reads 183, distinct 161, spacing median 44 p90 95 max 259 ms (wanted 11.5..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 3841 hash d5387010 rows 298 uniform 0 light none blue none
+    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3896,3897,3895,3896,3895,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 192 (19.2/s), changes 187 (18.7/s), reads 194, distinct 188, spacing median 42 p90 90 max 290 ms (wanted 11.5..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash b3689f88 rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.487 dropped=120 fps=23.73887240356083]
-    CHECK ok 22-number: vendtime = 19.487 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 120 (wanted 0..288)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=99 fps=24.72952086553323]
+    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 99 (wanted 0..288)
     CHECK ok 24-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 3d63abdf rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 10545: alive (state S, cpu ticks 784 to 796)
+    CHECK ok 25-plugin: plugin-container 12326: alive (state S, cpu ticks 821 to 833)
 
 ### enyo / flash-video-spark-sheep — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +2 s, load done at +8 s, 10 content frames at +8 s; th
-    WAIT ok 13-text video = [video t=1.44 dropped=23 fps=0]
-    CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 98a63aa1 rows 298 uniform 0 light 123-238 blue none
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +2 s, load done at +8 s, 9 content frames at +8 s; the
+    WAIT ok 13-text video = [video t=1.6 dropped=22 fps=7.865757734661773]
+    CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 44b2a20e rows 298 uniform 0 light 123-234 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,123-440,421: 5.0 s, flips 64 (12.8/s), changes 48 (9.6/s), reads 67, distinct 49, spacing median 66 p90 160 max 222 ms (wanted 6.9..40/s)
+    CHECK ok 16-flash-rate: content 40,123-440,421: 5.0 s, flips 50 (10.0/s), changes 37 (7.4/s), reads 54, distinct 35, spacing median 79 p90 188 max 259 ms (wanted 6.9..40/s)
     CHECK ok 17-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 70252f20 rows 298 uniform 0 light 123-148 blue none
     CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.68 after video t=8.62 dropped=108 fps=17.094017094017094]
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.725 after video t=8.62 dropped=102 fps=16.556291390728475]
     CHECK ok 20-number: vendtime = 8.62 (wanted 6.3..9.3)
-    CHECK ok 21-number: venddropped = 108 (wanted 0..154)
+    CHECK ok 21-number: venddropped = 102 (wanted 0..154)
     CHECK ok 22-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7f2a41df rows 298 uniform 0 light 123-148 blue none
-    CHECK ok 23-plugin: plugin-container 13913: alive (state S, cpu ticks 314 to 325)
+    CHECK ok 23-plugin: plugin-container 15681: alive (state S, cpu ticks 325 to 336)
 
 ### enyo / flash-video-spark-small — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +2 s, load done at +8 s, 11 content frames at +8 s; th
-    WAIT ok 13-text video = [video t=1.393 dropped=0 fps=0]
-    CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash c1f36466 rows 298 uniform 0 light 123-139 blue none
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the
+    WAIT ok 13-text video = [video t=2.972 dropped=7 fps=9.931719428926133]
+    CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash c71f8a78 rows 298 uniform 0 light 123-139 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,123-440,421: 10.0 s, flips 121 (12.1/s), changes 120 (12.0/s), reads 127, distinct 121, spacing median 76 p90 105 max 451 ms (wanted 7.7..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 65448ee3 rows 298 uniform 0 light 123-142 blue none
+    CHECK ok 16-flash-rate: content 40,123-440,421: 10.0 s, flips 125 (12.5/s), changes 125 (12.5/s), reads 128, distinct 126, spacing median 77 p90 100 max 232 ms (wanted 7.7..40/s)
+    CHECK ok 17-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 5eeb39d2 rows 298 uniform 0 light none blue none
     CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.628 dropped=35 fps=12.648221343873518]
-    CHECK ok 20-number: vendtime = 29.628 (wanted 27.2..30.2)
-    CHECK ok 21-number: venddropped = 35 (wanted 0..212)
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.535 dropped=20 fps=12.057877813504824]
+    CHECK ok 20-number: vendtime = 29.535 (wanted 27.2..30.2)
+    CHECK ok 21-number: venddropped = 20 (wanted 0..212)
     CHECK ok 22-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash b83d2678 rows 298 uniform 0 light 245-420 blue none
-    CHECK ok 23-plugin: plugin-container 17162: alive (state S, cpu ticks 433 to 444)
+    CHECK ok 23-plugin: plugin-container 19026: alive (state S, cpu ticks 442 to 453)
 
 ### enyo / flash-video-vp6-176 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +2 s, load done at +8 s, 10 content frames 
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +3 s, load done at +8 s, 6 content frames a
     WAIT ok 10-text vmeta = [vmeta codec=4 w=320 h=176 d=151.125]
-    WAIT ok 11-text video = [video t=3.787 dropped=14 fps=22.900763358778626]
+    WAIT ok 11-text video = [video t=3.709 dropped=10 fps=22.970903522205205]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,123-440,421: 10.0 s, flips 221 (22.1/s), changes 219 (21.9/s), reads 222, distinct 220, spacing median 41 p90 67 max 180 ms (wanted 11.0..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 13ffd75d rows 298 uniform 0 light none blue none
-    WAIT ok 18-text vctl = [vctl seek 60 t=23.954]
+    CHECK ok 14-flash-rate: content 40,123-440,421: 10.0 s, flips 213 (21.3/s), changes 212 (21.2/s), reads 215, distinct 213, spacing median 42 p90 75 max 212 ms (wanted 11.0..40/s)
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 0feb6558 rows 298 uniform 0 light none blue none
+    WAIT ok 18-text vctl = [vctl seek 60 t=27.951]
     WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=66.142 dropped=66 fps=23.14814814814815]
-    CHECK ok 21-number: vtime = 67.239 (wanted 58..78)
+    WAIT ok 20-text video = [video t=67.343 dropped=38 fps=23.65930599369085]
+    CHECK ok 21-number: vtime = 68.362 (wanted 58..78)
     CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.752 dropped=285 fps=25.31645569620253]
-    CHECK ok 24-number: vendtime = 150.752 (wanted 148.6..151.6)
-    CHECK ok 25-plugin: plugin-container 20993: alive (state S, cpu ticks 2682 to 2693)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.831 dropped=123 fps=25.078369905956112]
+    CHECK ok 24-number: vendtime = 150.831 (wanted 148.6..151.6)
+    CHECK ok 25-plugin: plugin-container 22818: alive (state S, cpu ticks 2829 to 2840)
 
 ### enyo / flash-video-vp6-272 — pass
 
     enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +2 s, load done at +7 s, 6 content frame
     WAIT ok 10-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 11-text video = [video t=2.873 dropped=11 fps=24.916943521594686]
+    WAIT ok 11-text video = [video t=3.526 dropped=19 fps=23.84737678855326]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,123-440,421: 10.0 s, flips 210 (21.0/s), changes 209 (20.9/s), reads 212, distinct 210, spacing median 41 p90 72 max 263 ms (wanted 7.1..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash da2b0887 rows 298 uniform 0 light none blue none
-    WAIT ok 18-text vctl = [vctl seek 40 t=23.118]
+    CHECK ok 14-flash-rate: content 40,123-440,421: 10.0 s, flips 207 (20.7/s), changes 206 (20.6/s), reads 211, distinct 207, spacing median 41 p90 70 max 292 ms (wanted 7.1..40/s)
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash fa88ead8 rows 298 uniform 0 light none blue 209-269
+    WAIT ok 18-text vctl = [vctl seek 40 t=26.644]
     WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=43.389 dropped=83 fps=22.865853658536587]
-    CHECK ok 21-number: vtime = 44.617 (wanted 38..58)
+    WAIT ok 20-text video = [video t=46.184 dropped=110 fps=23.112480739599384]
+    CHECK ok 21-number: vtime = 46.184 (wanted 38..58)
     CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.125 dropped=352 fps=23.323615160349853]
-    CHECK ok 24-number: vendtime = 86.125 (wanted 84.3..87.3)
-    CHECK ok 25-plugin: plugin-container 25922: alive (state S, cpu ticks 2285 to 2296)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.413 dropped=306 fps=25.31645569620253]
+    CHECK ok 24-number: vendtime = 86.413 (wanted 84.3..87.3)
+    CHECK ok 25-plugin: plugin-container 27693: alive (state S, cpu ticks 2417 to 2429)
 
 ### enyo / flash-video-vp6a — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +2 s, load done at +7 s, 8 content frames at +7 s; the G
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +1 s, load done at +7 s, 5 content frames at +7 s; the G
     WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-    WAIT ok 14-text video = [video t=3.604 dropped=13 fps=16.597510373443985]
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 2592 hash 0fb2e28e rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=1.533 dropped=9 fps=0]
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 2588 hash f5ca77cb rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-flash-rate: content 40,123-440,421: 10.0 s, flips 124 (12.4/s), changes 105 (10.5/s), reads 129, distinct 106, spacing median 64 p90 167 max 388 ms (wanted 9.8..40/s)
-    CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
+    CHECK ok 17-flash-rate: content 40,123-440,421: 10.0 s, flips 139 (13.9/s), changes 133 (13.3/s), reads 143, distinct 134, spacing median 58 p90 136 max 251 ms (wanted 9.8..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
     CHECK ok 19-audio: the movie's audio: open running audible
-    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.635 dropped=39 fps=15.670910871694417]
-    CHECK ok 21-number: vendtime = 13.635 (wanted 11.5..14.5)
-    CHECK ok 22-number: venddropped = 39 (wanted 0..125)
+    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.975 dropped=30 fps=11.569052783803325]
+    CHECK ok 21-number: vendtime = 13.975 (wanted 11.5..14.5)
+    CHECK ok 22-number: venddropped = 30 (wanted 0..125)
     CHECK ok 23-flash-drawn: drawn: region 40,123-440,421: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
-    CHECK ok 24-plugin: plugin-container 30510: alive (state S, cpu ticks 574 to 585)
+    CHECK ok 24-plugin: plugin-container 31973: alive (state S, cpu ticks 575 to 586)
 
 ### mochi / flash-video-controls — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +2 s, load done at +8 s, 12 content fra
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +1 s, load done at +7 s, 8 content fram
     WAIT ok 13-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 14-text video = [video t=2 dropped=9 fps=22.377622377622377]
+    WAIT ok 14-text video = [video t=1.279 dropped=3 fps=0]
     WAIT ok 15-content m
-    CHECK ok 16-sound: sound at the output sink: peak 2083 rms 420 frames 45056 hz 173 env 858,1292,1132,1400,2083,1729, the speaker amp on, the media volume 23
-    WAIT ok 18-text vctl = [vctl pause t=9.639]
+    CHECK ok 16-sound: sound at the output sink: peak 870 rms 126 frames 45056 hz 124 env 23,55,165,591,870,594, the speaker amp on, the media volume 23
+    WAIT ok 18-text vctl = [vctl pause t=7.706]
     WAIT ok 19-still m
     CHECK ok 21-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
     CHECK ok 22-region-near: the picture against the sample paused: difference 0.0 (2 or less)
-    WAIT ok 24-text vctl = [vctl resume t=9.639]
+    WAIT ok 24-text vctl = [vctl resume t=7.706]
     WAIT ok 25-differs m
-    CHECK ok 26-sound: sound at the output sink: peak 4231 rms 958 frames 45056 hz 249 env 2283,2166,3263,3734,4231,2905, the speaker amp on, the media volume 23
-    WAIT ok 29-text vctl = [vctl seek 40 t=21.315]
+    CHECK ok 26-sound: sound at the output sink: peak 8401 rms 1529 frames 45056 hz 434 env 8401,5474,4721,4647,4617,3114, the speaker amp on, the media volume 23
+    WAIT ok 29-text vctl = [vctl seek 40 t=15.281]
     WAIT ok 30-differs m
-    WAIT ok 31-text video = [video t=44.434 dropped=133 fps=25.6]
-    CHECK ok 32-number: vtime = 44.434 (wanted 38..58)
-    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.308 dropped=353 fps=23.21981424148607]
-    CHECK ok 34-number: vendtime = 86.308 (wanted 84.3..87.3)
-    CHECK ok 35-plugin: plugin-container 21098: alive (state S, cpu ticks 2258 to 2268)
+    WAIT ok 31-text video = [video t=41.456 dropped=51 fps=26.016260162601625]
+    CHECK ok 32-number: vtime = 41.456 (wanted 38..58)
+    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.595 dropped=219 fps=25.848142164781905]
+    CHECK ok 34-number: vendtime = 86.595 (wanted 84.3..87.3)
+    CHECK ok 35-plugin: plugin-container 14669: alive (state S, cpu ticks 2172 to 2184)
 
 ### mochi / flash-video-flowplayer — pass
 
-    mochi card on http://192.168.1.245:8097/title/i004-vp6a: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    mochi card on http://192.168.1.245:8097/title/i004-vp6a: connected at +2 s, load done at +8 s, 9 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
     WAIT ok 10-rect m
     WAIT ok 11-content m
-    CHECK ok 12-flash-rate: content 0,79-478,507: 5.0 s, flips 72 (14.4/s), changes 72 (14.4/s), reads 73, distinct 73, spacing median 69 p90 82 max 142 ms (wanted 5..40/s)
+    CHECK ok 12-flash-rate: content 0,79-478,507: 5.0 s, flips 58 (11.6/s), changes 56 (11.2/s), reads 65, distinct 57, spacing median 60 p90 82 max 1373 ms (wanted 5..40/s)
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-drawn: drawn: region 0,79-478,507: colours 2820 hash 15a44234 rows 428 uniform 96 light 79-506 blue none
-    CHECK ok 15-flash-rate: content 0,79-478,507: 3.0 s, flips 35 (11.7/s), changes 30 (10.0/s), reads 36, distinct 31, spacing median 70 p90 177 max 188 ms (wanted 5..40/s)
+    CHECK ok 14-flash-drawn: drawn: region 0,79-478,507: colours 4096 hash e8290108 rows 428 uniform 97 light 79-479 blue none
+    CHECK ok 15-flash-rate: content 0,79-478,507: 3.0 s, flips 41 (13.7/s), changes 41 (13.7/s), reads 43, distinct 42, spacing median 69 p90 103 max 268 ms (wanted 5..40/s)
     WAIT ok 16-still m
     CHECK ok 17-flash-drawn: drawn: region 0,79-478,507: colours 4096 hash 6b8e994c rows 428 uniform 103 light 79-479 blue none
-    CHECK ok 18-plugin: plugin-container 13427: alive (state S, cpu ticks 789 to 802)
+    CHECK ok 18-plugin: plugin-container 19766: alive (state S, cpu ticks 762 to 775)
 
 ### mochi / flash-video-h264-240 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +1 s, load done at +7 s, 10 content frames at +7 s; 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +2 s, load done at +8 s, 11 content frames at +8 s; 
     WAIT ok 13-text vmeta = [vmeta codec=7 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.855 dropped=11 fps=12.573344509639565]
+    WAIT ok 14-text video = [video t=1.202 dropped=0 fps=0]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 8e95eaa9 rows 298 uniform 0 light none blue 196-215
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 7b847995 rows 298 uniform 0 light none blue 218-237
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3895,3897,3896,3897,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 215 (21.5/s), changes 164 (16.4/s), reads 218, distinct 165, spacing median 38 p90 86 max 275 ms (wanted 11.2..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 53260676 rows 298 uniform 0 light none blue none
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3896,3897,3896,3897, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 207 (20.7/s), changes 175 (17.5/s), reads 209, distinct 176, spacing median 41 p90 88 max 215 ms (wanted 11.2..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash f178f5f6 rows 298 uniform 0 light none blue none
     CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.487 dropped=110 fps=23.923444976076556]
-    CHECK ok 23-number: vendtime = 19.487 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 110 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 0ccf2ce2 rows 298 uniform 0 light none blue none
-    CHECK ok 26-plugin: plugin-container 16871: alive (state S, cpu ticks 1086 to 1097)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.317 dropped=72 fps=24.154589371980677]
+    CHECK ok 23-number: vendtime = 19.317 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 72 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 481a5d0c rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 23411: alive (state S, cpu ticks 1140 to 1151)
 
 ### mochi / flash-video-h264-360 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +3 s, load done at +8 s, 6 content frames at +8 s; t
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +1 s, load done at +7 s, 10 content frames at +7 s; 
     WAIT ok 13-text vmeta = [vmeta codec=7 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.28 dropped=0 fps=37.5]
+    WAIT ok 14-text video = [video t=1.28 dropped=0 fps=0]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3890 hash 5a86793c rows 298 uniform 0 light none blue 119-416
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3766 hash 95739b3f rows 298 uniform 0 light none blue 119-416
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3897,3898,3897,3896,3896,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 258 (25.8/s), changes 177 (17.7/s), reads 259, distinct 178, spacing median 27 p90 81 max 174 ms (wanted 13.4..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 3943 hash c5e24b9b rows 298 uniform 0 light none blue 119-416
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3897,3896,3897,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 244 (24.4/s), changes 182 (18.2/s), reads 247, distinct 183, spacing median 28 p90 79 max 221 ms (wanted 13.4..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 3717 hash 556e94fc rows 298 uniform 0 light none blue 119-416
     CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.983 dropped=91 fps=13.698630136986301]
-    CHECK ok 23-number: vendtime = 19.983 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 91 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 3867 hash a9c9b9af rows 298 uniform 0 light none blue 119-416
-    CHECK ok 26-plugin: plugin-container 20281: alive (state S, cpu ticks 999 to 1010)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=40 fps=25.59726962457338]
+    CHECK ok 23-number: vendtime = 20.01 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 40 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 3799 hash fd39121a rows 298 uniform 0 light none blue 119-416
+    CHECK ok 26-plugin: plugin-container 26890: alive (state S, cpu ticks 1047 to 1059)
 
 ### mochi / flash-video-h264-480 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +1 s, load done at +7 s, 7 content frames at +7 s; t
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +1 s, load done at +7 s, 9 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=7 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=1.097 dropped=3 fps=13.368983957219251]
+    WAIT ok 14-text video = [video t=1.097 dropped=0 fps=0]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3438 hash 6f46d3cd rows 298 uniform 0 light none blue 119-416
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3400 hash 7d38aef2 rows 298 uniform 0 light none blue 119-416
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3897,3897,3898,3897,3896,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 224 (22.4/s), changes 179 (17.9/s), reads 226, distinct 180, spacing median 36 p90 79 max 220 ms (wanted 9.3..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 3459 hash 06adea40 rows 298 uniform 0 light none blue 119-416
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3895,3898,3895,3897,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 200 (20.0/s), changes 167 (16.7/s), reads 202, distinct 168, spacing median 32 p90 106 max 222 ms (wanted 9.3..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 3429 hash 2833c789 rows 298 uniform 0 light none blue 119-416
     CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.67 dropped=105 fps=36.31961259079903]
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.67 dropped=84 fps=25.848142164781905]
     CHECK ok 23-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 105 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 3454 hash 20227556 rows 298 uniform 0 light none blue 119-416
-    CHECK ok 26-plugin: plugin-container 23743: alive (state S, cpu ticks 1133 to 1143)
+    CHECK ok 24-number: venddropped = 84 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 3547 hash 5e60f899 rows 298 uniform 0 light none blue 119-416
+    CHECK ok 26-plugin: plugin-container 30570: alive (state S, cpu ticks 1152 to 1164)
 
 ### mochi / flash-video-h264-mp4 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/bbb-h264-360.mp4: connected at +1 s, load done at +7 s, 8 content frames at +7 s; t
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/bbb-h264-360.mp4: connected at +2 s, load done at +8 s, 8 content frames at +8 s; t
     WAIT ok 13-text vmeta = [vmeta codec=avc1 w=640 h=360 d=10]
-    WAIT ok 14-text video = [video t=2.4 dropped=16 fps=40.87193460490463]
+    WAIT ok 14-text video = [video t=0.933 dropped=4 fps=0]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash fe7b9f29 rows 298 uniform 0 light none blue none
-    CHECK ok 17-flash-rate: content 40,119-440,417: 5.0 s, flips 146 (29.2/s), changes 103 (20.6/s), reads 148, distinct 104, spacing median 22 p90 53 max 213 ms (wanted 7.5..40/s)
-    CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash a2abfc80 rows 298 uniform 0 light none blue none
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=10 after video t=9.3 dropped=26 fps=48.85993485342019]
-    CHECK ok 20-number: vendtime = 9.3 (wanted 7.5..10.5)
-    CHECK ok 21-number: venddropped = 26 (wanted 0..180)
-    CHECK ok 22-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash a2abfc80 rows 298 uniform 0 light none blue none
-    CHECK ok 23-plugin: plugin-container 27323: alive (state S, cpu ticks 550 to 558)
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 32cd1f64 rows 298 uniform 0 light none blue none
+    CHECK ok 17-flash-rate: content 40,119-440,417: 5.0 s, flips 147 (29.4/s), changes 114 (22.8/s), reads 148, distinct 115, spacing median 25 p90 57 max 189 ms (wanted 7.5..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 17e6c932 rows 298 uniform 0 light none blue none
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=10 after video t=9.8 dropped=17 fps=47.77070063694268]
+    CHECK ok 20-number: vendtime = 9.8 (wanted 7.5..10.5)
+    CHECK ok 21-number: venddropped = 17 (wanted 0..180)
+    CHECK ok 22-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 7332d9d2 rows 298 uniform 0 light none blue none
+    CHECK ok 23-plugin: plugin-container 1740: alive (state S, cpu ticks 568 to 575)
 
 ### mochi / flash-video-mediaelement — pass
 
-    mochi card on http://192.168.1.245:8097/title/bbb-h264-360: connected at +2 s, load done at +8 s, 9 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD
+    mochi card on http://192.168.1.245:8097/title/bbb-h264-360: connected at +1 s, load done at +7 s, 8 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD
     WAIT ok 10-rect m
     WAIT ok 11-content m
     CHECK ok 12-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 13-flash-rate: content 0,79-640,437: 5.0 s, flips 194 (38.8/s), changes 161 (32.2/s), reads 195, distinct 162, spacing median 24 p90 33 max 138 ms (wanted 5..40/s)
-    CHECK ok 14-flash-drawn: drawn: region 0,79-640,437: colours 4096 hash ba4fe130 rows 358 uniform 0 light none blue none
+    CHECK ok 13-flash-rate: content 0,79-640,437: 5.0 s, flips 193 (38.6/s), changes 161 (32.2/s), reads 194, distinct 162, spacing median 25 p90 34 max 98 ms (wanted 5..40/s)
+    CHECK ok 14-flash-drawn: drawn: region 0,79-640,437: colours 4096 hash 3100ae6a rows 358 uniform 0 light none blue none
     WAIT ok 15-still m
-    CHECK ok 16-flash-drawn: drawn: region 0,79-640,437: colours 4096 hash ba4fe130 rows 358 uniform 0 light none blue none
-    CHECK ok 17-plugin: plugin-container 22658: alive (state R, cpu ticks 631 to 639)
+    CHECK ok 16-flash-drawn: drawn: region 0,79-640,437: colours 4096 hash a30a8c59 rows 358 uniform 0 light none blue none
+    CHECK ok 17-plugin: plugin-container 4974: alive (state S, cpu ticks 624 to 632)
 
 ### mochi / flash-video-slow — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/slow/40000/500000/10/video/gen-spark-240.flv: connected at +2 s, load done at +8 s, 15 co
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/slow/40000/500000/10/video/gen-spark-240.flv: connected at +1 s, load done at +7 s, 11 co
     WAIT ok 14-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
     WAIT ok 15-text video = [video t=0.025 dropped=0 fps=0]
-    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4004 hash 03060258 rows 298 uniform 0 light none blue 194-213
-    WAIT ok 17-text vstatus = [vstatus NetStream.Buffer.Empty t=4.624]
-    CHECK ok 18-plugin: plugin-container 1958: alive (state S, cpu ticks 226 to 241)
-    WAIT ok 19-text vstatus = [vstatus NetStream.Buffer.Full t=4.754]
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3906 hash 28d6e5f7 rows 298 uniform 0 light none blue 194-213
+    WAIT ok 17-text vstatus = [vstatus NetStream.Buffer.Empty t=4.023]
+    CHECK ok 18-plugin: plugin-container 8265: alive (state S, cpu ticks 214 to 230)
+    WAIT ok 19-text vstatus = [vstatus NetStream.Buffer.Full t=4.023]
     WAIT ok 21-differs m
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.984 after video t=19.618 dropped=49 fps=24.549918166939445]
-    CHECK ok 23-number: vmaxgap = 16524 (wanted 8000..30000)
-    CHECK ok 24-number: vgapat = 4.624 (wanted 4..16)
-    CHECK ok 25-number: vendtime = 19.618 (wanted 17.5..20.5)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=25 fps=20.380434782608695]
+    CHECK ok 23-number: vmaxgap = 16600 (wanted 8000..30000)
+    CHECK ok 24-number: vgapat = 4.023 (wanted 4..16)
+    CHECK ok 25-number: vendtime = 20.01 (wanted 17.5..20.5)
     CHECK ok 26-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 53017963 rows 298 uniform 0 light none blue none
-    CHECK ok 27-plugin: plugin-container 1958: alive (state S, cpu ticks 678 to 690)
+    CHECK ok 27-plugin: plugin-container 8265: alive (state S, cpu ticks 712 to 724)
 
 ### mochi / flash-video-spark-240 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +2 s, load done at +8 s, 9 content frames at +8 s; 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +1 s, load done at +7 s, 11 content frames at +7 s;
     WAIT ok 13-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=3.709 dropped=14 fps=22.692889561270803]
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 67b501b4 rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=1.692 dropped=4 fps=26.229508196721312]
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash b8240be1 rows 298 uniform 0 light none blue 219-238
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3896,3895,3895,3896,3896,3895, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 189 (18.9/s), changes 180 (18.0/s), reads 192, distinct 181, spacing median 42 p90 96 max 350 ms (wanted 10.3..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 64dfa9ac rows 298 uniform 0 light none blue none
+    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3894,3895,3898,3896,3897,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 199 (19.9/s), changes 195 (19.5/s), reads 203, distinct 196, spacing median 42 p90 81 max 294 ms (wanted 10.3..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash fac34401 rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=79 fps=24.691358024691358]
-    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 79 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 53017963 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 6132: alive (state R, cpu ticks 564 to 575)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.853 dropped=47 fps=23.916292974588938]
+    CHECK ok 22-number: vendtime = 19.853 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 47 (wanted 0..288)
+    CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash c2e9e7b1 rows 298 uniform 0 light none blue none
+    CHECK ok 25-plugin: plugin-container 12789: alive (state S, cpu ticks 591 to 602)
 
 ### mochi / flash-video-spark-360 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +7 s, 7 content frames at +7 s; 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +7 s, 9 content frames at +7 s; 
     WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.567 dropped=5 fps=20.356234096692113]
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 3565 hash ee8c95b6 rows 298 uniform 0 light none blue 332-344
+    WAIT ok 14-text video = [video t=1.202 dropped=2 fps=0]
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 2a567d50 rows 298 uniform 0 light none blue 249-261
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3896,3895,3898,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 208 (20.8/s), changes 202 (20.2/s), reads 210, distinct 203, spacing median 43 p90 80 max 207 ms (wanted 12.8..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash e85337d8 rows 298 uniform 0 light none blue 127-139
+    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3894,3895,3898,3896,3897,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 201 (20.1/s), changes 201 (20.1/s), reads 205, distinct 202, spacing median 41 p90 82 max 487 ms (wanted 12.8..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 255defb6 rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.122 dropped=82 fps=15.182186234817813]
-    CHECK ok 22-number: vendtime = 19.122 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 82 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70587089 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 24449: alive (state S, cpu ticks 683 to 694)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.67 dropped=72 fps=23.32814930015552]
+    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 72 (wanted 0..288)
+    CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
+    CHECK ok 25-plugin: plugin-container 16246: alive (state S, cpu ticks 695 to 707)
 
 ### mochi / flash-video-spark-480 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +1 s, load done at +7 s, 13 content frames at +7 s;
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +1 s, load done at +7 s, 12 content frames at +7 s;
     WAIT ok 13-text vmeta = [vmeta codec=2 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=3.135 dropped=20 fps=24.59016393442623]
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 50d99378 rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=1.019 dropped=7 fps=10.438413361169102]
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 39e2e961 rows 298 uniform 0 light none blue 231-240
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3895,3896,3896,3897,3895,3895, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 186 (18.6/s), changes 176 (17.6/s), reads 191, distinct 177, spacing median 43 p90 109 max 240 ms (wanted 11.5..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 9e11c1cd rows 298 uniform 0 light none blue none
+    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3895,3897,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 197 (19.7/s), changes 194 (19.4/s), reads 200, distinct 195, spacing median 43 p90 84 max 272 ms (wanted 11.5..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 3587 hash f64ae01d rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=107 fps=25.518341307814993]
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=100 fps=24.50980392156863]
     CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 107 (wanted 0..288)
+    CHECK ok 23-number: venddropped = 100 (wanted 0..288)
     CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 3d63abdf rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 13202: alive (state S, cpu ticks 820 to 830)
+    CHECK ok 25-plugin: plugin-container 19736: alive (state S, cpu ticks 818 to 829)
 
 ### mochi / flash-video-spark-sheep — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +2 s, load done at +7 s, 8 content frames at +7 s; th
-    WAIT ok 13-text video = [video t=1.097 dropped=6 fps=0]
-    CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash fb05f344 rows 298 uniform 0 light 119-238 blue none
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +1 s, load done at +7 s, 5 content frames at +7 s; th
+    WAIT ok 13-text video = [video t=1.202 dropped=2 fps=0]
+    CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash e5af2f52 rows 298 uniform 0 light 119-162 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,119-440,417: 5.0 s, flips 65 (13.0/s), changes 51 (10.2/s), reads 67, distinct 51, spacing median 56 p90 181 max 240 ms (wanted 6.9..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70252f20 rows 298 uniform 0 light 119-144 blue none
+    CHECK ok 16-flash-rate: content 40,119-440,417: 5.0 s, flips 67 (13.4/s), changes 62 (12.4/s), reads 70, distinct 63, spacing median 61 p90 141 max 412 ms (wanted 6.9..40/s)
+    CHECK ok 17-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 7f2a41df rows 298 uniform 0 light 119-144 blue none
     CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.725 after video t=8.725 dropped=107 fps=17.621145374449338]
-    CHECK ok 20-number: vendtime = 8.725 (wanted 6.3..9.3)
-    CHECK ok 21-number: venddropped = 107 (wanted 0..154)
-    CHECK ok 22-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 7f2a41df rows 298 uniform 0 light 119-144 blue none
-    CHECK ok 23-plugin: plugin-container 16524: alive (state S, cpu ticks 316 to 327)
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.803 after video t=8.803 dropped=96 fps=15.429122468659594]
+    CHECK ok 20-number: vendtime = 8.803 (wanted 6.3..9.3)
+    CHECK ok 21-number: venddropped = 96 (wanted 0..154)
+    CHECK ok 22-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70252f20 rows 298 uniform 0 light 119-144 blue none
+    CHECK ok 23-plugin: plugin-container 23196: alive (state S, cpu ticks 333 to 344)
 
 ### mochi / flash-video-spark-small — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +1 s, load done at +7 s, 10 content frames at +7 s; t
-    WAIT ok 13-text video = [video t=2.321 dropped=0 fps=15.488867376573088]
-    CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash fdd4d162 rows 298 uniform 0 light 119-133 blue none
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +2 s, load done at +8 s, 12 content frames at +8 s; t
+    WAIT ok 13-text video = [video t=1.393 dropped=1 fps=0]
+    CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash f5141148 rows 298 uniform 0 light none blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,119-440,417: 10.0 s, flips 122 (12.2/s), changes 120 (12.0/s), reads 127, distinct 121, spacing median 73 p90 103 max 544 ms (wanted 7.7..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 5eeb39d2 rows 298 uniform 0 light none blue none
+    CHECK ok 16-flash-rate: content 40,119-440,417: 10.0 s, flips 108 (10.8/s), changes 106 (10.6/s), reads 119, distinct 107, spacing median 77 p90 108 max 1406 ms (wanted 7.7..40/s)
+    CHECK ok 17-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash ab97a2e1 rows 298 uniform 0 light 119-193 blue none
     CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.164 dropped=31 fps=12.135922330097088]
-    CHECK ok 20-number: vendtime = 29.164 (wanted 27.2..30.2)
-    CHECK ok 21-number: venddropped = 31 (wanted 0..212)
-    CHECK ok 22-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 5f4a777a rows 298 uniform 0 light 241-416 blue none
-    CHECK ok 23-plugin: plugin-container 19841: alive (state S, cpu ticks 439 to 450)
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.442 dropped=7 fps=12.028869286287089]
+    CHECK ok 20-number: vendtime = 29.442 (wanted 27.2..30.2)
+    CHECK ok 21-number: venddropped = 7 (wanted 0..212)
+    CHECK ok 22-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash b83d2678 rows 298 uniform 0 light 241-416 blue none
+    CHECK ok 23-plugin: plugin-container 26774: alive (state R, cpu ticks 453 to 463)
 
 ### mochi / flash-video-vp6-176 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +1 s, load done at +7 s, 9 content frames 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +2 s, load done at +7 s, 8 content frames 
     WAIT ok 10-text vmeta = [vmeta codec=4 w=320 h=176 d=151.125]
-    WAIT ok 11-text video = [video t=3.526 dropped=6 fps=24.922118380062305]
+    WAIT ok 11-text video = [video t=1.791 dropped=3 fps=28.089887640449437]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,119-440,417: 10.0 s, flips 222 (22.2/s), changes 220 (22.0/s), reads 223, distinct 221, spacing median 41 p90 56 max 201 ms (wanted 11.0..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash e945ade1 rows 298 uniform 0 light none blue none
-    WAIT ok 18-text vctl = [vctl seek 60 t=24.137]
+    CHECK ok 14-flash-rate: content 40,119-440,417: 10.0 s, flips 227 (22.7/s), changes 218 (21.8/s), reads 228, distinct 219, spacing median 41 p90 70 max 103 ms (wanted 11.0..40/s)
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash d11c701d rows 298 uniform 0 light none blue none
+    WAIT ok 18-text vctl = [vctl seek 60 t=21.446]
     WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=68 dropped=60 fps=25.641025641025642]
-    CHECK ok 21-number: vtime = 69.564 (wanted 58..78)
+    WAIT ok 20-text video = [video t=65.018 dropped=13 fps=21.306818181818183]
+    CHECK ok 21-number: vtime = 65.018 (wanted 58..78)
     CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=151.013 dropped=316 fps=24.539877300613497]
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=151.013 dropped=143 fps=24.72952086553323]
     CHECK ok 24-number: vendtime = 151.013 (wanted 148.6..151.6)
-    CHECK ok 25-plugin: plugin-container 23671: alive (state S, cpu ticks 2608 to 2620)
+    CHECK ok 25-plugin: plugin-container 30795: alive (state S, cpu ticks 2667 to 2678)
 
 ### mochi / flash-video-vp6-272 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +3 s, load done at +8 s, 6 content fram
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +1 s, load done at +7 s, 11 content fra
     WAIT ok 10-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 11-text video = [video t=4.179 dropped=14 fps=20.92050209205021]
+    WAIT ok 11-text video = [video t=1.279 dropped=0 fps=0]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,119-440,417: 10.0 s, flips 221 (22.1/s), changes 218 (21.8/s), reads 223, distinct 219, spacing median 41 p90 57 max 209 ms (wanted 7.1..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 301ac490 rows 298 uniform 0 light none blue 207-276
-    WAIT ok 18-text vctl = [vctl seek 40 t=25.991]
+    CHECK ok 14-flash-rate: content 40,119-440,417: 10.0 s, flips 213 (21.3/s), changes 210 (21.0/s), reads 214, distinct 211, spacing median 42 p90 66 max 198 ms (wanted 7.1..40/s)
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 5bfef869 rows 298 uniform 0 light none blue none
+    WAIT ok 18-text vctl = [vctl seek 40 t=20.793]
     WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=45.531 dropped=88 fps=22.796352583586625]
-    CHECK ok 21-number: vtime = 45.531 (wanted 38..58)
+    WAIT ok 20-text video = [video t=42.84 dropped=50 fps=20.915032679738562]
+    CHECK ok 21-number: vtime = 43.964 (wanted 38..58)
     CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.491 dropped=340 fps=24.84472049689441]
-    CHECK ok 24-number: vendtime = 86.491 (wanted 84.3..87.3)
-    CHECK ok 25-plugin: plugin-container 28468: alive (state S, cpu ticks 2368 to 2379)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.413 dropped=224 fps=25.93192868719611]
+    CHECK ok 24-number: vendtime = 86.413 (wanted 84.3..87.3)
+    CHECK ok 25-plugin: plugin-container 3833: alive (state R, cpu ticks 2304 to 2315)
 
-### mochi / flash-video-vp6a — fail
+### mochi / flash-video-vp6a — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +1 s, load done at +7 s, 6 content frames at +7 s; the 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the 
     WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-    WAIT ok 14-text video = [video t=3.343 dropped=3 fps=15.717092337917485]
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2574 hash e9714908 rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=1.097 dropped=1 fps=0]
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2431 hash 1ac840d2 rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK FAIL 17-flash-rate: content 40,119-440,417: 10.0 s, flips 120 (12.0/s), changes 96 (9.6/s), reads 124, distinct 94, spacing median 61 p90 180 max 284 ms (wanted 9.8..40/s)
-    CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
+    CHECK ok 17-flash-rate: content 40,119-440,417: 10.0 s, flips 144 (14.4/s), changes 140 (14.0/s), reads 146, distinct 141, spacing median 60 p90 118 max 216 ms (wanted 9.8..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
     CHECK ok 19-audio: the movie's audio: open running audible
-    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.975 dropped=35 fps=14.52081316553727]
-    CHECK ok 21-number: vendtime = 13.975 (wanted 11.5..14.5)
-    CHECK ok 22-number: venddropped = 35 (wanted 0..125)
-    CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
-    CHECK ok 24-plugin: plugin-container 484: alive (state S, cpu ticks 580 to 591)
+    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.818 dropped=20 fps=15.873015873015873]
+    CHECK ok 21-number: vendtime = 13.818 (wanted 11.5..14.5)
+    CHECK ok 22-number: venddropped = 20 (wanted 0..125)
+    CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
+    CHECK ok 24-plugin: plugin-container 8220: alive (state S, cpu ticks 586 to 597)
 
 ### mojo / flash-video-controls — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +1 s, load done at +6 s, 7 content frame
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +0 s, load done at +6 s, 5 content frame
     WAIT ok 13-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 14-text video = [video t=1.125 dropped=7 fps=21.91780821917808]
+    WAIT ok 14-text video = [video t=1.279 dropped=3 fps=0]
     WAIT ok 15-content m
-    CHECK ok 16-sound: sound at the output sink: peak 2065 rms 387 frames 45056 hz 166 env 870,1292,1085,1400,2065,1466, the speaker amp on, the media volume 23
-    WAIT ok 18-text vctl = [vctl pause t=10.109]
+    CHECK ok 16-sound: sound at the output sink: peak 870 rms 156 frames 45056 hz 108 env 41,163,395,870,858,667, the speaker amp on, the media volume 23
+    WAIT ok 18-text vctl = [vctl pause t=7.958]
     WAIT ok 19-still m
     CHECK ok 21-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
     CHECK ok 22-region-near: the picture against the sample paused: difference 0.0 (2 or less)
-    WAIT ok 24-text vctl = [vctl resume t=10.109]
+    WAIT ok 24-text vctl = [vctl resume t=7.958]
     WAIT ok 25-differs m
-    CHECK ok 26-sound: sound at the output sink: peak 4231 rms 1050 frames 45056 hz 194 env 3263,3034,3734,4231,3581,3162, the speaker amp on, the media volume 23
-    WAIT ok 29-text vctl = [vctl seek 40 t=21.125]
+    CHECK ok 26-sound: sound at the output sink: peak 3928 rms 850 frames 45056 hz 474 env 3928,3626,2754,1911,1815,1432, the speaker amp on, the media volume 23
+    WAIT ok 29-text vctl = [vctl seek 40 t=19.333]
     WAIT ok 30-differs m
-    WAIT ok 31-text video = [video t=43.5 dropped=182 fps=14.77832512315271]
-    CHECK ok 32-number: vtime = 43.5 (wanted 38..58)
-    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.413 dropped=539 fps=22.76176024279211]
-    CHECK ok 34-number: vendtime = 86.413 (wanted 84.3..87.3)
-    CHECK ok 35-plugin: plugin-container 26171: alive (state S, cpu ticks 2028 to 2039)
+    WAIT ok 31-text video = [video t=43.75 dropped=153 fps=20.053475935828878]
+    CHECK ok 32-number: vtime = 43.75 (wanted 38..58)
+    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.308 dropped=428 fps=23.02158273381295]
+    CHECK ok 34-number: vendtime = 86.308 (wanted 84.3..87.3)
+    CHECK ok 35-plugin: plugin-container 23063: alive (state S, cpu ticks 2090 to 2106)
 
 ### mojo / flash-video-flowplayer — pass
 
     mojo card on http://192.168.1.245:8097/title/i004-vp6a: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU
     WAIT ok 10-rect m
     WAIT ok 11-content m
-    CHECK ok 12-flash-rate: content 0,74-478,502: 5.0 s, flips 69 (13.8/s), changes 65 (13.0/s), reads 72, distinct 66, spacing median 67 p90 100 max 280 ms (wanted 5..40/s)
+    CHECK ok 12-flash-rate: content 0,74-478,502: 5.0 s, flips 76 (15.2/s), changes 76 (15.2/s), reads 77, distinct 77, spacing median 69 p90 82 max 121 ms (wanted 5..40/s)
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-drawn: drawn: region 0,74-478,502: colours 4096 hash 2a7eedc6 rows 428 uniform 97 light 74-474 blue none
-    CHECK ok 15-flash-rate: content 0,74-478,502: 3.0 s, flips 42 (14.0/s), changes 42 (14.0/s), reads 43, distinct 43, spacing median 68 p90 85 max 185 ms (wanted 5..40/s)
+    CHECK ok 14-flash-drawn: drawn: region 0,74-478,502: colours 2856 hash d1122055 rows 428 uniform 57 light 74-501 blue none
+    CHECK ok 15-flash-rate: content 0,74-478,502: 3.0 s, flips 45 (15.0/s), changes 45 (15.0/s), reads 46, distinct 46, spacing median 66 p90 80 max 89 ms (wanted 5..40/s)
     WAIT ok 16-still m
     CHECK ok 17-flash-drawn: drawn: region 0,74-478,502: colours 4039 hash a7504443 rows 428 uniform 103 light 74-474 blue none
-    CHECK ok 18-plugin: plugin-container 17081: alive (state S, cpu ticks 753 to 766)
+    CHECK ok 18-plugin: plugin-container 28336: alive (state S, cpu ticks 804 to 816)
 
 ### mojo / flash-video-h264-240 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +1 s, load done at +6 s, 5 content frames at +6 s; th
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +1 s, load done at +7 s, 11 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=7 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.202 dropped=0 fps=0]
+    WAIT ok 14-text video = [video t=1.985 dropped=6 fps=11.867088607594937]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4065 hash 927fddc6 rows 298 uniform 0 light none blue 326-345
+    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash b5a579d2 rows 298 uniform 0 light none blue 126-145
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3894,3895,3898,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 164 (16.4/s), changes 138 (13.8/s), reads 166, distinct 139, spacing median 49 p90 110 max 250 ms (wanted 11.2..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 0794c1f3 rows 298 uniform 0 light none blue 126-145
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3897,3898,3896,3897,3896,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 191 (19.1/s), changes 166 (16.6/s), reads 193, distinct 167, spacing median 39 p90 94 max 259 ms (wanted 11.2..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash dcfb29a5 rows 298 uniform 0 light none blue none
     CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=116 fps=41.32231404958678]
-    CHECK ok 23-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 116 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash ab515254 rows 298 uniform 0 light none blue none
-    CHECK ok 26-plugin: plugin-container 20671: alive (state S, cpu ticks 972 to 984)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.122 dropped=108 fps=16.025641025641026]
+    CHECK ok 23-number: vendtime = 19.122 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 108 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 179c1c49 rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 31978: alive (state S, cpu ticks 936 to 946)
 
 ### mojo / flash-video-h264-360 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +1 s, load done at +6 s, 7 content frames at +6 s; th
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +1 s, load done at +6 s, 6 content frames at +6 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.28 dropped=0 fps=21.476510067114095]
+    WAIT ok 14-text video = [video t=1.28 dropped=0 fps=23.771790808240887]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 3320 hash 9cec0c91 rows 298 uniform 0 light none blue 114-411
+    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 3477 hash b2ccf5e4 rows 298 uniform 0 light none blue 114-411
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3895,3898,3895,3897,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 180 (18.0/s), changes 141 (14.1/s), reads 181, distinct 142, spacing median 42 p90 105 max 196 ms (wanted 13.4..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 3307 hash 64d667bc rows 298 uniform 0 light none blue 114-411
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3895,3897,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 180 (18.0/s), changes 154 (15.4/s), reads 182, distinct 155, spacing median 42 p90 95 max 227 ms (wanted 13.4..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 3299 hash 5be8c381 rows 298 uniform 0 light none blue 114-411
     CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.025 dropped=96 fps=27.573529411764707]
-    CHECK ok 23-number: vendtime = 19.025 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 96 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 3358 hash 385f4fc0 rows 298 uniform 0 light none blue 114-411
-    CHECK ok 26-plugin: plugin-container 24135: alive (state S, cpu ticks 793 to 805)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.775 dropped=66 fps=22.76176024279211]
+    CHECK ok 23-number: vendtime = 19.775 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 66 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 3658 hash 25efb4ec rows 298 uniform 0 light none blue 114-411
+    CHECK ok 26-plugin: plugin-container 3179: alive (state S, cpu ticks 815 to 826)
 
 ### mojo / flash-video-h264-480 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +1 s, load done at +6 s, 8 content frames at +6 s; th
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +1 s, load done at +7 s, 9 content frames at +7 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=1.75 dropped=1 fps=0]
+    WAIT ok 14-text video = [video t=1.75 dropped=4 fps=0]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 2942 hash 4f4e3fc9 rows 298 uniform 0 light none blue 114-411
+    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 3044 hash 3715cbf5 rows 298 uniform 0 light none blue 114-411
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3894,3895,3898,3896,3897, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 172 (17.2/s), changes 146 (14.6/s), reads 177, distinct 147, spacing median 44 p90 108 max 252 ms (wanted 9.3..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 3362 hash 13955cdf rows 298 uniform 0 light none blue 114-411
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3897,3896,3897,3897,3898, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 172 (17.2/s), changes 155 (15.5/s), reads 174, distinct 156, spacing median 46 p90 106 max 213 ms (wanted 9.3..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 2898 hash a1e4763f rows 298 uniform 0 light none blue 114-411
     CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.317 dropped=150 fps=21.246458923512748]
-    CHECK ok 23-number: vendtime = 19.317 (wanted 17.5..20.5)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.957 dropped=150 fps=13.525698827772768]
+    CHECK ok 23-number: vendtime = 19.957 (wanted 17.5..20.5)
     CHECK ok 24-number: venddropped = 150 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 3367 hash c433a2c5 rows 298 uniform 0 light none blue 114-411
-    CHECK ok 26-plugin: plugin-container 27655: alive (state S, cpu ticks 1003 to 1014)
+    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 3094 hash 1d326baa rows 298 uniform 0 light none blue 114-411
+    CHECK ok 26-plugin: plugin-container 6683: alive (state S, cpu ticks 1020 to 1031)
 
 ### mojo / flash-video-h264-mp4 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/bbb-h264-360.mp4: connected at +2 s, load done at +7 s, 7 content frames at +7 s; th
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/bbb-h264-360.mp4: connected at +1 s, load done at +6 s, 4 content frames at +6 s; th
     WAIT ok 13-text vmeta = [vmeta codec=avc1 w=640 h=360 d=10]
-    WAIT ok 14-text video = [video t=0.867 dropped=4 fps=0]
+    WAIT ok 14-text video = [video t=1.033 dropped=3 fps=0]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 1cee67fc rows 298 uniform 0 light none blue none
-    CHECK ok 17-flash-rate: content 40,114-440,412: 5.0 s, flips 112 (22.4/s), changes 98 (19.6/s), reads 113, distinct 99, spacing median 33 p90 73 max 148 ms (wanted 7.5..40/s)
-    CHECK ok 18-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 413275cb rows 298 uniform 0 light none blue none
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=10 after video t=9.233 dropped=25 fps=27.272727272727273]
-    CHECK ok 20-number: vendtime = 9.233 (wanted 7.5..10.5)
-    CHECK ok 21-number: venddropped = 25 (wanted 0..180)
-    CHECK ok 22-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 679d9db4 rows 298 uniform 0 light none blue none
-    CHECK ok 23-plugin: plugin-container 31206: alive (state S, cpu ticks 437 to 445)
+    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 1b6c8165 rows 298 uniform 0 light none blue none
+    CHECK ok 17-flash-rate: content 40,114-440,412: 5.0 s, flips 118 (23.6/s), changes 94 (18.8/s), reads 119, distinct 95, spacing median 32 p90 64 max 154 ms (wanted 7.5..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash af718ab1 rows 298 uniform 0 light none blue none
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=10 after video t=8.733 dropped=35 fps=26.501766784452297]
+    CHECK ok 20-number: vendtime = 8.733 (wanted 7.5..10.5)
+    CHECK ok 21-number: venddropped = 35 (wanted 0..180)
+    CHECK ok 22-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash af718ab1 rows 298 uniform 0 light none blue none
+    CHECK ok 23-plugin: plugin-container 10288: alive (state S, cpu ticks 428 to 436)
 
 ### mojo / flash-video-mediaelement — pass
 
-    mojo card on http://192.168.1.245:8097/title/bbb-h264-360: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
+    mojo card on http://192.168.1.245:8097/title/bbb-h264-360: connected at +1 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
     WAIT ok 10-rect m
     WAIT ok 11-content m
     CHECK ok 12-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 13-flash-rate: content 0,74-640,432: 5.0 s, flips 151 (30.2/s), changes 126 (25.2/s), reads 152, distinct 127, spacing median 30 p90 42 max 159 ms (wanted 5..40/s)
-    CHECK ok 14-flash-drawn: drawn: region 0,74-640,432: colours 4096 hash 007e2ab6 rows 358 uniform 0 light none blue none
+    CHECK ok 13-flash-rate: content 0,74-640,432: 5.0 s, flips 132 (26.4/s), changes 106 (21.2/s), reads 133, distinct 107, spacing median 31 p90 48 max 185 ms (wanted 5..40/s)
+    CHECK ok 14-flash-drawn: drawn: region 0,74-640,432: colours 4096 hash 18dfd5c4 rows 358 uniform 0 light none blue none
     WAIT ok 15-still m
-    CHECK ok 16-flash-drawn: drawn: region 0,74-640,432: colours 4096 hash 007e2ab6 rows 358 uniform 0 light none blue none
-    CHECK ok 17-plugin: plugin-container 25823: alive (state S, cpu ticks 470 to 477)
+    CHECK ok 16-flash-drawn: drawn: region 0,74-640,432: colours 4096 hash 18dfd5c4 rows 358 uniform 0 light none blue none
+    CHECK ok 17-plugin: plugin-container 13521: alive (state S, cpu ticks 451 to 458)
 
 ### mojo / flash-video-slow — pass
 
@@ -4833,147 +4792,147 @@ DEVICE ok overall: 47% of /tmp used
     WAIT ok 14-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
     WAIT ok 15-text video = [video t=0.025 dropped=0 fps=0]
     CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 3601 hash 1ff8a839 rows 298 uniform 0 light none blue 189-208
-    WAIT ok 17-text vstatus = [vstatus NetStream.Buffer.Empty t=4.389]
-    CHECK ok 18-plugin: plugin-container 5715: alive (state S, cpu ticks 200 to 216)
-    WAIT ok 19-text vstatus = [vstatus NetStream.Buffer.Full t=4.389]
+    WAIT ok 17-text vstatus = [vstatus NetStream.Buffer.Empty t=4.023]
+    CHECK ok 18-plugin: plugin-container 16770: alive (state S, cpu ticks 200 to 216)
+    WAIT ok 19-text vstatus = [vstatus NetStream.Buffer.Full t=4.023]
     WAIT ok 21-differs m
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=18.86 dropped=52 fps=22.06896551724138]
-    CHECK ok 23-number: vmaxgap = 16332 (wanted 8000..30000)
-    CHECK ok 24-number: vgapat = 4.389 (wanted 4..16)
-    CHECK ok 25-number: vendtime = 18.86 (wanted 17.5..20.5)
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.942 dropped=47 fps=21.83406113537118]
+    CHECK ok 23-number: vmaxgap = 16726 (wanted 8000..30000)
+    CHECK ok 24-number: vgapat = 4.023 (wanted 4..16)
+    CHECK ok 25-number: vendtime = 19.942 (wanted 17.5..20.5)
     CHECK ok 26-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash ea789dc8 rows 298 uniform 0 light none blue none
-    CHECK ok 27-plugin: plugin-container 5715: alive (state S, cpu ticks 647 to 659)
+    CHECK ok 27-plugin: plugin-container 16770: alive (state S, cpu ticks 651 to 663)
 
 ### mojo / flash-video-spark-240 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +1 s, load done at +6 s, 8 content frames at +6 s; t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +1 s, load done at +7 s, 3 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.384 dropped=1 fps=0]
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 865ce821 rows 298 uniform 0 light none blue 301-358
+    WAIT ok 14-text video = [video t=1.28 dropped=1 fps=0]
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash cebc915c rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3894,3895,3898,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 186 (18.6/s), changes 184 (18.4/s), reads 189, distinct 185, spacing median 44 p90 84 max 276 ms (wanted 10.3..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 13413180 rows 298 uniform 0 light none blue 129-145
+    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3897,3896,3896,3895,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 176 (17.6/s), changes 173 (17.3/s), reads 179, distinct 174, spacing median 48 p90 94 max 279 ms (wanted 10.3..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash a8384ce8 rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=93 fps=23.076923076923077]
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=66 fps=24.50980392156863]
     CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 93 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash d44a7aba rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 10170: alive (state S, cpu ticks 515 to 527)
+    CHECK ok 23-number: venddropped = 66 (wanted 0..288)
+    CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash ea789dc8 rows 298 uniform 0 light none blue none
+    CHECK ok 25-plugin: plugin-container 20901: alive (state S, cpu ticks 539 to 551)
 
 ### mojo / flash-video-spark-360 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +6 s, 9 content frames at +6 s; t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +6 s, 7 content frames at +6 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.019 dropped=5 fps=0]
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 3513 hash 48ec57db rows 298 uniform 0 light none blue 315-328
+    WAIT ok 14-text video = [video t=2.358 dropped=16 fps=21.09704641350211]
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash f47e760b rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3896,3894,3895,3898, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 187 (18.7/s), changes 183 (18.3/s), reads 189, distinct 184, spacing median 43 p90 87 max 220 ms (wanted 12.8..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash b63ee6a6 rows 298 uniform 0 light none blue 140-153
+    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3897,3896,3895,3895,3896,3891, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 183 (18.3/s), changes 177 (17.7/s), reads 185, distinct 178, spacing median 44 p90 90 max 219 ms (wanted 12.8..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 1577af17 rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.853 dropped=114 fps=20.1765447667087]
-    CHECK ok 22-number: vendtime = 19.853 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 114 (wanted 0..288)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.525 dropped=91 fps=20.804438280166437]
+    CHECK ok 22-number: vendtime = 19.525 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 91 (wanted 0..288)
     CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash eb1248d8 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 3212: alive (state S, cpu ticks 627 to 638)
+    CHECK ok 25-plugin: plugin-container 24358: alive (state S, cpu ticks 643 to 655)
 
 ### mojo / flash-video-spark-480 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +1 s, load done at +6 s, 7 content frames at +7 s; t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +1 s, load done at +6 s, 5 content frames at +6 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=2.873 dropped=20 fps=16.198704103671705]
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash c510115e rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=3.971 dropped=32 fps=16.7973124300112]
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 3676 hash 93f0d4d1 rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3897,3898,3896,3897,3896,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 169 (16.9/s), changes 161 (16.1/s), reads 172, distinct 162, spacing median 50 p90 102 max 223 ms (wanted 11.5..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 739ec4ec rows 298 uniform 0 light none blue none
+    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3895,3895,3896,3896,3897,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 174 (17.4/s), changes 172 (17.2/s), reads 175, distinct 173, spacing median 45 p90 103 max 174 ms (wanted 11.5..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4077 hash b377425f rows 298 uniform 0 light none blue none
     CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=146 fps=20.352781546811396]
-    CHECK ok 22-number: vendtime = 20.01 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 146 (wanted 0..288)
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=18.939 dropped=120 fps=23.357664233576642]
+    CHECK ok 22-number: vendtime = 18.939 (wanted 17.5..20.5)
+    CHECK ok 23-number: venddropped = 120 (wanted 0..288)
     CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4077 hash b377425f rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 17036: alive (state S, cpu ticks 749 to 761)
+    CHECK ok 25-plugin: plugin-container 27897: alive (state S, cpu ticks 758 to 770)
 
 ### mojo / flash-video-spark-sheep — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the
-    WAIT ok 13-text video = [video t=1.202 dropped=9 fps=13.104013104013104]
-    CHECK ok 14-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash cc48fa50 rows 298 uniform 37 light 114-162 blue none
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the
+    WAIT ok 13-text video = [video t=2.873 dropped=27 fps=18.12004530011325]
+    CHECK ok 14-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 8500bfac rows 298 uniform 35 light 114-246 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,114-440,412: 5.0 s, flips 76 (15.2/s), changes 63 (12.6/s), reads 77, distinct 64, spacing median 55 p90 112 max 187 ms (wanted 6.9..40/s)
+    CHECK ok 16-flash-rate: content 40,114-440,412: 5.0 s, flips 57 (11.4/s), changes 45 (9.0/s), reads 61, distinct 44, spacing median 72 p90 189 max 278 ms (wanted 6.9..40/s)
     CHECK ok 17-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash da0e1ad8 rows 298 uniform 5 light 114-139 blue none
     CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.725 after video t=8.725 dropped=103 fps=17.758046614872363]
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.725 after video t=8.725 dropped=110 fps=16.276703967446593]
     CHECK ok 20-number: vendtime = 8.725 (wanted 6.3..9.3)
-    CHECK ok 21-number: venddropped = 103 (wanted 0..154)
+    CHECK ok 21-number: venddropped = 110 (wanted 0..154)
     CHECK ok 22-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash da0e1ad8 rows 298 uniform 5 light 114-139 blue none
-    CHECK ok 23-plugin: plugin-container 20515: alive (state S, cpu ticks 303 to 314)
+    CHECK ok 23-plugin: plugin-container 31332: alive (state R, cpu ticks 324 to 335)
 
 ### mojo / flash-video-spark-small — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the
-    WAIT ok 13-text video = [video t=1.3 dropped=0 fps=0]
-    CHECK ok 14-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 784f23c0 rows 298 uniform 0 light 154-178 blue none
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the
+    WAIT ok 13-text video = [video t=1.207 dropped=0 fps=0]
+    CHECK ok 14-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 35eb43f7 rows 298 uniform 0 light 114-130 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,114-440,412: 10.0 s, flips 123 (12.3/s), changes 121 (12.1/s), reads 125, distinct 122, spacing median 80 p90 110 max 279 ms (wanted 7.7..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 4c10b2e0 rows 298 uniform 0 light 176-383 blue none
+    CHECK ok 16-flash-rate: content 40,114-440,412: 10.0 s, flips 124 (12.4/s), changes 124 (12.4/s), reads 125, distinct 125, spacing median 77 p90 106 max 180 ms (wanted 7.7..40/s)
+    CHECK ok 17-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 9ca254b1 rows 298 uniform 0 light 194-273 blue none
     CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.628 dropped=36 fps=10.981468771448181]
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.628 dropped=17 fps=12.279355333844974]
     CHECK ok 20-number: vendtime = 29.628 (wanted 27.2..30.2)
-    CHECK ok 21-number: venddropped = 36 (wanted 0..212)
+    CHECK ok 21-number: venddropped = 17 (wanted 0..212)
     CHECK ok 22-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 465020e8 rows 298 uniform 0 light 236-411 blue none
-    CHECK ok 23-plugin: plugin-container 23891: alive (state S, cpu ticks 414 to 425)
+    CHECK ok 23-plugin: plugin-container 2536: alive (state S, cpu ticks 427 to 438)
 
 ### mojo / flash-video-vp6-176 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +1 s, load done at +6 s, 6 content frames a
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +1 s, load done at +6 s, 5 content frames a
     WAIT ok 10-text vmeta = [vmeta codec=4 w=320 h=176 d=151.125]
-    WAIT ok 11-text video = [video t=1.384 dropped=2 fps=14.52081316553727]
+    WAIT ok 11-text video = [video t=2.69 dropped=10 fps=25.641025641025642]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,114-440,412: 10.0 s, flips 193 (19.3/s), changes 172 (17.2/s), reads 196, distinct 173, spacing median 43 p90 79 max 239 ms (wanted 11.0..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash c57b7c51 rows 298 uniform 0 light none blue none
-    WAIT ok 18-text vctl = [vctl seek 60 t=18.208]
+    CHECK ok 14-flash-rate: content 40,114-440,412: 10.0 s, flips 199 (19.9/s), changes 198 (19.8/s), reads 200, distinct 199, spacing median 45 p90 84 max 186 ms (wanted 11.0..40/s)
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 8fddcc3c rows 298 uniform 0 light none blue none
+    WAIT ok 18-text vctl = [vctl seek 60 t=28.029]
     WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=65.201 dropped=60 fps=20.29769959404601]
-    CHECK ok 21-number: vtime = 65.201 (wanted 58..78)
+    WAIT ok 20-text video = [video t=65.708 dropped=66 fps=21.459227467811157]
+    CHECK ok 21-number: vtime = 67.422 (wanted 58..78)
     CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.648 dropped=377 fps=24.429967426710096]
-    CHECK ok 24-number: vendtime = 150.648 (wanted 148.6..151.6)
-    CHECK ok 25-plugin: plugin-container 27656: alive (state S, cpu ticks 2318 to 2328)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.831 dropped=299 fps=17.0261066969353]
+    CHECK ok 24-number: vendtime = 150.831 (wanted 148.6..151.6)
+    CHECK ok 25-plugin: plugin-container 6256: alive (state S, cpu ticks 2489 to 2500)
 
 ### mojo / flash-video-vp6-272 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +1 s, load done at +7 s, 9 content frame
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +0 s, load done at +6 s, 8 content frame
     WAIT ok 10-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 11-text video = [video t=2.69 dropped=11 fps=26.408450704225352]
+    WAIT ok 11-text video = [video t=2.625 dropped=17 fps=19.71090670170828]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,114-440,412: 10.0 s, flips 193 (19.3/s), changes 186 (18.6/s), reads 194, distinct 187, spacing median 42 p90 83 max 182 ms (wanted 7.1..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 2119eca7 rows 298 uniform 0 light none blue none
-    WAIT ok 18-text vctl = [vctl seek 40 t=19.458]
+    CHECK ok 14-flash-rate: content 40,114-440,412: 10.0 s, flips 190 (19.0/s), changes 190 (19.0/s), reads 193, distinct 191, spacing median 43 p90 79 max 310 ms (wanted 7.1..40/s)
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash c22d94ac rows 298 uniform 0 light none blue 202-288
+    WAIT ok 18-text vctl = [vctl seek 40 t=24.708]
     WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=42.762 dropped=98 fps=18.42751842751843]
-    CHECK ok 21-number: vtime = 42.762 (wanted 38..58)
+    WAIT ok 20-text video = [video t=44.146 dropped=154 fps=15.706806282722512]
+    CHECK ok 21-number: vtime = 44.146 (wanted 38..58)
     CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.23 dropped=387 fps=23.28966521106259]
-    CHECK ok 24-number: vendtime = 86.23 (wanted 84.3..87.3)
-    CHECK ok 25-plugin: plugin-container 302: alive (state S, cpu ticks 2090 to 2101)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.041 dropped=494 fps=17.8359096313912]
+    CHECK ok 24-number: vendtime = 86.041 (wanted 84.3..87.3)
+    CHECK ok 25-plugin: plugin-container 11137: alive (state S, cpu ticks 2158 to 2170)
 
 ### mojo / flash-video-vp6a — pass
 
     mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the G
     WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-    WAIT ok 14-text video = [video t=1.201 dropped=2 fps=0]
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 2583 hash a4c2c097 rows 298 uniform 67 light none blue none
+    WAIT ok 14-text video = [video t=2.298 dropped=9 fps=7.012622720897616]
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 2553 hash d6b0f728 rows 298 uniform 67 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-flash-rate: content 40,114-440,412: 10.0 s, flips 119 (11.9/s), changes 104 (10.4/s), reads 123, distinct 105, spacing median 73 p90 147 max 245 ms (wanted 9.8..40/s)
+    CHECK ok 17-flash-rate: content 40,114-440,412: 10.0 s, flips 119 (11.9/s), changes 110 (11.0/s), reads 125, distinct 110, spacing median 63 p90 164 max 304 ms (wanted 9.8..40/s)
     CHECK ok 18-flash-drawn: drawn: region 40,114-440,412: colours 1495 hash 9ca6657e rows 298 uniform 67 light none blue none
     CHECK ok 19-audio: the movie's audio: open running audible
-    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=12.982 dropped=41 fps=12.213740458015268]
-    CHECK ok 21-number: vendtime = 12.982 (wanted 11.5..14.5)
-    CHECK ok 22-number: venddropped = 41 (wanted 0..125)
+    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.635 dropped=32 fps=16.580310880829014]
+    CHECK ok 21-number: vendtime = 13.635 (wanted 11.5..14.5)
+    CHECK ok 22-number: venddropped = 32 (wanted 0..125)
     CHECK ok 23-flash-drawn: drawn: region 40,114-440,412: colours 1495 hash 9ca6657e rows 298 uniform 67 light none blue none
-    CHECK ok 24-plugin: plugin-container 4914: alive (state S, cpu ticks 538 to 548)
+    CHECK ok 24-plugin: plugin-container 15403: alive (state S, cpu ticks 570 to 581)
 

@@ -1,12 +1,12 @@
 WAIT ok 13-text vmeta = [vmeta codec=avc1 w=640 h=360 d=10]
-WAIT ok 14-text video = [video t=1.367 dropped=16 fps=0]
+WAIT ok 14-text video = [video t=0.967 dropped=8 fps=0]
 CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 2d72ce6e rows 298 uniform 0 light none blue none
-CHECK ok 17-flash-rate: content 40,123-440,421: 5.0 s, flips 157 (31.4/s), changes 115 (23.0/s), reads 158, distinct 116, spacing median 23 p90 51 max 153 ms (wanted 7.5..40/s)
-CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash a2abfc80 rows 298 uniform 0 light none blue none
-WAIT ok 19-text vend = [vend NetStream.Play.Stop t=10 after video t=9.1 dropped=33 fps=51.90311418685121]
-CHECK ok 20-number: vendtime = 9.1 (wanted 7.5..10.5)
-CHECK ok 21-number: venddropped = 33 (wanted 0..180)
-CHECK ok 22-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7332d9d2 rows 298 uniform 0 light none blue none
-CHECK ok 23-plugin: plugin-container 24122: alive (state S, cpu ticks 573 to 581)
+CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash ebfbee0b rows 298 uniform 0 light none blue none
+CHECK ok 17-flash-rate: content 40,123-440,421: 5.0 s, flips 141 (28.2/s), changes 100 (20.0/s), reads 143, distinct 101, spacing median 26 p90 54 max 217 ms (wanted 7.5..40/s)
+CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 48d56f1b rows 298 uniform 0 light none blue none
+WAIT ok 19-text vend = [vend NetStream.Play.Stop t=10 after video t=9.8 dropped=25 fps=48.07692307692308]
+CHECK ok 20-number: vendtime = 9.8 (wanted 7.5..10.5)
+CHECK ok 21-number: venddropped = 25 (wanted 0..180)
+CHECK ok 22-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 48d56f1b rows 298 uniform 0 light none blue none
+CHECK ok 23-plugin: plugin-container 26932: alive (state S, cpu ticks 563 to 571)
 CHECKS 8 FAILS 0

@@ -23,7 +23,17 @@
   var q = {}; location.search.replace(/[?&]([^=]+)=([^&]*)/g, function (m, k, v) { q[k] = decodeURIComponent(v); });
   var benchFrames = 0, benchT0 = Date.now();
   var n = 0, all = [], keyAt = 0, pressAt = 0, movesInPress = 0, firstMove = 0, lastMove = 0;
+  // With a video the report lines are applied four times a second, not as each arrives: every line changes the page, a
+  // changed page is painted, and on the device a movie's call into its page waits behind that paint (20 to 40 ms a
+  // call, three calls a line; 2026-11-18). A clip that fires a burst of status lines was held back by its own reports.
+  // Each line keeps the moment it came.
+  var pend = [];
   function jihadFlash(s) {
+    if (!/(^|&)video=/.test(q.vars || "")) { jihadApply(s, Date.now()); return; }
+    pend.push([s, Date.now()]);
+  }
+  setInterval(function () { if (pend.length) { var p = pend; pend = []; p.forEach(function (x) { jihadApply(x[0], x[1]); }); } }, 250);
+  function jihadApply(s, now) {
     s.split(";").forEach(function (line) {
       if (!line) { return; }
       n++; all.push(line); if (all.length > 12) { all.shift(); }
@@ -33,16 +43,16 @@
       // the stream's own numbers, each in an element a check of a number reads: its time, its dropped frames, its rate
       var vm = kind == "video" && /t=([\d.]+) dropped=(\d+) fps=([\d.]+)/.exec(line);
       // a dry buffer and its filling again, on the wall clock: the longest such wait (ms) and the stream's time it stood at
-      if (line.indexOf("vstatus NetStream.Buffer.Empty") == 0) { window.vEmptyAt = Date.now(); window.vEmptyT = line.replace(/.* t=/, ""); }
+      if (line.indexOf("vstatus NetStream.Buffer.Empty") == 0) { window.vEmptyAt = now; window.vEmptyT = line.replace(/.* t=/, ""); }
       if (line.indexOf("vstatus NetStream.Buffer.Full") == 0 && window.vEmptyAt) {
-        var gap = Date.now() - window.vEmptyAt; window.vEmptyAt = 0;
+        var gap = now - window.vEmptyAt; window.vEmptyAt = 0;
         if (gap > Number(document.getElementById("vmaxgap").textContent)) { document.getElementById("vmaxgap").textContent = String(gap); document.getElementById("vgapat").textContent = window.vEmptyT; }
       }
       if (vm) { document.getElementById("vtime").textContent = vm[1]; document.getElementById("vdropped").textContent = vm[2]; document.getElementById("vfps").textContent = String(Math.round(Number(vm[3]) * 10) / 10); }
       if (line.indexOf("vstatus NetStream.Play.Stop") == 0) { document.getElementById("vendtime").textContent = document.getElementById("vtime").textContent; document.getElementById("venddropped").textContent = document.getElementById("vdropped").textContent; }
       if (line.indexOf("vstatus NetStream.Play.Stop") == 0) { document.getElementById("vend").textContent = "vend " + line.slice(8) + " after " + document.getElementById("video").textContent; }
       // what a check of input reads: how many of each, how long a press lasted, how fast the moves of one came
-      var c = document.getElementById("n-" + kind), now = Date.now();
+      var c = document.getElementById("n-" + kind);
       if (c) { c.textContent = String(Number(c.textContent) + 1); }
       if (kind == "down") { pressAt = now; movesInPress = 0; firstMove = 0; lastMove = 0; }
       // how long the movie saw a key down: a game that polls the keys once a frame never sees one shorter than a frame

@@ -1,15 +1,15 @@
 WAIT ok 14-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
 WAIT ok 15-text video = [video t=0.025 dropped=0 fps=0]
-CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4004 hash 03060258 rows 298 uniform 0 light none blue 194-213
-WAIT ok 17-text vstatus = [vstatus NetStream.Buffer.Empty t=4.624]
-CHECK ok 18-plugin: plugin-container 1958: alive (state S, cpu ticks 226 to 241)
-WAIT ok 19-text vstatus = [vstatus NetStream.Buffer.Full t=4.754]
-  sample dry of m: hash dbfde64f
+CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3906 hash 28d6e5f7 rows 298 uniform 0 light none blue 194-213
+WAIT ok 17-text vstatus = [vstatus NetStream.Buffer.Empty t=4.023]
+CHECK ok 18-plugin: plugin-container 8265: alive (state S, cpu ticks 214 to 230)
+WAIT ok 19-text vstatus = [vstatus NetStream.Buffer.Full t=4.023]
+  sample dry of m: hash 4dec91cf
 WAIT ok 21-differs m
-WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.984 after video t=19.618 dropped=49 fps=24.549918166939445]
-CHECK ok 23-number: vmaxgap = 16524 (wanted 8000..30000)
-CHECK ok 24-number: vgapat = 4.624 (wanted 4..16)
-CHECK ok 25-number: vendtime = 19.618 (wanted 17.5..20.5)
+WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=25 fps=20.380434782608695]
+CHECK ok 23-number: vmaxgap = 16600 (wanted 8000..30000)
+CHECK ok 24-number: vgapat = 4.023 (wanted 4..16)
+CHECK ok 25-number: vendtime = 20.01 (wanted 17.5..20.5)
 CHECK ok 26-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 53017963 rows 298 uniform 0 light none blue none
-CHECK ok 27-plugin: plugin-container 1958: alive (state S, cpu ticks 678 to 690)
+CHECK ok 27-plugin: plugin-container 8265: alive (state S, cpu ticks 712 to 724)
 CHECKS 7 FAILS 0

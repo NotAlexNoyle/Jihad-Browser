@@ -1,14 +1,14 @@
 WAIT ok 13-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
-WAIT ok 14-text video = [video t=1.202 dropped=11 fps=0]
-CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 6c2e90e7 rows 298 uniform 0 light none blue 160-177
+WAIT ok 14-text video = [video t=3.344 dropped=14 fps=22.058823529411764]
+CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 4bd60fbc rows 298 uniform 0 light none blue none
 CHECK ok 16-audio: the movie's audio: open running audible
-CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3895,3897,3896,3897,3897,3896, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 197 (19.7/s), changes 184 (18.4/s), reads 198, distinct 185, spacing median 42 p90 92 max 190 ms (wanted 10.3..40/s)
-CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 8c42db00 rows 298 uniform 0 light none blue none
+CHECK ok 17-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3896,3895,3895,3896,3896,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 200 (20.0/s), changes 195 (19.5/s), reads 202, distinct 196, spacing median 41 p90 83 max 223 ms (wanted 10.3..40/s)
+CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 64dfa9ac rows 298 uniform 0 light none blue none
 CHECK ok 20-audio: the movie's audio: open running audible
-WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=87 fps=20.915032679738562]
-CHECK ok 22-number: vendtime = 20.01 (wanted 17.5..20.5)
-CHECK ok 23-number: venddropped = 87 (wanted 0..288)
+WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.304 dropped=52 fps=24.232633279483036]
+CHECK ok 22-number: vendtime = 19.304 (wanted 17.5..20.5)
+CHECK ok 23-number: venddropped = 52 (wanted 0..288)
 CHECK ok 24-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 53017963 rows 298 uniform 0 light none blue none
-CHECK ok 25-plugin: plugin-container 3179: alive (state R, cpu ticks 559 to 571)
+CHECK ok 25-plugin: plugin-container 5378: alive (state S, cpu ticks 585 to 597)
 CHECKS 10 FAILS 0

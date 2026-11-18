@@ -1,0 +1,108 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Wed, 18 Nov 2026 07:27:23 -0500
+Subject: [PATCH] plugins: the calls that wait for the parent's answer, counted
+ and timed in the child's readout
+
+MessageChannel counts the calls a process makes that wait for the other side
+(Send with a reply, Call), their time, and the three message types that waited
+longest; the plugin child prints and clears them with its two-second readout. A
+movie's call into its page (ExternalInterface: three such calls) waited 20 to
+40 ms a call on the device, queued behind the daemon's own paints of the page
+it had just changed; the games measured make none while they play.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfKTnbF5UuSGLUYcN1P
+---
+ dom/plugins/ipc/PluginInstanceChild.cpp |  9 +++++++
+ ipc/glue/MessageChannel.cpp             | 32 +++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)
+
+diff --git a/dom/plugins/ipc/PluginInstanceChild.cpp b/dom/plugins/ipc/PluginInstanceChild.cpp
+index a25e1359d7..eaf4e3edd4 100644
+--- a/dom/plugins/ipc/PluginInstanceChild.cpp
++++ b/dom/plugins/ipc/PluginInstanceChild.cpp
+@@ -179,6 +179,7 @@ JihadTranslateFlashKey(NPEvent& aEvent)
+ // Draws posted on this thread's loop: the pump stops, or the player runs its next frame first
+ // and this one is never drawn. A count: several instances share the loop and the pump
+ static int gJihadDrawsPosted = 0;
++extern "C" { extern uint32_t gJihadIpcWaits, gJihadIpcWaitUs, gJihadIpcTopType[3], gJihadIpcTopUs[3], gJihadIpcTopN[3]; }
+ static uint32_t gJihadGlibCalls = 0, gJihadGlibRuns = 0, gJihadGlibIters = 0, gJihadGlibUs = 0;
+ // When the plugin last asked for a draw itself: the pump's short period is for a movie that plays
+ static uint32_t gJihadSelfInvalMs = 0;
+@@ -4810,6 +4811,14 @@ PluginInstanceChild::PaintRectToPlatformSurface(const nsIntRect& aRect,
+                     fprintf(stderr, "[jihad-npapi-child]   the loop: %u pumps, %u ran sources (%u iterations, %u us in them)\n",
+                             gJihadGlibCalls, gJihadGlibRuns, gJihadGlibIters, gJihadGlibUs);
+                     gJihadGlibCalls = gJihadGlibRuns = gJihadGlibIters = gJihadGlibUs = 0;
++                    // the calls that waited for the daemon's answer in those two seconds (MessageChannel.cpp)
++                    fprintf(stderr, "[jihad-npapi-child]   waits on the parent: %u, %u us; longest types %u (%u, %u us) %u (%u, %u us) %u (%u, %u us)\n",
++                            gJihadIpcWaits, gJihadIpcWaitUs,
++                            gJihadIpcTopType[0], gJihadIpcTopN[0], gJihadIpcTopUs[0],
++                            gJihadIpcTopType[1], gJihadIpcTopN[1], gJihadIpcTopUs[1],
++                            gJihadIpcTopType[2], gJihadIpcTopN[2], gJihadIpcTopUs[2]);
++                    gJihadIpcWaits = gJihadIpcWaitUs = 0;
++                    for (int jw = 0; jw < 3; jw++) { gJihadIpcTopType[jw] = gJihadIpcTopUs[jw] = gJihadIpcTopN[jw] = 0; }
+                     gJihadPumpUs = gJihadDrawUs = gJihadShowUs = 0;
+                     // WHICH SITE ASKED FOR THOSE DRAWS. These are requests to draw, not draws:
+                     // AsyncShowPluginFrame coalesces while an invalidate task is already pending,
+diff --git a/ipc/glue/MessageChannel.cpp b/ipc/glue/MessageChannel.cpp
+index 661d7e7fca..11c1880e13 100644
+--- a/ipc/glue/MessageChannel.cpp
++++ b/ipc/glue/MessageChannel.cpp
+@@ -3,6 +3,8 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
++#include <unistd.h>
++#include "prinrval.h"
+ #include "mozilla/ipc/MessageChannel.h"
+ #include "mozilla/ipc/ProtocolUtils.h"
+ 
+@@ -1046,10 +1048,39 @@ MessageChannel::ProcessPendingRequests(AutoEnterTransaction& aTransaction)
+     }
+ }
+ 
++
++// Jihad (cavekit-flash.md R3, T-576): the calls a process makes that wait for the other side's answer, counted and
++// timed, with the three message types that waited longest. Read and cleared by the plugin child's two-second readout
++// (PluginInstanceChild.cpp): a player's frame that waits on the daemon's main thread is slow whatever the player does.
++extern "C" {
++MOZ_EXPORT uint32_t gJihadIpcWaits = 0;
++MOZ_EXPORT uint32_t gJihadIpcWaitUs = 0;
++MOZ_EXPORT uint32_t gJihadIpcTopType[3] = { 0, 0, 0 };
++MOZ_EXPORT uint32_t gJihadIpcTopUs[3] = { 0, 0, 0 };
++MOZ_EXPORT uint32_t gJihadIpcTopN[3] = { 0, 0, 0 };
++}
++namespace {
++struct JihadIpcWait {
++    PRIntervalTime mT0; uint32_t mType;
++    explicit JihadIpcWait(uint32_t aType) : mT0(PR_IntervalNow()), mType(aType) {}
++    ~JihadIpcWait() {
++        const uint32_t us = PR_IntervalToMicroseconds(PR_IntervalNow() - mT0);
++        gJihadIpcWaits++; gJihadIpcWaitUs += us;
++        int at = -1;
++        for (int i = 0; i < 3; i++) if (gJihadIpcTopType[i] == mType) at = i;
++        if (at < 0) for (int i = 0; i < 3; i++) if (!gJihadIpcTopType[i]) { at = i; break; }
++        if (at < 0) { at = 0; for (int i = 1; i < 3; i++) if (gJihadIpcTopUs[i] < gJihadIpcTopUs[at]) at = i;
++                      if (gJihadIpcTopUs[at] > us) return; gJihadIpcTopUs[at] = 0; gJihadIpcTopN[at] = 0; }
++        gJihadIpcTopType[at] = mType; gJihadIpcTopUs[at] += us; gJihadIpcTopN[at]++;
++    }
++};
++}
++
+ bool
+ MessageChannel::Send(Message* aMsg, Message* aReply)
+ {
+     nsAutoPtr<Message> msg(aMsg);
++    JihadIpcWait jihadWait(aMsg->type());
+ 
+     // Sanity checks.
+     AssertWorkerThread();
+@@ -1238,6 +1269,7 @@ bool
+ MessageChannel::Call(Message* aMsg, Message* aReply)
+ {
+     nsAutoPtr<Message> msg(aMsg);
++    JihadIpcWait jihadWait(aMsg->type());
+     AssertWorkerThread();
+     mMonitor->AssertNotCurrentThreadOwns();
+ 

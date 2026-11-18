@@ -1,10 +1,10 @@
 WAIT ok 10-rect m
 WAIT ok 11-content m
-CHECK ok 12-flash-rate: content 0,74-478,502: 5.0 s, flips 69 (13.8/s), changes 65 (13.0/s), reads 72, distinct 66, spacing median 67 p90 100 max 280 ms (wanted 5..40/s)
+CHECK ok 12-flash-rate: content 0,74-478,502: 5.0 s, flips 76 (15.2/s), changes 76 (15.2/s), reads 77, distinct 77, spacing median 69 p90 82 max 121 ms (wanted 5..40/s)
 CHECK ok 13-audio: the movie's audio: open running audible
-CHECK ok 14-flash-drawn: drawn: region 0,74-478,502: colours 4096 hash 2a7eedc6 rows 428 uniform 97 light 74-474 blue none
-CHECK ok 15-flash-rate: content 0,74-478,502: 3.0 s, flips 42 (14.0/s), changes 42 (14.0/s), reads 43, distinct 43, spacing median 68 p90 85 max 185 ms (wanted 5..40/s)
+CHECK ok 14-flash-drawn: drawn: region 0,74-478,502: colours 2856 hash d1122055 rows 428 uniform 57 light 74-501 blue none
+CHECK ok 15-flash-rate: content 0,74-478,502: 3.0 s, flips 45 (15.0/s), changes 45 (15.0/s), reads 46, distinct 46, spacing median 66 p90 80 max 89 ms (wanted 5..40/s)
 WAIT ok 16-still m
 CHECK ok 17-flash-drawn: drawn: region 0,74-478,502: colours 4039 hash a7504443 rows 428 uniform 103 light 74-474 blue none
-CHECK ok 18-plugin: plugin-container 17081: alive (state S, cpu ticks 753 to 766)
+CHECK ok 18-plugin: plugin-container 28336: alive (state S, cpu ticks 804 to 816)
 CHECKS 6 FAILS 0

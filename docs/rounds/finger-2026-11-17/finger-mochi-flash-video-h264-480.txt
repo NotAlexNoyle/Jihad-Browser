@@ -1,15 +1,15 @@
 WAIT ok 13-text vmeta = [vmeta codec=7 w=854 h=480 d=20.025]
-WAIT ok 14-text video = [video t=1.097 dropped=3 fps=13.368983957219251]
+WAIT ok 14-text video = [video t=1.097 dropped=0 fps=0]
 CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3438 hash 6f46d3cd rows 298 uniform 0 light none blue 119-416
+CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3400 hash 7d38aef2 rows 298 uniform 0 light none blue 119-416
 CHECK ok 17-audio: the movie's audio: open running audible
-CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3897,3897,3898,3897,3896,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 224 (22.4/s), changes 179 (17.9/s), reads 226, distinct 180, spacing median 36 p90 79 max 220 ms (wanted 9.3..40/s)
-CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 3459 hash 06adea40 rows 298 uniform 0 light none blue 119-416
+CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3895,3898,3895,3897,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 200 (20.0/s), changes 167 (16.7/s), reads 202, distinct 168, spacing median 32 p90 106 max 222 ms (wanted 9.3..40/s)
+CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 3429 hash 2833c789 rows 298 uniform 0 light none blue 119-416
 CHECK ok 21-audio: the movie's audio: open running audible
-WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.67 dropped=105 fps=36.31961259079903]
+WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.67 dropped=84 fps=25.848142164781905]
 CHECK ok 23-number: vendtime = 19.67 (wanted 17.5..20.5)
-CHECK ok 24-number: venddropped = 105 (wanted 0..288)
-CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 3454 hash 20227556 rows 298 uniform 0 light none blue 119-416
-CHECK ok 26-plugin: plugin-container 23743: alive (state S, cpu ticks 1133 to 1143)
+CHECK ok 24-number: venddropped = 84 (wanted 0..288)
+CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 3547 hash 5e60f899 rows 298 uniform 0 light none blue 119-416
+CHECK ok 26-plugin: plugin-container 30570: alive (state S, cpu ticks 1152 to 1164)
 CHECKS 11 FAILS 0

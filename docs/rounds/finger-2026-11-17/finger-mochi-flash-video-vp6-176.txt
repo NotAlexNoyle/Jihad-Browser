@@ -1,0 +1,17 @@
+WAIT ok 10-text vmeta = [vmeta codec=4 w=320 h=176 d=151.125]
+WAIT ok 11-text video = [video t=2.69 dropped=11 fps=26.362038664323375]
+WAIT ok 12-content m
+CHECK ok 13-audio: the movie's audio: open running audible
+CHECK ok 14-flash-rate: content 40,119-440,417: 10.0 s, flips 217 (21.7/s), changes 213 (21.3/s), reads 219, distinct 214, spacing median 41 p90 61 max 208 ms (wanted 11.0..40/s)
+CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash b684e6dc rows 298 uniform 0 light none blue none
+  sample before of m: hash efa94b29
+  flash tap on stage 330,260 (showAll) at 370 378
+WAIT ok 18-text vctl = [vctl seek 60 t=23.458]
+WAIT ok 19-differs m
+WAIT ok 20-text video = [video t=66.586 dropped=58 fps=25.276461295418642]
+CHECK ok 21-number: vtime = 67.813 (wanted 58..78)
+CHECK ok 22-audio: the movie's audio: open running audible
+WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.648 dropped=337 fps=24.096385542168676]
+CHECK ok 24-number: vendtime = 150.648 (wanted 148.6..151.6)
+CHECK ok 25-plugin: plugin-container 24364: alive (state R, cpu ticks 2561 to 2572)
+CHECKS 7 FAILS 0

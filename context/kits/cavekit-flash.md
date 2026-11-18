@@ -119,11 +119,11 @@ fetched and verified by a tool, and kept out of the repository (it is public and
 ## R8: Videos — played to the end, controlled by the finger
 **Description:** each clip plays to its end in each shell at its codec's rate, its picture always present, and its player's controls answer the finger.
 **Acceptance Criteria:**
-- [ ] Each clip in each shell plays to its end by its player's report or its known length, with the video's rectangle never blank and the content rate meeting R3
-- [ ] On the instrumented player the dropped frames are reported per codec and size, and the table says which sizes each codec holds on this device
-- [ ] Pause holds the picture still and resume moves it; a seek changes the reported time to the target within 2 s and the picture follows
+- [ ] Each clip in each shell plays to its end by its player's report or its known length, with the video's rectangle never blank and the content rate meeting R3 *(2026-11-17, T-578: the suite's `flash-video-*` scripts, twelve clips on the instrumented player (`NetStream.Play.Stop` with the time at the clip's length) and two real players (Flowplayer, MediaElement); all pass in the three shells but one: Mojo's VP6-alpha clip at 9.4/s under its bar of 9.8 (90 % of the stock browser's median of three, docs/rounds/t578-2026-11-17). H.264 is the kernel's hardware decoder: on a boot where it had lost its memory arena every H.264 clip was blank in the stock browser too; `expect decoder ok` names that state)*
+- [x] On the instrumented player the dropped frames are reported per codec and size, and the table says which sizes each codec holds on this device *(2026-11-17: `venddropped` of each `flash-video-*` script; the table is docs/rounds/t578-2026-11-17/README.md. No size is held without drops: Spark and H.264 at 24 frames a second drop a fifth to a third of their frames at every size from 240 to 480 rows, in the stock browser at the same order)*
+- [ ] Pause holds the picture still and resume moves it; a seek changes the reported time to the target within 2 s and the picture follows *(2026-11-17: `flash-video-controls` passes on Enyo and Mojo, and on Mochi in two runs of four: in the other two the paused picture read differently some seconds into the pause (a dark scene, 14 and 247 colours), cause not found. The time is read at the stream's next report, about a second apart)*
 - [ ] The audio stream is open and running for each clip's whole length; audio-to-picture sync is a person's, on R14's clips
-- [ ] A progressive download whose connection is throttled to below the clip's rate, and then stalled for 10 s, recovers and plays on with no plugin exit
+- [x] A progressive download whose connection is throttled to below the clip's rate, and then stalled for 10 s, recovers and plays on with no plugin exit *(2026-11-17: `flash-video-slow` in the three shells, `flash-serve.py`'s `/slow/40000/500000/10/`: Buffer.Empty, Buffer.Full, the clip's end, the plugin alive)*
 - [ ] At least 2 real pages with a Flash video player are visited in each shell, and each outcome is recorded; a page that is down is no verdict on Flash
 **Dependencies:** R1, R2, R3
 

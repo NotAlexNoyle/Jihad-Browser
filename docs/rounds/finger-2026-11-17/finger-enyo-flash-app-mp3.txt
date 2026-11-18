@@ -1,0 +1,12 @@
+WAIT ok 9-rect m
+WAIT ok 10-still m
+  the sink recorded for 3000 ms from here
+CHECK ok 12-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  the sink recorded for 8000 ms from here
+  tap on stage 37,10 at 37 92, 3290 ms after the recording was asked for
+CHECK ok 15-sound-watched: sound at the output sink over the gesture: peak 1820 rms 191 frames 353280 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,289,502,509,265,1131,1757,1746,1761,1203,1257,919,1023,1537,1011,1155,750,820,959,1820,1196,1694,224, the speaker amp on, the media volume 23
+  tap on stage 37,10 at 37 92
+  pause 1500 ms (the slow human)
+  the sink recorded for 3000 ms from here
+CHECK ok 19-sound-watched: no sound at the output sink over the gesture: peak 0 rms 0 frames 133120 hz 0 env 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+CHECKS 3 FAILS 0

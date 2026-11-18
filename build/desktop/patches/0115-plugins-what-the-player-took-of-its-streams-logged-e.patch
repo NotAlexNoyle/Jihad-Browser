@@ -1,25 +1,23 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: NotAlexNoyle <alexnoyle@icloud.com>
 Date: Tue, 17 Nov 2026 13:52:25 -0500
-Subject: [PATCH] plugins: a stream's pieces to the player 10 ms apart, not
- 100, when it asks for a wait
+Subject: [PATCH] plugins: what the player took of its streams, logged every
+ two seconds
 
-The device's Flash asks for a wait (NPP_WriteReady 0) between the pieces of a
-stream it takes. Mozilla's plugin host answers with a 100 ms timer; at that pace
-a progressive video's download ran far behind what the stock browser delivers,
-and a seek ahead of the delivered part ran to the clip's end (cavekit-flash.md
-R8). The timer is 10 ms (JIHAD_STREAM_RETRY_MS for a measurement), and the bytes
-delivered, the writes and the waits asked are logged every two seconds while
-bytes move.
+The bytes delivered to the plugin (NPP_Write), the writes and the waits it asked
+for (NPP_WriteReady 0), every two seconds while bytes move. A progressive video
+is sought only inside what has been delivered, so a seek that fails is read
+against this first (cavekit-flash.md R8; 2026-11-17: a 5 MB clip was all
+delivered in three seconds, no wait asked).
 
 Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01MpagfKTnbF5UuSGLUYcN1P
 ---
- dom/plugins/ipc/BrowserStreamChild.cpp | 45 ++++++++++++++++++++++++--
- 1 file changed, 43 insertions(+), 2 deletions(-)
+ dom/plugins/ipc/BrowserStreamChild.cpp | 29 +++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)
 
 diff --git a/dom/plugins/ipc/BrowserStreamChild.cpp b/dom/plugins/ipc/BrowserStreamChild.cpp
-index 24c533c5ea..abc3363b11 100644
+index 24c533c5ea..8ed383146c 100644
 --- a/dom/plugins/ipc/BrowserStreamChild.cpp
 +++ b/dom/plugins/ipc/BrowserStreamChild.cpp
 @@ -3,6 +3,9 @@
@@ -37,8 +35,8 @@ index 24c533c5ea..abc3363b11 100644
  }
  
 +// Jihad (cavekit-flash.md R8): what the player took of its streams and how often it asked for a wait, every two seconds
-+// while bytes move. A progressive video is sought only inside what has been delivered, so the delivery's rate is the
-+// player's seek range.
++// while bytes move. A progressive video is sought only inside what has been delivered, so a seek that fails is first
++// read against this (2026-11-17: a 5 MB clip was all delivered in three seconds with no wait asked).
 +static void
 +JihadStreamCount(int32_t aBytes, bool aSuspended)
 +{
@@ -72,7 +70,7 @@ index 24c533c5ea..abc3363b11 100644
  
      r = mInstance->mPluginIface->write(
        &mInstance->mData, &mStream,
-@@ -289,18 +315,33 @@ BrowserStreamChild::DeliverPendingData()
+@@ -289,6 +315,7 @@ BrowserStreamChild::DeliverPendingData()
        return false;
      }
      mPendingData[0].curpos += r;
@@ -80,30 +78,3 @@ index 24c533c5ea..abc3363b11 100644
    }
    mPendingData.RemoveElementAt(0);
    return false;
- }
- 
-+static int
-+JihadStreamRetryMs()
-+{
-+  static int sMs = -1;
-+  if (sMs < 0) {
-+    const char* e = getenv("JIHAD_STREAM_RETRY_MS");
-+    sMs = e && atoi(e) > 0 ? atoi(e) : 10;
-+  }
-+  return sMs;
-+}
-+
- void
- BrowserStreamChild::SetSuspendedTimer()
- {
-   if (mSuspendedTimer.IsRunning())
-     return;
-   mSuspendedTimer.Start(
--    base::TimeDelta::FromMilliseconds(100), // 100ms copied from Mozilla plugin host
-+    // Jihad (cavekit-flash.md R8): 100 ms in Mozilla's plugin host. The device's Flash asks for a wait after each
-+    // piece it takes, so 100 ms held a video's download to a few pieces a second, under what the stock browser gives
-+    // it: a seek ahead found nothing there and ran to the clip's end. JIHAD_STREAM_RETRY_MS sets it for a measurement.
-+    base::TimeDelta::FromMilliseconds(JihadStreamRetryMs()),
-     this, &BrowserStreamChild::Deliver);
- }
- 

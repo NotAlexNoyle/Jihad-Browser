@@ -1,0 +1,64 @@
+CRASH-BEGIN
+[jihad-gpu] daemon frame path: compositor (jihad_offscreen_compose present, OMTC DISABLED by JIHAD_DISABLE_OMTC)
+[jihad-widget] create type=0 popup=0 hint=0 parent=(nil) bounds=0,0 960x1400
+[jihad-bs] tick: card connected — 8 ms
+[jihad-bs] extra buffer key=0x28c000d sz=12582944
+[jihad-bs] extra buffer ACCEPTED: 3-buffer rotation active (key 0x28c000d)
+[jihad-bs] focus: Luna requests are now answered for the card that just said it has the focus
+[jihad-bs] setEnableJavaScript 1
+[jihad-bs] setBlockPopups 1
+[jihad-bs] setAcceptCookies 1
+[jihad-bs] setZoomAndScroll zoom=1.0000 (was -1.0000) scroll=0,0
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] viewport: scale 1.0000 (compositor), displayport NOT set (code 1, what the card shows, margins 0x0 CSS px, shift 0,0)
+[jihad-gpu] view: scale 1.0000 offset 0.0,0.0
+[jihad-gpu] viewport: scale 1.0000 (compositor), displayport NOT set (code 1, panning, margins 0x150 CSS px, shift 0,0)
+[jihad-widget] create type=3 popup=0 hint=0 parent=0x41844400 bounds=0,0 768x150
+[jihad-bs] flash audio: watching the sound server for the plugin's streams
+open(/dev/kgsl-3d0) failed: errno 12. Cannot allocate memory
+[jihad-gpu] pbuffer context 1100x1400: FAILED FEATURE_FAILURE_NO_DISPLAY
+open(/dev/kgsl-3d0) failed: errno 12. Cannot allocate memory
+
+[jihad-bs] *** FATAL SIGNAL sig=0x0000000b faultaddr=0x00000000
+[jihad-bs] pc=0x2b09df00 lr=0x2c31190b sp=0x3dffe620
+[jihad-bs]   00010000-000be000 r-xp 00000000 00:12 23713      /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/deviceroot/hl/jihad-browserserver
+[jihad-bs]   2aabf000-2c9e9000 r-xp 00000000 00:12 23714      /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/deviceroot/hl/libxul.so
+[jihad-bs] backtrace (raw return addresses; same base subtraction):
+[jihad-bs] stack words in libxul's code (sp+offset, address; same base subtraction):
+[jihad-bs]   sp+0x00000004 0x2c0e63d9
+[jihad-bs]   sp+0x00000018 0x2c67ef90
+[jihad-bs]   sp+0x00000054 0x2b09dff9
+[jihad-bs]   sp+0x00000064 0x2c111f6d
+[jihad-bs]   sp+0x00000068 0x2c685c80
+[jihad-bs]   sp+0x0000006c 0x2c67ef90
+[jihad-bs]   sp+0x00000088 0x2c67ef90
+[jihad-bs]   sp+0x000000c4 0x2c11bdeb
+[jihad-bs]   sp+0x00000314 0x2bfad583
+[jihad-bs]   sp+0x00000324 0x2c111cb9
+[jihad-bs]   sp+0x00000358 0x2c6845ac
+[jihad-bs]   sp+0x0000035c 0x2c106b3d
+[jihad-bs]   sp+0x00000370 0x2c7b665a
+[jihad-bs]   sp+0x00000454 0x2bd9bae9
+[jihad-bs]   sp+0x00000480 0x2c107e75
+[jihad-bs]   sp+0x00000484 0x2c107de5
+[jihad-bs]   sp+0x0000049c 0x2c107e85
+[jihad-bs]   sp+0x000004ac 0x2c06d8d3
+[jihad-bs]   sp+0x000004d4 0x2c06da91
+[jihad-bs]   sp+0x00000554 0x2c0484d3
+[jihad-bs]   sp+0x00000594 0x2c047669
+[jihad-bs]   sp+0x0000059c 0x2c03fd01
+[jihad-bs]   sp+0x000005bc 0x2c04a253
+[jihad-bs]   sp+0x00000618 0x2bd9d051
+[jihad-bs]   sp+0x00000624 0x2c04ae11
+[jihad-bs]   sp+0x00000628 0x2bf97335
+[jihad-bs]   sp+0x00000634 0x2bd9d05f
+[jihad-bs]   sp+0x0000064c 0x2c04aeff
+[jihad-bs]   sp+0x0000065c 0x2c040ac1
+[jihad-bs]   sp+0x0000066c 0x2bd9cdcf
+[jihad-bs]   sp+0x000006d4 0x2c041dfd
+[jihad-bs]   sp+0x000006ec 0x2c03ffc3
+[jihad-bs]   sp+0x000006f4 0x2c042000
+[jihad-bs]   sp+0x00000704 0x2c042341
+[jihad-bs]   sp+0x00000814 0x2c03fb85
+[jihad-bs]   sp+0x00000818 0x2c03fb7d
+[jihad-bs]   sp+0x0000103c 0x2c03fb7d

@@ -1,0 +1,12 @@
+CHECK ok 13-decoder: the kernel's video decoder: no arena fault on this boot
+WAIT ok 14-text vmeta = [vmeta codec=avc1 w=640 h=360 d=10]
+WAIT ok 15-text video = [video t=1.067 dropped=9 fps=0]
+CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 2925917c rows 298 uniform 0 light none blue none
+CHECK ok 17-flash-rate: content 40,114-440,412: 5.0 s, flips 107 (21.4/s), changes 87 (17.4/s), reads 108, distinct 88, spacing median 38 p90 71 max 135 ms (wanted 7.5..40/s)
+CHECK ok 18-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 1b5156d7 rows 298 uniform 0 light none blue none
+WAIT ok 19-text vend = [vend NetStream.Play.Stop t=10 after video t=9.567 dropped=38 fps=21.1864406779661]
+CHECK ok 20-number: vendtime = 9.567 (wanted 7.5..10.5)
+CHECK ok 21-number: venddropped = 38 (wanted 0..300)
+CHECK ok 22-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 1b5156d7 rows 298 uniform 0 light none blue none
+CHECK ok 23-plugin: plugin-container 18355: alive (state S, cpu ticks 415 to 424)
+CHECKS 8 FAILS 0

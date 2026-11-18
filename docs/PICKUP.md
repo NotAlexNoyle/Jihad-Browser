@@ -94,6 +94,40 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## 2026-11-17 (later) — Flash video (T-578): the scripts, the decoder's dead boot, two wrong turns undone (READ FIRST)
+
+**State of the device:** the three shells on engine 0115 (queue 0001-0115 exact, engine branch head `abfe97ca13`) and
+the daemon of this section's commit; restarted today (the hardware decoder, below); USB alert closed; corpus server on
+8097, test pages on 8077. Commits from `965aab42` on are unpushed (the owner's).
+
+**Done:** `docs/rounds/t578-2026-11-17/README.md` is the round: the dropped frames' table, the stock browser's three
+runs, what the bars are. Sixteen `flash-video-*` scripts in the suite (each codec and size to its end by the player's
+own `NetStream.Play.Stop`, pause/resume/seek, a throttled and stalled download, Flowplayer, MediaElement); in
+`docs/rounds/finger-2026-11-17` all pass in the three shells but Mojo's VP6-alpha rate (9.4/s under 9.8) and Mochi's
+`flash-video-controls` in two runs of four (the paused picture reads differently some seconds into the pause; cause not
+found, look at the kept frame of a failing run first). That round's report carries the runs of 2026-11-16 for every
+script not rerun (`carried_from`), so `finger-list.py` keeps its ticks.
+
+**Traps met today, each cost hours:**
+- **H.264 blank everywhere = the device, not Flash.** `dmesg | grep "arena is not initialized"`: the kernel's hardware
+  decoder had no memory on a boot five days old (`lastboot=panic`); the stock browser and the system's video player
+  were blank too. A restart cures it. `expect decoder ok` (fingerlib) says so in a script.
+- **A seek that "runs to the clip's end" was the script**: target within 16 s of the end, then seconds of checks. A
+  seek's checks need a target far from the end. The 100 ms plugin stream timer is NOT a cause of anything: the log
+  added with engine 0115 (`streams:` in the daemon log) shows a 5 MB clip delivered in 3 s, no wait asked.
+- **The volume subscriber of f0f4043c leaked** one `luna-send -i` per killed daemon; after dozens the novacom sessions
+  dropped (a whole round of "0 lines"). Fixed: the script's watcher ends its process group when the daemon goes;
+  `device-check.sh` has `volume-subscribers`. If sessions drop mid-round again: `ps | grep media/status` first.
+- **Never `pgrep -f NAME` / `pkill -f NAME` from a command line holding NAME** (exit 144, a third time today).
+- A partial `--merge` round in a new directory makes `finger-list.py` drop every other script's tick: carry the last
+  round's runs into the report (as done) or merge into the last round's directory.
+
+**Next, in order:** (1) T-576's open question, unchanged from the section below (the player's main thread gets 63-70 %
+of a core here, 84-87 % in the stock browser): `JIHAD_PIN="2 1"` with `game-round.py --threads` is ready (pin.c): the
+player's main thread on cpu1, the daemon on cpu0; then the context switches per thread. The games report
+(`docs/rounds/t576-games-2026-11-16/report.md`: 13 pass, 77 fail, 21 limit) is that question's size. (2) T-578's four
+open points (README's "Open"). (3) T-579 onward.
+
 ## 2026-11-17 — Flash in play against the stock browser: two causes fixed, one open; T-578's tools (READ FIRST)
 
 - **Commits (unpushed, the owner's):** `965aab42` (T-658, hardware modifier keys), `8d47b966` (the level by events,

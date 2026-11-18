@@ -1,0 +1,15 @@
+CHECK ok 13-decoder: the kernel's video decoder: no arena fault on this boot
+WAIT ok 14-text vmeta = [vmeta codec=7 w=640 h=360 d=20.025]
+WAIT ok 15-text video = [video t=1.202 dropped=0 fps=38.07106598984772]
+CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 105 hash 868607ae rows 298 uniform 284 light 123-420 blue none
+CHECK ok 17-audio: the movie's audio: open running audible
+CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3897,3896,3897,3898,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 252 (25.2/s), changes 178 (17.8/s), reads 253, distinct 167, spacing median 25 p90 70 max 159 ms (wanted 13.4..40/s)
+CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 3687 hash 54cab748 rows 298 uniform 0 light none blue 123-420
+CHECK ok 21-audio: the movie's audio: open running audible
+WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=18.442 dropped=58 fps=29.761904761904763]
+CHECK ok 23-number: vendtime = 18.442 (wanted 17.5..20.5)
+CHECK ok 24-number: venddropped = 58 (wanted 0..480)
+CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 3797 hash 3a7d37ae rows 298 uniform 0 light none blue 123-420
+CHECK ok 26-plugin: plugin-container 4654: alive (state S, cpu ticks 1009 to 1021)
+CHECKS 11 FAILS 0

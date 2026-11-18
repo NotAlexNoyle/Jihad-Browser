@@ -1,0 +1,31 @@
+# The two pages reached and kept out of a page's reach (cavekit-site-data.md R4, T-664): Settings' Saved logins row
+# opens about:logins and its Site data row opens about:data, each drawn with the shell's look (the page's root carries
+# data-shell); a web page that frames about:logins and opens it gets nothing of it.
+id: site-data-reach
+section: Privacy and site data
+item: Settings' Saved logins… and Site data… rows open about:logins and about:data in the shell's look; a web page can neither frame nor open either page
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true
+page: about:settings
+kit: cavekit-site-data.md R4
+wait rect page-title 20
+tap 'sel:button.pane-tab[data-pane="security"]'
+wait rect 'sel:.row[data-label="Saved logins"] button' 6
+tap 'sel:.row[data-label="Saved logins"] button'
+wait text page-title "Saved logins" 10
+wait url about:logins 10
+shoot logins
+launch about:settings
+wait rect page-title 20
+tap 'sel:button.pane-tab[data-pane="privacy"]'
+wait rect 'sel:.row[data-label="Site data"] button' 6
+tap 'sel:.row[data-label="Site data"] button'
+wait text page-title "Site data" 10
+wait url about:data 10
+shoot data
+launch http://192.168.1.245:8077/jihad-login.html
+probe frame '(function(){var f=document.createElement("iframe");f.id="jf";f.src="about:logins";document.body.appendChild(f);var w=null;try{w=window.open("about:data");}catch(e){}window.jihadOpened=w?"a window":"nothing";return "framed and opened";})()'
+wait quiet 'jihad-never-logged' 4
+probe read '(function(){var f=document.getElementById("jf"),t="none";try{t=f.contentDocument?("title ["+f.contentDocument.title+"]"):"no document";}catch(e){t="refused";}return "framed "+t+" opened "+window.jihadOpened;})()'
+expect probe-has framed
+expect probe-lacks "Saved logins"

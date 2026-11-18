@@ -1,0 +1,46 @@
+# The two switches and the never-save list (cavekit-site-data.md R1, R2, T-661): with "Remember logins" off a submitted
+# form asks nothing; a login saved, "Fill in logins automatically" off leaves the form empty; the site added to the
+# never-save list in about:logins is not asked about, and removed from it is asked again.
+id: site-logins-switches
+section: Privacy and site data
+item: Remember logins off asks nothing; Fill in logins off fills nothing; a site on the never-save list (added in about:logins) is not asked about, and asked again once removed
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true signon.rememberSignons=false signon.autofillForms=true
+page: http://192.168.1.245:8077/jihad-login.html
+kit: cavekit-site-data.md R1
+fixture: site-data-clean
+wait rect user 30
+probe off '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-off","off-1")'
+tap go
+wait text sent "sent jihad-off" 15
+expect dialog none 5
+setpref b signon.rememberSignons true
+launch http://192.168.1.245:8077/jihad-login.html
+probe on '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-tester","fill-me-3")'
+tap go
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait text sent "sent jihad-tester" 15
+setpref b signon.autofillForms false
+launch http://192.168.1.245:8077/jihad-login.html
+wait text state "user=(empty) pass=(empty)" 10
+setpref b signon.autofillForms true
+launch about:logins
+wait rect 'sel:.never-add' 10
+tap 'sel:.never-add'
+type http://192.168.1.245:8077
+tap 'sel:.never-add-btn'
+wait text never "192.168.1.245:8077" 6
+launch http://192.168.1.245:8077/jihad-login.html
+probe never '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-other","other-4")'
+tap go
+wait text sent "sent jihad-other" 15
+expect dialog none 5
+launch about:logins
+wait text never "192.168.1.245:8077" 10
+tap 'sel:.never-row[data-site="192.168.1.245:8077"] .never-remove'
+wait text never "No site" 6
+tap 'sel:#remove-all'
+tap 'sel:#remove-all'
+wait text logins "No logins are saved" 6

@@ -58,12 +58,14 @@ next time.
 - [ ] `about:logins` lists every saved login as a row: the site, the username, the password hidden, the date last used
   or changed; sorted by site; an empty list says how logins get saved
 - [ ] A search field narrows the list to the logins whose site or username holds the text
-- [ ] A row's Show reveals its password and Hide hides it again; with a master password set, Show asks for it first
-  and a wrong one shows nothing
+- [ ] A row's Show reveals its password and Hide hides it again; with a master password set and not entered, the page
+  asks for it before it lists anything (a locked store gives no login, its username included: revised 2026-11-18 from
+  "Show asks for it first"), a wrong one shows nothing and the right one lists the logins
 - [ ] Copy username and Copy password put the value on the system clipboard (cavekit-input-bridging's Paste reads it)
 - [ ] Edit changes a login's username and password in place and saves them; the change is what R1 then fills
-- [ ] Remove deletes one login after a confirm in the card; Remove all deletes every login after a confirm
-- [ ] The never-save list (sites the user refused) is listed below, each with Remove
+- [ ] Remove deletes one login after a confirm in the page; Remove all deletes every login after a confirm
+- [ ] The never-save list is listed below, each with Remove, and a site can be added to it there (the card's dialog has
+  only OK and Cancel, so "never for this site" is said in this page)
 - [ ] A site's name opens the site in the card
 **Dependencies:** R1
 
@@ -89,7 +91,8 @@ next time.
 **Acceptance Criteria:**
 - [ ] Both pages open from the address bar in Enyo, Mochi and Mojo, drawn in that shell's look (the browser's own pages'
   colours, the Persona's where the other pages take it), every control at least 44 px tall
-- [ ] Settings → Privacy has "Saved logins…" (to `about:logins`) and "Site data…" (to `about:data`) in the three shells
+- [ ] Settings has "Saved logins…" (to `about:logins`) in its Passwords group and "Site data…" (to `about:data`) in its
+  Cookies group, in the three shells
 - [ ] A web page cannot open, frame or link into either page (no `URI_SAFE_FOR_UNTRUSTED_CONTENT`), and either page
   read by a web page's script gives nothing
 - [ ] Each criterion of R1-R3 is a finger script of the suite run in the three shells (`docs/FINGER-TESTS.md`), from test

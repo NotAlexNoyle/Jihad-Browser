@@ -1,0 +1,23 @@
+/* Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+   about:logins and about:data (cavekit-site-data.md): what they add to preferences.css. Every control 44px or more. */
+#content { padding: 12px 12px 0 12px; }
+.note#status { padding: 0 16px; }
+.search { flex: 1 1 auto; width: 100%; min-height: 44px; }
+.row-help.empty, .row.empty { padding: 14px 16px; }
+.login-row, .cookie-row, .storage-row { flex-wrap: wrap; }
+.login-row > .row-label { flex: 1 1 260px; }
+.login-site { font-size: 17px; color: #9cc4ec; text-decoration: none; }
+.login-user { margin-top: 2px; font-size: 16px; color: #ececec; word-break: break-all; }
+.login-pass { margin-top: 2px; font-family: monospace; font-size: 15px; color: #cfd6e0; word-break: break-all; -moz-user-select: text; }
+.login-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.login-acts > .btn, .cookie-row > .btn, .storage-row > .btn, .never-row > .btn, .perm-row > .sel { min-height: 44px; min-width: 64px; }
+.cookie-row > .btn, .storage-row > .btn { margin-left: 8px; }
+.editing .txt { display: block; width: 90%; min-height: 44px; margin-top: 6px; }
+.asking-text { color: #f0c36a; }
+.login-row.asking .asking-text { font-size: 15px; }
+.cookie-value { -moz-user-select: text; word-break: break-all; color: #cfd6e0; }
+.perm-origin { padding: 8px 16px 2px 16px; font-family: monospace; color: #8cafbe; border-bottom: 0; }
+.perm-row > .sel { flex: 0 0 auto; min-width: 150px; }
+.never-add { flex: 1 1 auto; min-height: 44px; margin-right: 10px; }
+.unlock-pass { flex: 1 1 auto; min-height: 44px; margin-right: 10px; }
+.ftr a { color: #9cc4ec; }

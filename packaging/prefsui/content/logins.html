@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+     about:logins (cavekit-site-data.md R2). Served by render/goanna/components/jihadAboutPreferences.js from the
+     prefs package, with the system principal: it reads and writes the engine's saved logins. logins.js says how. -->
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<title>Saved logins</title>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/preferences.css" type="text/css"/>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/sitedata.css" type="text/css"/>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/shell.css" type="text/css"/>
+	<script type="application/javascript" src="chrome://jihad-prefs/content/shell.js"></script>
+	<script type="application/javascript" src="chrome://jihad-prefs/content/logins.js"></script>
+</head>
+<body>
+	<header class="hdr">
+		<h1 id="page-title">Saved logins</h1>
+		<div class="sub" id="page-sub">Jihad Browser</div>
+	</header>
+	<div class="note" id="status"></div>
+	<main id="content"></main>
+	<footer class="ftr">
+		<div class="row-help">Logins are saved when you sign in to a site and say Remember. <a href="about:data">Site data…</a> · <a href="about:preferences">Settings</a></div>
+	</footer>
+</body>
+</html>

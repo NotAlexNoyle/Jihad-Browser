@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0.
+     A site's login form for cavekit-site-data.md (T-661..T-664): a username, a password and a note field, submitted to
+     this same page (GET, so the static test server answers it). The page also sets a cookie (jihadtest) and keeps 4 KB in
+     localStorage, so about:data has something of this site's to show. #state says what the fields hold and how many
+     input events reached the page, which is what a filled login must look like to a page's own scripts; framed, it tells
+     the page around it the same (jihad-login-frame.html). -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>jihad-login</title>
+<style>body{font:20px sans-serif;margin:20px;background:#fff;color:#000} input,button{font-size:22px;min-height:48px;margin:6px 0;display:block;width:90%}</style></head>
+<body>
+<h1>Sign in</h1>
+<form id="f" action="jihad-login.html" method="get">
+<input id="user" name="user" type="text" placeholder="Username">
+<input id="pass" name="pass" type="password" placeholder="Password">
+<input id="note" name="note" type="text" placeholder="A note">
+<button id="go" type="submit">Sign in</button>
+</form>
+<div id="state">-</div>
+<div id="sent">-</div>
+<script>
+var events = 0;
+document.cookie = "jihadtest=1; max-age=86400; path=/";
+try { localStorage.setItem("jihad-login", new Array(4097).join("x")); } catch (e) {}
+function rep() {
+  var u = document.getElementById("user").value, p = document.getElementById("pass").value;
+  var s = "user=" + (u || "(empty)") + " pass=" + (p ? p : "(empty)") + " events=" + events;
+  document.getElementById("state").textContent = s;
+  // framed (jihad-login-frame.html, another origin): the state told to the page around it, which a check can read
+  if (window.parent !== window) { try { window.parent.postMessage("frame " + location.host + " " + s, "*"); } catch (e) {} }
+}
+["input", "change"].forEach(function (t) { document.addEventListener(t, function () { events++; rep(); }, true); });
+window.addEventListener("load", function () { setTimeout(rep, 600); setTimeout(rep, 2000); });
+var m = /[?&]user=([^&]*)/.exec(location.search);
+if (m) { document.getElementById("sent").textContent = "sent " + decodeURIComponent(m[1]); }
+</script>
+</body></html>

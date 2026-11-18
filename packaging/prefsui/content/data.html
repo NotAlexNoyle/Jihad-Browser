@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+
+     about:data (cavekit-site-data.md R3). Served by render/goanna/components/jihadAboutPreferences.js from the prefs
+     package, with the system principal: it reads and changes what the engine keeps for each site. data.js says how. -->
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<title>Site data</title>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/preferences.css" type="text/css"/>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/sitedata.css" type="text/css"/>
+	<link rel="stylesheet" href="chrome://jihad-prefs/content/shell.css" type="text/css"/>
+	<script type="application/javascript" src="chrome://jihad-prefs/content/shell.js"></script>
+	<script type="application/javascript" src="chrome://jihad-prefs/content/data.js"></script>
+</head>
+<body>
+	<header class="hdr">
+		<h1 id="page-title">Site data</h1>
+		<div class="sub" id="page-sub">Jihad Browser</div>
+	</header>
+	<nav class="panes" id="panes"></nav>
+	<div class="note" id="status"></div>
+	<main id="content"></main>
+	<footer class="ftr">
+		<div class="row-help"><a href="about:logins">Saved logins…</a> · <a href="about:preferences">Settings</a></div>
+	</footer>
+</body>
+</html>

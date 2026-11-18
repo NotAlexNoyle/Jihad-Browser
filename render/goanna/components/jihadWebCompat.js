@@ -608,6 +608,9 @@ JihadWebCompat.prototype = {
         // has the window as prototype so the script's bare names (document, getComputedStyle)
         // resolve as in a page.
         if (win === win.top) {
+          // one entry per window: a tab's window is the same object from one page to the next, and listed once per
+          // page it ran the next probe once per page — three form submissions for one (site-logins-switches, 2026-11-18)
+          this._tops = this._tops.filter(t => { let w = t.ref.get(); return w && !w.closed && w !== win; });
           this._tops.push({ref: Cu.getWeakReference(win), host: host});
           if (this._tops.length > 16) this._tops = this._tops.filter(t => { let w = t.ref.get(); return w && !w.closed; });
           if (this._probe) {

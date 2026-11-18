@@ -276,6 +276,7 @@ if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ]; then
 	         prefsui/content/preferences.js prefsui/content/preferences.css prefsui/content/personas.html prefsui/content/personas.js prefsui/content/personas.css prefsui/content/stopped.html \
 	         prefsui/content/shell.js prefsui/content/shell.css prefsui/content/addons.css prefsui/content/discover-dark.css \
 	         prefsui/content/jihadAboutReader.js prefsui/content/reader.html prefsui/content/jihadSiteMode.js \
+	         prefsui/content/logins.html prefsui/content/logins.js prefsui/content/data.html prefsui/content/data.js prefsui/content/sitedata.css components/jihadLogins.js \
 	         components/jihadAboutPreferences.js components/jihad-about-preferences.manifest; do
 		[ -s "$OUT/$f" ] || { echo "ERROR: prefs-ui file missing/empty in bundle: $f" >&2; exit 1; }
 	done

@@ -1,0 +1,27 @@
+# Logins saved and filled (cavekit-site-data.md R1, T-661): the test login form submitted asks in the card whether to
+# remember the login; OK saves it, about:logins lists it, and the next load of the form has the username and the
+# password filled with the page's own input events fired. The login is removed at the end from about:logins.
+id: site-logins-save
+section: Privacy and site data
+item: A submitted login form asks whether to remember the login; OK saves it (about:logins lists it) and the page's next load is filled, its input events fired
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true signon.rememberSignons=true signon.autofillForms=true
+page: http://192.168.1.245:8077/jihad-login.html
+kit: cavekit-site-data.md R1
+fixture: site-data-clean
+wait rect user 30
+probe submit '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-tester","s3cret-41")'
+tap go
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait line 'logins: remembered for http://192.168.1.245:8077' 6
+wait text sent "sent jihad-tester" 15
+launch http://192.168.1.245:8077/jihad-login.html
+wait text state "user=jihad-tester pass=s3cret-41" 10
+expect text-lacks state "events=0"
+launch about:logins
+wait text logins "jihad-tester" 10
+tap 'sel:.login-row[data-user="jihad-tester"] .login-remove'
+tap 'sel:.login-row[data-user="jihad-tester"] .login-remove'
+wait text logins "No logins are saved" 6

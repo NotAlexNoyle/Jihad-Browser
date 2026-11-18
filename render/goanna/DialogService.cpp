@@ -572,6 +572,10 @@ bool InstallDialogService() {
     // platform pieces the engine lacks, supplied to each page before its scripts run.
     nsCOMPtr<nsISupports> compat = do_GetService("@riverstonerelay.net/jihad/web-compat;1");
     if (!compat) fprintf(stderr, "[jihad-bs] compat: component absent, no web compatibility shims\n");
+    // Logins saved and filled (cavekit-site-data.md R1): components/jihadLogins.js watches form submissions and page
+    // loads. Absent means no login is remembered or filled, as before it.
+    nsCOMPtr<nsISupports> logins = do_GetService("@riverstonerelay.net/jihad/logins;1");
+    if (!logins) fprintf(stderr, "[jihad-bs] logins: component absent, no login is remembered or filled\n");
     nsCOMPtr<nsISupports> proxy = do_GetService("@riverstonerelay.net/jihad/proxy;1");
     if (!proxy) fprintf(stderr, "[jihad-bs] proxy: component absent, webOS's proxy setting is not followed\n");
     nsCOMPtr<nsISupports> xpiPrompt =

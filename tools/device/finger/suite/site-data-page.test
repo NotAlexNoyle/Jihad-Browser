@@ -1,0 +1,48 @@
+# about:data (cavekit-site-data.md R3, T-663): the test form's site sets a cookie, keeps 4 KB in localStorage, and a login
+# and a note are submitted (the note goes into the form history). about:data lists the site with its counts; its page
+# shows the cookie (its value on demand), the stored data and its size, the login's count; Pop-up windows set to Block
+# for the site is what the engine then holds; the cookie removed; Forget this site, after its confirm, empties the
+# site and it leaves the list. The form history holds the note, which is removed.
+id: site-data-page
+section: Privacy and site data
+item: about:data lists the site with its cookies, stored data and logins; its page shows and removes a cookie, changes a permission, shows the stored data; Forget this site clears it all; the form history lists and removes a typed note
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true signon.rememberSignons=true browser.formfill.enable=true
+page: http://192.168.1.245:8077/jihad-login.html
+kit: cavekit-site-data.md R3
+fixture: site-data-clean
+wait rect user 30
+probe submit '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-data","data-pass-8")'
+tap go
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait text sent "sent jihad-data" 15
+launch about:data
+wait text sites "192.168.1.245" 10
+wait text 'sel:.site-row[data-site="192.168.1.245"] .site-counts' "stored" 10
+expect text-has 'sel:.site-row[data-site="192.168.1.245"] .site-counts' "1 login"
+tap 'sel:.site-row[data-site="192.168.1.245"] .site-open'
+wait text cookies "jihadtest" 10
+tap 'sel:.cookie-row[data-name="jihadtest"] .cookie-show'
+wait text 'sel:.cookie-row[data-name="jihadtest"] .cookie-value' "1" 4
+wait text storage "KB" 10
+expect text-has site-logins "1 saved login"
+pick 'sel:.perm-row[data-perm="popup"][data-origin="http://192.168.1.245:8077"] select' 2 3
+wait text status "Pop-up windows for http://192.168.1.245:8077: Block" 6
+launch about:data?site=192.168.1.245
+wait rect 'sel:.perm-row[data-perm="popup"][data-origin="http://192.168.1.245:8077"][data-value="2"]' 10
+tap 'sel:.cookie-row[data-name="jihadtest"] .cookie-remove'
+wait text status "removed" 6
+expect text-lacks cookies "jihadtest"
+tap 'sel:#forget'
+wait text forget-row "Forget everything" 4
+tap 'sel:#forget'
+wait text sites "Sites" 20
+wait quiet 'jihad-never-logged' 3
+expect text-lacks sites "192.168.1.245"
+launch about:data?pane=forms
+wait text forms "hello jihad" 10
+tap 'sel:.form-row[data-value="hello jihad"] .form-remove'
+wait text status "Removed" 6
+expect text-lacks forms "hello jihad"

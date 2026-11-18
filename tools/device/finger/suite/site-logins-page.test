@@ -1,0 +1,64 @@
+# about:logins (cavekit-site-data.md R2, T-662): two logins saved by the form; the list sorted by site with both; the
+# filter of the address narrows it; Show reveals a password and Hide hides it; Copy password and Copy username put the
+# value on the system clipboard; Edit changes the password (Show then reads the new one); one login
+# removed after its confirm, the other with Remove all.
+id: site-logins-page
+section: Privacy and site data
+item: about:logins lists the saved logins; a filter narrows them; a site's name opens the site; Show and Hide a password; Copy username and password to the clipboard; Edit a password; Remove one and Remove all, each after a confirm
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true signon.rememberSignons=true signon.autofillForms=true
+page: http://192.168.1.245:8077/jihad-login.html
+kit: cavekit-site-data.md R2
+fixture: site-data-clean
+wait rect user 30
+probe first '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-alpha","alpha-pass-5")'
+tap go
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait text sent "sent jihad-alpha" 15
+launch http://192.168.1.245:8077/jihad-login.html
+probe second '(function(){var u=document.getElementById("user");u.value="";return "cleared";})()'
+probe second-submit '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-beta","beta-pass-6")'
+tap go
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait text sent "sent jihad-beta" 15
+launch about:logins
+wait text logins "jihad-alpha" 10
+expect text-has logins "jihad-beta"
+expect text-lacks logins "alpha-pass-5"
+launch about:logins?filter=beta
+wait text logins "jihad-beta" 10
+expect text-lacks logins "jihad-alpha"
+tap 'sel:.login-row[data-user="jihad-beta"] .login-show'
+wait text logins "beta-pass-6" 4
+tap 'sel:.login-row[data-user="jihad-beta"] .login-show'
+wait text logins "Show" 4
+expect text-lacks logins "beta-pass-6"
+tap 'sel:.login-row[data-user="jihad-beta"] .login-copy-pass'
+expect clipboard beta-pass-6
+tap 'sel:.login-row[data-user="jihad-beta"] .login-copy-user'
+expect clipboard jihad-beta
+tap 'sel:.login-row[data-user="jihad-beta"] .login-edit'
+wait rect 'sel:.edit-pass' 4
+tap 'sel:.edit-pass'
+type edited-pass-7
+tap 'sel:.login-save'
+wait text status "saved" 4
+tap 'sel:.login-row[data-user="jihad-beta"] .login-show'
+wait text logins "edited-pass-7" 4
+tap 'sel:.login-row[data-user="jihad-alpha"] .login-site'
+wait url 192.168.1.245:8077 10
+launch about:logins
+wait text logins "jihad-alpha" 10
+tap 'sel:.login-row[data-user="jihad-alpha"] .login-remove'
+wait text logins "Remove this login?" 4
+tap 'sel:.login-row[data-user="jihad-alpha"] .login-remove'
+wait text status "removed" 4
+expect text-lacks logins "jihad-alpha"
+tap 'sel:#remove-all'
+wait text remove-all-row "cannot be undone" 4
+tap 'sel:#remove-all'
+wait text logins "No logins are saved" 6

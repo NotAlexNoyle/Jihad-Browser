@@ -1,0 +1,40 @@
+# A login form in a frame of another origin than the page (cavekit-site-data.md R1, T-664): the test page on :8077
+# frames jihad-login.html from :8079 (the second-origin fixture). A login saved for :8077 is not put into the :8079
+# frame; one saved for :8079 is, the frame's own input events fired (the frame tells the page around it what its fields
+# hold: #framestate).
+id: site-logins-frame
+section: Privacy and site data
+item: A login form in a frame of another origin is filled with the frame's own origin's login, never with the page's
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true signon.rememberSignons=true signon.autofillForms=true
+page: http://192.168.1.245:8077/jihad-login.html
+kit: cavekit-site-data.md R1
+fixture: site-data-clean second-origin
+wait rect user 30
+probe top '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-top","top-pass-1")'
+tap go
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait line 'logins: remembered for http://192.168.1.245:8077' 6
+wait text sent "sent jihad-top" 15
+launch http://192.168.1.245:8077/jihad-login-frame.html
+wait text framestate "user=(empty) pass=(empty)" 15
+wait quiet 'logins: filled for' 3
+launch http://192.168.1.245:8079/jihad-login.html
+wait rect user 20
+probe own '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-frame","frame-pass-2")'
+tap go
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait line 'logins: remembered for http://192.168.1.245:8079' 6
+wait text sent "sent jihad-frame" 15
+launch http://192.168.1.245:8077/jihad-login-frame.html
+wait text framestate "user=jihad-frame pass=frame-pass-2" 15
+expect text-lacks framestate "events=0"
+launch about:logins
+wait text logins "jihad-frame" 10
+tap 'sel:#remove-all'
+tap 'sel:#remove-all'
+wait text logins "No logins are saved" 6

@@ -38,6 +38,10 @@ const PERSONAS_URL = "chrome://jihad-prefs/content/personas.html";
 // about:stopped?url=… — what a page becomes when the daemon stopped it for memory (cavekit-device-headroom.md R1):
 // the reason and a link back. Only the daemon opens it; web content cannot link here (no URI_SAFE_FOR_UNTRUSTED_CONTENT).
 const STOPPED_URL = "chrome://jihad-prefs/content/stopped.html";
+// about:logins and about:data (cavekit-site-data.md R2, R3): the saved logins, and what the browser keeps for each site.
+// Same package, same principal, for the same reason as Settings: they read and change the engine's own stores.
+const LOGINS_URL = "chrome://jihad-prefs/content/logins.html";
+const DATA_URL = "chrome://jihad-prefs/content/data.html";
 
 function JihadAboutPreferences() {}
 
@@ -47,7 +51,8 @@ JihadAboutPreferences.prototype = {
 
   newChannel: function(aURI, aLoadInfo) {
     let what = String(aURI.path || "").replace(/[?#].*$/, "").toLowerCase();
-    let uri = Services.io.newURI(what === "personas" ? PERSONAS_URL : what === "stopped" ? STOPPED_URL : PAGE_URL, null, null);
+    let page = {personas: PERSONAS_URL, stopped: STOPPED_URL, logins: LOGINS_URL, data: DATA_URL}[what] || PAGE_URL;
+    let uri = Services.io.newURI(page, null, null);
     // newChannelFromURIWithLoadInfo keeps the caller's loadInfo, which is what
     // ESR52 expects from an about: module; the older two-argument form is gone.
     let channel = aLoadInfo

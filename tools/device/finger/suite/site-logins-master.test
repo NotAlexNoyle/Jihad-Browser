@@ -1,0 +1,44 @@
+# about:logins with a master password set and not entered (cavekit-site-data.md R2, T-664). A locked key store gives no
+# login (its username is encrypted too), so the page asks for the master password before it lists anything; a wrong
+# one shows nothing, the right one lists the logins and Show reveals the password. The master password is set and taken
+# off by the logins component's trace-mode test hook (jihad.test.masterPassword): this browser has no page that sets
+# one. The key store is set aside for the run (key-store-clean), so the profile's own is never touched.
+id: site-logins-master
+section: Privacy and site data
+item: With a master password set, about:logins asks for it before listing anything; a wrong one shows nothing, the right one lists the logins and Show reveals the password
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true signon.rememberSignons=true signon.autofillForms=true
+page: http://192.168.1.245:8077/jihad-login.html
+kit: cavekit-site-data.md R2
+fixture: site-data-clean key-store-clean
+wait rect user 30
+probe lock '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-lock","lock-pass-3")'
+tap go
+expect dialog present 8
+chrome dialog-ok
+expect dialog answered 8
+wait line 'logins: remembered for http://192.168.1.245:8077' 6
+wait text sent "sent jihad-lock" 15
+setpref s jihad.test.masterPassword set:jihad-master-1
+wait line 'test: master password set, the store locked: true' 6
+launch about:logins
+wait text page-sub "Locked by the master password" 10
+expect text-lacks content "jihad-lock"
+tap 'sel:.unlock-pass'
+type wrong-one-2
+tap 'sel:.unlock-btn'
+wait text status "not the master password" 4
+expect text-lacks content "jihad-lock"
+tap 'sel:.unlock-pass'
+type jihad-master-1
+tap 'sel:.unlock-btn'
+wait text logins "jihad-lock" 6
+tap 'sel:.login-row[data-user="jihad-lock"] .login-show'
+wait text logins "lock-pass-3" 4
+setpref s jihad.test.masterPassword clear:jihad-master-1
+wait line 'test: master password taken off: true' 6
+launch about:logins
+wait text logins "jihad-lock" 10
+tap 'sel:#remove-all'
+tap 'sel:#remove-all'
+wait text logins "No logins are saved" 6

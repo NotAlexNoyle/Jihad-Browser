@@ -213,7 +213,9 @@ const PANES = [
 					 options: [[0, "Until they expire"], [2, "Until the browser closes"], [3, "For a set number of days"]]},
 					{pref: "network.cookie.lifetime.days", type: "int", label: "Cookie lifetime (days)"},
 					{pref: "network.cookie.thirdparty.sessionOnly", type: "bool",
-					 label: "Third-party cookies last only for the session"}
+					 label: "Third-party cookies last only for the session"},
+					{type: "go", label: "Site data", help: "Each site's cookies, permissions, logins and stored data, and the form history.",
+					 button: "Site data\u2026", id: "data-open", href: "about:data"}
 				]
 			}
 		]
@@ -237,7 +239,9 @@ const PANES = [
 				title: "Passwords",
 				rows: [
 					{pref: "signon.rememberSignons", type: "bool", label: "Remember logins for sites"},
-					{pref: "signon.autofillForms", type: "bool", label: "Fill in logins automatically"}
+					{pref: "signon.autofillForms", type: "bool", label: "Fill in logins automatically"},
+					{type: "go", label: "Saved logins", help: "See, change and remove the logins this browser keeps.",
+					 button: "Saved logins\u2026", id: "logins-open", href: "about:logins"}
 				]
 			},
 			{
@@ -864,6 +868,10 @@ function buildRow(row) {
 		control.addEventListener("repaint", paint, false);
 		// A live line (a counter) repaints while the pane is shown; renderPane clears these.
 		if (row.live) { gLiveRows.push(setInterval(paint, 3000)); }
+	} else if (row.type === "go") {
+		// a page of its own (about:logins, about:data): a button that goes there, as the Add-ons pane's
+		control = goButton(row.button || row.label, row.id, function () { window.location.href = row.href; });
+		wrap.className += " go-row";
 	} else if (row.type === "button") {
 		control = el("button", "btn", row.button || row.label);
 		control.setAttribute("type", "button");

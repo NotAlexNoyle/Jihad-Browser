@@ -490,6 +490,27 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 97 — Saved logins and site data; Eaglercraft (2026-11-18; cavekit-site-data.md, cavekit-eaglercraft.md)
+
+The owner, 2026-11-18: "new kit: ensure about:data works (all variants)", "new kit: ensure about:logins works (all
+variants)", "new kit: eaglercraft support". Neither about: page exists in the engine, and the password manager is not
+connected in this embedding (no login is ever saved or filled), so T-661 comes first. Eaglercraft starts from a declared,
+fetched list of clients and what each needs, read from its code, before any device round.
+
+| ID | Task | Kit | Reqs | Depends | Parallel | Size | Status |
+|----|------|-----|------|---------|----------|------|--------|
+| T-661 | Logins saved and filled: a component of the browser's own watches form submissions (the engine's `earlyformsubmit`) and page loads, asks in the card through the dialog service whether to remember or update a login, stores it through `nsILoginManager`, fills a known login with input events; the two Settings switches and the never-save list honoured; a login form test page | cavekit-site-data.md | R1 | — | no | L | PENDING |
+| T-662 | about:logins: the chrome page in the prefs package (list, search, show with the master password, copy, edit, remove, remove all, the never-save list, open the site), registered beside about:preferences | cavekit-site-data.md | R2 | T-661 | no | M | PENDING |
+| T-663 | about:data: the sites the browser keeps something for, by base domain (cookies, permissions, logins, the quota manager's stored data), a site's page (cookies, permissions Allow/Block/default, logins, stored data, Forget this site), the form history | cavekit-site-data.md | R3 | T-661 | yes | L | PENDING |
+| T-664 | Both pages in the three shells: the address bar, Settings → Privacy's two rows, the look, no web page's reach; test pages (a login form, cookies and storage, a permission asked) and the finger scripts for R1-R3 in Enyo, Mochi and Mojo | cavekit-site-data.md | R4 | T-662, T-663 | no | M | PENDING |
+| T-665 | Eaglercraft's clients declared and fetched: the manifest (1.5.2, EaglercraftX 1.8.8; offline and hosted; source, release, size, SHA-256), the fetch script into the host cache, and what each needs read from its own code (WebGL version and extensions, Web Audio, IndexedDB, Workers, WebSockets, pointer lock, full screen, touch, memory) | cavekit-eaglercraft.md | R1 | — | yes | M | PENDING |
+| T-666 | Eaglercraft loads in each shell: the title screen by its reference picture, the menus by touch; every load failure traced to the engine's error and fixed or recorded as a limit | cavekit-eaglercraft.md | R2 | T-665 | no | L | PENDING |
+| T-667 | Eaglercraft played with the device's input: the release's touch controls, the system keyboard's keys, the drag as the look, the game holding the input (no pan or zoom), pointer lock and full screen as the card allows | cavekit-eaglercraft.md | R3 | T-666 | no | L | PENDING |
+| T-668 | A world kept: created, played, left and entered, the card closed, the daemon restarted; the integrated server's worker; memory at the title, in the world and after 15 minutes; export and import | cavekit-eaglercraft.md | R4 | T-666 | yes | M | PENDING |
+| T-669 | A server joined: a test server on the host with the Eaglercraft protocol plugin for each client's version, `ws://` and `wss://`, two cards seeing each other, a dropped connection and a rejoin | cavekit-eaglercraft.md | R5 | T-666 | yes | M | PENDING |
+| T-670 | Eaglercraft's numbers: the client's own frame counter and the stream's content rate at the lowest settings in each shell against a bar written first; the heaviest costs measured and the engine's levers tried; a 15-minute session with the device kept reachable and the sound playing | cavekit-eaglercraft.md | R6 | T-667, T-668 | no | L | PENDING |
+| T-671 | Eaglercraft in the suite: scripts for R2-R6 in the three shells with reference pictures, the rounds and limits in docs/rounds, the README's line | cavekit-eaglercraft.md | R7 | T-666..T-670 | no | M | PENDING |
+
 ## Tier 96 — Taken from the references (2026-11-09; added to the site, not a regeneration)
 
 The owner's standing rule of 2026-11-09: a dependency pulled to a newer state (Atlas, UXP, the SDK) is read for things

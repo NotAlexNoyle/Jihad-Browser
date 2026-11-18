@@ -19,7 +19,7 @@ wait text vctl "vctl pause" 5
 wait still m 6
 sample paused m
 expect sound silent 6
-expect region-equal m paused
+expect region-near m paused
 flash-tap m 400 300 showAll 200 260
 wait text vctl "vctl resume" 5
 wait differs m paused 5

@@ -63,13 +63,15 @@ What the sizes cost on this device:
 16.3 s on the page's clock, with the stream standing at 4.6, 4.0 and 4.4 s; the clip then played to 20 s, the plugin
 alive. (The first form of the script saw only the throttle's short underrun; the review said so.)
 
-## Found: a paused video's picture flips between two frames
+## The paused picture: two renderings of one frame, not two frames
 
-`flash-video-controls` fails in one shell or another each round at "the paused picture equals its sample". A probe
-(fourteen samples of the movie's rectangle two seconds apart, the stream's time standing at 13.818 s) read two hashes
-in turn: A A B A A B B B B B A B B B. The screen shows one of two neighbouring frames of the paused video, changing as
-the page beside it repaints (the page's report lines change every second). Ours: the frame path keeps the movie's
-last frame in one buffer and the one before it in another. T-660.
+`flash-video-controls` failed in one shell or another each round at "the paused picture equals its sample" (a hash). A
+probe (fourteen samples two seconds apart, the stream's time standing at 13.818 s) read two hashes in turn, which was
+first written down here as the picture flipping between two neighbouring frames (T-660). Eight kept screens of a paused
+clip say otherwise: the two states differ by at most 2 levels of 255 in a channel, all over the rectangle. It is one
+frame, reaching the screen by two paths in turn as the page beside it repaints: the compositor's (the page's frame)
+and the plugin lane's direct copy. Nothing an eye sees. The script now compares with `expect region-near` (the mean
+difference per channel, 2 or less), and T-660 is closed as not a defect.
 
 ## What was wrong on the way, and was not the browser
 
@@ -83,7 +85,6 @@ last frame in one buffer and the one before it in another. T-660.
 
 ## Open
 
-- T-660: the paused picture between two frames (above).
 - H.264's dropped frames against the stock browser's at 360 rows (above).
 - The first H.264 clip after a restart of the device, in the shells.
 - The audio stream over a clip's whole length (it is read at the start and after the rate's ten seconds).

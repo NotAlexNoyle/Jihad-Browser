@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-18T05:41:26
+# Finger suite report — 2026-11-18T05:54:11
 
 First run 2026-11-17T11:47:07; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 1. 26041 s.
+Shells: enyo, mochi, mojo. Scripts: 1. 26840 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -336,7 +336,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26041 s.
 | mojo | flash-lane (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 18-flash-rate: content 40,0-440,275: 3.0 s, flips 42 (14.0/s), changes 0 (0.0/s), reads 43, distinct 1, spacing median 67 p90 98 max 161 ms (wanted 0..4/s) | cavekit-flash.md R3 |
 | mojo | flash-sound (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 16-sound: sound at the output sink: peak 2957 rms 2056 frames 45056 hz 440 env 2955,2938,2951,2957,2944,2935, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-engine-update.md R8 |
 | mojo | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440 env 2935,2946,2955,2948,2944,2921, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
-| enyo | flash-video-controls (rerun) | **fail** | 17 ok, 1 failed | CHECK FAIL 22-region-equal: region 40,123-440,421: colours 4096 hash b2a0357f rows 298 uniform 0 light 218-323 blue none, the sample's hash f2c38591; frames: kept/enyo-flash-video-controls-22-region-equal_.jpg | cavekit-flash.md R8 |
+| enyo | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 15926: alive (state S, cpu ticks 2249 to 2260) | cavekit-flash.md R8 |
 | enyo | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 10076: alive (state S, cpu ticks 766 to 779) | cavekit-flash.md R8 |
 | enyo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 13646: alive (state S, cpu ticks 1133 to 1145) | cavekit-flash.md R8 |
 | enyo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 17197: alive (state S, cpu ticks 1037 to 1049) | cavekit-flash.md R8 |
@@ -352,7 +352,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26041 s.
 | enyo | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 20993: alive (state S, cpu ticks 2682 to 2693) | cavekit-flash.md R8 |
 | enyo | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 25922: alive (state S, cpu ticks 2285 to 2296) | cavekit-flash.md R8 |
 | enyo | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 24-plugin: plugin-container 30510: alive (state S, cpu ticks 574 to 585) | cavekit-flash.md R8 |
-| mochi | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 8454: alive (state S, cpu ticks 2277 to 2289) | cavekit-flash.md R8 |
+| mochi | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 21098: alive (state S, cpu ticks 2258 to 2268) | cavekit-flash.md R8 |
 | mochi | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 13427: alive (state S, cpu ticks 789 to 802) | cavekit-flash.md R8 |
 | mochi | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 16871: alive (state S, cpu ticks 1086 to 1097) | cavekit-flash.md R8 |
 | mochi | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 20281: alive (state S, cpu ticks 999 to 1010) | cavekit-flash.md R8 |
@@ -368,7 +368,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26041 s.
 | mochi | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 23671: alive (state S, cpu ticks 2608 to 2620) | cavekit-flash.md R8 |
 | mochi | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 28468: alive (state S, cpu ticks 2368 to 2379) | cavekit-flash.md R8 |
 | mochi | flash-video-vp6a (rerun) | **fail** | 11 ok, 1 failed | CHECK FAIL 17-flash-rate: content 40,119-440,417: 10.0 s, flips 120 (12.0/s), changes 96 (9.6/s), reads 124, distinct 94, spacing median 61 p90 180 max 284 ms (wanted 9.8..40/s); frames: kept/mochi-flash-video-vp6a-17-flash-rate_.jpg | cavekit-flash.md R8 |
-| mojo | flash-video-controls (rerun) | **fail** | 17 ok, 1 failed | CHECK FAIL 22-region-equal: region 40,114-440,412: colours 4096 hash 5459f9d5 rows 298 uniform 0 light none blue 189-254, the sample's hash 916283d3; frames: kept/mojo-flash-video-controls-22-region-equal_.jpg | cavekit-flash.md R8 |
+| mojo | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 26171: alive (state S, cpu ticks 2028 to 2039) | cavekit-flash.md R8 |
 | mojo | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 17081: alive (state S, cpu ticks 753 to 766) | cavekit-flash.md R8 |
 | mojo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 20671: alive (state S, cpu ticks 972 to 984) | cavekit-flash.md R8 |
 | mojo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 24135: alive (state S, cpu ticks 793 to 805) | cavekit-flash.md R8 |
@@ -388,48 +388,7 @@ Shells: enyo, mochi, mojo. Scripts: 1. 26041 s.
 ## The device at the end
 
 ```
-DEVICE ok job-enyo: (26779/103037926) jihad (start) running, process 21265
-DEVICE ok daemons-enyo: one daemon
-DEVICE ok hand-daemon-enyo: none
-DEVICE ok hooks-enyo: none
-DEVICE ok adapter-gates-enyo: none
-DEVICE ok proxy-enyo: network.proxy.type unset
-DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
-DEVICE ok cards-enyo: none
-DEVICE ok audio-lib-enyo: the device's own
-DEVICE ok look-enyo: {"returnValue":true,"theme":null}
-DEVICE ok job-mochi: (26783/935589036) jihad-mochi (start) running, process 24521
-DEVICE ok daemons-mochi: one daemon
-DEVICE ok hand-daemon-mochi: none
-DEVICE ok hooks-mochi: none
-DEVICE ok adapter-gates-mochi: none
-DEVICE ok proxy-mochi: network.proxy.type unset
-DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
-DEVICE ok cards-mochi: none
-DEVICE ok audio-lib-mochi: the device's own
-DEVICE ok look-mochi: {"returnValue":true,"theme":null}
-DEVICE ok job-mojo: (26788/778382664) jihad-mojo (start) running, process 27776
-DEVICE ok daemons-mojo: one daemon
-DEVICE ok hand-daemon-mojo: none
-DEVICE ok hooks-mojo: none
-DEVICE ok adapter-gates-mojo: none
-DEVICE ok proxy-mojo: network.proxy.type unset
-DEVICE ok history-mojo: browser.sessionhistory.max_entries the default
-DEVICE ok cards-mojo: none
-DEVICE ok audio-lib-mojo: the device's own
-DEVICE ok look-mojo: {"returnValue":true,"theme":null}
-DEVICE ok gate-files: none in /tmp
-DEVICE ok device-scripts: none left in /tmp
-DEVICE ok test-pads-enyo: none
-DEVICE ok dialog-pipes-enyo: none
-DEVICE ok test-pads-mochi: none
-DEVICE ok dialog-pipes-mochi: none
-DEVICE ok test-pads-mojo: none
-DEVICE ok dialog-pipes-mojo: none
-DEVICE ok tmp-dumps: none
-DEVICE ok volume-subscribers: none without its daemon
-DEVICE ok media-scratch: none
-DEVICE ok overall: 3% of /tmp used
+(not checked)
 ```
 
 ## Every test's lines
@@ -4179,27 +4138,27 @@ DEVICE ok overall: 3% of /tmp used
     CHECK ok 32-volume: the media volume 22, higher (marked 0)
     CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440 env 2935,2946,2955,2948,2944,2921, the speaker amp on, the media volume 22, the pitch wanted 440 Hz
 
-### enyo / flash-video-controls — fail
+### enyo / flash-video-controls — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +2 s, load done at +7 s, 7 content frame
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +3 s, load done at +8 s, 7 content frame
     WAIT ok 13-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 14-text video = [video t=1.541 dropped=14 fps=28.880866425992778]
+    WAIT ok 14-text video = [video t=2.951 dropped=18 fps=25.252525252525253]
     WAIT ok 15-content m
-    CHECK ok 16-sound: sound at the output sink: peak 1292 rms 230 frames 45056 hz 126 env 200,591,870,735,1292,1085, the speaker amp on, the media volume 23
-    WAIT ok 18-text vctl = [vctl pause t=8.254]
+    CHECK ok 16-sound: sound at the output sink: peak 3872 rms 865 frames 45056 hz 248 env 2769,1990,2858,3350,3872,3299, the speaker amp on, the media volume 23
+    WAIT ok 18-text vctl = [vctl pause t=10.866]
     WAIT ok 19-still m
     CHECK ok 21-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
-    CHECK FAIL 22-region-equal: region 40,123-440,421: colours 4096 hash b2a0357f rows 298 uniform 0 light 218-323 blue none, the sample's hash f2c38591
-    WAIT ok 24-text vctl = [vctl resume t=8.254]
+    CHECK ok 22-region-near: the picture against the sample paused: difference 0.0 (2 or less)
+    WAIT ok 24-text vctl = [vctl resume t=10.866]
     WAIT ok 25-differs m
-    CHECK ok 26-sound: sound at the output sink: peak 4286 rms 1058 frames 45056 hz 496 env 4286,3494,3539,3465,3928,2705, the speaker amp on, the media volume 23
-    WAIT ok 29-text vctl = [vctl seek 40 t=15.568]
+    CHECK ok 26-sound: sound at the output sink: peak 4231 rms 1156 frames 45056 hz 151 env 3263,3734,4231,3581,3456,2120, the speaker amp on, the media volume 23
+    WAIT ok 29-text vctl = [vctl seek 40 t=20.662]
     WAIT ok 30-differs m
-    WAIT ok 31-text video = [video t=41.456 dropped=87 fps=10.16260162601626]
-    CHECK ok 32-number: vtime = 43.023 (wanted 38..58)
-    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.674 dropped=289 fps=24.922118380062305]
-    CHECK ok 34-number: vendtime = 86.674 (wanted 84.3..87.3)
-    CHECK ok 35-plugin: plugin-container 4993: alive (state S, cpu ticks 2184 to 2196)
+    WAIT ok 31-text video = [video t=43.128 dropped=121 fps=23.054755043227665]
+    CHECK ok 32-number: vtime = 44.434 (wanted 38..58)
+    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.778 dropped=384 fps=24.65331278890601]
+    CHECK ok 34-number: vendtime = 86.778 (wanted 84.3..87.3)
+    CHECK ok 35-plugin: plugin-container 15926: alive (state S, cpu ticks 2249 to 2260)
 
 ### enyo / flash-video-flowplayer — pass
 
@@ -4447,25 +4406,25 @@ DEVICE ok overall: 3% of /tmp used
 
 ### mochi / flash-video-controls — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +1 s, load done at +7 s, 9 content fram
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +2 s, load done at +8 s, 12 content fra
     WAIT ok 13-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 14-text video = [video t=3.422 dropped=20 fps=25.93192868719611]
+    WAIT ok 14-text video = [video t=2 dropped=9 fps=22.377622377622377]
     WAIT ok 15-content m
-    CHECK ok 16-sound: sound at the output sink: peak 3872 rms 892 frames 45056 hz 298 env 1990,2858,3350,3061,3872,3499, the speaker amp on, the media volume 23
-    WAIT ok 18-text vctl = [vctl pause t=12.329]
+    CHECK ok 16-sound: sound at the output sink: peak 2083 rms 420 frames 45056 hz 173 env 858,1292,1132,1400,2083,1729, the speaker amp on, the media volume 23
+    WAIT ok 18-text vctl = [vctl pause t=9.639]
     WAIT ok 19-still m
     CHECK ok 21-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
-    CHECK ok 22-region-equal: region 40,119-440,417: colours 4096 hash 53d4c504 rows 298 uniform 0 light none blue 191-256 = the sample's hash
-    WAIT ok 24-text vctl = [vctl resume t=12.329]
+    CHECK ok 22-region-near: the picture against the sample paused: difference 0.0 (2 or less)
+    WAIT ok 24-text vctl = [vctl resume t=9.639]
     WAIT ok 25-differs m
-    CHECK ok 26-sound: sound at the output sink: peak 6476 rms 1626 frames 45056 hz 89 env 6027,5521,6341,6476,4915,4404, the speaker amp on, the media volume 23
+    CHECK ok 26-sound: sound at the output sink: peak 4231 rms 958 frames 45056 hz 249 env 2283,2166,3263,3734,4231,2905, the speaker amp on, the media volume 23
     WAIT ok 29-text vctl = [vctl seek 40 t=21.315]
     WAIT ok 30-differs m
-    WAIT ok 31-text video = [video t=44.512 dropped=119 fps=25.423728813559322]
-    CHECK ok 32-number: vtime = 45.041 (wanted 38..58)
-    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.491 dropped=332 fps=22.727272727272727]
-    CHECK ok 34-number: vendtime = 86.491 (wanted 84.3..87.3)
-    CHECK ok 35-plugin: plugin-container 8454: alive (state S, cpu ticks 2277 to 2289)
+    WAIT ok 31-text video = [video t=44.434 dropped=133 fps=25.6]
+    CHECK ok 32-number: vtime = 44.434 (wanted 38..58)
+    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.308 dropped=353 fps=23.21981424148607]
+    CHECK ok 34-number: vendtime = 86.308 (wanted 84.3..87.3)
+    CHECK ok 35-plugin: plugin-container 21098: alive (state S, cpu ticks 2258 to 2268)
 
 ### mochi / flash-video-flowplayer — pass
 
@@ -4711,27 +4670,27 @@ DEVICE ok overall: 3% of /tmp used
     CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
     CHECK ok 24-plugin: plugin-container 484: alive (state S, cpu ticks 580 to 591)
 
-### mojo / flash-video-controls — fail
+### mojo / flash-video-controls — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +1 s, load done at +6 s, 6 content frame
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +1 s, load done at +6 s, 7 content frame
     WAIT ok 13-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 14-text video = [video t=2.586 dropped=8 fps=25.723472668810288]
+    WAIT ok 14-text video = [video t=1.125 dropped=7 fps=21.91780821917808]
     WAIT ok 15-content m
-    CHECK ok 16-sound: sound at the output sink: peak 2795 rms 613 frames 45056 hz 171 env 1132,1489,2083,2795,2406,2258, the speaker amp on, the media volume 23
-    WAIT ok 18-text vctl = [vctl pause t=10.762]
+    CHECK ok 16-sound: sound at the output sink: peak 2065 rms 387 frames 45056 hz 166 env 870,1292,1085,1400,2065,1466, the speaker amp on, the media volume 23
+    WAIT ok 18-text vctl = [vctl pause t=10.109]
     WAIT ok 19-still m
     CHECK ok 21-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
-    CHECK FAIL 22-region-equal: region 40,114-440,412: colours 4096 hash 5459f9d5 rows 298 uniform 0 light none blue 189-254, the sample's hash 916283d3
-    WAIT ok 24-text vctl = [vctl resume t=10.762]
+    CHECK ok 22-region-near: the picture against the sample paused: difference 0.0 (2 or less)
+    WAIT ok 24-text vctl = [vctl resume t=10.109]
     WAIT ok 25-differs m
-    CHECK ok 26-sound: sound at the output sink: peak 4231 rms 1095 frames 45056 hz 183 env 3263,3034,4231,3503,3581,3456, the speaker amp on, the media volume 23
-    WAIT ok 29-text vctl = [vctl seek 40 t=17.958]
+    CHECK ok 26-sound: sound at the output sink: peak 4231 rms 1050 frames 45056 hz 194 env 3263,3034,3734,4231,3581,3162, the speaker amp on, the media volume 23
+    WAIT ok 29-text vctl = [vctl seek 40 t=21.125]
     WAIT ok 30-differs m
-    WAIT ok 31-text video = [video t=41.09 dropped=119 fps=9.445843828715365]
-    CHECK ok 32-number: vtime = 41.09 (wanted 38..58)
-    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=85.833 dropped=397 fps=24.691358024691358]
-    CHECK ok 34-number: vendtime = 85.833 (wanted 84.3..87.3)
-    CHECK ok 35-plugin: plugin-container 11096: alive (state S, cpu ticks 2122 to 2132)
+    WAIT ok 31-text video = [video t=43.5 dropped=182 fps=14.77832512315271]
+    CHECK ok 32-number: vtime = 43.5 (wanted 38..58)
+    WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.413 dropped=539 fps=22.76176024279211]
+    CHECK ok 34-number: vendtime = 86.413 (wanted 84.3..87.3)
+    CHECK ok 35-plugin: plugin-container 26171: alive (state S, cpu ticks 2028 to 2039)
 
 ### mojo / flash-video-flowplayer — pass
 

@@ -1,26 +1,24 @@
 WAIT ok 13-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-WAIT ok 14-text video = [video t=1.541 dropped=14 fps=28.880866425992778]
+WAIT ok 14-text video = [video t=2.951 dropped=18 fps=25.252525252525253]
 WAIT ok 15-content m
-CHECK ok 16-sound: sound at the output sink: peak 1292 rms 230 frames 45056 hz 126 env 200,591,870,735,1292,1085, the speaker amp on, the media volume 23
+CHECK ok 16-sound: sound at the output sink: peak 3872 rms 865 frames 45056 hz 248 env 2769,1990,2858,3350,3872,3299, the speaker amp on, the media volume 23
   flash tap on stage 60,260 (showAll) at 100 382
-WAIT ok 18-text vctl = [vctl pause t=8.254]
+WAIT ok 18-text vctl = [vctl pause t=10.866]
 WAIT ok 19-still m
-  sample paused of m: hash f2c38591
+  sample paused of m: hash 3fe00eff
 CHECK ok 21-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
-CHECK FAIL 22-region-equal: region 40,123-440,421: colours 4096 hash b2a0357f rows 298 uniform 0 light 218-323 blue none, the sample's hash f2c38591
-  frame kept: /media/internal/jihad-finger/22-region-equal_.last.raw
+CHECK ok 22-region-near: the picture against the sample paused: difference 0.0 (2 or less)
   flash tap on stage 200,260 (showAll) at 240 382
-WAIT ok 24-text vctl = [vctl resume t=8.254]
+WAIT ok 24-text vctl = [vctl resume t=10.866]
 WAIT ok 25-differs m
-CHECK ok 26-sound: sound at the output sink: peak 4286 rms 1058 frames 45056 hz 496 env 4286,3494,3539,3465,3928,2705, the speaker amp on, the media volume 23
-  sample before of m: hash 0352b640
+CHECK ok 26-sound: sound at the output sink: peak 4231 rms 1156 frames 45056 hz 151 env 3263,3734,4231,3581,3456,2120, the speaker amp on, the media volume 23
+  sample before of m: hash 2e18bd30
   flash tap on stage 330,260 (showAll) at 370 382
-WAIT ok 29-text vctl = [vctl seek 40 t=15.568]
+WAIT ok 29-text vctl = [vctl seek 40 t=20.662]
 WAIT ok 30-differs m
-WAIT ok 31-text video = [video t=41.456 dropped=87 fps=10.16260162601626]
-CHECK ok 32-number: vtime = 43.023 (wanted 38..58)
-WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.674 dropped=289 fps=24.922118380062305]
-CHECK ok 34-number: vendtime = 86.674 (wanted 84.3..87.3)
-CHECK ok 35-plugin: plugin-container 4993: alive (state S, cpu ticks 2184 to 2196)
-CHECKS 7 FAILS 1
-novacom: unexpected EOF from server
+WAIT ok 31-text video = [video t=43.128 dropped=121 fps=23.054755043227665]
+CHECK ok 32-number: vtime = 44.434 (wanted 38..58)
+WAIT ok 33-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.778 dropped=384 fps=24.65331278890601]
+CHECK ok 34-number: vendtime = 86.778 (wanted 84.3..87.3)
+CHECK ok 35-plugin: plugin-container 15926: alive (state S, cpu ticks 2249 to 2260)
+CHECKS 7 FAILS 0

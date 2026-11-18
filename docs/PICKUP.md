@@ -94,7 +94,7 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
-## 2026-11-18 — Flash video rerun on the pinned build; a paused video flips between two frames (READ FIRST)
+## 2026-11-18 — Flash video rerun on the pinned build; the table against the stock browser (READ FIRST)
 
 **State of the device:** the three shells on engine 0115 (queue exact, head `abfe97ca13`) and the daemon of commit
 7af318c3; charged (its battery died on 2026-11-17 mid-round: on the host's USB it gains little under a round's load,
@@ -107,9 +107,8 @@ script rerun in the three shells on the pinned build; `docs/rounds/t578-2026-11-
 browser's dropped frames beside the shells'. R8: the table and the slow download ticked.
 
 **Next, in order:**
-1. **T-660 (new, a real defect):** a paused Flash video's picture flips between two neighbouring frames whenever the
-   page beside it repaints (probe and reading in the round's README). `flash-video-controls` is its script (fails in
-   one shell or another each round). Start in the frame path's buffers: which slot holds the movie's last frame.
+1. (T-660 is closed: the paused picture "flipping between two frames" was one frame by two paths, 2 levels of 255
+   apart; look at the pixels before believing two hashes. `expect region-near` is the comparison for a movie's rect.)
 2. **H.264 at 360 rows drops more frames here than in the stock browser** (README's table): few readings; measure
    again, then look at how the hardware decoder's frames reach the screen here.
 3. T-659: the engine's MOZ_CRASH when `/dev/kgsl-3d0` cannot be opened (39 deaths in a degraded device state).

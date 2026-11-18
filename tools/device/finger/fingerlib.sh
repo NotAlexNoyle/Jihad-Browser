@@ -916,6 +916,19 @@ fl_check_content() { # NAME REGION SEL [TEXT]: content in the region (8+ colours
 fl_sample() { # NAME REGION
   local h
   h=$(fl_region "$2" | sed -n 's/.*hash \([0-9a-f]*\).*/\1/p'); eval "FL_S_$(echo $1 | tr -c 'A-Za-z0-9_' '_')=$h"; echo "  sample $1 of $2: hash $h"
+  # a movie's rectangle: its grid signature too, for a comparison that allows the frame path's own rounding (region-near)
+  h=$(fl_screen_sig "$2" 2>/dev/null); [ -n "$h" ] && eval "FL_G_$(echo $1 | tr -c 'A-Za-z0-9_' '_')=$h"
+}
+fl_check_region_near() { # NAME REGION SAMPLE [TOL]: a movie's rectangle against its sample, the mean difference per channel TOL (2) or less.
+  # The same frame of a movie reaches the screen by two paths (the compositor's, the plugin lane's copy) that differ by a
+  # level or two a channel all over (2026-11-18: at most 2 of 255, measured on kept screens of a paused video): a hash calls
+  # that a different picture, the eye and this do not.
+  local g l d tol
+  tol=${4:-2}; g=$(eval "echo \$FL_G_$(echo $3 | tr -c 'A-Za-z0-9_' '_')")
+  if [ -z "$g" ]; then fl_check FAIL "$1" "no sample $3 with a signature"; return 1; fi
+  l=$(/tmp/fbstream /tmp/fl-sig -Q "$(fl_flash_region "$2")" -M "$g" 2>/dev/null); d=$(echo "$l" | sed -n 's/.* griddiff \([0-9.]*\).*/\1/p')
+  if [ -n "$d" ] && awk -v d=$d -v t=$tol 'BEGIN { exit !(d <= t) }'; then fl_check ok "$1" "the picture against the sample $3: difference $d ($tol or less)"
+  else fl_check FAIL "$1" "the picture against the sample $3: difference ${d:-(none read)} (wanted $tol or less)"; fi
 }
 fl_check_region_equal() { # NAME REGION [SAMPLE-NAME]
   local s reg h

@@ -7,7 +7,8 @@
       "build": "javascript",
       "url": "https://cdn.eaglercraft.net/objects/dl/1.5.2/Eaglercraft_1.5.2-sp2.01_Offline.zip",
       "size": 9283201,
-      "sha256": "85d77967522db1a6cb9a23911ce0d90c9674f4c7ee539e88ba06cc6fd1ed30bd"
+      "sha256": "85d77967522db1a6cb9a23911ce0d90c9674f4c7ee539e88ba06cc6fd1ed30bd",
+      "hosted": "https://eaglercraft.com/play?version=1.5.2"
     },
     {
       "id": "eaglerx-1.8.8",
@@ -15,7 +16,8 @@
       "build": "javascript",
       "url": "https://cdn.eaglercraft.net/objects/dl/1.8.8/eaglercraft1-8-62da5f39.zip",
       "size": 13551180,
-      "sha256": "c769f8331f83c89febdf3e3cc2eabbab6a4bbb00da4eefd0e3a59746a4882779"
+      "sha256": "c769f8331f83c89febdf3e3cc2eabbab6a4bbb00da4eefd0e3a59746a4882779",
+      "hosted": "https://eaglercraft.com/play?version=1.8.8"
     },
     {
       "id": "eaglerx-1.8.8-wasm",
@@ -23,7 +25,8 @@
       "build": "wasm-gc",
       "url": "https://cdn.eaglercraft.net/objects/dl/1.8.8/eaglercraft1-8-wasm-62da5f39.zip",
       "size": 12662347,
-      "sha256": "fe49c8ab0855aad1538f887f0e9bd3318cbf114ac7678f2cb58698605e0b84ba"
+      "sha256": "fe49c8ab0855aad1538f887f0e9bd3318cbf114ac7678f2cb58698605e0b84ba",
+      "hosted": "https://eaglercraft.com/play?version=1.8.8-wasm"
     },
     {
       "id": "eaglerx-1.12.2",
@@ -31,7 +34,15 @@
       "build": "javascript",
       "url": "https://cdn.eaglercraft.net/objects/dl/1.12.2/eaglercraft1-12-62da5f39.zip",
       "size": 19188743,
-      "sha256": "bdc12cd149eeae93bbde1f1ccfcce5b898c368e4bb5b986a922de64807dc5b6b"
+      "sha256": "bdc12cd149eeae93bbde1f1ccfcce5b898c368e4bb5b986a922de64807dc5b6b",
+      "hosted": "https://eaglercraft.com/play?version=1.12.2"
     }
-  ]
+  ],
+  "hosted_launcher": {
+    "url": "https://eaglercraft.com/play",
+    "read": "2026-11-18",
+    "size": 294298,
+    "sha256": "4c4da853f2651ddeba87ab8bbdb5cf8479ed5eb3762a746cf17bcf1dfc7749f1",
+    "_": "Each client's hosted form is this launcher with ?version=<client>: a Next.js page (ads, telemetry, cloud saves, a worker) that fetches the build at run time from cdn.eaglercraft.net/objects/builds/<parent>/<child>/<version>, named by a descriptor it reads then (mirror cdn.eaglercraft.ru). Its own DOWNLOAD_LINKS are the offline zips above, the same URLs. It is no fixed artifact: size and SHA-256 are the page as read on the date. The device round tests the offline builds and tries the launcher once (T-666)."
+  }
 }

@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-14 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-18 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -94,7 +94,57 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
-## 2026-11-18 — Flash video rerun on the pinned build; the table against the stock browser (READ FIRST)
+## 2026-11-18 (later) — the owner's three new kits; a card behind is frozen (READ FIRST)
+
+The owner, 2026-11-18: **"new kit: ensure about:data works (all variants)"**, **"new kit: ensure about:logins works
+(all variants)"**, **"new kit: eaglercraft support"**. Kits `cavekit-site-data.md` (R1-R4) and `cavekit-eaglercraft.md`
+(R1-R7); build-site Tier 97, T-661..T-671.
+
+**State of the device:** the three shells on engine 0119 (queue 0001-0119 exact, engine branch head `909edf2698`), the
+daemon and adapter of commit 353baa3c (the adapter's `cardActivated`), the shells' JS of that commit pushed by
+`push-card-js.sh`; servers on 8097 (corpus), 8077 (test pages), 8099 (Eaglercraft's cache, `python3 -m http.server
+8099 --bind 192.168.1.245` in `~/.cache/jihad-eaglercraft`); the second-origin fixture starts and stops :8079 itself.
+Commits from `965aab42` on are unpushed (the owner's).
+
+**Done:**
+- **Saved logins (T-661):** the password manager is NOT connected in this embedding (its content half needs a frame
+  message manager); `render/goanna/components/jihadLogins.js` saves and fills through `nsILoginManager` itself, asking
+  the card AT SUBMIT TIME (see the traps). Form history is written there too (about:data's second pane).
+- **about:logins, about:data (T-662/T-663):** chrome pages in the prefs package (`logins.*`, `data.*`, `sitedata.css`),
+  registered in `jihadAboutPreferences.js`; Settings' Passwords and Cookies groups link them. localStorage is read from
+  `webappsstore.sqlite` (UXP keeps it outside the quota manager) and cleared by `browser:purge-domain-data`.
+- **Suite:** `site-logins-{save,refuse-update,switches,page,frame,persist,master}`, `site-data-{page,reach}`; fixtures
+  `site-data-clean` (logins, form history, permissions set aside per run and put back), `key-store-clean` (key4.db),
+  `second-origin` (:8079). The master password is set by a trace-mode test hook (`jihad.test.masterPassword`).
+- **A card behind another app is frozen (T-580, cavekit-flash.md R10):** isis froze only a second card of the same
+  process; a card behind another app kept painting and the boost never followed it. The adapter's new scriptable
+  `cardActivated(bool)`, called by the three shells, freezes and thaws through the contract's own freeze/thaw.
+  `flash-background-card` passes on Enyo (no frames behind, boost released and retaken, a tap within 2 s).
+- **Eaglercraft T-665 done** (R1 ticked): `tools/host/eaglercraft/`, `docs/rounds/t665-2026-11-18/README.md`.
+
+**Traps met today:**
+- **`Services.prompt` hangs** (nsPrompter.js opens a chrome window this embedding has not): a component asks the card
+  through `Cc["@mozilla.org/prompter;1"].getService(Ci.nsIPromptFactory).getPrompt(null, Ci.nsIPrompt)`.
+- **A card dialog sent while the page navigates is lost:** Mochi's card never takes it up (the daemon waits 60 s with its
+  main thread blocked), Mojo's answers Cancel at once, and a dialog that shows late swallows every later tap ("no
+  clickAt"). Ask before the navigation (earlyformsubmit is synchronous, like a page's confirm()).
+- **A JS component pushed is not loaded** until `<app>/cache/startupCache*` is cleared (push-engine-update.sh does it
+  now) and a full push does not reliably replace the daemon (`--daemon-only` after it).
+- **The compat probe ran once per page** loaded in the same window (the window is the same object): `_tops` is one
+  entry per window now, and `fl_probe` empties the pref once answered. A probe that clicks a submit button blocks while
+  a dialog is up: scripts fill by probe and submit with `tap go`.
+- **about: addresses have no `location.search`/`hash`**: read the whole `location.href`; a `#pane` change is no load
+  (the card reports no load done and keeps the last scroll): use `?pane=`.
+
+**Next, in order:**
+1. Read the batch `finger-2026-11-17` round (the nine site scripts and five Flash R9/R10 scripts in three shells), fix,
+   tick cavekit-site-data.md and cavekit-flash.md R9/R10, commit the round.
+2. ck:inspector (model fable) on the site-data and freeze work.
+3. T-666: each Eaglercraft client from :8099 in each shell (title screen, menus); then T-667..T-671.
+4. The real Flash sites (`site-*`, `site-report.py`), `flash-life-cycles-*`, `flash-app-music-10min`; then the
+   2026-11-18 section's list below (H.264 drops, T-576, T-578's rest).
+
+## 2026-11-18 — Flash video rerun on the pinned build; the table against the stock browser
 
 **State of the device:** the three shells on engine 0117 (queue 0001-0117 exact, head `75b7118913`) and the daemon of commit
 7af318c3; charged (its battery died on 2026-11-17 mid-round: on the host's USB it gains little under a round's load,

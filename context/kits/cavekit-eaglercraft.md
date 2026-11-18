@@ -34,14 +34,18 @@ repository holds the script and the manifest, never the files.
 ### R1: The clients, declared and fetched
 **Description:** What "Eaglercraft" means here is a written list, reproducible on the host.
 **Acceptance Criteria:**
-- [ ] A manifest names at least Eaglercraft 1.5.2 and EaglercraftX 1.8.8 (the latest release of each that publishes a
+- [x] A manifest names at least Eaglercraft 1.5.2 and EaglercraftX 1.8.8 (the latest release of each that publishes a
   JavaScript build), each as its offline HTML and, where published, its hosted form, with the source URL, the release,
-  the size and the SHA-256; a script fetches them into the host cache and checks them
-- [ ] For each, what it needs is read from its own code and recorded before any device round: the WebGL version and the
+  the size and the SHA-256; a script fetches them into the host cache and checks them *(2026-11-18, T-665:
+  tools/host/eaglercraft/clients.json, eaglercraft-fetch.py; 1.5.2 sp2.01, 1.8.8 JS and WASM-GC, 1.12.2; the hosted
+  form is eaglercraft.com/play?version=, a launcher with no fixed artifact, its page's hash as read;
+  docs/rounds/t665-2026-11-18)*
+- [x] For each, what it needs is read from its own code and recorded before any device round: the WebGL version and the
   extensions it asks for, Web Audio, IndexedDB, Workers, WebSockets, pointer lock, full screen, touch input, and how much
-  memory its own settings ask for
-- [ ] A WebAssembly or WebAssembly-GC build is listed with the reason it is not the one tested, or tested if the engine
-  runs it
+  memory its own settings ask for *(2026-11-18, T-665: needs.py; 1.5.2 needs WebGL 2, 1.8.8/1.12.2 fall back to WebGL 1,
+  1.8.8 has touch, all use BigInt, no client's settings name a memory figure; docs/rounds/t665-2026-11-18)*
+- [x] A WebAssembly or WebAssembly-GC build is listed with the reason it is not the one tested, or tested if the engine
+  runs it *(2026-11-18, T-665: EaglercraftX 1.8.8 WASM-GC listed; UXP's WebAssembly is the MVP, without GC)*
 **Dependencies:** none
 
 ### R2: Loads, in each shell

@@ -33,6 +33,22 @@ repository: they carry Mojang's assets.
   WebAssembly is the MVP); the JavaScript build of the same release is the one supported.
 - **Size:** the offline files are 23.5 to 43 MB of HTML (the assets as base64 in the page): parsing one is itself a
   memory question on a 1 GB device (cavekit-device-headroom.md), measured in T-666.
+- **Memory the clients' own settings ask for: none.** The JavaScript builds' launch options (`eaglercraftXOpts` for
+  1.8.8 and 1.12.2: the container, the worlds database, the relays; `eaglercraftOpts` for 1.5.2: the container, the
+  assets, the integrated server's worker, the worlds folder, the relays) carry no memory figure, and TeaVM's Java heap
+  is the JavaScript engine's own (the `maxMemory` the game reports is a value of the build, not an allocation). What
+  the device spends is measured in T-666/T-668 (the daemon's and the device's memory at the title screen, in a world,
+  after 15 minutes).
+
+## The hosted forms
+
+Each client is also published hosted, at `https://eaglercraft.com/play?version=<client>` (`1.5.2`, `1.8.8`,
+`1.8.8-wasm`, `1.12.2`; recorded in `clients.json`). That page is a launcher, not the client: a Next.js application
+(ads, telemetry, cloud saves, a worker) that fetches the chosen build at run time from
+`cdn.eaglercraft.net/objects/builds/<parent>/<child>/<version>` (mirror `cdn.eaglercraft.ru`), named by a descriptor it
+reads then. Its own download table names the same offline zips `clients.json` pins. It is no fixed artifact, so its
+size and SHA-256 in `clients.json` are the launcher page as read on 2026-11-18 (294 298 bytes). The device round tests
+the offline builds and tries the launcher once, recording what it does (T-666).
 
 So the clients to support are **EaglercraftX 1.8.8** (with touch) first, and **1.12.2**; 1.5.2 sp2.01 is expected to be a
 limit.

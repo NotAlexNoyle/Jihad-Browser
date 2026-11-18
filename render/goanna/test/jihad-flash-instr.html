@@ -14,7 +14,7 @@
 <div id="holder"></div>
 <div id="report">
   <div id="ready">-</div><div id="down">-</div><div id="up">-</div><div id="move">-</div>
-  <div id="keydown">-</div><div id="keyup">-</div><div id="frames">-</div><div id="video">-</div><div id="vmeta">-</div><div id="vstatus">-</div><div id="vctl">-</div><div id="vend">-</div><div id="vtime">-</div><div id="vdropped">-</div><div id="vfps">-</div><div id="vendtime">-</div><div id="venddropped">-</div>
+  <div id="keydown">-</div><div id="keyup">-</div><div id="frames">-</div><div id="video">-</div><div id="vmeta">-</div><div id="vstatus">-</div><div id="vctl">-</div><div id="vend">-</div><div id="vtime">-</div><div id="vdropped">-</div><div id="vfps">-</div><div id="vmaxgap">0</div><div id="vgapat">-</div><div id="vendtime">-</div><div id="venddropped">-</div>
   <div id="vars">-</div><div id="so">-</div><div id="echo">-</div><div id="echoback">-</div><div id="geturl">-</div><div id="fscommand">-</div><div id="data">-</div><div id="kid">-</div><div id="fs">-</div><div id="detect">-</div><div id="text">-</div><div id="clip">-</div><div id="file">-</div>
   <div id="n-down">0</div><div id="n-up">0</div><div id="n-move">0</div><div id="heldms">0</div><div id="keyheldms">-</div><div id="moverate">0</div>
   <div id="count">0</div><div id="all"></div>
@@ -32,6 +32,12 @@
       if (e && line != "move -1 -1") { e.textContent = line; }
       // the stream's own numbers, each in an element a check of a number reads: its time, its dropped frames, its rate
       var vm = kind == "video" && /t=([\d.]+) dropped=(\d+) fps=([\d.]+)/.exec(line);
+      // a dry buffer and its filling again, on the wall clock: the longest such wait (ms) and the stream's time it stood at
+      if (line.indexOf("vstatus NetStream.Buffer.Empty") == 0) { window.vEmptyAt = Date.now(); window.vEmptyT = line.replace(/.* t=/, ""); }
+      if (line.indexOf("vstatus NetStream.Buffer.Full") == 0 && window.vEmptyAt) {
+        var gap = Date.now() - window.vEmptyAt; window.vEmptyAt = 0;
+        if (gap > Number(document.getElementById("vmaxgap").textContent)) { document.getElementById("vmaxgap").textContent = String(gap); document.getElementById("vgapat").textContent = window.vEmptyT; }
+      }
       if (vm) { document.getElementById("vtime").textContent = vm[1]; document.getElementById("vdropped").textContent = vm[2]; document.getElementById("vfps").textContent = String(Math.round(Number(vm[3]) * 10) / 10); }
       if (line.indexOf("vstatus NetStream.Play.Stop") == 0) { document.getElementById("vendtime").textContent = document.getElementById("vtime").textContent; document.getElementById("venddropped").textContent = document.getElementById("vdropped").textContent; }
       if (line.indexOf("vstatus NetStream.Play.Stop") == 0) { document.getElementById("vend").textContent = "vend " + line.slice(8) + " after " + document.getElementById("video").textContent; }

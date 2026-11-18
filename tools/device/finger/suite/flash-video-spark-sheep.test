@@ -1,7 +1,7 @@
 # A clip on the instrumented player, to its end (cavekit-flash.md R8, T-578): Sorenson Spark, 480 rows, 8.8 s at 25 frames a second,
 # from the corpus cache (tools/host/flash-video-clips.sh makes the gen-* clips). The player's own reports are the checks:
 # the stream's metadata, its time moving, NetStream.Play.Stop with the time at the clip's length, and the dropped frames
-# counted to the end (a number of the report for R8's table, bounded here only by the clip's frames: what a size costs is the table's to say).
+# counted to the end (a number of the report for R8's table; the bound is 70 % of the clip's frames, above the worst reading of 2026-11-17).
 # The picture is read too: drawn while playing and at the end, and its content rate over five seconds (the minimum is
 # set from the stock browser's reading on the same page, docs/rounds/t578-2026-11-17).
 id: flash-video-spark-sheep
@@ -18,6 +18,6 @@ expect flash-drawn m yes
 expect audio running 4
 wait text vend "Play.Stop" 33
 expect number vendtime 6.3 9.3
-expect number venddropped 0 220
+expect number venddropped 0 154
 expect flash-drawn m yes
 expect plugin 3 alive

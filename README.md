@@ -37,14 +37,14 @@ and touches nothing else.
 | Area | Progress | What it covers |
 |---|---|---|
 | Engine and page drawing | `██████████████████░░` 94 % | Goanna inside the webOS card, frames to the card, the card's messages |
-| Drawing on the GPU | `██████████████████░░` 90 % | the Adreno 220 composes the page; WebGL; pan and zoom speed |
+| Drawing on the GPU | `█████████████████░░░` 88 % | the Adreno 220 composes the page; WebGL; pan and zoom speed |
 | The modern web | `█████████████████░░░` 87 % | today's sites: TLS, missing features filled in, video |
 | Speed and memory | `███████████████░░░░░` 78 % | the engine tuned for the TouchPad; no page can starve the device; YouTube made light |
 | The three interfaces | `███████████████████░` 95 % | Enyo, Mochi and Mojo |
 | Touch and keyboard | `████████████████████` 100 % | taps, gestures, the on-screen keyboard |
 | Settings and services | `███████████████████░` 96 % | the settings panes, downloads, history, printing |
 | Add-ons and Personas | `███████████████████░` 96 % | XPI add-ons, plugins, Personas, the add-on site |
-| Flash, finished | `█████████░░░░░░░░░░░` 45 % | the device's own Flash Player proven on real games, apps and videos in every shell |
+| Flash, finished | `████████░░░░░░░░░░░░` 43 % | the device's own Flash Player proven on real games, apps and videos in every shell |
 | Privacy and security | `███████████████████░` 95 % | the ad and tracker blocker, proxies, certificates |
 | Building and updating | `███████████████████░` 95 % | one repository builds every package; engine updates; the SDK; licences |
 | Tabs | `░░░░░░░░░░░░░░░░░░░░` held | groundwork only, held by the owner's decision |

@@ -43,6 +43,7 @@ du=$(ls /tmp/frame.raw /tmp/frames.raw /tmp/*.png /tmp/fl-region* /tmp/x.* 2>/de
 # that was killed stays on the bus for ever (2026-11-17: 73 of them, the device's sessions dropping); its own watcher ends it
 # within two seconds, so the count waits three
 sleep 3; sb=0; for p in $(ps auxww | sed -n 's/.*audio-track[.]sh \([0-9][0-9]*\) *$/\1/p'); do [ -d /proc/$p ] || sb=$((sb+1)); done   # [.]: never this check's own command line
+for p in $(ps auxww | awk '/luna-send -i palm:\/\/com[.]palm[.]audio\/media\/status/ { print $2 }'); do [ "$(sed 's/.*) //' /proc/$p/stat 2>/dev/null | cut -d' ' -f2)" = 1 ] && sb=$((sb+1)); done   # its luna-send, adopted by init
 [ "$sb" = 0 ] && ok "volume-subscribers" "none without its daemon" || bad "volume-subscribers" "$sb audio-track.sh whose daemon is gone"
 ms=$(ls -d /media/internal/jihad-finger /media/internal/jihad-stream 2>/dev/null | tr '\n' ' '); [ -z "$ms" ] && ok "media-scratch" "none" || bad "media-scratch" "$ms"
 echo "DEVICE $( [ $fail = 0 ] && echo ok || echo FAIL ) overall: $(df /tmp | tail -1 | awk '{print $5}') of /tmp used"

@@ -94,6 +94,34 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## 2026-11-18 — STOPPED: the device's battery died mid-round; what is built and not yet on it (READ FIRST)
+
+The TouchPad went off (battery) during the pinning experiment; `novacom -l` lists nothing. When it is back: it has
+restarted, so close the USB alert, and the daemons start on first launch.
+
+**Built, NOT on the device:** the daemon of this commit (`/out/jihad-browserserver-arm`: the tracker's "no such child"
+read as gone). Push it first: `build/webos-oe/push-engine-update.sh --daemon-only enyo mochi mojo`.
+
+**Then, in order (the review of the video batch by ck:inspector, its findings applied on the host only):**
+1. Run every `flash-video-*` script in the three shells again, with the end check, into a NEW whole round or merged
+   into `docs/rounds/finger-2026-11-17` (30 of its 48 video runs were made on the 10 ms stream timer build that was
+   taken out again; the scripts have since changed too: the stall's proof (`vmaxgap`, `vgapat`), a dropped-frames
+   bound of 60 %, a second rate check in the two real players, `expect decoder ok` after the metadata). Test pages
+   are cached by the daemons: a first run may read "(no element)" for the page's new elements; run again.
+2. If `flash-video-slow` passes with `vmaxgap` 8000 or more in the three shells, tick R8's fifth criterion again
+   (unticked after the review: the first runs saw only the throttle's short underrun).
+3. The round's README (`docs/rounds/t578-2026-11-17/README.md`) still wants: the two plain VP6 clips' rows, a stock
+   column of dropped frames per second read off the kept pictures, the summary sentence corrected (H.264 360 drops
+   12-15 %, the 8.8 s 480-row clip over half), and the first video round's H.264-240 readings in the shells after the
+   restart (3.5, 0.3, 0.1 a second against the stock browser's 9.5; the suite's later runs read 16-17) explained or
+   measured again with `video-round.py`.
+4. T-659 (new): 39 daemon deaths in that round's `crash-*.txt`, the engine's own MOZ_CRASH when `/dev/kgsl-3d0`
+   cannot be opened (cavekit-gpu-rendering.md R1, a new unticked criterion).
+5. The pinning experiment, one reading only before the battery went: Achievement Unlocked on Enyo 11.2/s unpinned,
+   10.2/s with the player's main thread on cpu1 and the daemon on cpu0 (`JIHAD_PIN="2 1"`). No gain in that one run;
+   finish the three games and the other layout (`JIHAD_PIN="1 2"`) before dropping the idea. `JIHAD_PIN` needs
+   `--threads` (it builds `/tmp/pin`).
+
 ## 2026-11-17 (later) — Flash video (T-578): the scripts, the decoder's dead boot, two wrong turns undone (READ FIRST)
 
 **State of the device:** the three shells on engine 0115 (queue 0001-0115 exact, engine branch head `abfe97ca13`) and

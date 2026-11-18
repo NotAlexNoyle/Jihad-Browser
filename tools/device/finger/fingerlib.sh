@@ -573,8 +573,11 @@ fl_check_file() { # NAME GLOB TEXT: the newest file the glob names on the device
 fl_check_decoder() { # NAME ok: the kernel's hardware video decoder (Flash's H.264, the system's video player) usable on this boot.
   # A boot was seen (2026-11-17, five days up after a panic) on which every start of it failed, in the stock browser and the
   # system's player too, a restart of the device curing it: a blank H.264 clip on such a boot is the device's, and this says so.
-  if dmesg | grep -q 'memory arena is not initialized'; then fl_check FAIL "$1" "DEVICE: the kernel's video decoder has lost its memory arena (dmesg: pmem_kalloc); restart the device, then run again"
-  else fl_check ok "$1" "the kernel's video decoder: no arena fault on this boot"; fi
+  # read after the clip's metadata (the decoder has been started): a fault line of the last two minutes is this clip's
+  local last up
+  last=$(dmesg | grep 'memory arena is not initialized' | tail -1 | sed -n 's/^\[ *\([0-9]*\)\..*/\1/p'); up=$(cut -d. -f1 /proc/uptime)
+  if [ -n "$last" ] && [ $((up - last)) -le 120 ]; then fl_check FAIL "$1" "DEVICE: the kernel's video decoder has lost its memory arena (dmesg: pmem_kalloc, $((up - last)) s ago); restart the device, then run again"
+  else fl_check ok "$1" "the kernel's video decoder: no arena fault in the last two minutes${last:+ (the last $((up - last)) s ago)}"; fi
 }
 fl_check_number() { # NAME SEL MIN MAX: the number an element holds, within the bounds
   local v

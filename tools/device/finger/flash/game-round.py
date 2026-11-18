@@ -71,7 +71,7 @@ sleep {load}
     s.append("""PID=$(pgrep -n -f plugin-container); echo "PLUGIN0 $PID"\n""")
     if os.environ.get("JIHAD_PLAYER_NICE"): s.append("for t in /proc/$PID/task/*; do renice %d ${t##*/} >/dev/null 2>&1 || renice %d -p ${t##*/} >/dev/null; done; echo RENICED $(cut -d' ' -f19 /proc/$PID/stat)\n" % ((int(os.environ["JIHAD_PLAYER_NICE"]),) * 2))   # an experiment
     if os.environ.get("JIHAD_PIN"):   # an experiment: "P D" = the player's main thread to the cores of mask P, every thread of the daemon to mask D
-        pm, dm = os.environ["JIHAD_PIN"].split(); s.append("DPID=$(cut -d' ' -f4 /proc/$PID/stat); /tmp/pin %s $PID main; /tmp/pin %s $DPID; echo \"PIN daemon $DPID $(tr '\\0' ' ' < /proc/$DPID/cmdline | cut -c1-60)\"\n" % (pm, dm))
+        pm, dm = os.environ["JIHAD_PIN"].split(); s.append("DPID=$(sed 's/.*) //' /proc/$PID/stat | cut -d' ' -f2); [ -x /tmp/pin ] || echo 'PIN FAIL: no /tmp/pin (run with --threads)'; /tmp/pin %s $PID main; /tmp/pin %s $DPID; echo \"PIN daemon $DPID $(tr '\\0' ' ' < /proc/$DPID/cmdline | cut -c1-60)\"\n" % (pm, dm))
     def act(a):
         # a game's own mixed sequence (flash-games.json "seq"): ["tap",x,y], ["drag",x1,y1,x2,y2(,ms)], ["hold",x,y,ms], ["key",name]
         if a[0] == "tap": return f"/tmp/finger tap {pt(a[1:3])}"

@@ -228,8 +228,7 @@ static pid_t gJihadTrackPid = 0;
 static bool jihadTrackAlive() {
   const pid_t r = waitpid(gJihadTrackPid, nullptr, WNOHANG);
   if (r == gJihadTrackPid) return false;
-  if (r == 0) return true;
-  return kill(gJihadTrackPid, 0) == 0;
+  return r == 0;   // an error (no such child) is a tracker gone: the pid may by now be another process's
 }
 static void jihadTrackStop() {
   if (gJihadTrackPid <= 0) return;

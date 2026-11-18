@@ -15,6 +15,12 @@ import importlib.util
 spec = importlib.util.spec_from_file_location("finger_run", os.path.join(HERE, "finger-run.py")); fr = importlib.util.module_from_spec(spec); spec.loader.exec_module(fr)
 ORDER = ["Scrolling and gestures", "Keyboard and text", "Chrome, menus and dialogs", "Personas and add-ons", "Fonts", "The engine", "Proxies and certificates", "Media and sound", "Sites", "Not built yet", "Not testable at all"]
 
+def run_date(v, date):
+    # each run's own day: a run carried from an earlier round (carried_from: finger-<date>) keeps that round's, a rerun its own
+    ds = sorted(set((r["carried_from"][-10:] if r.get("carried_from") else str(r.get("rerun") or date)[:10]) for r in v.values()))
+    return ds[0] if len(ds) == 1 else ds[0] + " to " + ds[-1]
+
+
 def main():
     args = sys.argv[1:]; write = "--write" in args
     rep_path = None
@@ -53,7 +59,7 @@ def main():
                 allpass = v and all(v.get(sh, {}).get("verdict") == "pass" for sh in t["shells"])
                 anyfail = any(v.get(sh, {}).get("verdict") == "fail" for sh in t["shells"])
                 mark = "[x]" if allpass else ("[!]" if anyfail else "[ ]")
-                tail = f"`{t['id']}` on " + ", ".join(parts) + (f" ({date})" if v else "")
+                tail = f"`{t['id']}` on " + ", ".join(parts) + (f" ({run_date(v, date)})" if v else "")
                 if t["needs"]: tail += f"; needs {', '.join(t['needs'])}"
             kit = f" ({t['kit']})" if t["kit"] else ""
             out.append(f"- {mark} {t['item'] or t['id']}{kit} — {tail}")

@@ -32,7 +32,7 @@ and touches nothing else.
 <!-- progress:start -->
 ## Status
 
-**`██████████████████░░` 90 % done** (everything but tabs, which are on hold).
+**`█████████████████░░░` 88 % done** (everything but tabs, which are on hold).
 
 | Area | Progress | What it covers |
 |---|---|---|
@@ -40,7 +40,7 @@ and touches nothing else.
 | Drawing on the GPU | `██████████████████░░` 90 % | the Adreno 220 composes the page; WebGL; pan and zoom speed |
 | The modern web | `█████████████████░░░` 87 % | today's sites: TLS, missing features filled in, video |
 | Speed and memory | `███████████████░░░░░` 78 % | the engine tuned for the TouchPad; no page can starve the device; YouTube made light |
-| The three interfaces | `███████████████████░` 95 % | Enyo, Mochi and Mojo |
+| The three interfaces | `████████████████░░░░` 84 % | Enyo, Mochi and Mojo |
 | Touch and keyboard | `████████████████████` 100 % | taps, gestures, the on-screen keyboard |
 | Settings and services | `███████████████████░` 96 % | the settings panes, downloads, history, printing |
 | Add-ons and Personas | `███████████████████░` 96 % | XPI add-ons, plugins, Personas, the add-on site |

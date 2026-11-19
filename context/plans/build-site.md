@@ -490,6 +490,21 @@ Owner: "continue implementing everything you can using cavekit 3.1 with codex ad
 | T-363 | Review round 8 (inspector; Codex out of credits until Oct 7 1:53 AM) and fixes; re-run Codex on the range when credits return | cavekit-addons-extensions.md | addons R7/R10; mojo R6 | T-355,T-356,T-357,T-358,T-359,T-360,T-361,T-362 | no | M |
 | T-364 | [OWNER] Finger: Mojo pinch, the circles' menus, the in-field reload; Flash game feel | cavekit-mojo-ui.md | mojo R6; addons R7 | T-363 | yes | S |
 
+## Tier 98 — Find on Page in each interface (2026-11-19; cavekit-find-on-page.md)
+
+The owner, 2026-11-19: "new kit: per-variant find-on-page". The three find bars drive one engine search, but Previous
+never goes back (the adapter's findInPage always sends forward though the IPC's FindString has a direction), and the
+card is never told how many matches there are, or that there are none. The engine side first (direction and count),
+then each interface's bar, then the scripts.
+
+| ID | Task | Kit | Reqs | Depends | Parallel | Size | Status |
+|----|------|-----|------|---------|----------|------|--------|
+| T-674 | The engine's half: a search in either direction (the adapter's findInPage takes a direction, the IPC's FindString carries it unchanged), wrapping said, the current match's number and the count of all matches (nsITypeAheadFind or a range count in the page), sent to the card as a notification; the highlight seen on light and dark pages; frames and text fields | cavekit-find-on-page.md | R2, R3, R4 | — | no | M | PENDING |
+| T-675 | Enyo's find bar: opened from the app menu, the long-press menu and Ctrl+F; Previous enabled and backward; "n of m", "No matches", "went round"; Enter is Next; Done clears; the last word offered again; closed on navigation | cavekit-find-on-page.md | R1, R3, R4, R5 | T-674 | yes | M | PENDING |
+| T-676 | Mochi's find bar: the same, in Mochi's look | cavekit-find-on-page.md | R1, R3, R4, R5 | T-674 | yes | M | PENDING |
+| T-677 | Mojo's find bar: the same, in Mojo's look (a Previous added beside Next) | cavekit-find-on-page.md | R1, R3, R4, R5 | T-674 | yes | M | PENDING |
+| T-678 | Test pages (a long page with a word many times, cases, accented and non-Latin text, a frame, a text field, a dark page) and the finger scripts for R1-R5 in Enyo, Mochi and Mojo; the round and the README's line | cavekit-find-on-page.md | R6 | T-675, T-676, T-677 | no | M | PENDING |
+
 ## Tier 97 — Saved logins and site data; Eaglercraft (2026-11-18; cavekit-site-data.md, cavekit-eaglercraft.md)
 
 The owner, 2026-11-18: "new kit: ensure about:data works (all variants)", "new kit: ensure about:logins works (all

@@ -74,6 +74,7 @@ what is next, is in the kit itself, `docs/PICKUP.md` (the current handoff) and `
 | The webOS SDK at Its Latest | cavekit-webos-sdk-update.md | 3 | 🟢 10 met / 0 partial / 1 open | The SDK submodule and its novacom built from it at the latest release, proven on the bench; the machine's own SDK refreshed |
 | Saved Logins and Site Data | cavekit-site-data.md | 4 | ⬜ 0 met / 0 partial / 26 open | about:logins and about:data in all three interfaces; logins saved and filled (the password manager connected) |
 | Eaglercraft | cavekit-eaglercraft.md | 7 | ⬜ 0 met / 0 partial / 21 open | Eaglercraft 1.5.2 and EaglercraftX 1.8.8 load, play by touch, keep a world, join a server, in every shell |
+| Find on Page, in Each Interface | cavekit-find-on-page.md | 6 | ⬜ 0 met / 0 partial / 0 open | Find on Page in Enyo, Mochi and Mojo: opened from the menus and Ctrl+F, found as you type, Next and Previous, "n of m" and none, Done leaving the page as it was |
 | Global Jihad (after Jihad Browser) | cavekit-global-jihad.md | 3 | ⬜ 0 met / 0 partial / 11 open | Goanna in place of WebKit and Chromium for every app across the webOS family, replacing the system engine, never beside it; CE OTA updates blocked while installed. Will support: TouchPad (stock 3.0.x, CE), the 1.x/2.x phones, LuneOS, webOS OSE. Won't: Lunacy, LG TVs, Open webOS, Android/iOS generally |
 | The Atlas References, Current | cavekit-atlas-references.md | 3 | ✅ 9 met / 0 partial / 0 open | The Atlas reference checkouts tracking their real upstreams, one update command, what moved weighed for Jihad |
 

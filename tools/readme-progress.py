@@ -27,7 +27,7 @@ AREAS = [
     ("The modern web", ["modern-web"], "today's sites: TLS, missing features filled in, video"),
     ("Speed and memory", ["lowpower-uxp", "device-headroom"],
      "the engine tuned for the TouchPad; no page can starve the device; YouTube made light"),
-    ("The three interfaces", ["ui-shell", "mochi-ui", "mojo-ui", "chrome-look"], "Enyo, Mochi and Mojo"),
+    ("The three interfaces", ["ui-shell", "mochi-ui", "mojo-ui", "chrome-look", "find-on-page"], "Enyo, Mochi and Mojo"),
     ("Touch and keyboard", ["input-bridging"], "taps, gestures, the on-screen keyboard"),
     ("Settings and services", ["preferences-ui", "browser-services"], "the settings panes, downloads, history, printing"),
     ("Add-ons and Personas", ["addons-extensions", "addons-site", "persona-formats", "personas-ui"],

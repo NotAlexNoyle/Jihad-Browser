@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2026 NotAlexNoyle. Apache-2.0.
 # beacon-log.py LOGFILE (T-672): a host-side log for a page's beacons on :8098 (every POST body appended to LOGFILE, one line
-# per body, with the host's time) and the server of gltrace.js beside it (GET). Run with python3 -I.
+# per body, with the host's time) and the server of gltrace.js and console.js beside it (GET). Run with python3 -I.
 import sys, time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -19,7 +19,10 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         # the tracer itself (gltrace.js beside this script), for a page that loads it with a script tag
         import os
-        body = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "gltrace.js"), "rb").read()
+        name = os.path.basename(self.path.split("?")[0]) or "gltrace.js"
+        if name not in ("gltrace.js", "console.js"):
+            self.send_response(404); self.end_headers(); return
+        body = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), name), "rb").read()
         self.send_response(200)
         self.send_header("Content-Type", "application/javascript")
         self.send_header("Content-Length", str(len(body)))

@@ -749,10 +749,21 @@ fl_wait_load() { fl_wait 'load done uri=' ${1:-30}; }
 # A dialog first: the daemon's main thread waits on its answer, so the element is not asked for while one stands.
 # SECS seconds in which OK is tapped on each card dialog that comes (EaglercraftX's game start after its Launch asks
 # again: round t666-2026-11-18); the count is printed
+# Every 60 s it also prints the browser daemons' VmSize and VmRSS and the device's free memory (a heavy page's start ran
+# the daemon out of memory: round t666-2026-11-18).
+fl_mem_line() {
+  local p
+  for p in $(pidof ld-2.23.so); do
+    grep -q jihad-browserserver /proc/$p/cmdline 2>/dev/null || continue
+    echo "  mem $(date +%H:%M:%S) daemon $p: $(sed -n 's/^\(VmSize\|VmRSS\|VmSwap\):[^0-9]*\([0-9]*\) kB/\1 \2/p' /proc/$p/status | tr '\n' ' ')"
+  done
+  echo "  mem $(date +%H:%M:%S) device: $(sed -n 's/^\(MemFree\|SwapFree\):[^0-9]*\([0-9]*\) kB/\1 \2/p' /proc/meminfo | tr '\n' ' ')"
+}
 fl_dialogs_ok() { # SECS
-  local end n l
-  end=$(( $(date +%s) + ${1:-60} )); n=0
+  local end n l next
+  end=$(( $(date +%s) + ${1:-60} )); n=0; next=0
   while [ $(date +%s) -lt $end ]; do
+    [ $(date +%s) -ge $next ] && { fl_mem_line; next=$(( $(date +%s) + 60 )); }
     l=$(ls $FL_STATE/dialog-*.fifo 2>/dev/null | tail -1)
     if [ -n "$l" ]; then fl_chrome_tap dialog-ok; n=$((n + 1)); fl_wait 'dialog .* -> ' 8 >/dev/null; usleep 500000; continue; fi
     usleep 500000

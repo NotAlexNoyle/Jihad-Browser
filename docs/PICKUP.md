@@ -1,4 +1,4 @@
-# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-18 below)
+# PICKUP — Jihad Browser, current state (2026-08-10 body, deltas 2026-08-15 … 2026-11-19 below)
 
 **Read this file first. It is the only current handoff.** Everything else in `docs/` is
 reference material for a specific subsystem, not a status document.
@@ -94,7 +94,44 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
-## 2026-11-18 (evening) — site data done; "Adobe Flash is off"; Eaglercraft's first load and "webgl" (READ FIRST)
+## 2026-11-19 — Eaglercraft 1.8.8 past four engine defects; the Tablet UA; the CPU count (READ FIRST)
+
+**State:** commits up to engine 0123 (unpushed, the owner's; the gitlink is the owner's to bump). **The device runs
+engine 0123** (queue 0001-0123, engine branch head `ebde0b162a`, PGO use build) and the daemon of `035f6d12`.
+
+**The owner, 2026-11-19 (memory `jihad-owner-decisions-2026-11-19`):** "Tablet" in the UA everywhere (`...; TouchPad;
+Tablet)`, Firefox's tablet token); `dom.max_script_run_time` stays 60 s.
+
+**Done (each a script, `docs/rounds/t666-2026-11-18/README.md` has the readings):**
+- **0121** `TryPreserveWrapper` for non-nsISupports DOM classes: WebGL objects, AudioParam, ... are WeakMap/WeakSet keys
+  (`weakmap-dom-keys`, three shells). EaglercraftX stopped at its Launch on "cannot use the given object as a weak map key".
+- **0122** ANGLE's preprocessor: UXP Issue #2978 (2026-03) had stopped EVERY function-like macro in WebGL shaders from
+  expanding (`replacements->size() == 0 ||`, always true). Restored, argument nesting bounded at 256 (`webgl-macro`, three
+  shells). An upstream defect: worth telling Pale Moon (the owner's call).
+- **0123** `js::GetCPUCount` counts configured cores: the TouchPad parks core 1 when idle, the engine counted 1 CPU, and
+  Ion then refused every script over 2000 bytecodes / 256 locals ("too large", no off-thread compilation). Benchmark
+  `docs/rounds/cpucount-2026-11-19/{before,after}` (3 runs each, lowpower-bench.sh).
+- **Tablet UA** (`30f3d77f`): the client shows its "Mobile Browser Detected" panel; Launch is tapped.
+- **finger:** `wait rect-ok SEL BOUND` / `wait dialogs-ok SECS` tap OK on every card dialog meanwhile (the slow-script
+  dialog comes 1-3 times in the extraction and every minute in the game's start); a script's device limit is the sum of
+  its steps' own bounds; `fl_type` types ':' (symbols layer).
+- **Trace mode** (`035f6d12`): a slow-script prompt writes the running JS stack to the daemon's log (libxul's
+  DumpJSStack). It showed the game's start to be Minecraft's block-state tables (TeaVM HashMap.get), slow, not stuck.
+- On 0122, 20 minutes past Launch with Continue tapped: the Mojang screen by 10 min, "Created: 1024x512 textures-atlas"
+  at ~20 min, no title screen yet.
+
+**Traps:** the 2026-11-18 (evening) section's still hold (Fable's limit until 2026-11-21; `launch` is not the address
+bar). Page console messages do not reach the daemon's log (the bridge is chrome-only): a probe that hooks `console.*` and
+`onerror` at the load's start and is read later does (`zz-eagler-console`'s first probe). Eaglercraft's pictures carry
+Mojang's art: they stay in `~/.cache/jihad-eaglercraft/rounds/`.
+
+**Next, in order:**
+1. Read the 0123 benchmark against the 0122 one (wiki load, RSS/PSS, jsbench, pans, start): keep 0123 on evidence.
+2. EaglercraftX 1.8.8 again on 0123 (the `zz-eagler-console` exploration: 20 min, a picture and the client's log every
+   5 min); then `eagler-load-188` to its title screen, its reference picture (host cache), the menus; 1.12.2, 1.5.2.
+3. The ck:inspector review when Fable is back (2026-11-21). 4. Flash's remaining R9/R10 and the real sites.
+
+## 2026-11-18 (evening) — site data done; "Adobe Flash is off"; Eaglercraft's first load and "webgl"
 
 **State:** commits `dd02867e` and the engine's 0120 after it (unpushed, the owner's). **The device runs engine 0120**
 (queue 0001-0120, engine branch head `1c5e46a716`, PGO use build; `"webgl"` is the alias of `"experimental-webgl"`), the

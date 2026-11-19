@@ -325,7 +325,7 @@ def script_bound(t):
         own = 30 if verb == "probe" else (int(a[-1]) if verb in ("wait", "expect", "launch") and a and a[-1].isdigit() else 0)
         if verb == "expect" and a and a[0] in ("flash-rate", "flash-rate-report"): own = 0   # their numbers are rates
         total += max(25, own + 10)
-    return min(1800, total)
+    return min(3600, total)
 
 def devsh(script_text, args, bound, tmp):
     p = os.path.join(tmp, "s.sh")

@@ -94,7 +94,40 @@ function's output, cleared on entry and filled only after that call, so the test
 macro expands. Engine patch **0122** takes the test out and bounds what can actually run away, the arguments'
 pre-expansion (one MacroExpander nested in another per level), at 256 levels, as later ANGLE does.
 
+## Past the shaders (engines 0122 and 0123): slow, then a GPU hang
+
+- **0122, 20 minutes past Launch, Continue tapped as it came (8, 8, 6 times per 5 minutes):** the Mojang screen by 10
+  minutes; `[OptiFine]: ConnectedTextures` at 1101 s and `Created: 1024x512 textures-atlas` at 1186 s from the load's
+  start; no title screen. The stack at each slow-script prompt (trace mode, `035f6d12`): Minecraft's block-state tables
+  (TeaVM `HashMap.get` under the same loop), slow, not stuck.
+- **Engine 0123** (the CPU count; `docs/rounds/cpucount-2026-11-19`): the same milestone at 904 s instead of 1101.
+- **Then, on 0123 at 09:12:10 (device time), the GPU hung** while the client built its texture atlas: the kernel's
+  `kgsl_postmortem_dump` (an `IB1` of 29020 dwords the Adreno 220 never finished), `kgsl_yamato_idle: spun too long
+  waiting for RB to idle` every few seconds after it, the daemon's GL wait (`IOCTL_KGSL_DEVICE_WAITTIMESTAMP ... EINTR`)
+  654 times, the daemon unable to stop, LunaSysMgr's screenshots empty, and a LunaSysMgr restart not enough: **the device
+  was rebooted** (battery 100 %; nothing boot-related had changed). A web page that can wedge the GPU freezes every card
+  and the system UI until a reboot: that is the defect to find first (the GL calls before the hang are traced next).
+
+## The GPU hang again, and what the game's start costs (engine 0123)
+
+- **A second untraced load hung the GPU the same way** (a `kgsl_postmortem_dump` about 23 minutes in, after the atlas);
+  the device was rebooted again.
+- **A WebGL trace** (every call, sent as beacons to a logger on the host before it ran): the atlas is a 1024x512
+  `texImage2D(null)` and some 1400 16x16 `texSubImage2D`, each after four `texParameteri`. Both traced loads stopped
+  sending at the same call (#7546, a `bindFramebuffer` after the last upload) and neither hung the GPU or reached the title
+  in 45 minutes: the tracer itself is suspect there. `jihad-webgl-uploads.html` (6000 such uploads in one task, no
+  flush) ran in 2.4 s and left the GPU idle 10 ms later: that pattern alone is not the trigger.
+- **What the start costs.** The client makes every Java `long` a BigInt when the browser has BigInt.
+  `jihad-bigint-bench.html` on the device (Enyo, 300 000 steps): numbers 38 ms, BigInt (TeaVM's `asIntN(64, ...)`)
+  **2312 ms**, TeaVM's `{lo,hi}` object fallback 56 ms; on the host's V8 numbers 16 ms, BigInt 47 ms. UXP's BigInt runs in
+  C++ outside the JITs, about 60 times its number arithmetic; the slow-script stacks during the start are TeaVM's
+  `HashMap` and typed-array helpers.
+
+**Where 1.8.8 stands on the TouchPad:** Launch at 182-196 s; the Mojang screen by about 10 minutes; its texture atlas at
+15-20 minutes; no title screen within 45 minutes; and, untraced, a GPU hang that only a reboot clears. The 180 s bound is
+far out of reach without making BigInt (or the code that uses it) much faster.
+
 ## Next
 
-0122 on the device: `webgl-macro` in the three shells, 1.8.8 to its title screen; the title screen's reference
+The owner's call (asked 2026-11-19): BigInt in the engine now, or Eaglercraft's speed parked; and the GPU hang (a WebGL trace beaconed to the host); then 1.8.8 to its title screen; the title screen's reference
 picture; the menus by touch; 1.12.2 and 1.5.2.

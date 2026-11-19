@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0.
+     Many small texture uploads in one task, as EaglercraftX 1.8.8 builds its block atlas (cavekit-eaglercraft.md R2/R6,
+     T-666): a 1024x512 RGBA texture allocated with texImage2D(null), then N 16x16 texSubImage2D calls into it, each after
+     four texParameteri, with no flush; the GPU hung (kgsl postmortem, the ring never idle) during that atlas on the
+     device. ?n= the uploads (default 6000), ?flush=K a gl.flush() every K uploads (default none), ?draw=1 a draw
+     sampling the texture at the end. #state says what was done and how long it took. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>jihad-webgl-uploads</title>
+<style>body{font:16px monospace;margin:10px;background:#fff;color:#000}</style></head>
+<body>
+<canvas id="c" width="256" height="256"></canvas>
+<div id="state">-</div>
+<script>
+var q = {}; location.search.replace(/[?&]([^=&]+)=([^&]*)/g, function (m, k, v) { q[k] = decodeURIComponent(v); });
+var N = +(q.n || 6000), FLUSH = +(q.flush || 0), DRAW = q.draw === "1";
+var gl = document.getElementById("c").getContext("webgl");
+var st = document.getElementById("state");
+if (!gl) { st.textContent = "no WebGL"; } else {
+  var t0 = performance.now();
+  var tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1024, 512, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  var px = new Uint8Array(16 * 16 * 4);
+  for (var i = 0; i < N; i++) {
+    for (var j = 0; j < px.length; j++) px[j] = (i * 7 + j) & 255;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    var x = (i * 16) % 1024, y = (Math.floor(i * 16 / 1024) * 16) % 512;
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, 16, 16, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    if (FLUSH && (i + 1) % FLUSH === 0) gl.flush();
+  }
+  var t1 = performance.now();
+  gl.clearColor(0.2, 0.4, 0.6, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  var px1 = new Uint8Array(4); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px1);   // waits for the GPU
+  var t2 = performance.now();
+  st.textContent = "uploads " + N + " flush " + FLUSH + " in " + Math.round(t1 - t0) + " ms, GPU done after " + Math.round(t2 - t1) + " ms, error " + gl.getError() + ", pixel " + px1[2];
+}
+</script>
+</body></html>

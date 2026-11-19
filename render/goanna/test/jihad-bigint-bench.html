@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0.
+     The cost of BigInt against plain numbers (cavekit-eaglercraft.md R6, T-666): EaglercraftX's TeaVM code makes every Java
+     long a BigInt (BigInt.asIntN(64, ...)) when the browser has BigInt. Four loops of 300000 steps: an int add and multiply
+     on numbers, the same on BigInt wrapped in asIntN(64) as TeaVM does, a typed array made and filled, and an object made
+     (TeaVM's {lo,hi} long fallback). #out has each loop's ms. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>jihad-bigint-bench</title>
+<style>body{font:16px monospace;margin:10px;background:#fff;color:#000}</style></head>
+<body><div id="out">-</div>
+<script>
+function time(f) { var t = performance.now(); var r = f(); return [Math.round(performance.now() - t), r]; }
+var N = 300000, rows = [];
+var a = time(function () { var x = 1, y = 7; for (var i = 0; i < N; i++) { x = (x * 31 + y + i) | 0; } return x; });
+rows.push("number " + a[0] + " ms");
+if (typeof BigInt !== "undefined") {
+  var b = time(function () { var x = BigInt(1), y = BigInt(7), m = BigInt(31); for (var i = 0; i < N; i++) { x = BigInt.asIntN(64, x * m + y + BigInt(i)); } return x; });
+  rows.push("bigint " + b[0] + " ms");
+}
+var c = time(function () { var s = 0; for (var i = 0; i < N / 10; i++) { var t = new Int32Array(16); t.fill(i); s += t[3]; } return s; });
+rows.push("int32array(16) x" + (N / 10) + " " + c[0] + " ms");
+var d = time(function () { var x = {lo: 1, hi: 0}; for (var i = 0; i < N; i++) { x = {lo: (x.lo * 31 + 7 + i) | 0, hi: x.hi ^ (i & 1)}; } return x.lo; });
+rows.push("object long " + d[0] + " ms");
+document.getElementById("out").textContent = rows.join(" | ");
+</script></body></html>

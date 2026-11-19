@@ -1,0 +1,22 @@
+WAIT ok 12-rect user
+  probe keep: filled jihad-keep
+  tap at 348,379 -> clickAt 349 306
+CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+  chrome dialog-ok tapped at 384 935
+CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+WAIT ok 19-text sent = [sent jihad-keep]
+  restart: closed card process 1049
+  restart: mojo daemon started by hand (pid 5606)
+  restart: mojo daemon serving YAP at +3 s
+  restart: mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +5 s, 3 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+WAIT ok 21-text state = [user=jihad-keep pass=keep-pass-9 events=4]
+CHECK ok 22-file: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/profile/logins.json (582 bytes) holds [encryptedPassword]
+CHECK ok 23-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/profile/logins.json (582 bytes) lacks [keep-pass-9]
+CHECK ok 24-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/profile/logins.json (582 bytes) lacks [jihad-keep]
+WAIT ok 25-launch: load done
+WAIT ok 26-text logins = [Logins192.168.1.245:8077jihad-keep••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+  tap at 672,545 -> clickAt 673 472
+  tap at 661,545 -> clickAt 662 472
+WAIT ok 29-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+CHECKS 5 FAILS 0

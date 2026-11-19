@@ -3,19 +3,21 @@
 # every function-like macro from expanding, so each failed with "'(' : syntax error" at its invocation, and with it
 # EaglercraftX 1.8.8's first shader. Object-like and function-like, empty, with a body, with parameters, after #version
 # and #line, EaglercraftX's own prelude: all compile; an invocation nested 300 deep in another's arguments is refused
-# (the engine bounds the nesting at 256) and 20 deep compiles.
+# (the engine bounds the nesting at 256) and 20 deep compiles; #define D(x) x x nested 26 deep (2^26 tokens) is refused by
+# the expansion budget (100 000 tokens a shader), quickly and without a crash.
 id: webgl-macro
 section: The engine
-item: WebGL shaders with function-like macros compile (empty, with a body, with parameters, EaglercraftX's prelude); a 300-deep nesting is refused without a crash
+item: WebGL shaders with function-like macros compile (empty, with a body, with parameters, EaglercraftX's prelude); a 300-deep nesting and a doubling macro nested 26 deep are refused without a crash
 shells: enyo mochi mojo
 prefs: jihad.compat.trace=true
 page: http://192.168.1.245:8077/jihad-webgl-macro.html
 kit: cavekit-eaglercraft.md R2
-wait text done "rows 12" 30
+wait text done "rows 14" 60
 probe rows '(function(){return document.getElementById("out").innerText.replace(/\n/g," | ");})()'
 expect probe-has "c function-like, no params, empty: ok"
 expect probe-has "e function-like, params: ok"
 expect probe-has "j eagler's: ok"
 expect probe-has "k nested 300 deep: FAIL"
 expect probe-has "l nested 20 deep: ok"
+expect probe-has "m doubling 26 deep: FAIL"
 shoot rows

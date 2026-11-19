@@ -50,7 +50,9 @@ for r in $(seq 1 "$RUNS"); do
       # Detached on the device, its output to a file and a done marker beside it: the first round (chain 19) lost every
       # row whose novacom session dropped under a heavy page (no fbstream line, no growth, no stream), so the host only
       # starts it and then polls the marker, a short session at a time.
-      printf 'rm -f /media/internal/jihad-stream/sb-%s.done; (trap "" HUP; exec sh /tmp/scoreboard-device.sh %s %s %s > /media/internal/jihad-stream/sb-%s.log 2>&1 < /dev/null) &\necho started\n' \
+      # The directory is made each time: when it was gone (2026-11-12 and 2026-11-19) every row's redirect failed, the
+      # device step never ran, and the host saw only "no done marker" and empty files.
+      printf 'mkdir -p /media/internal/jihad-stream; rm -f /media/internal/jihad-stream/sb-%s.done; (trap "" HUP; exec sh /tmp/scoreboard-device.sh %s %s %s > /media/internal/jihad-stream/sb-%s.log 2>&1 < /dev/null) &\necho started\n' \
         "$tag" "$(idof $b)" "$page" "$tag" "$tag" > "$T/go.sh"
       build/webos-oe/dev-sh.sh -t 20 "$T/go.sh" >/dev/null 2>&1
       w=0; while [ $w -lt 24 ]; do

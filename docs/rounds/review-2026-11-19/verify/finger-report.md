@@ -1,0 +1,811 @@
+# Finger suite report — 2026-11-19T14:19:02
+
+First run 2026-11-19T12:14:52; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
+
+Shells: enyo, mochi, mojo. Scripts: 1. 3979 s.
+
+| shell | test | verdict | checks | evidence | kit |
+|---|---|---|---|---|---|
+| enyo | memory-guard-task | **pass** | 9 ok, 0 failed | WAIT ok 23-launch: load done | cavekit-device-headroom.md R1 |
+| enyo | site-data-page (rerun) | **pass** | 53 ok, 0 failed | site data: up (enyo): second origin: up on :8079 (pid 10459) (enyo) | cavekit-site-data.md R3 |
+| enyo | site-logins-frame | **pass** | 20 ok, 0 failed | site data: up (enyo): second origin: up on :8079 (pid 15539) (enyo) | cavekit-site-data.md R1 |
+| enyo | site-logins-master | **pass** | 17 ok, 0 failed | site data: up (enyo): key store: up (enyo): | cavekit-site-data.md R2 |
+| enyo | site-logins-page (rerun) | **pass** | 40 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R2 |
+| enyo | site-logins-persist | **pass** | 12 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R1 |
+| enyo | site-logins-refuse-update | **pass** | 23 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R1 |
+| enyo | site-logins-save | **pass** | 11 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R1 |
+| enyo | webgl-macro | **pass** | 7 ok, 2 failed | CHECK ok 20-probe-has: the probe's answer holds [k nested 300 deep: FAIL] / CHECK ok 22-probe-has: the probe's answer holds [m doubling 26 deep: FAIL]; frames: kept/enyo-webgl-macro-rows_.jpg | cavekit-eaglercraft.md R2 |
+| mochi | memory-guard-task | **pass** | 9 ok, 0 failed | WAIT ok 23-launch: load done | cavekit-device-headroom.md R1 |
+| mochi | site-data-page (rerun) | **pass** | 53 ok, 0 failed | site data: up (mochi): second origin: up on :8079 (pid 13645) (mochi) | cavekit-site-data.md R3 |
+| mochi | site-logins-frame | **pass** | 20 ok, 0 failed | site data: up (mochi): second origin: up on :8079 (pid 9391) (mochi) | cavekit-site-data.md R1 |
+| mochi | site-logins-master | **pass** | 17 ok, 0 failed | site data: up (mochi): key store: up (mochi): | cavekit-site-data.md R2 |
+| mochi | site-logins-page | **pass** | 40 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R2 |
+| mochi | site-logins-persist | **pass** | 12 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R1 |
+| mochi | site-logins-refuse-update | **pass** | 23 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R1 |
+| mochi | site-logins-save | **pass** | 11 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R1 |
+| mochi | webgl-macro | **pass** | 7 ok, 2 failed | CHECK ok 20-probe-has: the probe's answer holds [k nested 300 deep: FAIL] / CHECK ok 22-probe-has: the probe's answer holds [m doubling 26 deep: FAIL]; frames: kept/mochi-webgl-macro-rows_.jpg | cavekit-eaglercraft.md R2 |
+| mojo | memory-guard-task | **pass** | 9 ok, 0 failed | WAIT ok 23-launch: load done | cavekit-device-headroom.md R1 |
+| mojo | site-data-page (rerun) | **pass** | 53 ok, 0 failed | site data: up (mojo): second origin: up on :8079 (pid 16823) (mojo) | cavekit-site-data.md R3 |
+| mojo | site-logins-frame | **pass** | 20 ok, 0 failed | site data: up (mojo): second origin: up on :8079 (pid 10201) (mojo) | cavekit-site-data.md R1 |
+| mojo | site-logins-master | **pass** | 17 ok, 0 failed | site data: up (mojo): key store: up (mojo): | cavekit-site-data.md R2 |
+| mojo | site-logins-page | **pass** | 40 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R2 |
+| mojo | site-logins-persist | **pass** | 12 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R1 |
+| mojo | site-logins-refuse-update | **pass** | 23 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R1 |
+| mojo | site-logins-save | **pass** | 11 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R1 |
+| mojo | webgl-macro | **pass** | 7 ok, 2 failed | CHECK ok 20-probe-has: the probe's answer holds [k nested 300 deep: FAIL] / CHECK ok 22-probe-has: the probe's answer holds [m doubling 26 deep: FAIL]; frames: kept/mojo-webgl-macro-rows_.jpg | cavekit-eaglercraft.md R2 |
+| enyo | site-data-shown-password (rerun) | **pass** | 9 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R3 |
+| mochi | site-data-shown-password (rerun) | **pass** | 9 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R3 |
+| mojo | site-data-shown-password (rerun) | **pass** | 9 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R3 |
+
+## The device at the end
+
+```
+DEVICE ok job-enyo: (19606/116323909) jihad (start) running, process 13981
+DEVICE ok daemons-enyo: one daemon
+DEVICE ok hand-daemon-enyo: none
+DEVICE ok hooks-enyo: none
+DEVICE ok adapter-gates-enyo: none
+DEVICE ok proxy-enyo: network.proxy.type unset
+DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
+DEVICE ok cards-enyo: none
+DEVICE ok audio-lib-enyo: the device's own
+DEVICE ok look-enyo: {"returnValue":true,"theme":null}
+DEVICE ok job-mochi: (19611/305110723) jihad-mochi (start) running, process 25344
+DEVICE ok daemons-mochi: one daemon
+DEVICE ok hand-daemon-mochi: none
+DEVICE ok hooks-mochi: none
+DEVICE ok adapter-gates-mochi: none
+DEVICE ok proxy-mochi: network.proxy.type unset
+DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
+DEVICE ok cards-mochi: none
+DEVICE ok audio-lib-mochi: the device's own
+DEVICE ok look-mochi: {"returnValue":true,"theme":null}
+DEVICE ok job-mojo: (19614/879720351) jihad-mojo (start) running, process 5187
+DEVICE ok daemons-mojo: one daemon
+DEVICE ok hand-daemon-mojo: none
+DEVICE ok hooks-mojo: none
+DEVICE ok adapter-gates-mojo: none
+DEVICE ok proxy-mojo: network.proxy.type unset
+DEVICE ok history-mojo: browser.sessionhistory.max_entries the default
+DEVICE ok cards-mojo: none
+DEVICE ok audio-lib-mojo: the device's own
+DEVICE ok look-mojo: {"returnValue":true,"theme":null}
+DEVICE ok gate-files: none in /tmp
+DEVICE ok device-scripts: none left in /tmp
+DEVICE ok test-pads-enyo: none
+DEVICE ok dialog-pipes-enyo: none
+DEVICE ok test-pads-mochi: none
+DEVICE ok dialog-pipes-mochi: none
+DEVICE ok test-pads-mojo: none
+DEVICE ok dialog-pipes-mojo: none
+DEVICE ok tmp-dumps: none
+DEVICE ok volume-subscribers: none without its daemon
+DEVICE ok media-scratch: none
+DEVICE ok overall: 2% of /tmp used
+```
+
+## Every test's lines
+
+### enyo / memory-guard-task — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-colors.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 15-launch: load done
+    WAIT ok 16-line: [jihad-bs] memory guard (thread): this daemon 482328 kB, its players 0 kB (budget 470184), 29316 kB free (floor 65536): stopping the running content script, the page to be stopped
+    WAIT ok 17-line: [jihad-bs] memory guard: the running content script stopped
+    WAIT ok 18-line: [jihad-bs] memory shed: a page stopped
+    WAIT ok 19-url: about:stopped?url=http%3A%2F%2F192.168.1.245%3A8077%2Fjihad-memhog.html%3Fmb%3D750%26rate%3D12%26task%3D1
+    WAIT ok 20-rect sel:#link
+    CHECK ok 21-text-has: sel:#where = [http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1] holds [jihad-memhog.html]
+    CHECK ok 22-gpu-calm: no new GPU fault in the kernel's log (0 lines, 0 at the start)
+    WAIT ok 23-launch: load done
+
+### enyo / site-data-page — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +3 s, load done at +8 s, 3 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 17-rect user
+    CHECK ok 20-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 22-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 23-text sent = [sent jihad-data]
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text state = [user=(empty) pass=(empty) events=0]
+    WAIT ok 26-launch: load done
+    WAIT ok 27-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com2 cookiesOpenamazon.com9 cookies · 944 bytes storedOpenapple.com2 cookies · 673 bytes storedOpenarchive.org9 cookies · 9 bytes storedOpenbbc.com14 cookies · 6.2 KB storedOpenbing.com2 cookiesOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencloudflare.com163 bytes storedOpe]
+    CHECK ok 28-text-lacks: sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com2 cookiesOpenamazon.com9 cookies · 944 bytes storedOpenapple.com2 cookies · 673 bytes storedOpenarchive.org9 cookies · 9 bytes storedOpenbbc.com14 cookies · 6.2 KB storedOpenbing.com2 cookiesOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencloudflare.com163 bytes storedOpe] lacks [:8079]
+    WAIT ok 29-text sel:.site-row[data-site='192.168.1.245'] .site-counts = [2 cookies · 1 login · 104 KB stored]
+    CHECK ok 30-text-has: sel:.site-row[data-site="192.168.1.245"] .site-counts = [2 cookies · 1 login · 104 KB stored] holds [1 login]
+    WAIT ok 33-text sites = [SitesNo site matches “zz-no-such-site”.]
+    WAIT ok 34-launch: load done
+    WAIT ok 35-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com2 cookiesOpenamazon.com9 cookies · 944 bytes storedOpenapple.com2 cookies · 673 bytes storedOpenarchive.org9 cookies · 9 bytes storedOpenbbc.com14 cookies · 6.2 KB storedOpenbing.com2 cookiesOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencloudflare.com163 bytes storedOpe]
+    WAIT ok 37-text cookies = [Cookies (2)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemovejihadtest192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies]
+    WAIT ok 39-text sel:.cookie-row[data-name='jihadtest'] .cookie-value = [1]
+    WAIT ok 40-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 41-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    CHECK ok 42-text-has: site-logins = [Saved logins1 saved loginSaved logins] holds [1 saved login]
+    WAIT ok 44-text status = [Pop-up windows for http://192.168.1.245:8077: Block]
+    WAIT ok 45-launch: load done
+    WAIT ok 46-rect sel:.perm-row[data-perm='popup'][data-origin='http://192.168.1.245:8077'][data-value='2']
+    WAIT ok 48-text status = [The cookie jihadtest removed]
+    CHECK ok 49-text-lacks: cookies = [Cookies (1)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies] lacks [jihadtest]
+    WAIT ok 51-text status = [Every cookie of 192.168.1.245 removed]
+    CHECK ok 52-text-lacks: cookies = [Cookies (0)None.] lacks [jihadsecond]
+    WAIT ok 54-url: about:logins?filter=192.168.1.245
+    WAIT ok 55-text logins = [Logins192.168.1.245:8077jihad-data••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 56-launch: load done
+    WAIT ok 57-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 58-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 60-gone sel:.storage-row[data-kind='local'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 61-text-has: storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear] holds [databases]
+    WAIT ok 63-gone sel:.storage-row[data-kind='quota'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 64-text-has: storage = [Stored datahttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear] holds [192.168.1.245:8079]
+    WAIT ok 66-text forget-row = [Forget this siteForget everything this browser keeps for 192.168.1.245?Forget it]
+    WAIT ok 68-text sites = [Sitesalbinoblacksheep.com2 cookiesOpenamazon.com9 cookiesOpenapple.com2 cookiesOpenarchive.org9 cookiesOpenbbc.com14 cookiesOpenbing.com2 cookiesOpenbit.ly1 cookieOpencodepen.io3 cookiesOpencrazygames.com4 cookiesOpendoubleclick.net1 cookieOpenenglishclub.com1 cookieOpenetsy.com9 cookiesOpengithub.com2 cookiesOpengoogle.com4 cookiesOpenhowsmyssl.com4 cookiesOpenkbhgames.com1 cookieOpenkongcdn.com6]
+    CHECK ok 69-quiet: no line jihad-never-logged for 3 s
+    CHECK ok 70-text-lacks: sites = [Sitesalbinoblacksheep.com2 cookiesOpenamazon.com9 cookies · 944 bytes storedOpenapple.com2 cookies · 673 bytes storedOpenarchive.org9 cookies · 9 bytes storedOpenbbc.com14 cookies · 6.2 KB storedOpenbing.com2 cookiesOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencloudflare.com163 bytes storedOpencodepen.io3 cookiesOpencrazygames.com4 cookies · 77 ] lacks [192.168.1.245]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 73-text-has: forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-data]
+    WAIT ok 76-text forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 77-text-lacks: forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all] lacks [jihad-data]
+    WAIT ok 78-launch: load done
+    WAIT ok 79-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 82-text forms = [Form data (2)No entry matches.Remove all form dataRemove all]
+    WAIT ok 83-launch: load done
+    WAIT ok 84-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 86-text status = [Removed]
+    CHECK ok 87-text-lacks: forms = [Form data (1)jihad-datauser · used 1 timeRemoveRemove all form dataRemove all] lacks [hello jihad]
+    WAIT ok 89-text forms-remove-all-row = [Remove all form dataRemove all 1 entries?Remove them]
+    WAIT ok 91-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+
+### enyo / site-logins-frame — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 13-rect user
+    CHECK ok 16-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 20-text sent = [sent jihad-top]
+    WAIT ok 21-launch: load done
+    WAIT ok 22-text framestate = [192.168.1.245:8079 user=(empty) pass=(empty) events=0]
+    CHECK ok 23-quiet: no line logins: filled for for 3 s
+    WAIT ok 24-launch: load done
+    WAIT ok 25-rect user
+    CHECK ok 28-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-2.fifo
+    CHECK ok 30-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 31-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8079
+    WAIT ok 32-text sent = [sent jihad-frame]
+    WAIT ok 33-launch: load done
+    WAIT ok 34-text framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4]
+    CHECK ok 35-text-lacks: framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4] lacks [events=0]
+    WAIT ok 36-launch: load done
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-top••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8079jihad-frame••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 40-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-master — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 21-text sent = [sent jihad-lock]
+    WAIT ok 23-line: [jihad-bs] js-console (no source):0:0 logins: test: master password set, the store locked: true
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text page-sub = [Locked by the master password]
+    CHECK ok 26-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 30-text status = [That is not the master password]
+    CHECK ok 31-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 35-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-locklock-pass-3Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 39-line: [jihad-bs] js-console (no source):0:0 logins: test: master password taken off: true
+    WAIT ok 40-launch: load done
+    WAIT ok 41-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-page — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +3 s, load done at +7 s, 3 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-text sent = [sent jihad-alpha]
+    WAIT ok 21-launch: load done
+    CHECK ok 25-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-2.fifo
+    CHECK ok 27-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 28-text sent = [sent jihad-beta]
+    WAIT ok 29-launch: load done
+    WAIT ok 30-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 31-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] holds [jihad-beta]
+    CHECK ok 32-text-lacks: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [alpha-pass-5]
+    CHECK ok 33-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] holds [Last used]
+    WAIT ok 36-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 37-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 38-launch: load done
+    WAIT ok 39-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 40-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 42-text logins = [Logins192.168.1.245:8077jihad-betabeta-pass-6Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 45-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [beta-pass-6]
+    WAIT ok 47-text status = [The password copied]
+    CHECK ok 48-clipboard: the system clipboard holds [beta-pass-6]
+    WAIT ok 50-text status = [The username copied]
+    CHECK ok 51-clipboard: the system clipboard holds [jihad-beta]
+    WAIT ok 53-rect sel:.edit-pass
+    WAIT ok 59-text status = [The login for 192.168.1.245:8077 saved]
+    WAIT ok 61-text logins = [Logins192.168.1.245:8077jihad-beta-twoedited-pass-7Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 63-url: http://192.168.1.245:8077/
+    WAIT ok 64-launch: load done
+    WAIT ok 65-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 67-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19Remove this login?ShowCopy usernameCopy passwordEditRemove it192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 69-text status = [The login for 192.168.1.245:8077 removed]
+    CHECK ok 70-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text state = [user=jihad-beta-two pass=edited-pass-7 events=4]
+    WAIT ok 73-launch: load done
+    WAIT ok 74-text logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 76-text remove-all-row = [Remove all saved loginsRemove all 1 logins? This cannot be undone.Remove them]
+    WAIT ok 78-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-persist — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 6 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 19-text sent = [sent jihad-keep]
+    WAIT ok 21-text state = [user=jihad-keep pass=keep-pass-9 events=4]
+    CHECK ok 22-file: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/profile/logins.json (582 bytes) holds [encryptedPassword]
+    CHECK ok 23-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/profile/logins.json (582 bytes) lacks [keep-pass-9]
+    CHECK ok 24-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/profile/logins.json (582 bytes) lacks [jihad-keep]
+    WAIT ok 25-launch: load done
+    WAIT ok 26-text logins = [Logins192.168.1.245:8077jihad-keep••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 29-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-refuse-update — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 11-rect user
+    CHECK ok 14-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 16-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+    WAIT ok 17-line: [jihad-bs] js-console (no source):0:0 logins: not remembered for http://192.168.1.245:8077
+    WAIT ok 18-text sent = [sent jihad-refused]
+    WAIT ok 19-launch: load done
+    WAIT ok 20-text state = [user=(empty) pass=(empty) events=0]
+    CHECK ok 23-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-2.fifo
+    CHECK ok 25-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 26-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 27-text sent = [sent jihad-tester]
+    WAIT ok 28-launch: load done
+    WAIT ok 29-text state = [user=jihad-tester pass=old-pass-1 events=4]
+    CHECK ok 32-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-3.fifo
+    CHECK ok 34-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 logins: updated for http://192.168.1.245:8077
+    WAIT ok 36-text sent = [sent jihad-tester]
+    WAIT ok 37-launch: load done
+    WAIT ok 38-text state = [user=jihad-tester pass=new-pass-2 events=4]
+    WAIT ok 39-launch: load done
+    WAIT ok 40-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 41-text-lacks: logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-refused]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-save — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 19-text sent = [sent jihad-tester]
+    WAIT ok 20-launch: load done
+    WAIT ok 21-text state = [user=jihad-tester pass=s3cret-41 events=4]
+    CHECK ok 22-text-lacks: state = [user=jihad-tester pass=s3cret-41 events=4] lacks [events=0]
+    WAIT ok 23-launch: load done
+    WAIT ok 24-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 27-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / webgl-macro — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-webgl-macro.html: connected at +2 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 15-text done = [rows 14]
+    CHECK ok 17-probe-has: the probe's answer holds [c function-like, no params, empty: ok]
+    CHECK ok 18-probe-has: the probe's answer holds [e function-like, params: ok]
+    CHECK ok 19-probe-has: the probe's answer holds [j eagler's: ok]
+    CHECK ok 20-probe-has: the probe's answer holds [k nested 300 deep: FAIL]
+    CHECK ok 21-probe-has: the probe's answer holds [l nested 20 deep: ok]
+    CHECK ok 22-probe-has: the probe's answer holds [m doubling 26 deep: FAIL]
+
+### mochi / memory-guard-task — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-colors.html: connected at +2 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_
+    WAIT ok 15-launch: load done
+    WAIT ok 16-line: [jihad-bs] memory guard (thread): this daemon 485136 kB, its players 0 kB (budget 470184), 29140 kB free (floor 65536): stopping the running content script, the page to be stopped
+    WAIT ok 17-line: [jihad-bs] memory guard: the running content script stopped
+    WAIT ok 18-line: [jihad-bs] memory shed: a page stopped
+    WAIT ok 19-url: about:stopped?url=http%3A%2F%2F192.168.1.245%3A8077%2Fjihad-memhog.html%3Fmb%3D750%26rate%3D12%26task%3D1
+    WAIT ok 20-rect sel:#link
+    CHECK ok 21-text-has: sel:#where = [http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1] holds [jihad-memhog.html]
+    CHECK ok 22-gpu-calm: no new GPU fault in the kernel's log (0 lines, 0 at the start)
+    WAIT ok 23-launch: load done
+
+### mochi / site-data-page — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +3 s, load done at +8 s, 5 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 17-rect user
+    CHECK ok 20-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 22-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 23-text sent = [sent jihad-data]
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text state = [user=(empty) pass=(empty) events=0]
+    WAIT ok 26-launch: load done
+    WAIT ok 27-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes]
+    CHECK ok 28-text-lacks: sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes] lacks [:8079]
+    WAIT ok 29-text sel:.site-row[data-site='192.168.1.245'] .site-counts = [2 cookies · 1 login · 104 KB stored]
+    CHECK ok 30-text-has: sel:.site-row[data-site="192.168.1.245"] .site-counts = [2 cookies · 1 login · 104 KB stored] holds [1 login]
+    WAIT ok 33-text sites = [SitesNo site matches “zz-no-such-site”.]
+    WAIT ok 34-launch: load done
+    WAIT ok 35-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes]
+    WAIT ok 37-text cookies = [Cookies (2)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemovejihadtest192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies]
+    WAIT ok 39-text sel:.cookie-row[data-name='jihadtest'] .cookie-value = [1]
+    WAIT ok 40-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 41-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    CHECK ok 42-text-has: site-logins = [Saved logins1 saved loginSaved logins] holds [1 saved login]
+    WAIT ok 44-text status = [Pop-up windows for http://192.168.1.245:8077: Block]
+    WAIT ok 45-launch: load done
+    WAIT ok 46-rect sel:.perm-row[data-perm='popup'][data-origin='http://192.168.1.245:8077'][data-value='2']
+    WAIT ok 48-text status = [The cookie jihadtest removed]
+    CHECK ok 49-text-lacks: cookies = [Cookies (1)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies] lacks [jihadtest]
+    WAIT ok 51-text status = [Every cookie of 192.168.1.245 removed]
+    CHECK ok 52-text-lacks: cookies = [Cookies (0)None.] lacks [jihadsecond]
+    WAIT ok 54-url: about:logins?filter=192.168.1.245
+    WAIT ok 55-text logins = [Logins192.168.1.245:8077jihad-data••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 56-launch: load done
+    WAIT ok 57-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 58-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 60-gone sel:.storage-row[data-kind='local'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 61-text-has: storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear] holds [databases]
+    WAIT ok 63-gone sel:.storage-row[data-kind='quota'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 64-text-has: storage = [Stored datahttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear] holds [192.168.1.245:8079]
+    WAIT ok 66-text forget-row = [Forget this siteForget everything this browser keeps for 192.168.1.245?Forget it]
+    WAIT ok 68-text sites = [Sitesalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes storedOpencraigslist.org2 cookies · 269 bytes stored]
+    CHECK ok 69-quiet: no line jihad-never-logged for 3 s
+    CHECK ok 70-text-lacks: sites = [Sitesalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes storedOpencraigslist.org2 cookies · 269 bytes stored] lacks [192.168.1.245]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 73-text-has: forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-data]
+    WAIT ok 76-text forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 77-text-lacks: forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all] lacks [jihad-data]
+    WAIT ok 78-launch: load done
+    WAIT ok 79-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 82-text forms = [Form data (2)No entry matches.Remove all form dataRemove all]
+    WAIT ok 83-launch: load done
+    WAIT ok 84-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 86-text status = [Removed]
+    CHECK ok 87-text-lacks: forms = [Form data (1)jihad-datauser · used 1 timeRemoveRemove all form dataRemove all] lacks [hello jihad]
+    WAIT ok 89-text forms-remove-all-row = [Remove all form dataRemove all 1 entries?Remove them]
+    WAIT ok 91-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+
+### mochi / site-logins-frame — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 13-rect user
+    CHECK ok 16-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 20-text sent = [sent jihad-top]
+    WAIT ok 21-launch: load done
+    WAIT ok 22-text framestate = [192.168.1.245:8079 user=(empty) pass=(empty) events=0]
+    CHECK ok 23-quiet: no line logins: filled for for 3 s
+    WAIT ok 24-launch: load done
+    WAIT ok 25-rect user
+    CHECK ok 28-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-2.fifo
+    CHECK ok 30-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 31-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8079
+    WAIT ok 32-text sent = [sent jihad-frame]
+    WAIT ok 33-launch: load done
+    WAIT ok 34-text framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4]
+    CHECK ok 35-text-lacks: framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4] lacks [events=0]
+    WAIT ok 36-launch: load done
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-top••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8079jihad-frame••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 40-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-master — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 21-text sent = [sent jihad-lock]
+    WAIT ok 23-line: s] js-console (no source):0:0 logins: test: master password set, the store locked: true
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text page-sub = [Locked by the master password]
+    CHECK ok 26-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 30-text status = [That is not the master password]
+    CHECK ok 31-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 35-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-locklock-pass-3Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 39-line: [jihad-bs] js-console (no source):0:0 logins: test: master password taken off: true
+    WAIT ok 40-launch: load done
+    WAIT ok 41-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-page — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-text sent = [sent jihad-alpha]
+    WAIT ok 21-launch: load done
+    CHECK ok 25-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-2.fifo
+    CHECK ok 27-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 28-text sent = [sent jihad-beta]
+    WAIT ok 29-launch: load done
+    WAIT ok 30-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 31-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] holds [jihad-beta]
+    CHECK ok 32-text-lacks: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [alpha-pass-5]
+    CHECK ok 33-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] holds [Last used]
+    WAIT ok 36-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 37-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 38-launch: load done
+    WAIT ok 39-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 40-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 42-text logins = [Logins192.168.1.245:8077jihad-betabeta-pass-6Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 45-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [beta-pass-6]
+    WAIT ok 47-text status = [The password copied]
+    CHECK ok 48-clipboard: the system clipboard holds [beta-pass-6]
+    WAIT ok 50-text status = [The username copied]
+    CHECK ok 51-clipboard: the system clipboard holds [jihad-beta]
+    WAIT ok 53-rect sel:.edit-pass
+    WAIT ok 59-text status = [The login for 192.168.1.245:8077 saved]
+    WAIT ok 61-text logins = [Logins192.168.1.245:8077jihad-beta-twoedited-pass-7Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 63-url: http://192.168.1.245:8077/
+    WAIT ok 64-launch: load done
+    WAIT ok 65-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 67-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19Remove this login?ShowCopy usernameCopy passwordEditRemove it192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 69-text status = [The login for 192.168.1.245:8077 removed]
+    CHECK ok 70-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text state = [user=jihad-beta-two pass=edited-pass-7 events=4]
+    WAIT ok 73-launch: load done
+    WAIT ok 74-text logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 76-text remove-all-row = [Remove all saved loginsRemove all 1 logins? This cannot be undone.Remove them]
+    WAIT ok 78-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-persist — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 19-text sent = [sent jihad-keep]
+    WAIT ok 21-text state = [user=jihad-keep pass=keep-pass-9 events=4]
+    CHECK ok 22-file: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/profile/logins.json (582 bytes) holds [encryptedPassword]
+    CHECK ok 23-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/profile/logins.json (582 bytes) lacks [keep-pass-9]
+    CHECK ok 24-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/profile/logins.json (582 bytes) lacks [jihad-keep]
+    WAIT ok 25-launch: load done
+    WAIT ok 26-text logins = [Logins192.168.1.245:8077jihad-keep••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 29-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-refuse-update — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 11-rect user
+    CHECK ok 14-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 16-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+    WAIT ok 17-line: [jihad-bs] js-console (no source):0:0 logins: not remembered for http://192.168.1.245:8077
+    WAIT ok 18-text sent = [sent jihad-refused]
+    WAIT ok 19-launch: load done
+    WAIT ok 20-text state = [user=(empty) pass=(empty) events=0]
+    CHECK ok 23-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-2.fifo
+    CHECK ok 25-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 26-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 27-text sent = [sent jihad-tester]
+    WAIT ok 28-launch: load done
+    WAIT ok 29-text state = [user=jihad-tester pass=old-pass-1 events=4]
+    CHECK ok 32-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-3.fifo
+    CHECK ok 34-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 logins: updated for http://192.168.1.245:8077
+    WAIT ok 36-text sent = [sent jihad-tester]
+    WAIT ok 37-launch: load done
+    WAIT ok 38-text state = [user=jihad-tester pass=new-pass-2 events=4]
+    WAIT ok 39-launch: load done
+    WAIT ok 40-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 41-text-lacks: logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-refused]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-save — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 9 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 19-text sent = [sent jihad-tester]
+    WAIT ok 20-launch: load done
+    WAIT ok 21-text state = [user=jihad-tester pass=s3cret-41 events=4]
+    CHECK ok 22-text-lacks: state = [user=jihad-tester pass=s3cret-41 events=4] lacks [events=0]
+    WAIT ok 23-launch: load done
+    WAIT ok 24-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 27-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / webgl-macro — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-webgl-macro.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    WAIT ok 15-text done = [rows 14]
+    CHECK ok 17-probe-has: the probe's answer holds [c function-like, no params, empty: ok]
+    CHECK ok 18-probe-has: the probe's answer holds [e function-like, params: ok]
+    CHECK ok 19-probe-has: the probe's answer holds [j eagler's: ok]
+    CHECK ok 20-probe-has: the probe's answer holds [k nested 300 deep: FAIL]
+    CHECK ok 21-probe-has: the probe's answer holds [l nested 20 deep: ok]
+    CHECK ok 22-probe-has: the probe's answer holds [m doubling 26 deep: FAIL]
+
+### mojo / memory-guard-task — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-colors.html: connected at +1 s, load done at +5 s, 3 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 15-launch: load done
+    WAIT ok 16-line: [jihad-bs] memory guard (thread): this daemon 484420 kB, its players 0 kB (budget 470184), 24404 kB free (floor 65536): stopping the running content script, the page to be stopped
+    WAIT ok 17-line: [jihad-bs] memory guard: the running content script stopped
+    WAIT ok 18-line: [jihad-bs] memory shed: a page stopped
+    WAIT ok 19-url: about:stopped?url=http%3A%2F%2F192.168.1.245%3A8077%2Fjihad-memhog.html%3Fmb%3D750%26rate%3D12%26task%3D1
+    WAIT ok 20-rect sel:#link
+    CHECK ok 21-text-has: sel:#where = [http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1] holds [jihad-memhog.html]
+    CHECK ok 22-gpu-calm: no new GPU fault in the kernel's log (0 lines, 0 at the start)
+    WAIT ok 23-launch: load done
+
+### mojo / site-data-page — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +5 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 17-rect user
+    CHECK ok 20-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 22-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 23-text sent = [sent jihad-data]
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text state = [user=(empty) pass=(empty) events=0]
+    WAIT ok 26-launch: load done
+    WAIT ok 27-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com1 cookieOpenarchive.org2 cookies · 48 KB storedOpenbbc.com1 cookie · 1.1 KB storedOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencrazygames.com3 cookies · 48 KB storedOpenduckduckgo.com28 bytes storedOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookies]
+    CHECK ok 28-text-lacks: sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com1 cookieOpenarchive.org2 cookies · 48 KB storedOpenbbc.com1 cookie · 1.1 KB storedOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencrazygames.com3 cookies · 48 KB storedOpenduckduckgo.com28 bytes storedOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookies] lacks [:8079]
+    WAIT ok 29-text sel:.site-row[data-site='192.168.1.245'] .site-counts = [2 cookies · 1 login · 104 KB stored]
+    CHECK ok 30-text-has: sel:.site-row[data-site="192.168.1.245"] .site-counts = [2 cookies · 1 login · 104 KB stored] holds [1 login]
+    WAIT ok 33-text sites = [SitesNo site matches “zz-no-such-site”.]
+    WAIT ok 34-launch: load done
+    WAIT ok 35-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com1 cookieOpenarchive.org2 cookies · 48 KB storedOpenbbc.com1 cookie · 1.1 KB storedOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencrazygames.com3 cookies · 48 KB storedOpenduckduckgo.com28 bytes storedOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookies]
+    WAIT ok 37-text cookies = [Cookies (2)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemovejihadtest192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies]
+    WAIT ok 39-text sel:.cookie-row[data-name='jihadtest'] .cookie-value = [1]
+    WAIT ok 40-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 41-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    CHECK ok 42-text-has: site-logins = [Saved logins1 saved loginSaved logins] holds [1 saved login]
+    WAIT ok 44-text status = [Pop-up windows for http://192.168.1.245:8077: Block]
+    WAIT ok 45-launch: load done
+    WAIT ok 46-rect sel:.perm-row[data-perm='popup'][data-origin='http://192.168.1.245:8077'][data-value='2']
+    WAIT ok 48-text status = [The cookie jihadtest removed]
+    CHECK ok 49-text-lacks: cookies = [Cookies (1)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies] lacks [jihadtest]
+    WAIT ok 51-text status = [Every cookie of 192.168.1.245 removed]
+    CHECK ok 52-text-lacks: cookies = [Cookies (0)None.] lacks [jihadsecond]
+    WAIT ok 54-url: about:logins?filter=192.168.1.245
+    WAIT ok 55-text logins = [Logins192.168.1.245:8077jihad-data••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 56-launch: load done
+    WAIT ok 57-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 58-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 60-gone sel:.storage-row[data-kind='local'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 61-text-has: storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear] holds [databases]
+    WAIT ok 63-gone sel:.storage-row[data-kind='quota'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 64-text-has: storage = [Stored datahttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear] holds [192.168.1.245:8079]
+    WAIT ok 66-text forget-row = [Forget this siteForget everything this browser keeps for 192.168.1.245?Forget it]
+    WAIT ok 68-text sites = [Sitesalbinoblacksheep.com1 cookieOpenarchive.org2 cookiesOpenbbc.com1 cookieOpenbit.ly1 cookieOpencrazygames.com3 cookiesOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookiesOpenhowsmyssl.com4 cookiesOpenkbhgames.com1 cookieOpenkongcdn.com8 cookiesOpenkongregate.com6 cookiesOpenmozilla.org3 cookiesOpenplaywire.com1 cookieOpenprimarygames.com3 cookiesOpensilvergames.com1 cookieOp]
+    CHECK ok 69-quiet: no line jihad-never-logged for 3 s
+    CHECK ok 70-text-lacks: sites = [Sitesalbinoblacksheep.com1 cookieOpenarchive.org2 cookies · 48 KB storedOpenbbc.com1 cookie · 1.1 KB storedOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencrazygames.com3 cookies · 48 KB storedOpenduckduckgo.com28 bytes storedOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookiesOpenhowsmyssl.com4 cookiesOpenkbhgames.com1 cookie · ] lacks [192.168.1.245]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 73-text-has: forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-data]
+    WAIT ok 76-text forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 77-text-lacks: forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all] lacks [jihad-data]
+    WAIT ok 78-launch: load done
+    WAIT ok 79-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 82-text forms = [Form data (2)No entry matches.Remove all form dataRemove all]
+    WAIT ok 83-launch: load done
+    WAIT ok 84-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 86-text status = [Removed]
+    CHECK ok 87-text-lacks: forms = [Form data (1)jihad-datauser · used 1 timeRemoveRemove all form dataRemove all] lacks [hello jihad]
+    WAIT ok 89-text forms-remove-all-row = [Remove all form dataRemove all 1 entries?Remove them]
+    WAIT ok 91-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+
+### mojo / site-logins-frame — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 13-rect user
+    CHECK ok 16-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 20-text sent = [sent jihad-top]
+    WAIT ok 21-launch: load done
+    WAIT ok 22-text framestate = [192.168.1.245:8079 user=(empty) pass=(empty) events=0]
+    CHECK ok 23-quiet: no line logins: filled for for 3 s
+    WAIT ok 24-launch: load done
+    WAIT ok 25-rect user
+    CHECK ok 28-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-2.fifo
+    CHECK ok 30-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 31-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8079
+    WAIT ok 32-text sent = [sent jihad-frame]
+    WAIT ok 33-launch: load done
+    WAIT ok 34-text framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4]
+    CHECK ok 35-text-lacks: framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4] lacks [events=0]
+    WAIT ok 36-launch: load done
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-top••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8079jihad-frame••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 40-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-master — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 21-text sent = [sent jihad-lock]
+    WAIT ok 23-line: [jihad-bs] js-console (no source):0:0 logins: test: master password set, the store locked: true
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text page-sub = [Locked by the master password]
+    CHECK ok 26-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 30-text status = [That is not the master password]
+    CHECK ok 31-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 35-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-locklock-pass-3Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 39-line: [jihad-bs] js-console (no source):0:0 logins: test: master password taken off: true
+    WAIT ok 40-launch: load done
+    WAIT ok 41-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-page — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-text sent = [sent jihad-alpha]
+    WAIT ok 21-launch: load done
+    CHECK ok 25-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-2.fifo
+    CHECK ok 27-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 28-text sent = [sent jihad-beta]
+    WAIT ok 29-launch: load done
+    WAIT ok 30-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 31-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] holds [jihad-beta]
+    CHECK ok 32-text-lacks: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [alpha-pass-5]
+    CHECK ok 33-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] holds [Last used]
+    WAIT ok 36-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 37-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 38-launch: load done
+    WAIT ok 39-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 40-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 42-text logins = [Logins192.168.1.245:8077jihad-betabeta-pass-6Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 45-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [beta-pass-6]
+    WAIT ok 47-text status = [The password copied]
+    CHECK ok 48-clipboard: the system clipboard holds [beta-pass-6]
+    WAIT ok 50-text status = [The username copied]
+    CHECK ok 51-clipboard: the system clipboard holds [jihad-beta]
+    WAIT ok 53-rect sel:.edit-pass
+    WAIT ok 59-text status = [The login for 192.168.1.245:8077 saved]
+    WAIT ok 61-text logins = [Logins192.168.1.245:8077jihad-beta-twoedited-pass-7Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 63-url: http://192.168.1.245:8077/
+    WAIT ok 64-launch: load done
+    WAIT ok 65-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 67-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19Remove this login?ShowCopy usernameCopy passwordEditRemove it192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 69-text status = [The login for 192.168.1.245:8077 removed]
+    CHECK ok 70-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text state = [user=jihad-beta-two pass=edited-pass-7 events=4]
+    WAIT ok 73-launch: load done
+    WAIT ok 74-text logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 76-text remove-all-row = [Remove all saved loginsRemove all 1 logins? This cannot be undone.Remove them]
+    WAIT ok 78-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-persist — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 19-text sent = [sent jihad-keep]
+    WAIT ok 21-text state = [user=jihad-keep pass=keep-pass-9 events=4]
+    CHECK ok 22-file: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/profile/logins.json (582 bytes) holds [encryptedPassword]
+    CHECK ok 23-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/profile/logins.json (582 bytes) lacks [keep-pass-9]
+    CHECK ok 24-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/profile/logins.json (582 bytes) lacks [jihad-keep]
+    WAIT ok 25-launch: load done
+    WAIT ok 26-text logins = [Logins192.168.1.245:8077jihad-keep••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 29-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-refuse-update — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 11-rect user
+    CHECK ok 14-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 16-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+    WAIT ok 17-line: [jihad-bs] js-console (no source):0:0 logins: not remembered for http://192.168.1.245:8077
+    WAIT ok 18-text sent = [sent jihad-refused]
+    WAIT ok 19-launch: load done
+    WAIT ok 20-text state = [user=(empty) pass=(empty) events=0]
+    CHECK ok 23-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-2.fifo
+    CHECK ok 25-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 26-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 27-text sent = [sent jihad-tester]
+    WAIT ok 28-launch: load done
+    WAIT ok 29-text state = [user=jihad-tester pass=old-pass-1 events=4]
+    CHECK ok 32-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-3.fifo
+    CHECK ok 34-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 logins: updated for http://192.168.1.245:8077
+    WAIT ok 36-text sent = [sent jihad-tester]
+    WAIT ok 37-launch: load done
+    WAIT ok 38-text state = [user=jihad-tester pass=new-pass-2 events=4]
+    WAIT ok 39-launch: load done
+    WAIT ok 40-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 41-text-lacks: logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-refused]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-save — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+    WAIT ok 19-text sent = [sent jihad-tester]
+    WAIT ok 20-launch: load done
+    WAIT ok 21-text state = [user=jihad-tester pass=s3cret-41 events=4]
+    CHECK ok 22-text-lacks: state = [user=jihad-tester pass=s3cret-41 events=4] lacks [events=0]
+    WAIT ok 23-launch: load done
+    WAIT ok 24-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 27-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / webgl-macro — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-webgl-macro.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 15-text done = [rows 14]
+    CHECK ok 17-probe-has: the probe's answer holds [c function-like, no params, empty: ok]
+    CHECK ok 18-probe-has: the probe's answer holds [e function-like, params: ok]
+    CHECK ok 19-probe-has: the probe's answer holds [j eagler's: ok]
+    CHECK ok 20-probe-has: the probe's answer holds [k nested 300 deep: FAIL]
+    CHECK ok 21-probe-has: the probe's answer holds [l nested 20 deep: ok]
+    CHECK ok 22-probe-has: the probe's answer holds [m doubling 26 deep: FAIL]
+
+### enyo / site-data-shown-password — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 13-rect user
+    WAIT ok 16-text sent = [sent jihad-shown]
+    CHECK ok 17-dialog: no dialog within 4 s
+    WAIT ok 18-launch: load done
+    WAIT ok 19-text forms = [Form data (2)jihad-shownuser · used 1 timeRemoveshown notenote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 20-text-has: forms = [Form data (2)jihad-shownuser · used 1 timeRemoveshown notenote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-shown]
+    CHECK ok 21-text-lacks: forms = [Form data (2)jihad-shownuser · used 1 timeRemoveshown notenote · used 1 timeRemoveRemove all form dataRemove all] lacks [shown-pass-9]
+    WAIT ok 23-text forms-remove-all-row = [Remove all form dataRemove all 2 entries?Remove them]
+    WAIT ok 25-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+
+### mochi / site-data-shown-password — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 13-rect user
+    WAIT ok 16-text sent = [sent jihad-shown]
+    CHECK ok 17-dialog: no dialog within 4 s
+    WAIT ok 18-launch: load done
+    WAIT ok 19-text forms = [Form data (2)jihad-shownuser · used 1 timeRemoveshown notenote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 20-text-has: forms = [Form data (2)jihad-shownuser · used 1 timeRemoveshown notenote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-shown]
+    CHECK ok 21-text-lacks: forms = [Form data (2)jihad-shownuser · used 1 timeRemoveshown notenote · used 1 timeRemoveRemove all form dataRemove all] lacks [shown-pass-9]
+    WAIT ok 23-text forms-remove-all-row = [Remove all form dataRemove all 2 entries?Remove them]
+    WAIT ok 25-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+
+### mojo / site-data-shown-password — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 13-rect user
+    WAIT ok 16-text sent = [sent jihad-shown]
+    CHECK ok 17-dialog: no dialog within 4 s
+    WAIT ok 18-launch: load done
+    WAIT ok 19-text forms = [Form data (2)jihad-shownuser · used 1 timeRemoveshown notenote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 20-text-has: forms = [Form data (2)jihad-shownuser · used 1 timeRemoveshown notenote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-shown]
+    CHECK ok 21-text-lacks: forms = [Form data (2)jihad-shownuser · used 1 timeRemoveshown notenote · used 1 timeRemoveRemove all form dataRemove all] lacks [shown-pass-9]
+    WAIT ok 23-text forms-remove-all-row = [Remove all form dataRemove all 2 entries?Remove them]
+    WAIT ok 25-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+

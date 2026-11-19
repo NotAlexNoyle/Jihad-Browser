@@ -53,6 +53,20 @@ function locked() {
 
 // A form's login fields: the one password field and the user field before it (the last text-like field), or null.
 // A form with two or three password fields is a change of password: the new one is the last, the user field the same.
+// A field that was a password field at any time it was seen (focused, typed in, or when the page was read): a page's
+// "show password" turns its type to text, and its value must stay out of the form history all the same (Codex review
+// 2026-11-19). Weak, so a document's fields go with it.
+const gWasPassword = new WeakSet();
+function notePassword(e) { try { if (e && e.localName === "input" && e.type === "password") gWasPassword.add(e); } catch (x) {} }
+// what a field is for, by the page's own words: a credential, a one-time code or a card's security number
+const SECRET_AUTOCOMPLETE = /\b(current-password|new-password|one-time-code|cc-csc|cc-number)\b/i;
+const SECRET_NAME = /pass(word|wd|code)?|pwd|\bpin\b|otp|cvv|cvc|csc|secret|token/i;
+function isSecretField(e) {
+  if (gWasPassword.has(e)) return true;
+  if (SECRET_AUTOCOMPLETE.test(String(e.getAttribute("autocomplete") || ""))) return true;
+  return SECRET_NAME.test(String(e.name || "") + " " + String(e.id || ""));
+}
+
 function fieldsOf(form) {
   let els = [];
   try { els = Array.prototype.slice.call(form.elements); } catch (e) { return null; }
@@ -91,11 +105,15 @@ JihadLogins.prototype = {
   _testMaster: function () {
     let v = "";
     try { v = Services.prefs.getCharPref(PREF_TEST_MASTER); } catch (e) {}
-    if (!v || !boolPref("jihad.compat.trace", false)) return;
+    if (!v) return;
+    // read once and cleared at once: the password is never kept in prefs.js, nor written to the log (Codex review
+    // 2026-11-19)
+    try { Services.prefs.clearUserPref(PREF_TEST_MASTER); } catch (e) {}
+    if (!boolPref("jihad.compat.trace", false)) return;
     try {
       let t = Cc["@mozilla.org/security/pk11tokendb;1"].getService(Ci.nsIPK11TokenDB).getInternalKeyToken();
       let m = /^(set|clear):(.+)$/.exec(v);
-      if (!m) { log("test: master password: " + v + "?"); return; }
+      if (!m) { log("test: master password: the command is neither set:<pw> nor clear:<pw>"); return; }
       if (m[1] === "set") {
         if (t.needsUserInit) t.initPassword(m[2]); else t.changePassword("", m[2]);
         t.logoutSimple();
@@ -130,6 +148,7 @@ JihadLogins.prototype = {
     Array.prototype.forEach.call(form.elements, function (e) {
       if (e.localName !== "input" || ["text", "search", "email", "tel", "url", ""].indexOf(e.type) < 0) return;
       if (String(e.getAttribute("autocomplete") || "").toLowerCase() === "off") return;
+      if (isSecretField(e)) return;
       let name = e.name || e.id, v = String(e.value || "").trim();
       if (!name || !v || v.length > 200 || /^[\d\s-]{13,19}$/.test(v)) return;
       changes.push({ op: "bump", fieldname: name, value: v });
@@ -171,7 +190,10 @@ JihadLogins.prototype = {
     let usernameField = f.user ? (f.user.name || f.user.id || "") : "", passwordField = f.pw.name || f.pw.id || "";
     let saved = [];
     try { saved = Services.logins.findLogins({}, hostname, "", null); } catch (e) { return; }
-    let same = saved.filter(l => l.username === username);
+    // the login of this form's action (or one saved with no action) is the one this submission can update: the same
+    // username on another action origin of the page is another account and is left alone (Codex review 2026-11-19)
+    let same = saved.filter(l => l.username === username && (l.formSubmitURL === action || !l.formSubmitURL));
+    same.sort((a, b) => (b.formSubmitURL === action) - (a.formSubmitURL === action));
     if (same.length && same[0].password === password) {
       try {
         let bag = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag);
@@ -189,7 +211,8 @@ JihadLogins.prototype = {
     try {
       // the card's own dialog (DialogService.cpp's prompter), never Services.prompt: nsPrompter.js would open a chrome
       // window this embedding cannot show and wait on it for ever
-      let prompt = Cc["@mozilla.org/prompter;1"].getService(Ci.nsIPromptFactory).getPrompt(null, Ci.nsIPrompt);
+      // the submitting window's own prompt, so the card that asks is the page's (DialogService routes by window)
+      let prompt = Cc["@mozilla.org/prompter;1"].getService(Ci.nsIPromptFactory).getPrompt(win && win.top || null, Ci.nsIPrompt);
       log("asking about " + hostname + (update ? " (an update)" : ""));
       ok = prompt.confirmEx( update ? "Update password" : "Remember login",
         update ? "Update the saved password for " + who + " on " + host + "?" : "Remember " + who + " for " + host + "?",
@@ -201,7 +224,7 @@ JihadLogins.prototype = {
       li.init(hostname, action, null, username, password, usernameField, passwordField);
       if (update) Services.logins.modifyLogin(same[0], li);
       else Services.logins.addLogin(li);
-      log((update ? "updated" : "remembered") + " for " + hostname + " (" + (username || "no username") + ")");
+      log((update ? "updated" : "remembered") + " for " + hostname);
     } catch (e) { log("store: " + e); }
   },
 
@@ -209,6 +232,13 @@ JihadLogins.prototype = {
     let win = doc && doc.defaultView;
     if (!win || doc.nodePrincipal.isSystemPrincipal || !/^https?:/.test(doc.documentURI || "")) return;
     let fill = () => { try { this._fill(doc); } catch (e) { log("fill: " + e); } };
+    // every password field seen (isSecretField): at the page's load, and at each focus or typing, in the system group
+    let seen = ev => notePassword(ev.target);
+    try {
+      Services.els.addSystemEventListener(doc, "focus", seen, true);
+      Services.els.addSystemEventListener(doc, "input", seen, true);
+    } catch (e) {}
+    win.addEventListener("DOMContentLoaded", () => { try { Array.prototype.forEach.call(doc.querySelectorAll("input[type=password]"), notePassword); } catch (e) {} }, { once: true });
     win.addEventListener("DOMContentLoaded", fill, { once: true });
     win.addEventListener("load", fill, { once: true });
   },
@@ -239,7 +269,7 @@ JihadLogins.prototype = {
       };
       if (f.user && !f.user.value && l.username) put(f.user, l.username);
       put(f.pw, l.password);
-      log("filled for " + hostname + " (" + (l.username || "no username") + ")");
+      log("filled for " + hostname);
     }
   }
 };

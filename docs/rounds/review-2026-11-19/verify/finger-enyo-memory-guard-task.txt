@@ -1,0 +1,11 @@
+  the log marked
+WAIT ok 15-launch: load done
+WAIT ok 16-line: [jihad-bs] memory guard (thread): this daemon 482328 kB, its players 0 kB (budget 470184), 29316 kB free (floor 65536): stopping the running content script, the page to be stopped
+WAIT ok 17-line: [jihad-bs] memory guard: the running content script stopped
+WAIT ok 18-line: [jihad-bs] memory shed: a page stopped
+WAIT ok 19-url: about:stopped?url=http%3A%2F%2F192.168.1.245%3A8077%2Fjihad-memhog.html%3Fmb%3D750%26rate%3D12%26task%3D1
+WAIT ok 20-rect sel:#link
+CHECK ok 21-text-has: sel:#where = [http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1] holds [jihad-memhog.html]
+CHECK ok 22-gpu-calm: no new GPU fault in the kernel's log (0 lines, 0 at the start)
+WAIT ok 23-launch: load done
+CHECKS 2 FAILS 0

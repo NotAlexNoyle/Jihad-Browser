@@ -36,6 +36,12 @@ if (!gl) { row("no WebGL"); } else {
   // k: an invocation nested 300 deep in another's arguments: refused (the engine bounds the nesting at 256), never a crash
   var deep = ""; for (var i = 0; i < 300; i++) deep += "f("; deep += "1.0"; for (var i = 0; i < 300; i++) deep += ")";
   attempt("k nested 300 deep", "#define f(x) x\nattribute vec2 a_position2f;\nvoid main() {\n\tgl_Position = vec4(a_position2f, 0.0, " + deep + ");\n}\n");
+  // m: #define D(x) x x nested 26 deep would make 2^26 tokens: refused by the expansion budget (100 000 tokens a shader),
+  // quickly and without a crash (Codex review 2026-11-19)
+  var bomb = ""; for (var i = 0; i < 26; i++) bomb += "D("; bomb += "1.0"; for (var i = 0; i < 26; i++) bomb += ")";
+  var tb = performance.now();
+  attempt("m doubling 26 deep", "#define D(x) x x\nattribute vec2 a_position2f;\nvoid main() {\n\tfloat f = " + bomb + ";\n\tgl_Position = vec4(a_position2f, 0.0, 1.0);\n}\n");
+  row("m took " + Math.round(performance.now() - tb) + " ms");
   attempt("l nested 20 deep", "#define f(x) x\nattribute vec2 a_position2f;\nvoid main() {\n\tgl_Position = vec4(a_position2f, 0.0, f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(1.0)))))))))))))))))))));\n}\n");
 }
 document.getElementById("done").textContent = "rows " + document.getElementById("out").childNodes.length;

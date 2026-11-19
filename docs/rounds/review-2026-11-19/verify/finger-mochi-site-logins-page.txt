@@ -1,0 +1,63 @@
+WAIT ok 14-rect user
+  probe first: filled jihad-alpha
+  tap at 348,384 -> clickAt 349 306
+CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+  chrome dialog-ok tapped at 612 214
+CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 20-text sent = [sent jihad-alpha]
+WAIT ok 21-launch: load done
+  probe second: cleared
+  probe second-submit: filled jihad-beta
+  tap at 348,384 -> clickAt 349 306
+CHECK ok 25-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-2.fifo
+  chrome dialog-ok tapped at 612 214
+CHECK ok 27-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 28-text sent = [sent jihad-beta]
+WAIT ok 29-launch: load done
+WAIT ok 30-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+CHECK ok 31-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] holds [jihad-beta]
+CHECK ok 32-text-lacks: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [alpha-pass-5]
+CHECK ok 33-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] holds [Last used]
+  tap at 189,240 -> clickAt 190 162
+WAIT ok 36-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+CHECK ok 37-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+WAIT ok 38-launch: load done
+WAIT ok 39-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+CHECK ok 40-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+  tap at 71,461 -> clickAt 72 383
+WAIT ok 42-text logins = [Logins192.168.1.245:8077jihad-betabeta-pass-6Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+  tap at 69,461 -> clickAt 70 383
+WAIT ok 44-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+CHECK ok 45-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [beta-pass-6]
+  tap at 370,461 -> clickAt 371 383
+WAIT ok 47-text status = [The password copied]
+CHECK ok 48-clipboard: the system clipboard holds [beta-pass-6]
+  tap at 202,461 -> clickAt 203 383
+WAIT ok 50-text status = [The username copied]
+CHECK ok 51-clipboard: the system clipboard holds [jihad-beta]
+  tap at 495,461 -> clickAt 496 383
+WAIT ok 53-rect sel:.edit-pass
+  tap at 200,464 -> clickAt 201 386
+  tap at 200,396 -> clickAt 201 318
+  tap at 594,416 -> clickAt 595 338
+WAIT ok 59-text status = [The login for 192.168.1.245:8077 saved]
+  tap at 71,461 -> clickAt 72 383
+WAIT ok 61-text logins = [Logins192.168.1.245:8077jihad-beta-twoedited-pass-7Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+  tap at 105,348 -> clickAt 106 270
+WAIT ok 63-url: http://192.168.1.245:8077/
+WAIT ok 64-launch: load done
+WAIT ok 65-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+  tap at 592,461 -> clickAt 593 383
+WAIT ok 67-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-19Remove this login?ShowCopy usernameCopy passwordEditRemove it192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+  tap at 599,479 -> clickAt 600 401
+WAIT ok 69-text status = [The login for 192.168.1.245:8077 removed]
+CHECK ok 70-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+WAIT ok 71-launch: load done
+WAIT ok 72-text state = [user=jihad-beta-two pass=edited-pass-7 events=4]
+WAIT ok 73-launch: load done
+WAIT ok 74-text logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+  tap at 676,549 -> clickAt 677 471
+WAIT ok 76-text remove-all-row = [Remove all saved loginsRemove all 1 logins? This cannot be undone.Remove them]
+  tap at 665,549 -> clickAt 666 471
+WAIT ok 78-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+CHECKS 13 FAILS 0

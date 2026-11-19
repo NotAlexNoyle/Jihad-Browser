@@ -1,0 +1,30 @@
+WAIT ok 14-rect user
+  probe lock: filled jihad-lock
+  tap at 348,379 -> clickAt 349 306
+CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+  chrome dialog-ok tapped at 384 935
+CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 20-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077
+WAIT ok 21-text sent = [sent jihad-lock]
+  the pref jihad.test.masterPassword set to set:jihad-master-1
+WAIT ok 23-line: [jihad-bs] js-console (no source):0:0 logins: test: master password set, the store locked: true
+WAIT ok 24-launch: load done
+WAIT ok 25-text page-sub = [Locked by the master password]
+CHECK ok 26-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+  tap at 200,281 -> clickAt 201 208
+  tap at 430,281 -> clickAt 431 208
+WAIT ok 30-text status = [That is not the master password]
+CHECK ok 31-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+  tap at 200,281 -> clickAt 201 208
+  tap at 430,281 -> clickAt 431 208
+WAIT ok 35-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+  tap at 73,456 -> clickAt 74 383
+WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-locklock-pass-3Last used 2026-11-19HideCopy usernameCopy passwordEditRemove]
+  the pref jihad.test.masterPassword set to clear:jihad-master-1
+WAIT ok 39-line: [jihad-bs] js-console (no source):0:0 logins: test: master password taken off: true
+WAIT ok 40-launch: load done
+WAIT ok 41-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-19ShowCopy usernameCopy passwordEditRemove]
+  tap at 672,545 -> clickAt 673 472
+  tap at 661,545 -> clickAt 662 472
+WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+CHECKS 4 FAILS 0

@@ -257,6 +257,9 @@ public:
   // cavekit-device-headroom.md R1: the engine host's last step under a memory floor or a swap storm. The most
   // recently navigated live page is stopped and replaced by about:stopped, which names the reason and links back.
   static bool ShedNewestPage();
+  // T-672: the page whose root docshell this is (the engine stopped a script in one of its windows)
+  bool HasDocShellKey(const void* key) const;
+  void MarkScriptStoppedForMemory() { mScriptStoppedForMemory = true; }
   void shedForMemory();
   void clearHistory();                        // YAP: clearHistory
   void getHistoryState(bool* back, bool* fwd); // YAP: getHistoryState (query)
@@ -784,6 +787,7 @@ private:
   std::string        mBarUrlOnce;       // T-600: the address a failed load reports to the card's bar (once)
   int64_t            mLastNavMs = 0;    // the latest load start this page has had (kept when idle): the shedding's order
   bool               mShedForMemory = false;   // this page is about:stopped by the shedding (a navigation clears it)
+  bool               mScriptStoppedForMemory = false;   // the engine stopped this page's script for the guard (T-672)
   std::string        mThemePreviewDoc;         // the page showing a theme preview (no #fragment), "" = none
   bool               mTitleDirty = false;      // the page changed its title since the last send
   int64_t            mLastTitleEmitMs = 0;     // when a title last went to the card

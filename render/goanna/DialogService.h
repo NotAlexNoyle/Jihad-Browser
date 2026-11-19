@@ -19,6 +19,8 @@
 
 #include <string>
 
+class mozIDOMWindowProxy;   // RootDocShellKeyOf
+
 namespace jihad {
 
 // Kind of dialog raised by content, matching the YAP msgDialog* surface.
@@ -97,6 +99,12 @@ bool InstallDialogService();
 // clear the sink (SetDialogSink(nullptr)) before the sink object is destroyed.
 // EngineHost::Shutdown clears it as a process-lifetime backstop.
 void SetDialogSink(DialogSink* sink);
+// The page a window belongs to, by its root docshell (GoannaRenderPage::DocShellKey): a dialog asked for that window
+// opens in that page's card. ForgetDialogSink drops a page that dies between the asking and the dialog.
+void SetDialogSinkResolver(DialogSink* (*resolver)(const void* rootDocShellKey));
+void ForgetDialogSink(DialogSink* sink);
+// The root docshell of a window, the key GoannaRenderPage::DocShellKey gives its page (only ever compared).
+const void* RootDocShellKeyOf(mozIDOMWindowProxy* aWindow);
 
 // The sink dialogs currently go to (null if none). A sink that is going away uses this to step
 // down only if it is still the current one — a page that closes must not take the dialogs away

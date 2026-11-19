@@ -18,6 +18,11 @@
 #include "nsIProxyInfo.h"
 #include "nsIURI.h"
 #include "nsIComponentRegistrar.h"
+#include "nsIDocShellTreeItem.h"     // the dialog's card: its window's root docshell
+#include "nsIDocShell.h"
+#include "nsIWebNavigation.h"
+#include "nsIInterfaceRequestorUtils.h"
+#include "mozIDOMWindow.h"
 #include "nsXPCOM.h"              // NS_GetComponentRegistrar
 #include "mozilla/RefCountType.h" // MozExternalRefCountType
 #include <cstring>                // strcmp (observer topic)
@@ -35,6 +40,21 @@ namespace jihad {
 
 // Process-wide sink (not owned) + a fresh CID for our prompter component.
 static DialogSink* gSink = nullptr;
+// The card a dialog belongs to (Codex review 2026-11-19): one prompter serves every page of the daemon, and the last
+// page made was the sink of all of them, so card A's alert, confirm or login question could open in card B. GetPrompt
+// is asked for the window the dialog is for; its root docshell names the page (the resolver, BrowserPageGoanna), and
+// the next dialog goes there. A window of no page, or no window, keeps the process-wide sink.
+static DialogSink* (*gSinkForKey)(const void*) = nullptr;
+static DialogSink* gRoutedSink = nullptr;
+static const void* jihadRootDocShellKey(mozIDOMWindowProxy* aWindow) {
+  nsCOMPtr<nsIWebNavigation> nav = do_GetInterface(aWindow);
+  nsCOMPtr<nsIDocShellTreeItem> item = do_QueryInterface(nav);
+  if (!item) return nullptr;
+  nsCOMPtr<nsIDocShellTreeItem> root;
+  item->GetRootTreeItem(getter_AddRefs(root));
+  nsCOMPtr<nsIDocShell> ds = do_QueryInterface(root ? root : item);
+  return ds.get();
+}
 
 // {c1a7e6d2-3b44-4f8a-9e21-0abb11774203}
 #define JIHAD_PROMPTER_CID \
@@ -71,7 +91,9 @@ void JihadPrompter::Dispatch(DialogKind kind, const char16_t* text,
   if (!reply) reply = &local;
   reply->accept = false;                 // default deny for confirm/prompt
   NS_ConvertUTF16toUTF8 utf8(text ? nsDependentString(text) : EmptyString());
-  if (gSink) gSink->OnDialog(kind, utf8.get(), reply);
+  DialogSink* sink = gRoutedSink ? gRoutedSink : gSink;
+  gRoutedSink = nullptr;
+  if (sink) sink->OnDialog(kind, utf8.get(), reply);
 }
 
 NS_IMETHODIMP
@@ -104,7 +126,8 @@ NS_IMETHODIMP JihadPrompter::LockFactory(bool) { return NS_OK; }
 
 // --- nsIPromptFactory: hand back ourselves as the nsIPrompt for any window ---
 NS_IMETHODIMP
-JihadPrompter::GetPrompt(mozIDOMWindowProxy*, const nsIID& aIID, void** aResult) {
+JihadPrompter::GetPrompt(mozIDOMWindowProxy* aWindow, const nsIID& aIID, void** aResult) {
+  gRoutedSink = (aWindow && gSinkForKey) ? gSinkForKey(jihadRootDocShellKey(aWindow)) : nullptr;
   return QueryInterface(aIID, aResult);
 }
 
@@ -161,7 +184,9 @@ JihadPrompter::ConfirmEx(const char16_t*, const char16_t* text, uint32_t,
   // card button is which.
   nsString t(text ? text : u"");
   if (button0Title && *button0Title && button1Title && *button1Title) {
-    JihadDumpJSStackIfTracing();
+    // only the slow-script dialog, whose second button is the engine's "Stop script": DumpJSStack prints arguments and
+    // locals, and another named-button prompt (the login question) can have a password among them (Codex review)
+    if (nsDependentString(button1Title).EqualsLiteral("Stop script")) JihadDumpJSStackIfTracing();
     // The card shows the text with its whitespace collapsed: one sentence, not lines.
     t.AppendLiteral(" (OK = "); t.Append(button0Title);
     t.AppendLiteral(", Cancel = "); t.Append(button1Title); t.AppendLiteral(")");
@@ -608,6 +633,12 @@ bool InstallDialogService() {
 }
 
 void SetDialogSink(DialogSink* sink) { gSink = sink; }
+
+void SetDialogSinkResolver(DialogSink* (*resolver)(const void* rootDocShellKey)) { gSinkForKey = resolver; }
+
+const void* RootDocShellKeyOf(mozIDOMWindowProxy* aWindow) { return aWindow ? jihadRootDocShellKey(aWindow) : nullptr; }
+
+void ForgetDialogSink(DialogSink* sink) { if (gRoutedSink == sink) gRoutedSink = nullptr; }
 
 DialogSink* GetDialogSink() { return gSink; }
 

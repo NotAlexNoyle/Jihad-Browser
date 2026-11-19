@@ -42,6 +42,8 @@ function base(h) {
 	try { return Services.eTLD.getBaseDomainFromHost(h); } catch (e) { return h; }   // an address, localhost
 }
 function hostOfOrigin(o) {
+	// through the URI parser: an IPv6 address's colons are the host's, not a port's (Codex review 2026-11-19)
+	try { return Services.io.newURI(String(o || "").replace(/\^.*$/, ""), null, null).host; } catch (e) {}
 	let m = /^[a-z-]+:\/\/\[?([^\/\]:^]+)/i.exec(String(o || ""));
 	return m ? m[1] : "";
 }
@@ -156,6 +158,22 @@ function readStorage(then) {
 }
 // A site's localStorage cleared: the engine's own purge (all its origins, its subdomains'), then the page waits until
 // the storage thread has written that (up to its 5 s batch) so a list drawn next does not show it again
+// One origin's local storage, and only that origin's: the engine's own storage for the principal, cleared (the domain
+// purge below also takes the host's other ports, schemes and subdomains, and its service workers: Codex review
+// 2026-11-19). The store writes to webappsstore.sqlite within seconds; the list is read again once it has.
+function clearLocalOrigin(origin, then) {
+	try {
+		let st = Services.domStorageManager.getLocalStorageForPrincipal(principalOf(origin), "");
+		st.clear();
+	} catch (e) { say("Not cleared: " + e); then(); return; }
+	let t0 = Date.now();
+	let poll = function () {
+		let left = readLocal().filter(x => x.origin === origin);
+		if (!left.length || Date.now() - t0 > 8000) { then(); return; }
+		setTimeout(poll, 400);
+	};
+	poll();
+}
 function clearLocal(host, then) {
 	try { Services.obs.notifyObservers(null, "browser:purge-domain-data", host); } catch (e) {}
 	let t0 = Date.now();
@@ -344,9 +362,8 @@ function renderSite(domain) {
 		r.appendChild(button("Clear", "storage-clear", function () {
 			let again = function () { gStorageRead = false; renderSite(domain); };
 			if (x.kind === "local") {
-				let h = hostOfOrigin(x.origin);
-				say("Clearing the local storage of " + h + "…");
-				clearLocal(h, function () { say("The local storage of " + h + " cleared"); again(); });
+				say("Clearing the local storage of " + x.origin + "…");
+				clearLocalOrigin(x.origin, function () { say("The local storage of " + x.origin + " cleared"); again(); });
 				return;
 			}
 			// the list is read again once the quota manager says the clearing is done (it runs on its own thread)
@@ -378,7 +395,14 @@ function renderSite(domain) {
 			fb.textContent = "Forget it"; fb.classList.add("btn-go"); return;
 		}
 		say("Forgetting " + domain + "…");
-		forget(domain, s, function () { say(domain + " forgotten"); gStorageRead = false; location.href = "about:data"; });
+		// a locked key store gives no login to remove: the site is forgotten all but its saved logins, and says so
+		// (Codex review 2026-11-19: it said "forgotten" and kept them)
+		let keptLogins = locked();
+		forget(domain, s, function () {
+			say(keptLogins ? domain + " forgotten, except its saved logins: the master password was not entered (about:logins)" : domain + " forgotten");
+			gStorageRead = false;
+			if (!keptLogins) { location.href = "about:data"; }
+		});
 	});
 	fb.id = "forget";
 	fr.appendChild(fb);

@@ -11,6 +11,10 @@ extern bool gJihadViewportFollow;   // EngineHost.cpp: jihad.viewport.followOver
 #include "EngineCompat.h"
 #include "EngineHost.h"
 #include "DialogService.h"   // T-599: PostNotification (media-playing)
+#include "nsIObserver.h"            // T-672: jihad-memory-script-stopped
+#include "nsIObserverService.h"
+#include "nsServiceManagerUtils.h"
+#include "mozIDOMWindow.h"
 #include "GoannaRenderPage.h"
 #include "BrowserOffscreenInfo.h"   // isis shmem header (from render/browserserver/Src)
 #include "JihadFrameWindow.h"       // T-517: the frame window trailer (render/browserserver/Src)
@@ -59,6 +63,7 @@ namespace jihad {
 class BrowserPageGoanna;
 // Every page that is alive, oldest first. Its only job is to decide who owns the process-wide
 // dialog sink when a page goes away (see the constructor and destructor).
+static void jihadWatchScriptStops();   // T-672, defined with ShedNewestPage
 static std::vector<BrowserPageGoanna*>& jihadLivePages() {
   static std::vector<BrowserPageGoanna*> pages;
   return pages;
@@ -409,6 +414,15 @@ BrowserPageGoanna::BrowserPageGoanna(EngineHost& host, IPageMessageSink& sink)
   jihadLivePages().push_back(this);
   EngineHost::SetShedPageHook(&BrowserPageGoanna::ShedNewestPage);   // cavekit-device-headroom.md R1
   SetDialogSink(this);
+  // the engine's word that it stopped a page's script for the memory guard (engine patch 0124): that page is marked
+  jihadWatchScriptStops();
+  // a dialog asked for a window opens in the card of the page that window belongs to (DialogService.cpp)
+  SetDialogSinkResolver([](const void* key) -> DialogSink* {
+    if (!key) return nullptr;
+    for (BrowserPageGoanna* p : jihadLivePages())
+      if (p->mPage && p->mPage->DocShellKey() == key) return p;
+    return nullptr;
+  });
   if (jihadExpressOn()) {   // T-515
     FrameLockGuard g;
     if (!gXPages) {
@@ -1127,7 +1141,8 @@ BrowserPageGoanna::~BrowserPageGoanna() {
   { std::vector<BrowserPageGoanna*>& live = jihadLivePages();
     live.erase(std::remove(live.begin(), live.end(), this), live.end());
     if (GetDialogSink() == static_cast<DialogSink*>(this))
-      SetDialogSink(live.empty() ? nullptr : static_cast<DialogSink*>(live.back())); }
+      SetDialogSink(live.empty() ? nullptr : static_cast<DialogSink*>(live.back()));
+    ForgetDialogSink(this); }
   // "Trust once" ends with the page that asked, exactly as upstream's dtor did.
   // The startup sweep is what covers the case this one cannot: dying without
   // running at all.
@@ -2986,8 +3001,41 @@ void BrowserPageGoanna::pageStop()    { if (mPage) mPage->Stop(); }
 // cavekit-device-headroom.md R1 (EngineHost::CheckMemoryPressure): of the live pages, the one navigated last is the
 // likeliest cause; it is stopped and shows about:stopped?url=<what it was>. The page it left drops out of the
 // back-forward cache with the memory-pressure notification the engine host sends next.
+// "jihad-memory-script-stopped" (engine patch 0124): its subject is the outer window whose script was stopped; the page
+// that window belongs to is the one the guard sheds next (ShedNewestPage, below).
+class JihadScriptStopWatch final : public nsIObserver {
+public:
+  NS_DECL_ISUPPORTS
+  NS_IMETHOD Observe(nsISupports* aSubject, const char*, const char16_t*) override {
+    nsCOMPtr<mozIDOMWindowProxy> win = do_QueryInterface(aSubject);
+    const void* key = RootDocShellKeyOf(win);
+    for (BrowserPageGoanna* p : jihadLivePages())
+      if (key && p->HasDocShellKey(key)) { p->MarkScriptStoppedForMemory(); break; }
+    return NS_OK;
+  }
+private:
+  ~JihadScriptStopWatch() {}
+};
+NS_IMPL_ISUPPORTS(JihadScriptStopWatch, nsIObserver)
+
+bool BrowserPageGoanna::HasDocShellKey(const void* key) const { return key && mPage && mPage->DocShellKey() == key; }
+
+static void jihadWatchScriptStops() {
+  static bool s_on = false;
+  if (s_on) return;
+  nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1");
+  if (!obs) return;
+  nsCOMPtr<nsIObserver> o = new JihadScriptStopWatch();
+  if (NS_SUCCEEDED(obs->AddObserver(o, "jihad-memory-script-stopped", false))) s_on = true;
+}
+
+// T-672: a page whose script the engine stopped for the memory guard is the one shed, whichever was navigated last
+// (with two cards in a daemon, the newest could be an innocent small page: Codex review 2026-11-19).
 bool BrowserPageGoanna::ShedNewestPage() {
   BrowserPageGoanna* best = nullptr;
+  for (BrowserPageGoanna* p : jihadLivePages())
+    if (p->mPage && !p->mShedForMemory && p->mScriptStoppedForMemory) { best = p; break; }
+  if (best) { best->mScriptStoppedForMemory = false; best->shedForMemory(); return true; }
   for (BrowserPageGoanna* p : jihadLivePages())
     if (p->mPage && !p->mShedForMemory && (!best || p->mLastNavMs > best->mLastNavMs)) best = p;
   if (!best) return false;

@@ -136,7 +136,7 @@ rebooted twice**, battery 100 %). TeaVM's Java longs are BigInts, and UXP's BigI
 (past half the RAM with MemFree under 64 MB: the running script stopped, the page shed to about:stopped);
 `memory-guard-task` passes in the three shells, `eagler-guard-188` on Enyo; `expect gpu-calm` is the check. about:stopped
 now shows the address and "Try it again" (it read `location.search`). `docs/rounds/t672-2026-11-19/README.md`.
-**The device runs engine 0124** (queue 0001-0124, branch head `36f4d3558e`) and the daemon of `b77e271a`'s successor.
+**The device runs engine 0124** (queue 0001-0124, branch head `36f4d3558e`) and the daemon built from `b77e271a`.
 
 **Next, in order (replacing the list below):**
 1. The ck:inspector review when Fable is back (2026-11-21): the site-data and freeze work, and now the guard's thread.

@@ -272,6 +272,11 @@ static void jihadRegisterUaOverride() {
   if (NS_SUCCEEDED(obs->AddObserver(o, "http-on-modify-request", false))) s_registered = true;
 }
 
+// The memory guard's thread (T-672; jihadGuardThreadMain, below): stopped and joined by Shutdown.
+static std::atomic<bool> sJihadGuardThreadStop(false);
+static pthread_t sJihadGuardThread;
+static bool sJihadGuardThreadUp = false;
+
 EngineHost::~EngineHost()
 {
   Shutdown();
@@ -680,15 +685,18 @@ static nsCString& JihadClipboardText() { static nsCString s; return s; }
 // does (it imports rename), so a paste never reads half a text. On a desktop build nothing is written.
 static bool JihadWriteSystemClipboard(const nsCString& aText) {
 #if defined(__arm__)
+  // The temporary file is made by mkstemp: an unpredictable name, created exclusively, never a link another process
+  // laid in /var/tmp (sticky, world-writable) for this root daemon to write through (Codex review 2026-11-19: the
+  // name was "<file>.jihad-<pid>", opened with fopen "w", and chmod followed it).
   static const char kPath[] = "/var/tmp/webkit-clipboard";
-  char tmp[64];
-  snprintf(tmp, sizeof tmp, "%s.jihad-%d", kPath, (int)getpid());
-  FILE* f = fopen(tmp, "w");
-  if (!f) return false;
-  size_t n = aText.Length();
-  bool ok = fwrite(aText.get(), 1, n, f) == n;
-  ok = (fclose(f) == 0) && ok;
-  if (ok) { chmod(tmp, 0644); ok = rename(tmp, kPath) == 0; }
+  char tmp[] = "/var/tmp/webkit-clipboard.XXXXXX";
+  int fd = mkstemp(tmp);
+  if (fd < 0) return false;
+  bool ok = fchmod(fd, 0644) == 0;
+  const char* p = aText.get(); size_t left = aText.Length();
+  while (ok && left) { ssize_t w = write(fd, p, left); if (w <= 0) ok = false; else { p += w; left -= (size_t)w; } }
+  ok = (close(fd) == 0) && ok;
+  if (ok) ok = rename(tmp, kPath) == 0;
   if (!ok) unlink(tmp);
   return ok;
 #else
@@ -1389,6 +1397,9 @@ EngineHost::Shutdown()
   // msgDownloadError and delete its own "<target>.part" + placeholder instead of
   // leaving them as residue (R8). Nothing in the engine will call us back after
   // this, so the service terminates them itself rather than waiting.
+  // The memory guard's thread stops before anything of the engine goes: it may ask the JS engine to stop a script, and
+  // that context is torn down below (Codex review 2026-11-19).
+  if (sJihadGuardThreadUp) { sJihadGuardThreadStop = true; pthread_join(sJihadGuardThread, nullptr); sJihadGuardThreadUp = false; }
   ShutdownDownloadService();
   ShutdownDialogService();
   SetDownloadSink(nullptr);
@@ -1597,8 +1608,9 @@ static long jihadMemFreeKb() {
 
 static void* jihadGuardThreadMain(void*) {
   int64_t lastStopMs = -100000;
-  for (;;) {
-    sleep(2);
+  while (!sJihadGuardThreadStop) {
+    for (int i = 0; i < 10 && !sJihadGuardThreadStop; i++) usleep(200000);   // 2 s, woken within 0.2 s to stop
+    if (sJihadGuardThreadStop) break;
     const long own = jihadRssKb("/proc/self/status");
     if (own < sJihadGuardBudgetKb / 2) continue;           // far below: no /proc scan for the players
     const long freeKb = jihadMemFreeKb();
@@ -1687,8 +1699,7 @@ EngineHost::CheckMemoryPressure()
             "swapping in or out over %ld pages per 5 s twice running, past %ld kB with under %ld kB left, or past %ld kB with "
             "under %ld kB free (also from a thread of its own, every 2 s)\n",
             lowKb, shareKb, floorKb, swapPages, budgetKb, 2 * lowKb, budgetKb, sJihadGuardFreeFloorKb);
-    pthread_t t;
-    if (pthread_create(&t, nullptr, jihadGuardThreadMain, nullptr) == 0) pthread_detach(t);
+    if (pthread_create(&sJihadGuardThread, nullptr, jihadGuardThreadMain, nullptr) == 0) sJihadGuardThreadUp = true;
     else fprintf(stderr, "[jihad-bs] memory guard: its thread did not start\n");
   }
   long swapIn = jihadSwapInPages(), dIn = 0;

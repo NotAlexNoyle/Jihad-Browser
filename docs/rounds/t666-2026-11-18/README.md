@@ -72,7 +72,29 @@ for every cycle-collected WebIDL class that is not nsISupports: the WebGL object
 WebGLTexture refused by WeakMap and WeakSet. Engine patch **0121** calls such a class's addProperty hook (which Codegen
 gives it for exactly this: it preserves the wrapper and nothing else), as later Gecko does.
 
+## Past Launch (engine 0121): the shader preprocessor
+
+With 0121 the Launch goes through (two slow-script dialogs answered in one run, `wait rect-ok`), and the client sets up
+its renderer: no 16- or 32-bit float render targets (its shaders off, as expected on this GPU), no instancing; then:
+
+```
+183s error: Failed to compile GL_VERTEX_SHADER "/assets/eagler/glsl/local.vsh"!
+183s error: [VERT] ERROR: 0:19: '(' : syntax error
+183s error: ClientMain: eaglercraftx's runtime could not be initialized!
+```
+
+Line 19 is `EAGLER_VSH_LAYOUT_BEGIN()`, a function-like macro with no parameters and an empty body that the client's
+prelude defines (the source the engine got, captured by a probe on `compileShader`, has the prelude and the defines
+before it). `render/goanna/test/jihad-webgl-macro.html` (`webgl-macro`), engine 0121, the three shells: plain and
+object-like macros compile; every function-like macro fails at its invocation, empty, with a body or with parameters.
+
+The cause is upstream: UXP's Issue #2978 (2026-03, "Avoid empty replacements in macro expansion") put
+`replacements->size() == 0 ||` before `collectMacroArgs` in ANGLE's `MacroExpander::expandMacro`. `replacements` is that
+function's output, cleared on entry and filled only after that call, so the test is always true and no function-like
+macro expands. Engine patch **0122** takes the test out and bounds what can actually run away, the arguments'
+pre-expansion (one MacroExpander nested in another per level), at 256 levels, as later ANGLE does.
+
 ## Next
 
-0121 on the device: `weakmap-dom-keys` in the three shells, 1.8.8 to its title screen; the title screen's reference
+0122 on the device: `webgl-macro` in the three shells, 1.8.8 to its title screen; the title screen's reference
 picture; the menus by touch; 1.12.2 and 1.5.2.

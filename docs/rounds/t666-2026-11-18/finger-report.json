@@ -1,5 +1,5 @@
 {
- "date": "2026-11-19T01:21:03",
+ "date": "2026-11-19T02:05:42",
  "shells": [
   "enyo",
   "mochi",
@@ -215,9 +215,81 @@
    "start": "mojo card on http://192.168.1.245:8077/jihad-weakmap-dom.html: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
    "restore": "mojo: (97346/30444404) jihad-mojo (start) running, process 15530; daemons running: 1",
    "rerun": "2026-11-19T01:18:04"
+  },
+  {
+   "shell": "enyo",
+   "id": "webgl-macro",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "WebGL shaders with function-like macros compile (empty, with a body, with parameters, EaglercraftX's prelude); a 300-deep nesting is refused without a crash",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 14-text done = [rows 12]",
+    "CHECK ok 16-probe-has: the probe's answer holds [c function-like, no params, empty: ok]",
+    "CHECK ok 17-probe-has: the probe's answer holds [e function-like, params: ok]",
+    "CHECK ok 18-probe-has: the probe's answer holds [j eagler's: ok]",
+    "CHECK ok 19-probe-has: the probe's answer holds [k nested 300 deep: FAIL]",
+    "CHECK ok 20-probe-has: the probe's answer holds [l nested 20 deep: ok]"
+   ],
+   "kept": [
+    "kept/enyo-webgl-macro-rows_.jpg"
+   ],
+   "seconds": 56,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-webgl-macro.html: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (100101/858817056) jihad (start) running, process 9540; daemons running: 1",
+   "rerun": "2026-11-19T02:05:42"
+  },
+  {
+   "shell": "mochi",
+   "id": "webgl-macro",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "WebGL shaders with function-like macros compile (empty, with a body, with parameters, EaglercraftX's prelude); a 300-deep nesting is refused without a crash",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 14-text done = [rows 12]",
+    "CHECK ok 16-probe-has: the probe's answer holds [c function-like, no params, empty: ok]",
+    "CHECK ok 17-probe-has: the probe's answer holds [e function-like, params: ok]",
+    "CHECK ok 18-probe-has: the probe's answer holds [j eagler's: ok]",
+    "CHECK ok 19-probe-has: the probe's answer holds [k nested 300 deep: FAIL]",
+    "CHECK ok 20-probe-has: the probe's answer holds [l nested 20 deep: ok]"
+   ],
+   "kept": [
+    "kept/mochi-webgl-macro-rows_.jpg"
+   ],
+   "seconds": 49,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-webgl-macro.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (100151/281764898) jihad-mochi (start) running, process 12563; daemons running: 1",
+   "rerun": "2026-11-19T02:05:42"
+  },
+  {
+   "shell": "mojo",
+   "id": "webgl-macro",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "WebGL shaders with function-like macros compile (empty, with a body, with parameters, EaglercraftX's prelude); a 300-deep nesting is refused without a crash",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 14-text done = [rows 12]",
+    "CHECK ok 16-probe-has: the probe's answer holds [c function-like, no params, empty: ok]",
+    "CHECK ok 17-probe-has: the probe's answer holds [e function-like, params: ok]",
+    "CHECK ok 18-probe-has: the probe's answer holds [j eagler's: ok]",
+    "CHECK ok 19-probe-has: the probe's answer holds [k nested 300 deep: FAIL]",
+    "CHECK ok 20-probe-has: the probe's answer holds [l nested 20 deep: ok]"
+   ],
+   "kept": [
+    "kept/mojo-webgl-macro-rows_.jpg"
+   ],
+   "seconds": 47,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-webgl-macro.html: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (100198/400476296) jihad-mojo (start) running, process 15554; daemons running: 1",
+   "rerun": "2026-11-19T02:05:42"
   }
  ],
- "end_check": "DEVICE ok job-enyo: (97694/542521671) jihad (start) running, process 27338\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (97703/665016334) jihad-mochi (start) running, process 12434\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (97712/841805964) jihad-mojo (start) running, process 15530\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok volume-subscribers: none without its daemon\nDEVICE ok media-scratch: none\nDEVICE ok overall: 47% of /tmp used",
- "seconds": 2702,
+ "end_check": "DEVICE ok job-enyo: (100198/535400593) jihad (start) running, process 9540\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (100203/725658963) jihad-mochi (start) running, process 12563\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (100208/767133924) jihad-mojo (start) running, process 15554\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok volume-subscribers: none without its daemon\nDEVICE ok media-scratch: none\nDEVICE ok overall: 47% of /tmp used",
+ "seconds": 2874,
  "first_date": "2026-11-18T20:28:34"
 }

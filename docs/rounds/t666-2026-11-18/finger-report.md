@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-19T01:21:03
+# Finger suite report — 2026-11-19T02:05:42
 
 First run 2026-11-18T20:28:34; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 1. 2702 s.
+Shells: enyo, mochi, mojo. Scripts: 1. 2874 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -15,11 +15,14 @@ Shells: enyo, mochi, mojo. Scripts: 1. 2702 s.
 | enyo | weakmap-dom-keys (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]; frames: kept/enyo-weakmap-dom-keys-rows_.jpg | cavekit-eaglercraft.md R2 |
 | mochi | weakmap-dom-keys (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]; frames: kept/mochi-weakmap-dom-keys-rows_.jpg | cavekit-eaglercraft.md R2 |
 | mojo | weakmap-dom-keys (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]; frames: kept/mojo-weakmap-dom-keys-rows_.jpg | cavekit-eaglercraft.md R2 |
+| enyo | webgl-macro (rerun) | **pass** | 6 ok, 1 failed | CHECK ok 19-probe-has: the probe's answer holds [k nested 300 deep: FAIL]; frames: kept/enyo-webgl-macro-rows_.jpg | cavekit-eaglercraft.md R2 |
+| mochi | webgl-macro (rerun) | **pass** | 6 ok, 1 failed | CHECK ok 19-probe-has: the probe's answer holds [k nested 300 deep: FAIL]; frames: kept/mochi-webgl-macro-rows_.jpg | cavekit-eaglercraft.md R2 |
+| mojo | webgl-macro (rerun) | **pass** | 6 ok, 1 failed | CHECK ok 19-probe-has: the probe's answer holds [k nested 300 deep: FAIL]; frames: kept/mojo-webgl-macro-rows_.jpg | cavekit-eaglercraft.md R2 |
 
 ## The device at the end
 
 ```
-DEVICE ok job-enyo: (97694/542521671) jihad (start) running, process 27338
+DEVICE ok job-enyo: (100198/535400593) jihad (start) running, process 9540
 DEVICE ok daemons-enyo: one daemon
 DEVICE ok hand-daemon-enyo: none
 DEVICE ok hooks-enyo: none
@@ -29,7 +32,7 @@ DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
 DEVICE ok cards-enyo: none
 DEVICE ok audio-lib-enyo: the device's own
 DEVICE ok look-enyo: {"returnValue":true,"theme":null}
-DEVICE ok job-mochi: (97703/665016334) jihad-mochi (start) running, process 12434
+DEVICE ok job-mochi: (100203/725658963) jihad-mochi (start) running, process 12563
 DEVICE ok daemons-mochi: one daemon
 DEVICE ok hand-daemon-mochi: none
 DEVICE ok hooks-mochi: none
@@ -39,7 +42,7 @@ DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
 DEVICE ok cards-mochi: none
 DEVICE ok audio-lib-mochi: the device's own
 DEVICE ok look-mochi: {"returnValue":true,"theme":null}
-DEVICE ok job-mojo: (97712/841805964) jihad-mojo (start) running, process 15530
+DEVICE ok job-mojo: (100208/767133924) jihad-mojo (start) running, process 15554
 DEVICE ok daemons-mojo: one daemon
 DEVICE ok hand-daemon-mojo: none
 DEVICE ok hooks-mojo: none
@@ -140,4 +143,34 @@ DEVICE ok overall: 47% of /tmp used
     CHECK ok 15-probe-lacks: the probe's answer lacks [lost]
     CHECK ok 16-probe-has: the probe's answer holds [WebGLTexture: weakmap ok, weakset ok]
     CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]
+
+### enyo / webgl-macro — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-webgl-macro.html: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 14-text done = [rows 12]
+    CHECK ok 16-probe-has: the probe's answer holds [c function-like, no params, empty: ok]
+    CHECK ok 17-probe-has: the probe's answer holds [e function-like, params: ok]
+    CHECK ok 18-probe-has: the probe's answer holds [j eagler's: ok]
+    CHECK ok 19-probe-has: the probe's answer holds [k nested 300 deep: FAIL]
+    CHECK ok 20-probe-has: the probe's answer holds [l nested 20 deep: ok]
+
+### mochi / webgl-macro — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-webgl-macro.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    WAIT ok 14-text done = [rows 12]
+    CHECK ok 16-probe-has: the probe's answer holds [c function-like, no params, empty: ok]
+    CHECK ok 17-probe-has: the probe's answer holds [e function-like, params: ok]
+    CHECK ok 18-probe-has: the probe's answer holds [j eagler's: ok]
+    CHECK ok 19-probe-has: the probe's answer holds [k nested 300 deep: FAIL]
+    CHECK ok 20-probe-has: the probe's answer holds [l nested 20 deep: ok]
+
+### mojo / webgl-macro — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-webgl-macro.html: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 14-text done = [rows 12]
+    CHECK ok 16-probe-has: the probe's answer holds [c function-like, no params, empty: ok]
+    CHECK ok 17-probe-has: the probe's answer holds [e function-like, params: ok]
+    CHECK ok 18-probe-has: the probe's answer holds [j eagler's: ok]
+    CHECK ok 19-probe-has: the probe's answer holds [k nested 300 deep: FAIL]
+    CHECK ok 20-probe-has: the probe's answer holds [l nested 20 deep: ok]
 

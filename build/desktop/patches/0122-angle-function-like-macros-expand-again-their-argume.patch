@@ -1,0 +1,105 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Thu, 19 Nov 2026 01:59:12 -0500
+Subject: [PATCH] angle: function-like macros expand again; their argument
+ nesting is bounded
+
+UXP Issue #2978 (2026-03) put `replacements->size() == 0 ||` before
+collectMacroArgs in MacroExpander::expandMacro, to stop an infinite recursion.
+`replacements` is the function's output, cleared on entry and filled only by
+replaceMacroParams after that call, so the test was always true and no
+function-like macro was ever expanded: every WebGL shader that used one failed
+with "'(' : syntax error" at its invocation. Read on the device with
+render/goanna/test/jihad-webgl-macro.html (empty, with a body, with
+parameters: all failed; object-like macros compiled), and in EaglercraftX
+1.8.8's first shader, whose prelude defines its layout as function-like macros
+(cavekit-eaglercraft.md R2, T-666).
+
+The check is gone. The recursion that can run away is the arguments'
+pre-expansion, each a MacroExpander of its own nested in the last: it is
+bounded at 256 levels, and a deeper invocation is refused with a diagnostic,
+as later ANGLE refuses it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfKTnbF5UuSGLUYcN1P
+---
+ .../compiler/preprocessor/MacroExpander.cpp   | 26 +++++++++++++++----
+ .../src/compiler/preprocessor/MacroExpander.h |  6 ++++-
+ 2 files changed, 26 insertions(+), 6 deletions(-)
+
+diff --git a/gfx/angle/src/compiler/preprocessor/MacroExpander.cpp b/gfx/angle/src/compiler/preprocessor/MacroExpander.cpp
+index d084cc7300..2089adbabe 100755
+--- a/gfx/angle/src/compiler/preprocessor/MacroExpander.cpp
++++ b/gfx/angle/src/compiler/preprocessor/MacroExpander.cpp
+@@ -46,8 +46,9 @@ class TokenLexer : public Lexer
+     TokenVector::const_iterator mIter;
+ };
+ 
+-MacroExpander::MacroExpander(Lexer *lexer, MacroSet *macroSet, Diagnostics *diagnostics)
+-    : mLexer(lexer), mMacroSet(macroSet), mDiagnostics(diagnostics)
++MacroExpander::MacroExpander(Lexer *lexer, MacroSet *macroSet, Diagnostics *diagnostics,
++                             int allowedDepth)
++    : mLexer(lexer), mMacroSet(macroSet), mDiagnostics(diagnostics), mAllowedDepth(allowedDepth)
+ {
+ }
+ 
+@@ -220,8 +221,15 @@ bool MacroExpander::expandMacro(const Macro &macro,
+         assert(macro.type == Macro::kTypeFunc);
+         std::vector<MacroArg> args;
+         args.reserve(macro.parameters.size());
+-        if (replacements->size() == 0 ||
+-            !collectMacroArgs(macro, identifier, &args, &replacementLocation))
++        // Jihad: UXP Issue #2978 (2026-03) put `replacements->size() == 0 ||` before this call, to
++        // stop an infinite recursion. `replacements` is this function's output, cleared above and
++        // filled only by replaceMacroParams below, so the test was always true: no function-like
++        // macro was ever expanded, and every shader that uses one failed with "'(' : syntax
++        // error" at its invocation (EaglercraftX's first shader, cavekit-eaglercraft.md R2, T-666;
++        // render/goanna/test/jihad-webgl-macro.html). The recursion that can run away is the
++        // arguments' pre-expansion in collectMacroArgs, each a MacroExpander of its own: it is
++        // bounded there instead, as later ANGLE bounds it.
++        if (!collectMacroArgs(macro, identifier, &args, &replacementLocation))
+             return false;
+ 
+         replaceMacroParams(macro, args, replacements);
+@@ -321,8 +329,16 @@ bool MacroExpander::collectMacroArgs(const Macro &macro,
+     for (std::size_t i = 0; i < args->size(); ++i)
+     {
+         MacroArg &arg = args->at(i);
++        if (mAllowedDepth < 1)
++        {
++            // An invocation nested this deep in another's arguments: refused, not expanded, as
++            // later ANGLE refuses it (PP_MACRO_INVOCATION_CHAIN_TOO_DEEP there).
++            mDiagnostics->report(Diagnostics::PP_MACRO_UNTERMINATED_INVOCATION,
++                                 identifier.location, identifier.text);
++            return false;
++        }
+         TokenLexer lexer(&arg);
+-        MacroExpander expander(&lexer, mMacroSet, mDiagnostics);
++        MacroExpander expander(&lexer, mMacroSet, mDiagnostics, mAllowedDepth - 1);
+ 
+         arg.clear();
+         expander.lex(&token);
+diff --git a/gfx/angle/src/compiler/preprocessor/MacroExpander.h b/gfx/angle/src/compiler/preprocessor/MacroExpander.h
+index dbf980308b..ffba006b61 100755
+--- a/gfx/angle/src/compiler/preprocessor/MacroExpander.h
++++ b/gfx/angle/src/compiler/preprocessor/MacroExpander.h
+@@ -24,7 +24,10 @@ struct SourceLocation;
+ class MacroExpander : public Lexer
+ {
+   public:
+-    MacroExpander(Lexer *lexer, MacroSet *macroSet, Diagnostics *diagnostics);
++    // allowedDepth: how many more argument pre-expansions may nest below this one (see collectMacroArgs).
++    MacroExpander(Lexer *lexer, MacroSet *macroSet, Diagnostics *diagnostics,
++                  int allowedDepth = kMaxNestedArgExpansion);
++    static const int kMaxNestedArgExpansion = 256;
+     ~MacroExpander() override;
+ 
+     void lex(Token *token) override;
+@@ -81,6 +84,7 @@ class MacroExpander : public Lexer
+     Lexer *mLexer;
+     MacroSet *mMacroSet;
+     Diagnostics *mDiagnostics;
++    int mAllowedDepth;
+ 
+     std::unique_ptr<Token> mReserveToken;
+     std::vector<MacroContext *> mContextStack;

@@ -55,6 +55,9 @@
 #   known: T-NNN WORD [; T-NNN WORD]    failures each holding a WORD are those open defects': the verdict reads `known`
 #   dismiss X Y                         a tap that closes a menu (it reaches no page, so no clickAt is awaited)
 #   wait gone SEL | url PART | pref T NAME TEXT | differs REGION SAMPLE   more marks, each with an optional last BOUND
+#   wait rect-ok SEL BOUND              an element with a size, OK tapped on every card dialog that comes meanwhile (a slow
+#                                       script continued, as a person does: Eaglercraft's extraction asks once or twice)
+#   wait dialogs-ok SECS                SECS seconds of OK tapped on every card dialog that comes (a heavy page's start)
 #   wait quiet PATTERN SECS            the ABSENCE of a line for SECS since the last mark (what must not happen: a video
 #                                       starting by itself); the line coming is a FAILED check
 #   tool: TEXT / skip: TEXT / needs: x y  an item covered by another tool (the settings walk), not run with a reason, or
@@ -140,7 +143,7 @@ def lint(tests):
             if verb in ("sleep", "usleep"):
                 errs.append(f"{t['id']}:{n}: `{verb}` is not a verb of the form (wait on a mark)")
             elif verb == "wait":
-                if not a or a[0] not in ("load", "painted", "zoom", "settled", "rect", "gone", "line", "still", "changed", "content", "differs", "text", "url", "pref", "log", "quiet"):
+                if not a or a[0] not in ("load", "painted", "zoom", "settled", "rect", "rect-ok", "dialogs-ok", "gone", "line", "still", "changed", "content", "differs", "text", "url", "pref", "log", "quiet"):
                     errs.append(f"{t['id']}:{n}: wait needs a mark: load|painted|zoom|settled|rect SEL|gone SEL|line PATTERN|still REGION|changed REGION|differs REGION SAMPLE|text SEL TEXT|url PART|pref T NAME TEXT|quiet PATTERN SECS")
                 pending = None
             elif verb in GESTURES:
@@ -198,6 +201,10 @@ def compile_steps(t, shell=None):
                 out.append(f'fl_wait_settled {b or 5} && echo "WAIT ok {n}-settled: the card\'s scroll $(fl_card_scroll)" || fl_check FAIL "{n}-wait-settled" "the card\'s scroll did not settle"')
             elif mark == "rect":
                 out.append(f'fl_wait_rect {q[1]} {b or 5} && echo "WAIT ok {n}-rect {m[1]}" || fl_check FAIL "{n}-wait-rect" "no element {m[1]} with a size within the bound"')
+            elif mark == "dialogs-ok":
+                out.append(f'fl_dialogs_ok {b or 60} && echo "WAIT ok {n}-dialogs-ok" || fl_check FAIL "{n}-wait-dialogs-ok" "the dialogs could not be answered"')
+            elif mark == "rect-ok":
+                out.append(f'fl_wait_rect_ok {q[1]} {b or 60} && echo "WAIT ok {n}-rect-ok {m[1]}" || fl_check FAIL "{n}-wait-rect-ok" "no element {m[1]} with a size within the bound"')
             elif mark == "gone":
                 out.append(f'fl_wait_gone {q[1]} {b or 5} && echo "WAIT ok {n}-gone {m[1]}" || fl_check FAIL "{n}-wait-gone" "{m[1]} still there after the bound"')
             elif mark == "url":

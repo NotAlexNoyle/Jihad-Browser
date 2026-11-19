@@ -2,7 +2,8 @@
 # cache (tools/host/eaglercraft/eaglercraft-fetch.py; port 8099), within the bound written in the kit before the round:
 # 180 s from the start of the load to the title screen. What a person does on the way, read in the first rounds
 # (docs/rounds/t666-2026-11-18): the client extracts its assets in one script task of 60-120 s, past the engine's
-# 60 s guard (the owner keeps it, 2026-11-19), so the slow-script dialog asks once and Continue is tapped; with the
+# 60 s guard (the owner keeps it, 2026-11-19), so the slow-script dialog asks once or twice and Continue is tapped
+# each time (`wait rect-ok`, which says how many); with the
 # UA's Tablet token (the owner, 2026-11-19) the client takes the device for a tablet and shows its "Mobile Browser
 # Detected" panel, whose "Launch EaglercraftX" is tapped (in desktop mode it waited for a key a touch screen cannot
 # press). The title screen is read by eye from the kept picture until its reference picture exists (host cache only:
@@ -14,11 +15,7 @@ shells: enyo mochi mojo
 prefs: jihad.compat.trace=true
 page: http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html
 kit: cavekit-eaglercraft.md R2
-expect dialog present 170
-shoot slow-script
-chrome dialog-ok
-expect dialog answered 8
-wait rect 'sel:._eaglercraftX_mobile_launch_client' 120
+wait rect-ok 'sel:._eaglercraftX_mobile_launch_client' 420
 shoot launch
 probe launch-at '(function(){return "launch panel at "+Math.round(performance.now()/1000)+" s; ua tablet "+/tablet/i.test(navigator.userAgent);})()'
 tap 'sel:._eaglercraftX_mobile_launch_client'

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0.
+     GLSL ES preprocessor cases (cavekit-eaglercraft.md R2, T-666): EaglercraftX 1.8.8's first vertex shader failed with
+     "ERROR: 0:19: '(' : syntax error" at its line `EAGLER_VSH_LAYOUT_BEGIN()`, a function-like macro with no parameters
+     and an empty body, defined in the client's prelude: UXP's Issue #2978 had stopped every function-like macro from
+     expanding (engine patch 0122). Each row compiles one vertex shader and writes its compile status and info log. #done says the rows are written. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>jihad-webgl-macro</title>
+<style>body{font:15px monospace;margin:10px;background:#fff;color:#000} div{margin:2px 0;white-space:pre-wrap}</style></head>
+<body>
+<div id="out"></div>
+<div id="done">-</div>
+<script>
+function row(s) { var d = document.createElement("div"); d.textContent = s; document.getElementById("out").appendChild(d); }
+var c = document.createElement("canvas"); c.width = 16; c.height = 16;
+var gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+var BODY = "void main() {\n\tgl_Position = vec4(a_position2f, 0.0, 1.0);\n}\n";
+function attempt(name, src) {
+  var sh = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  var ok = gl.getShaderParameter(sh, gl.COMPILE_STATUS);
+  var log = (gl.getShaderInfoLog(sh) || "").replace(/\s+/g, " ").trim();
+  row(name + ": " + (ok ? "ok" : "FAIL [" + log + "]"));
+}
+if (!gl) { row("no WebGL"); } else {
+  attempt("a plain", "attribute vec2 a_position2f;\n" + BODY);
+  attempt("b object-like empty", "#define E\nE\nattribute vec2 a_position2f;\n" + BODY);
+  attempt("c function-like, no params, empty", "#define F()\nF()\nattribute vec2 a_position2f;\n" + BODY);
+  attempt("d function-like, no params, body", "#define F() attribute vec2 a_position2f;\nF()\n" + BODY);
+  attempt("e function-like, params", "#define IN(_l, _t, _n) attribute _t _n;\nIN(0, vec2, a_position2f)\n" + BODY);
+  attempt("f c in an #ifdef", "#define X\n#ifdef X\n#define F()\n#endif\nF()\nattribute vec2 a_position2f;\n" + BODY);
+  attempt("g c after #version", "#version 100\n#define F()\nF()\nattribute vec2 a_position2f;\n" + BODY);
+  attempt("h c after #line", "#define F()\n#line 2 6969\n#line 1 0\n#line 2\nF()\nattribute vec2 a_position2f;\n" + BODY);
+  attempt("i c with a space before ()", "#define F()\nF ()\nattribute vec2 a_position2f;\n" + BODY);
+  attempt("j eagler's", "#version 100\n#define EAGLER_HAS_GLES_200\n#define EAGLER_IS_GLES_200\n#define EAGLER_IS_VERTEX_SHADER\nprecision highp float;\n\n#line 2 6969\n#ifdef EAGLER_HAS_GLES_200\n#ifdef EAGLER_IS_VERTEX_SHADER\n#define EAGLER_VSH_LAYOUT_BEGIN()\n#define EAGLER_VSH_LAYOUT_END()\n#define EAGLER_IN(_loc, _type, _name) attribute _type _name;\n#define EAGLER_OUT(_type, _name) varying _type _name;\n#define EAGLER_VERT_POSITION gl_Position\n#endif\n#endif\n#line 1 0\n#line 2\nEAGLER_VSH_LAYOUT_BEGIN()\nEAGLER_IN(0, vec2, a_position2f)\nEAGLER_VSH_LAYOUT_END()\nEAGLER_OUT(vec2, v_position2f)\nvoid main() {\n\tv_position2f = a_position2f * 0.5 + 0.5;\n\tEAGLER_VERT_POSITION = vec4(a_position2f, 0.0, 1.0);\n}\n");
+  // k: an invocation nested 300 deep in another's arguments: refused (the engine bounds the nesting at 256), never a crash
+  var deep = ""; for (var i = 0; i < 300; i++) deep += "f("; deep += "1.0"; for (var i = 0; i < 300; i++) deep += ")";
+  attempt("k nested 300 deep", "#define f(x) x\nattribute vec2 a_position2f;\nvoid main() {\n\tgl_Position = vec4(a_position2f, 0.0, " + deep + ");\n}\n");
+  attempt("l nested 20 deep", "#define f(x) x\nattribute vec2 a_position2f;\nvoid main() {\n\tgl_Position = vec4(a_position2f, 0.0, f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(1.0)))))))))))))))))))));\n}\n");
+}
+document.getElementById("done").textContent = "rows " + document.getElementById("out").childNodes.length;
+</script>
+</body></html>

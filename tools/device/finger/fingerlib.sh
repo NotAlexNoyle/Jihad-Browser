@@ -744,6 +744,32 @@ fl_wait_rect() {
   return 1
 }
 fl_wait_load() { fl_wait 'load done uri=' ${1:-30}; }
+# SEL with a size, OK tapped on each card dialog that comes in the meantime: a slow script asked about and continued, as
+# a person does (EaglercraftX's asset extraction asked once in one run and twice in the next: round t666-2026-11-18).
+# A dialog first: the daemon's main thread waits on its answer, so the element is not asked for while one stands.
+# SECS seconds in which OK is tapped on each card dialog that comes (EaglercraftX's game start after its Launch asks
+# again: round t666-2026-11-18); the count is printed
+fl_dialogs_ok() { # SECS
+  local end n l
+  end=$(( $(date +%s) + ${1:-60} )); n=0
+  while [ $(date +%s) -lt $end ]; do
+    l=$(ls $FL_STATE/dialog-*.fifo 2>/dev/null | tail -1)
+    if [ -n "$l" ]; then fl_chrome_tap dialog-ok; n=$((n + 1)); fl_wait 'dialog .* -> ' 8 >/dev/null; usleep 500000; continue; fi
+    usleep 500000
+  done
+  echo "  $n dialog(s) answered OK in ${1:-60} s"; return 0
+}
+fl_wait_rect_ok() { # SEL BOUND
+  local end n l r
+  end=$(( $(date +%s) + ${2:-60} )); n=0
+  while [ $(date +%s) -lt $end ]; do
+    l=$(ls $FL_STATE/dialog-*.fifo 2>/dev/null | tail -1)
+    if [ -n "$l" ]; then fl_chrome_tap dialog-ok; n=$((n + 1)); fl_wait 'dialog .* -> ' 8 >/dev/null; usleep 500000; continue; fi
+    r=$(fl_rect "$1") && { set -- "$1" "$2" $r; [ "$5" -gt 0 ] && [ "$6" -gt 0 ] && { echo "  $n dialog(s) answered OK on the way"; return 0; }; }
+    usleep 400000
+  done
+  echo "  $n dialog(s) answered OK on the way"; return 1
+}
 fl_wait_painted() { fl_wait 'painted shmid=0x[0-9a-f]* bytes=[1-9]' ${1:-20}; }
 # a zoom since the mark, settled: the asked zoom unchanged over 600 ms and a frame painted at it
 fl_wait_zoom() {

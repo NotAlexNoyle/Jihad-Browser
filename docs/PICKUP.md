@@ -125,11 +125,18 @@ bar). Page console messages do not reach the daemon's log (the bridge is chrome-
 `onerror` at the load's start and is read later does (`zz-eagler-console`'s first probe). Eaglercraft's pictures carry
 Mojang's art: they stay in `~/.cache/jihad-eaglercraft/rounds/`.
 
+**Later the same day:** 0123 kept on the bench (`docs/rounds/cpucount-2026-11-19`: Wikipedia's load -25 %, its pan +24 %,
+memory within 2 %). On 0123 EaglercraftX reached its atlas at 15-20 min and, untraced, **hung the GPU twice** (kgsl
+postmortem, the ring never idle; every card and the system UI stuck; LunaSysMgr's restart not enough; **the device was
+rebooted twice**, battery 100 %). TeaVM's Java longs are BigInts, and UXP's BigInt is ~60x its numbers
+(`jihad-bigint-bench.html`). **The owner: "GPU hang now, speed later"**: T-672 (the hang) now, T-673 (BigInt) DEFERRED.
+
 **Next, in order:**
-1. Read the 0123 benchmark against the 0122 one (wiki load, RSS/PSS, jsbench, pans, start): keep 0123 on evidence.
-2. EaglercraftX 1.8.8 again on 0123 (the `zz-eagler-console` exploration: 20 min, a picture and the client's log every
-   5 min); then `eagler-load-188` to its title screen, its reference picture (host cache), the menus; 1.12.2, 1.5.2.
-3. The ck:inspector review when Fable is back (2026-11-21). 4. Flash's remaining R9/R10 and the real sites.
+1. T-672: the GL call that hangs the GPU. A WebGL trace (every call and the client's console, beaconed to a logger on the
+   host, :8098; the tracer and logger are scratch files, rewritten from the round's README if lost) runs 45 min; on a
+   hang, reboot (`reboot` from a dev-sh script; novacom is back in ~70 s), close the USB alert, start the three jobs.
+   Then a synthetic page that hangs it, and the engine's guard.
+2. The ck:inspector review when Fable is back (2026-11-21). 3. Flash's remaining R9/R10 and the real sites.
 
 ## 2026-11-18 (evening) — site data done; "Adobe Flash is off"; Eaglercraft's first load and "webgl"
 

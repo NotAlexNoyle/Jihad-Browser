@@ -133,7 +133,7 @@ rebooted twice**, battery 100 %). TeaVM's Java longs are BigInts, and UXP's BigI
 
 **Next, in order:**
 1. T-672: the GL call that hangs the GPU. A WebGL trace (every call and the client's console, beaconed to a logger on the
-   host, :8098; the tracer and logger are scratch files, rewritten from the round's README if lost) runs 45 min; on a
+   host, :8098; `tools/host/webgl-trace/`: `python3 -I beacon-log.py LOG` then the probe its gltrace.js names) runs 45 min; on a
    hang, reboot (`reboot` from a dev-sh script; novacom is back in ~70 s), close the USB alert, start the three jobs.
    Then a synthetic page that hangs it, and the engine's guard.
 2. The ck:inspector review when Fable is back (2026-11-21). 3. Flash's remaining R9/R10 and the real sites.

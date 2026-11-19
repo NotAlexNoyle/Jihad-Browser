@@ -1,24 +1,31 @@
 # EaglercraftX 1.8.8 loads (cavekit-eaglercraft.md R2, T-666): the offline JavaScript build, served from the host's
 # cache (tools/host/eaglercraft/eaglercraft-fetch.py; port 8099), within the bound written in the kit before the round:
-# 180 s from the start of the load to the title screen. The first round reads it by eye from the pictures kept at 30,
-# 60, 120 and 180 s and by what the page and the daemon's log say (its canvas, its own error screen, the engine's
-# console); the title screen's reference picture is taken from that round (kept in the host's cache, never in the
-# repository: it carries Mojang's art) and this script then checks it.
+# 180 s from the start of the load to the title screen. What a person does on the way, read in the first rounds
+# (docs/rounds/t666-2026-11-18): the client extracts its assets in one script task of 60-120 s, past the engine's
+# 60 s guard (the owner keeps it, 2026-11-19), so the slow-script dialog asks once and Continue is tapped; with the
+# UA's Tablet token (the owner, 2026-11-19) the client takes the device for a tablet and shows its "Mobile Browser
+# Detected" panel, whose "Launch EaglercraftX" is tapped (in desktop mode it waited for a key a touch screen cannot
+# press). The title screen is read by eye from the kept picture until its reference picture exists (host cache only:
+# it carries Mojang's art); the page's own clock (performance.now()) says when it came.
 id: eagler-load-188
 section: Eaglercraft
-item: EaglercraftX 1.8.8 (the offline build, from the host) reaches its title screen within 180 s
+item: EaglercraftX 1.8.8 (the offline build, from the host) reaches its title screen within 180 s: Continue on the slow-script dialog its extraction brings, Launch on its tablet panel
 shells: enyo mochi mojo
 prefs: jihad.compat.trace=true
 page: http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html
 kit: cavekit-eaglercraft.md R2
+expect dialog present 170
+shoot slow-script
+chrome dialog-ok
+expect dialog answered 8
+wait rect 'sel:._eaglercraftX_mobile_launch_client' 120
+shoot launch
+probe launch-at '(function(){return "launch panel at "+Math.round(performance.now()/1000)+" s; ua tablet "+/tablet/i.test(navigator.userAgent);})()'
+tap 'sel:._eaglercraftX_mobile_launch_client'
+wait gone 'sel:._eaglercraftX_mobile_launch_client' 10
 wait quiet 'jihad-never-logged' 30
-shoot t30
+shoot after-launch
 wait quiet 'jihad-never-logged' 30
-shoot t60
-probe state '(function(){var c=document.querySelectorAll("canvas"),s=[];for(var i=0;i<c.length;i++){s.push(c[i].width+"x"+c[i].height);}var t=(document.body&&document.body.innerText||"").replace(/\s+/g," ").slice(0,300);return "canvases "+c.length+" ["+s.join(",")+"] opts "+(typeof window.eaglercraftXOpts)+" text ["+t+"]";})()'
-wait quiet 'jihad-never-logged' 60
-shoot t120
-wait quiet 'jihad-never-logged' 60
-shoot t180
-probe state2 '(function(){var c=document.querySelectorAll("canvas"),s=[];for(var i=0;i<c.length;i++){s.push(c[i].width+"x"+c[i].height);}var t=(document.body&&document.body.innerText||"").replace(/\s+/g," ").slice(0,300);return "canvases "+c.length+" ["+s.join(",")+"] text ["+t+"]";})()'
+shoot after-launch-60
+probe title-at '(function(){var c=document.querySelectorAll("canvas"),s=[];for(var i=0;i<c.length;i++){s.push(c[i].width+"x"+c[i].height);}return "at "+Math.round(performance.now()/1000)+" s, canvases "+c.length+" ["+s.join(",")+"]";})()'
 show-log 'rror\|WebGL\|webgl\|memory guard\|OOM'

@@ -308,6 +308,18 @@ def device_ready(bound=300):
     m = re.search(r"came back after (\d+) s", out)
     return int(m.group(1)) if m else 0
 
+def script_bound(t):
+    # the device script's own limit: 25 s a step, or a step's own bound and 10 s more where it names one longer (a
+    # wait or an expect's last number, a probe's 30 s answer); an Eaglercraft load's waits of 170 and 120 s went past
+    # the flat 25 s a step (round t666-2026-11-18)
+    total = 90
+    for _n, verb, rest, _sh in t["steps"]:
+        a = split_args(rest)
+        own = 30 if verb == "probe" else (int(a[-1]) if verb in ("wait", "expect", "launch") and a and a[-1].isdigit() else 0)
+        if verb == "expect" and a and a[0] in ("flash-rate", "flash-rate-report"): own = 0   # their numbers are rates
+        total += max(25, own + 10)
+    return min(1800, total)
+
 def devsh(script_text, args, bound, tmp):
     p = os.path.join(tmp, "s.sh")
     open(p, "w").write(script_text)
@@ -399,7 +411,7 @@ def main():
                 rec["verdict"] = "fail"; rec["note"] = "the daemon did not start: " + out.strip().splitlines()[-1][:160]
             else:
                 body = "chmod +x /tmp/fbstream /tmp/finger /tmp/hwinput 2>/dev/null\n" + lib + f"fl_init {shell}\n" + compile_steps(t, shell) + "fl_summary\n"
-                bound = min(900, 90 + 25 * len(t["steps"]))
+                bound = script_bound(t)
                 rc, out = devsh(body, [shell], bound, tmp)
                 for l in out.splitlines():
                     if l.startswith("CHECK ") or l.startswith("WAIT ") or l.startswith("CALIBRATION FAIL") or l.startswith("calibrated"):

@@ -22,6 +22,13 @@
  *
  * Token rationale (per project UA requirements):
  *   webOS/3.0.5; hpwOS/3.0.5; TouchPad  — the real HP webOS 3 platform tokens
+ *   Tablet                              — Firefox's own token for a tablet (Firefox for Android writes
+ *                                         "(Android …; Tablet; rv:…)"; the stock webOS browser says
+ *                                         "hp-tablet"). The owner, 2026-11-19, "Tablet in the UA everywhere":
+ *                                         a page that tells a touch tablet from a desktop by "tablet" or
+ *                                         "mobi" took this browser for a desktop, and EaglercraftX 1.8.8
+ *                                         then waited for a key a touch screen cannot press, instead of
+ *                                         its touch controls (cavekit-eaglercraft.md R3, T-666).
  *   Gecko/52.9                          — the Gecko the platform was forked from (Mozilla ESR 52.9, the
  *                                         same version the Firefox/ token names). The owner, 2026-11-16:
  *                                         "add the gecko version from when pale moon last forked gecko".
@@ -72,7 +79,7 @@
 #define JIHAD_APP_BUILD_ID "20261103000000"   // the engine moved to UXP RB_20261027
 
 #define JIHAD_USER_AGENT \
-  "Mozilla/5.0 (Linux armv7l; webOS/3.0.5; hpwOS/3.0.5; TouchPad) " \
+  "Mozilla/5.0 (Linux armv7l; webOS/3.0.5; hpwOS/3.0.5; TouchPad; Tablet) " \
   "Gecko/52.9 Goanna/6.9 UXP/6b18be9 Firefox/52.9 ECMAScript/2024 " \
   JIHAD_APP_NAME "/" JIHAD_APP_VERSION
 

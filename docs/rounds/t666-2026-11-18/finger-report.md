@@ -1,17 +1,22 @@
-# Finger suite report — 2026-11-18T20:28:34
+# Finger suite report — 2026-11-19T00:59:08
 
-Shells: enyo, mochi, mojo. Scripts: 1. 180 s.
+First run 2026-11-18T20:28:34; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
+
+Shells: enyo, mochi, mojo. Scripts: 1. 2166 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
 | enyo | eagler-webgl-attrs | **pass** | 3 ok, 0 failed | CHECK ok 15-probe-has: the probe's answer holds [b1 fresh: webgl -> context]; frames: kept/enyo-eagler-webgl-attrs-rows_.jpg | cavekit-eaglercraft.md R2 |
 | mochi | eagler-webgl-attrs | **pass** | 3 ok, 0 failed | CHECK ok 15-probe-has: the probe's answer holds [b1 fresh: webgl -> context]; frames: kept/mochi-eagler-webgl-attrs-rows_.jpg | cavekit-eaglercraft.md R2 |
 | mojo | eagler-webgl-attrs | **pass** | 3 ok, 0 failed | CHECK ok 15-probe-has: the probe's answer holds [b1 fresh: webgl -> context]; frames: kept/mojo-eagler-webgl-attrs-rows_.jpg | cavekit-eaglercraft.md R2 |
+| enyo | eagler-load-188 (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 28-quiet: no line jihad-never-logged for 30 s; frames: kept/enyo-eagler-load-188-slow-script_.jpg, kept/enyo-eagler-load-188-launch_.jpg, kept/enyo-eagler-load-188-after-launch_.jpg, kept/enyo-eagler-load-188-after-launch-60_.jpg | cavekit-eaglercraft.md R2 |
+| mochi | eagler-load-188 (rerun) | **fail** | 4 ok, 1 failed | CHECK FAIL 18-probe: no answer to the probe state within 30 s; frames: kept/mochi-eagler-load-188-t30_.jpg, kept/mochi-eagler-load-188-t60_.jpg, kept/mochi-eagler-load-188-18-probe_.jpg, kept/mochi-eagler-load-188-t120_.jpg, kept/mochi-eagler-load-188-t180_.jpg | cavekit-eaglercraft.md R2 |
+| mojo | eagler-load-188 (rerun) | **fail** | 4 ok, 1 failed | CHECK FAIL 18-probe: no answer to the probe state within 30 s; frames: kept/mojo-eagler-load-188-t30_.jpg, kept/mojo-eagler-load-188-t60_.jpg, kept/mojo-eagler-load-188-18-probe_.jpg, kept/mojo-eagler-load-188-t120_.jpg, kept/mojo-eagler-load-188-t180_.jpg | cavekit-eaglercraft.md R2 |
 
 ## The device at the end
 
 ```
-DEVICE ok job-enyo: (79978/492169251) jihad (start) running, process 11400
+DEVICE ok job-enyo: (96360/658611410) jihad (start) running, process 13017
 DEVICE ok daemons-enyo: one daemon
 DEVICE ok hand-daemon-enyo: none
 DEVICE ok hooks-enyo: none
@@ -21,7 +26,7 @@ DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
 DEVICE ok cards-enyo: none
 DEVICE ok audio-lib-enyo: the device's own
 DEVICE ok look-enyo: {"returnValue":true,"theme":null}
-DEVICE ok job-mochi: (79984/612646879) jihad-mochi (start) running, process 14401
+DEVICE ok job-mochi: (96364/868251409) jihad-mochi (start) running, process 14681
 DEVICE ok daemons-mochi: one daemon
 DEVICE ok hand-daemon-mochi: none
 DEVICE ok hooks-mochi: none
@@ -31,7 +36,7 @@ DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
 DEVICE ok cards-mochi: none
 DEVICE ok audio-lib-mochi: the device's own
 DEVICE ok look-mochi: {"returnValue":true,"theme":null}
-DEVICE ok job-mojo: (79990/998783469) jihad-mojo (start) running, process 17447
+DEVICE ok job-mojo: (96369/789003704) jihad-mojo (start) running, process 15660
 DEVICE ok daemons-mojo: one daemon
 DEVICE ok hand-daemon-mojo: none
 DEVICE ok hooks-mojo: none
@@ -77,4 +82,32 @@ DEVICE ok overall: 47% of /tmp used
     WAIT ok 12-text done = [rows 15]
     CHECK ok 14-probe-has: the probe's answer holds [a2 same canvas: webgl -> context]
     CHECK ok 15-probe-has: the probe's answer holds [b1 fresh: webgl -> context]
+
+### enyo / eagler-load-188 — pass
+
+    enyo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +47 s, 37 content frames at +47 s; the GPU path, frames off the main thread (the expr
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 20-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 21-rect sel:._eaglercraftX_mobile_launch_client
+    WAIT ok 25-gone sel:._eaglercraftX_mobile_launch_client
+    CHECK ok 26-quiet: no line jihad-never-logged for 30 s
+    CHECK ok 28-quiet: no line jihad-never-logged for 30 s
+
+### mochi / eagler-load-188 — fail
+
+    mochi card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +33 s, 72 content frames at +33 s; the GPU path, frames off the main thread (the exp
+    CHECK ok 14-quiet: no line jihad-never-logged for 30 s
+    CHECK ok 16-quiet: no line jihad-never-logged for 30 s
+    CHECK FAIL 18-probe: no answer to the probe state within 30 s
+    CHECK ok 19-quiet: no line jihad-never-logged for 60 s
+    CHECK ok 21-quiet: no line jihad-never-logged for 60 s
+
+### mojo / eagler-load-188 — fail
+
+    mojo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +32 s, 49 content frames at +32 s; the GPU path, frames off the main thread (the expr
+    CHECK ok 14-quiet: no line jihad-never-logged for 30 s
+    CHECK ok 16-quiet: no line jihad-never-logged for 30 s
+    CHECK FAIL 18-probe: no answer to the probe state within 30 s
+    CHECK ok 19-quiet: no line jihad-never-logged for 60 s
+    CHECK ok 21-quiet: no line jihad-never-logged for 60 s
 

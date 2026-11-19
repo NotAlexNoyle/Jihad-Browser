@@ -1,14 +1,15 @@
-CHECK ok 14-quiet: no line jihad-never-logged for 30 s
-  frame kept: /media/internal/jihad-finger/t30_.last.raw
-CHECK ok 16-quiet: no line jihad-never-logged for 30 s
-  frame kept: /media/internal/jihad-finger/t60_.last.raw
-  probe state: canvases 0 [] opts object text []
-CHECK ok 19-quiet: no line jihad-never-logged for 60 s
-  frame kept: /media/internal/jihad-finger/t120_.last.raw
-CHECK ok 21-quiet: no line jihad-never-logged for 60 s
-  frame kept: /media/internal/jihad-finger/t180_.last.raw
-  probe state2: canvases 1 [768x942] text []
-CHECK FAIL 23-probe: no answer to the probe state2 within 30 s
-  frame kept: /media/internal/jihad-finger/23-probe_.last.raw
-CHECKS 5 FAILS 1
-novacom: unexpected EOF from server
+CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+  frame kept: /media/internal/jihad-finger/slow-script_.last.raw
+  chrome dialog-ok tapped at 384 594
+CHECK ok 20-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 21-rect sel:._eaglercraftX_mobile_launch_client
+  frame kept: /media/internal/jihad-finger/launch_.last.raw
+  probe launch-at: launch panel at 182 s; ua tablet true
+  tap at 384,381 -> clickAt 385 299
+WAIT ok 25-gone sel:._eaglercraftX_mobile_launch_client
+CHECK ok 26-quiet: no line jihad-never-logged for 30 s
+  frame kept: /media/internal/jihad-finger/after-launch_.last.raw
+CHECK ok 28-quiet: no line jihad-never-logged for 30 s
+  frame kept: /media/internal/jihad-finger/after-launch-60_.last.raw
+  probe title-at: at 260 s, canvases 1 [768x942]
+CHECKS 4 FAILS 0

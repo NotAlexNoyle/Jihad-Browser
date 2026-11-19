@@ -1,5 +1,5 @@
 {
- "date": "2026-11-18T20:28:34",
+ "date": "2026-11-19T00:59:08",
  "shells": [
   "enyo",
   "mochi",
@@ -65,8 +65,90 @@
    "note": "",
    "start": "mojo card on http://192.168.1.245:8077/jihad-webgl-attrs.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
    "restore": "mojo: (79978/331505695) jihad-mojo (start) running, process 17447; daemons running: 1"
+  },
+  {
+   "shell": "enyo",
+   "id": "eagler-load-188",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "EaglercraftX 1.8.8 (the offline build, from the host) reaches its title screen within 180 s: Continue on the slow-script dialog its extraction brings, Launch on its tablet panel",
+   "section": "Eaglercraft",
+   "verdict": "pass",
+   "checks": [
+    "CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo",
+    "CHECK ok 20-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)",
+    "WAIT ok 21-rect sel:._eaglercraftX_mobile_launch_client",
+    "WAIT ok 25-gone sel:._eaglercraftX_mobile_launch_client",
+    "CHECK ok 26-quiet: no line jihad-never-logged for 30 s",
+    "CHECK ok 28-quiet: no line jihad-never-logged for 30 s"
+   ],
+   "kept": [
+    "kept/enyo-eagler-load-188-slow-script_.jpg",
+    "kept/enyo-eagler-load-188-launch_.jpg",
+    "kept/enyo-eagler-load-188-after-launch_.jpg",
+    "kept/enyo-eagler-load-188-after-launch-60_.jpg"
+   ],
+   "seconds": 309,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +47 s, 37 content frames at +47 s; the GPU path, frames off the main thread (the expr",
+   "restore": "enyo: (96360/576537633) jihad (start) running, process 13017; daemons running: 1",
+   "rerun": "2026-11-19T00:59:08"
+  },
+  {
+   "shell": "mochi",
+   "id": "eagler-load-188",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "EaglercraftX 1.8.8 (the offline build, from the host) reaches its title screen within 180 s",
+   "section": "Eaglercraft",
+   "verdict": "fail",
+   "checks": [
+    "CHECK ok 14-quiet: no line jihad-never-logged for 30 s",
+    "CHECK ok 16-quiet: no line jihad-never-logged for 30 s",
+    "CHECK FAIL 18-probe: no answer to the probe state within 30 s",
+    "CHECK ok 19-quiet: no line jihad-never-logged for 60 s",
+    "CHECK ok 21-quiet: no line jihad-never-logged for 60 s"
+   ],
+   "kept": [
+    "kept/mochi-eagler-load-188-t30_.jpg",
+    "kept/mochi-eagler-load-188-t60_.jpg",
+    "kept/mochi-eagler-load-188-18-probe_.jpg",
+    "kept/mochi-eagler-load-188-t120_.jpg",
+    "kept/mochi-eagler-load-188-t180_.jpg"
+   ],
+   "seconds": 338,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +33 s, 72 content frames at +33 s; the GPU path, frames off the main thread (the exp",
+   "restore": "mochi: (80759/75980211) jihad-mochi (start) running, process 5583; daemons running: 1",
+   "rerun": "2026-11-18T20:32:58"
+  },
+  {
+   "shell": "mojo",
+   "id": "eagler-load-188",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "EaglercraftX 1.8.8 (the offline build, from the host) reaches its title screen within 180 s",
+   "section": "Eaglercraft",
+   "verdict": "fail",
+   "checks": [
+    "CHECK ok 14-quiet: no line jihad-never-logged for 30 s",
+    "CHECK ok 16-quiet: no line jihad-never-logged for 30 s",
+    "CHECK FAIL 18-probe: no answer to the probe state within 30 s",
+    "CHECK ok 19-quiet: no line jihad-never-logged for 60 s",
+    "CHECK ok 21-quiet: no line jihad-never-logged for 60 s"
+   ],
+   "kept": [
+    "kept/mojo-eagler-load-188-t30_.jpg",
+    "kept/mojo-eagler-load-188-t60_.jpg",
+    "kept/mojo-eagler-load-188-18-probe_.jpg",
+    "kept/mojo-eagler-load-188-t120_.jpg",
+    "kept/mojo-eagler-load-188-t180_.jpg"
+   ],
+   "seconds": 338,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +32 s, 49 content frames at +32 s; the GPU path, frames off the main thread (the expr",
+   "restore": "mojo: (81097/10257034) jihad-mojo (start) running, process 14637; daemons running: 1",
+   "rerun": "2026-11-18T20:32:58"
   }
  ],
- "end_check": "DEVICE ok job-enyo: (79978/492169251) jihad (start) running, process 11400\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (79984/612646879) jihad-mochi (start) running, process 14401\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (79990/998783469) jihad-mojo (start) running, process 17447\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok volume-subscribers: none without its daemon\nDEVICE ok media-scratch: none\nDEVICE ok overall: 47% of /tmp used",
- "seconds": 180
+ "end_check": "DEVICE ok job-enyo: (96360/658611410) jihad (start) running, process 13017\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (96364/868251409) jihad-mochi (start) running, process 14681\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (96369/789003704) jihad-mojo (start) running, process 15660\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok volume-subscribers: none without its daemon\nDEVICE ok media-scratch: none\nDEVICE ok overall: 47% of /tmp used",
+ "seconds": 2166,
+ "first_date": "2026-11-18T20:28:34"
 }

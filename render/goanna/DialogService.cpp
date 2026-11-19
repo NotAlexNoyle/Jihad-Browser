@@ -21,10 +21,13 @@
 #include "nsXPCOM.h"              // NS_GetComponentRegistrar
 #include "mozilla/RefCountType.h" // MozExternalRefCountType
 #include <cstring>                // strcmp (observer topic)
-#include <dlfcn.h>                // dlsym (SSL_ClearSessionCache, the TLS sessions observer)
+#include <dlfcn.h>                // dlsym (SSL_ClearSessionCache, the TLS sessions observer; DumpJSStack)
+#include <cstdio>                 // fprintf (the slow-script stack, trace mode)
 #include "nsIObserver.h"          // XPI web-install confirm round-trip (R3)
 #include "nsIObserverService.h"
 #include "nsIPropertyBag2.h"
+#include "nsIPrefBranch.h"        // jihad.compat.trace: the JS stack at a slow-script prompt
+#include "nsServiceManagerUtils.h"
 #include "nsIWritablePropertyBag2.h"
 #include "nsServiceManagerUtils.h" // do_GetService
 
@@ -132,6 +135,21 @@ JihadPrompter::ConfirmCheck(const char16_t*, const char16_t* text,
   if (_retval) *_retval = r.accept;
   return NS_OK;
 }
+// In trace mode, the JS stack that is running when a prompt with named buttons is asked: the slow-script dialog is
+// asked from inside the script it is about (the engine's interrupt), so its stack says what has run past the limit
+// (a heavy page's start that asked eight times in five minutes: EaglercraftX 1.8.8, round t666-2026-11-18). libxul's
+// exported DumpJSStack writes it to stderr, the daemon's log; looked up once, by name, so no engine header is needed.
+static void JihadDumpJSStackIfTracing() {
+  bool trace = false;
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService("@mozilla.org/preferences-service;1");
+  if (!pb || NS_FAILED(pb->GetBoolPref("jihad.compat.trace", &trace)) || !trace) return;
+  static void (*dump)() = reinterpret_cast<void (*)()>(dlsym(RTLD_DEFAULT, "DumpJSStack"));
+  if (!dump) { fprintf(stderr, "[jihad-bs] slow script: no DumpJSStack in libxul\n"); return; }
+  fprintf(stderr, "[jihad-bs] slow script: the JS stack follows\n");
+  dump();
+  fprintf(stderr, "[jihad-bs] slow script: end of the JS stack\n");
+}
+
 NS_IMETHODIMP
 JihadPrompter::ConfirmEx(const char16_t*, const char16_t* text, uint32_t,
                          const char16_t* button0Title, const char16_t* button1Title, const char16_t*,
@@ -143,6 +161,7 @@ JihadPrompter::ConfirmEx(const char16_t*, const char16_t* text, uint32_t,
   // card button is which.
   nsString t(text ? text : u"");
   if (button0Title && *button0Title && button1Title && *button1Title) {
+    JihadDumpJSStackIfTracing();
     // The card shows the text with its whitespace collapsed: one sentence, not lines.
     t.AppendLiteral(" (OK = "); t.Append(button0Title);
     t.AppendLiteral(", Cancel = "); t.Append(button1Title); t.AppendLiteral(")");

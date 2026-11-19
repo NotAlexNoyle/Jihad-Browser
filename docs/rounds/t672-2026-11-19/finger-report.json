@@ -1,5 +1,5 @@
 {
- "date": "2026-11-19T09:20:28",
+ "date": "2026-11-19T11:38:19",
  "shells": [
   "enyo",
   "mochi",
@@ -14,20 +14,96 @@
    "section": "The engine",
    "verdict": "pass",
    "checks": [
-    "WAIT ok 14-line: [jihad-bs] memory guard (thread): this daemon 470716 kB, its players 0 kB (budget 470184), 28212 kB free (floor 65536): stopping the running content script, the page to be stopped",
-    "WAIT ok 15-line: [jihad-bs] memory guard: the running content script stopped",
-    "WAIT ok 16-line: [jihad-bs] memory shed: a page stopped",
-    "WAIT ok 17-url: about:stopped?url=http%3A%2F%2F192.168.1.245%3A8077%2Fjihad-memhog.html%3Fmb%3D750%26rate%3D12%26task%3D1",
-    "CHECK ok 18-gpu-calm: no new GPU fault in the kernel's log (0 lines, 0 at the start)",
-    "WAIT ok 19-launch: load done"
+    "WAIT ok 15-launch: load done",
+    "WAIT ok 16-line: [jihad-bs] memory guard (thread): this daemon 474208 kB, its players 0 kB (budget 470184), 22628 kB free (floor 65536): stopping the running content script, the page to be stopped",
+    "WAIT ok 17-line: [jihad-bs] memory guard: the running content script stopped",
+    "WAIT ok 18-line: [jihad-bs] memory shed: a page stopped",
+    "WAIT ok 19-url: about:stopped?url=http%3A%2F%2F192.168.1.245%3A8077%2Fjihad-memhog.html%3Fmb%3D750%26rate%3D12%26task%3D1",
+    "WAIT ok 20-rect sel:#link",
+    "CHECK ok 21-text-has: sel:#where = [http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1] holds [jihad-memhog.html]",
+    "CHECK ok 22-gpu-calm: no new GPU fault in the kernel's log (0 lines, 0 at the start)",
+    "WAIT ok 23-launch: load done"
    ],
    "kept": [],
-   "seconds": 121,
+   "seconds": 91,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express la",
-   "restore": "enyo: (01631/875543243) jihad (start) running, process 12720; daemons running: 1"
+   "start": "enyo card on http://192.168.1.245:8077/jihad-colors.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "enyo: (09872/438358091) jihad (start) running, process 14688; daemons running: 1",
+   "rerun": "2026-11-19T11:38:19"
+  },
+  {
+   "shell": "enyo",
+   "id": "eagler-guard-188",
+   "kit": "cavekit-eaglercraft.md R6",
+   "item": "EaglercraftX 1.8.8's start, Continue and Launch tapped as they come, is stopped by the memory guard before it can hang the GPU: about:stopped, no GPU fault, the card usable after",
+   "section": "Eaglercraft",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 16-rect-ok sel:._eaglercraftX_mobile_launch_client, #link",
+    "WAIT ok 18-dialogs-ok",
+    "WAIT ok 19-url: about:stopped?url=http%3A%2F%2F192.168.1.245%3A8099%2Feaglerx-1.8.8%2Funpacked%2Feaglercraft1-8.html",
+    "CHECK ok 20-gpu-calm: no new GPU fault in the kernel's log (0 lines, 0 at the start)",
+    "WAIT ok 21-launch: load done"
+   ],
+   "kept": [],
+   "seconds": 1632,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +29 s, 41 content frames at +29 s; the GPU path, frames off the main thread (the expr",
+   "restore": "enyo: (08926/878107756) jihad (start) running, process 11004; daemons running: 1",
+   "rerun": "2026-11-19T10:56:53"
+  },
+  {
+   "shell": "mochi",
+   "id": "memory-guard-task",
+   "kit": "cavekit-device-headroom.md R1",
+   "item": "A page that takes memory in one long task is stopped by the memory guard before the device runs out: its script ended, the page stopped, no GPU fault, the card usable after",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 15-launch: load done",
+    "WAIT ok 16-line: [jihad-bs] memory guard (thread): this daemon 475304 kB, its players 0 kB (budget 470184), 21868 kB free (floor 65536): stopping the running content script, the page to be stopped",
+    "WAIT ok 17-line: [jihad-bs] memory guard: the running content script stopped",
+    "WAIT ok 18-line: [jihad-bs] memory shed: a page stopped",
+    "WAIT ok 19-url: about:stopped?url=http%3A%2F%2F192.168.1.245%3A8077%2Fjihad-memhog.html%3Fmb%3D750%26rate%3D12%26task%3D1",
+    "WAIT ok 20-rect sel:#link",
+    "CHECK ok 21-text-has: sel:#where = [http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1] holds [jihad-memhog.html]",
+    "CHECK ok 22-gpu-calm: no new GPU fault in the kernel's log (0 lines, 0 at the start)",
+    "WAIT ok 23-launch: load done"
+   ],
+   "kept": [],
+   "seconds": 87,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-colors.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_",
+   "restore": "mochi: (09959/577159111) jihad-mochi (start) running, process 18673; daemons running: 1",
+   "rerun": "2026-11-19T11:38:19"
+  },
+  {
+   "shell": "mojo",
+   "id": "memory-guard-task",
+   "kit": "cavekit-device-headroom.md R1",
+   "item": "A page that takes memory in one long task is stopped by the memory guard before the device runs out: its script ended, the page stopped, no GPU fault, the card usable after",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 15-launch: load done",
+    "WAIT ok 16-line: [jihad-bs] memory guard (thread): this daemon 489160 kB, its players 0 kB (budget 470184), 29196 kB free (floor 65536): stopping the running content script, the page to be stopped",
+    "WAIT ok 17-line: [jihad-bs] memory guard: the running content script stopped",
+    "WAIT ok 18-line: [jihad-bs] memory shed: a page stopped",
+    "WAIT ok 19-url: about:stopped?url=http%3A%2F%2F192.168.1.245%3A8077%2Fjihad-memhog.html%3Fmb%3D750%26rate%3D12%26task%3D1",
+    "WAIT ok 20-rect sel:#link",
+    "CHECK ok 21-text-has: sel:#where = [http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1] holds [jihad-memhog.html]",
+    "CHECK ok 22-gpu-calm: no new GPU fault in the kernel's log (0 lines, 0 at the start)",
+    "WAIT ok 23-launch: load done"
+   ],
+   "kept": [],
+   "seconds": 86,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-colors.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G",
+   "restore": "mojo: (10045/595740428) jihad-mojo (start) running, process 22801; daemons running: 1",
+   "rerun": "2026-11-19T11:38:19"
   }
  ],
- "end_check": "DEVICE ok job-enyo: (01631/978367094) jihad (start) running, process 12720\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (01642/510686501) jihad-mochi (start) running, process 6303\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (01651/61149313) jihad-mojo (start) running, process 7192\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok volume-subscribers: none without its daemon\nDEVICE ok media-scratch: none\nDEVICE ok overall: 1% of /tmp used",
- "seconds": 153
+ "end_check": "DEVICE ok job-enyo: (10045/707790058) jihad (start) running, process 14688\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (10059/626039241) jihad-mochi (start) running, process 18673\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (10063/773032573) jihad-mojo (start) running, process 22801\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok volume-subscribers: none without its daemon\nDEVICE ok media-scratch: none\nDEVICE ok overall: 2% of /tmp used",
+ "seconds": 5809,
+ "first_date": "2026-11-19T09:20:28"
 }

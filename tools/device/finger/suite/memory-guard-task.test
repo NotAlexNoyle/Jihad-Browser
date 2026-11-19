@@ -3,15 +3,17 @@
 # free memory at 30-40 MB and the GPU hung until a reboot. The guard's thread (every 2 s, whatever the main thread does)
 # sees this daemon past half the RAM with MemFree under 64 MB, stops the running script (engine patch 0124), and the
 # pump's guard then stops the page (about:stopped, with the page's address and its "Try it again" link). The device stays itself: no GPU fault in the kernel's log, and the
-# card loads a page again.
+# card loads a page again. The card starts on a plain page and opens the hog after the log's mark: started on the hog, its
+# one task held the card's first frames until the guard had already acted (Mochi, 2026-11-19).
 id: memory-guard-task
 section: The engine
 item: A page that takes memory in one long task is stopped by the memory guard before the device runs out: its script ended, the page stopped, no GPU fault, the card usable after
 shells: enyo mochi mojo
-page: http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1
+page: http://192.168.1.245:8077/jihad-colors.html
 kit: cavekit-device-headroom.md R1
 mark
-wait line 'memory guard .thread.: this daemon' 120
+launch http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1 60
+wait line 'memory guard .thread.: this daemon' 300
 wait line 'the running content script stopped' 10
 wait line 'memory shed: a page stopped' 30
 wait url about:stopped 20

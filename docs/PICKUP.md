@@ -131,7 +131,20 @@ postmortem, the ring never idle; every card and the system UI stuck; LunaSysMgr'
 rebooted twice**, battery 100 %). TeaVM's Java longs are BigInts, and UXP's BigInt is ~60x its numbers
 (`jihad-bigint-bench.html`). **The owner: "GPU hang now, speed later"**: T-672 (the hang) now, T-673 (BigInt) DEFERRED.
 
-**Next, in order:**
+**T-672 DONE (later still):** not one GL call: memory. The daemon at 621 MB with MemFree 30-40 MB hung the GPU's driver
+(a third hang, a third reboot). Engine patch **0124** (`jihad_js_stop_scripts`) and a thread of the memory guard's own
+(past half the RAM with MemFree under 64 MB: the running script stopped, the page shed to about:stopped);
+`memory-guard-task` passes in the three shells, `eagler-guard-188` on Enyo; `expect gpu-calm` is the check. about:stopped
+now shows the address and "Try it again" (it read `location.search`). `docs/rounds/t672-2026-11-19/README.md`.
+**The device runs engine 0124** (queue 0001-0124, branch head `36f4d3558e`) and the daemon of `b77e271a`'s successor.
+
+**Next, in order (replacing the list below):**
+1. The ck:inspector review when Fable is back (2026-11-21): the site-data and freeze work, and now the guard's thread.
+2. Flash's remaining R9/R10 (the 10-minute player, "games heard again", twenty cycles, crashes, two cards) and the real
+   sites; the Tablet UA's effect on sites (the scoreboard's sites, a round).
+3. Eaglercraft waits for T-673 (deferred): R2-R6 stay open with the readings in `docs/rounds/t666-2026-11-18`.
+
+**The list as it stood before T-672 closed:**
 1. T-672: the GL call that hangs the GPU. A WebGL trace (every call and the client's console, beaconed to a logger on the
    host, :8098; `tools/host/webgl-trace/`: `python3 -I beacon-log.py LOG` then the probe its gltrace.js names) runs 45 min; on a
    hang, reboot (`reboot` from a dev-sh script; novacom is back in ~70 s), close the USB alert, start the three jobs.

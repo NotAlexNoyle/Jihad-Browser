@@ -84,6 +84,9 @@ The hand-run record this list was until 2026-11-05 is `docs/FINGER-TESTS-2026-10
 
 - [x] Everyday browsing on the engine: a real site loads and scrolls, a search box takes the keyboard, back comes back — nothing slower or odder than before (cavekit-engine-update.md R8) — `everyday-browsing` on enyo pass, mochi pass, mojo pass (2026-11-16); needs internet
 - [x] Flash with sound (jihad-audio-long), and a video with sound, on the engine (a signal at the output sink for each; silence between them) (cavekit-engine-update.md R8) — `flash-sound` on enyo pass, mochi pass, mojo pass (2026-11-18)
+- [ ] A page that takes memory in one long task is stopped by the memory guard before the device runs out: its script ended, the page stopped, no GPU fault, the card usable after (cavekit-device-headroom.md R1) — `memory-guard-task` on enyo (not in the last report), mochi (not in the last report), mojo (not in the last report)
+- [ ] DOM objects (an element, WebGL objects, an AudioParam, a GainNode, a DOMRect) are taken as WeakMap and WeakSet keys (cavekit-eaglercraft.md R2) — `weakmap-dom-keys` on enyo (not in the last report), mochi (not in the last report), mojo (not in the last report)
+- [ ] WebGL shaders with function-like macros compile (empty, with a body, with parameters, EaglercraftX's prelude); a 300-deep nesting is refused without a crash (cavekit-eaglercraft.md R2) — `webgl-macro` on enyo (not in the last report), mochi (not in the last report), mojo (not in the last report)
 
 ## Proxies and certificates
 
@@ -132,9 +135,10 @@ The hand-run record this list was until 2026-11-05 is `docs/FINGER-TESTS-2026-10
 
 ## Eaglercraft
 
+- [ ] EaglercraftX 1.8.8's start, Continue and Launch tapped as they come, is stopped by the memory guard before it can hang the GPU: about:stopped, no GPU fault, the card usable after (cavekit-eaglercraft.md R6) — `eagler-guard-188` on enyo (not in the last report)
 - [ ] EaglercraftX 1.12.2 (the offline build, from the host) reaches its title screen within 180 s (cavekit-eaglercraft.md R2) — `eagler-load-1122` on enyo (not in the last report), mochi (not in the last report), mojo (not in the last report)
 - [ ] Eaglercraft 1.5.2 (the offline build, from the host): its title screen within 180 s, or its own WebGL 2 screen recorded as the limit (cavekit-eaglercraft.md R2) — `eagler-load-152` on enyo (not in the last report), mochi (not in the last report), mojo (not in the last report)
-- [ ] EaglercraftX 1.8.8 (the offline build, from the host) reaches its title screen within 180 s (cavekit-eaglercraft.md R2) — `eagler-load-188` on enyo (not in the last report), mochi (not in the last report), mojo (not in the last report)
+- [ ] EaglercraftX 1.8.8 (the offline build, from the host) reaches its title screen within 180 s: Continue on the slow-script dialog its extraction brings, Launch on its tablet panel (cavekit-eaglercraft.md R2) — `eagler-load-188` on enyo (not in the last report), mochi (not in the last report), mojo (not in the last report)
 - [ ] WebGL with EaglercraftX's context attributes: "webgl" gives a context in the client's own order (webgl2, webgl, experimental-webgl), each attempt's reason recorded (cavekit-eaglercraft.md R2) — `eagler-webgl-attrs` on enyo (not in the last report), mochi (not in the last report), mojo (not in the last report)
 
 ## Flash

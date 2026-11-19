@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-19T00:59:08
+# Finger suite report — 2026-11-19T01:21:03
 
 First run 2026-11-18T20:28:34; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 1. 2166 s.
+Shells: enyo, mochi, mojo. Scripts: 1. 2702 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -12,11 +12,14 @@ Shells: enyo, mochi, mojo. Scripts: 1. 2166 s.
 | enyo | eagler-load-188 (rerun) | **pass** | 6 ok, 0 failed | CHECK ok 28-quiet: no line jihad-never-logged for 30 s; frames: kept/enyo-eagler-load-188-slow-script_.jpg, kept/enyo-eagler-load-188-launch_.jpg, kept/enyo-eagler-load-188-after-launch_.jpg, kept/enyo-eagler-load-188-after-launch-60_.jpg | cavekit-eaglercraft.md R2 |
 | mochi | eagler-load-188 (rerun) | **fail** | 4 ok, 1 failed | CHECK FAIL 18-probe: no answer to the probe state within 30 s; frames: kept/mochi-eagler-load-188-t30_.jpg, kept/mochi-eagler-load-188-t60_.jpg, kept/mochi-eagler-load-188-18-probe_.jpg, kept/mochi-eagler-load-188-t120_.jpg, kept/mochi-eagler-load-188-t180_.jpg | cavekit-eaglercraft.md R2 |
 | mojo | eagler-load-188 (rerun) | **fail** | 4 ok, 1 failed | CHECK FAIL 18-probe: no answer to the probe state within 30 s; frames: kept/mojo-eagler-load-188-t30_.jpg, kept/mojo-eagler-load-188-t60_.jpg, kept/mojo-eagler-load-188-18-probe_.jpg, kept/mojo-eagler-load-188-t120_.jpg, kept/mojo-eagler-load-188-t180_.jpg | cavekit-eaglercraft.md R2 |
+| enyo | weakmap-dom-keys (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]; frames: kept/enyo-weakmap-dom-keys-rows_.jpg | cavekit-eaglercraft.md R2 |
+| mochi | weakmap-dom-keys (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]; frames: kept/mochi-weakmap-dom-keys-rows_.jpg | cavekit-eaglercraft.md R2 |
+| mojo | weakmap-dom-keys (rerun) | **pass** | 5 ok, 0 failed | CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]; frames: kept/mojo-weakmap-dom-keys-rows_.jpg | cavekit-eaglercraft.md R2 |
 
 ## The device at the end
 
 ```
-DEVICE ok job-enyo: (96360/658611410) jihad (start) running, process 13017
+DEVICE ok job-enyo: (97694/542521671) jihad (start) running, process 27338
 DEVICE ok daemons-enyo: one daemon
 DEVICE ok hand-daemon-enyo: none
 DEVICE ok hooks-enyo: none
@@ -26,7 +29,7 @@ DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
 DEVICE ok cards-enyo: none
 DEVICE ok audio-lib-enyo: the device's own
 DEVICE ok look-enyo: {"returnValue":true,"theme":null}
-DEVICE ok job-mochi: (96364/868251409) jihad-mochi (start) running, process 14681
+DEVICE ok job-mochi: (97703/665016334) jihad-mochi (start) running, process 12434
 DEVICE ok daemons-mochi: one daemon
 DEVICE ok hand-daemon-mochi: none
 DEVICE ok hooks-mochi: none
@@ -36,7 +39,7 @@ DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
 DEVICE ok cards-mochi: none
 DEVICE ok audio-lib-mochi: the device's own
 DEVICE ok look-mochi: {"returnValue":true,"theme":null}
-DEVICE ok job-mojo: (96369/789003704) jihad-mojo (start) running, process 15660
+DEVICE ok job-mojo: (97712/841805964) jihad-mojo (start) running, process 15530
 DEVICE ok daemons-mojo: one daemon
 DEVICE ok hand-daemon-mojo: none
 DEVICE ok hooks-mojo: none
@@ -85,7 +88,7 @@ DEVICE ok overall: 47% of /tmp used
 
 ### enyo / eagler-load-188 — pass
 
-    enyo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +47 s, 37 content frames at +47 s; the GPU path, frames off the main thread (the expr
+    enyo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +53 s, 38 content frames at +53 s; the GPU path, frames off the main thread (the expr
     CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
     CHECK ok 20-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
     WAIT ok 21-rect sel:._eaglercraftX_mobile_launch_client
@@ -110,4 +113,31 @@ DEVICE ok overall: 47% of /tmp used
     CHECK FAIL 18-probe: no answer to the probe state within 30 s
     CHECK ok 19-quiet: no line jihad-never-logged for 60 s
     CHECK ok 21-quiet: no line jihad-never-logged for 60 s
+
+### enyo / weakmap-dom-keys — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-weakmap-dom.html: connected at +2 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 12-text done = [rows 8]
+    CHECK ok 14-probe-lacks: the probe's answer lacks [threw]
+    CHECK ok 15-probe-lacks: the probe's answer lacks [lost]
+    CHECK ok 16-probe-has: the probe's answer holds [WebGLTexture: weakmap ok, weakset ok]
+    CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]
+
+### mochi / weakmap-dom-keys — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-weakmap-dom.html: connected at +3 s, load done at +8 s, 3 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    WAIT ok 12-text done = [rows 8]
+    CHECK ok 14-probe-lacks: the probe's answer lacks [threw]
+    CHECK ok 15-probe-lacks: the probe's answer lacks [lost]
+    CHECK ok 16-probe-has: the probe's answer holds [WebGLTexture: weakmap ok, weakset ok]
+    CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]
+
+### mojo / weakmap-dom-keys — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-weakmap-dom.html: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 12-text done = [rows 8]
+    CHECK ok 14-probe-lacks: the probe's answer lacks [threw]
+    CHECK ok 15-probe-lacks: the probe's answer lacks [lost]
+    CHECK ok 16-probe-has: the probe's answer holds [WebGLTexture: weakmap ok, weakset ok]
+    CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]
 

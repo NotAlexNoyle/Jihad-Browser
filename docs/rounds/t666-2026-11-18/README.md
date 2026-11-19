@@ -1,4 +1,4 @@
-# T-666, Eaglercraft loads in each shell (2026-11-18, in progress)
+# T-666, Eaglercraft loads in each shell (2026-11-18 and 19, in progress)
 
 cavekit-eaglercraft.md R2. The clients are served from the host's cache on :8099 (`tools/host/eaglercraft/`). The
 pictures the runner keeps of Eaglercraft's screens stay in `~/.cache/jihad-eaglercraft/rounds/t666-2026-11-18/` (they
@@ -35,7 +35,44 @@ never set (`dom/canvas/CanvasUtils.cpp`), so every page asking for the standard 
 0120 makes the two names aliases in every build, as WebGL 1.0 §2.1 says. `eagler-webgl-attrs` passes in the three shells
 on engine 0120 (`finger-*-eagler-webgl-attrs.txt`, `kept/*-eagler-webgl-attrs-rows_.jpg`).
 
+## Second and third loads (engine 0120)
+
+- No alert any more. "Extracting Assets..." from about 60 s; the slow-script dialog by 120 s in the three shells (the
+  extraction is one task of 60-120 s; the owner keeps `dom.max_script_run_time` at 60 s, 2026-11-19: the script taps
+  Continue as a person would).
+- With the guard off for one exploring run (Enyo), the extraction ended between 120 and 180 s and the client then
+  waited at "press any key to enable sound... (required)"; a tap at 240 s did not count as a key (pictures at 255, 300,
+  360 s unchanged). The client enters its tablet mode only when the UA holds "mobi" or "tablet"
+  (`navigator.userAgent.toLowerCase()`), and its desktop mode wants a key a touch screen cannot press.
+- **The owner, 2026-11-19: "Tablet" in the UA everywhere** (Firefox's tablet token; commit `30f3d77f`). Then (Enyo): the
+  "Mobile Browser Detected" panel at 182 s from the start of the load, its "Launch EaglercraftX" tapped and gone; the
+  canvas still at "press any key" 60 s later.
+
+## The client's own console: a WeakMap that refused WebGL objects
+
+A probe hooked `console.*` and `onerror` at the start of the load (Enyo), seconds from that hook:
+
+```
+4s   ClientMain: eaglercraftx is starting...
+21s  Creating WebGL context
+21s  [WebGL Error]: WebGL creation failed: Error during EGL OpenGL init. Exhausted GL driver caps.   (its webgl2 try)
+21s  OpenGL Version: WebGL 1.0; extensions EXT_texture_filter_anisotropic, OES_texture_float, OES_texture_half_float,
+     OES_texture_half_float_linear, OES_vertex_array_object
+25s  Downloading: <data: 12269833 chars>
+48s  Decompressing: <data: 12269833 chars>
+134s Loaded 4872 resources from EPKs
+136s Initializing sound engine... / Waiting for user to select option on mobile press any key screen
+144s onerror: TypeError: cannot use the given object as a weak map key (eaglercraft1-8.html:1315)
+```
+
+The client keeps its JS objects' Java wrappers in a WeakMap (`HOD.set(obj, new WeakRef(wrapper))` for any object or
+function); the engine's WeakMap asks the DOM to preserve a key's wrapper, and UXP's `TryPreserveWrapper` answered false
+for every cycle-collected WebIDL class that is not nsISupports: the WebGL objects among them.
+`render/goanna/test/jihad-weakmap-dom.html` (`weakmap-dom-keys`) on engine 0120 (Enyo): an element taken; WebGLBuffer,
+WebGLTexture refused by WeakMap and WeakSet. Engine patch **0121** calls such a class's addProperty hook (which Codegen
+gives it for exactly this: it preserves the wrapper and nothing else), as later Gecko does.
+
 ## Next
 
-1.8.8 again on engine 0120 (no alert expected); then the slow-script dialog and the "press any key" screen; the title
-screen's reference picture; 1.12.2 and 1.5.2.
+0121 on the device: `weakmap-dom-keys` in the three shells, 1.8.8 to its title screen; the title screen's reference
+picture; the menus by touch; 1.12.2 and 1.5.2.

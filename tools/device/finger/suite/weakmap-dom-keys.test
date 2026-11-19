@@ -1,0 +1,18 @@
+# DOM objects as WeakMap and WeakSet keys (cavekit-eaglercraft.md R2, T-666; engine patch 0121): render/goanna/test/
+# jihad-weakmap-dom.html offers an element, WebGL objects, an AudioParam, a GainNode and a DOMRect to a WeakMap and a
+# WeakSet. The engine refused the cycle-collected WebIDL objects that are not nsISupports ("cannot use the given object
+# as a weak map key"), which stopped EaglercraftX 1.8.8 at its launch; every row must say ok.
+id: weakmap-dom-keys
+section: The engine
+item: DOM objects (an element, WebGL objects, an AudioParam, a GainNode, a DOMRect) are taken as WeakMap and WeakSet keys
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true
+page: http://192.168.1.245:8077/jihad-weakmap-dom.html
+kit: cavekit-eaglercraft.md R2
+wait text done "rows" 30
+probe rows '(function(){return document.getElementById("out").innerText.replace(/\n/g," | ");})()'
+expect probe-lacks "threw"
+expect probe-lacks "lost"
+expect probe-has "WebGLTexture: weakmap ok, weakset ok"
+expect probe-has "AudioParam: weakmap ok, weakset ok"
+shoot rows

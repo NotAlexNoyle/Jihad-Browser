@@ -1,0 +1,66 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NotAlexNoyle <alexnoyle@icloud.com>
+Date: Thu, 19 Nov 2026 01:13:01 -0500
+Subject: [PATCH] bindings: a WebIDL object that is not nsISupports can be a
+ WeakMap key
+
+TryPreserveWrapper answered false for every cycle-collected DOM class that is
+not nsISupports (the WebGL objects, AudioParam and many more): it could not
+tell whether such a class is wrapper cached. A WeakMap then refused the
+object as a key with "cannot use the given object as a weak map key", and
+EaglercraftX 1.8.8, which keeps its JS wrappers in a WeakMap, stopped at its
+launch (cavekit-eaglercraft.md R2, T-666; read from the client's own console
+on the device).
+
+The addProperty hook Codegen gives a concrete, wrapper-cached, non-global
+class preserves the wrapper and does nothing else, so it is called, as later
+Gecko's TryPreserveWrapper does; a class without the hook keeps no wrapper
+cache and has nothing to preserve.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01MpagfKTnbF5UuSGLUYcN1P
+---
+ dom/bindings/BindingUtils.cpp | 29 +++++++++++++++++++++++++----
+ 1 file changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/dom/bindings/BindingUtils.cpp b/dom/bindings/BindingUtils.cpp
+index 69efd3e84a..ef9c2adb08 100644
+--- a/dom/bindings/BindingUtils.cpp
++++ b/dom/bindings/BindingUtils.cpp
+@@ -1074,11 +1074,32 @@ TryPreserveWrapper(JSObject* obj)
+     return true;
+   }
+ 
+-  // If this DOMClass is not cycle collected, then it isn't wrappercached,
+-  // so it does not need to be preserved. If it is cycle collected, then
+-  // we can't tell if it is wrappercached or not, so we just return false.
++  // Jihad: a WebIDL class that is not nsISupports (the WebGL objects, an
++  // AudioParam, many more) answered false here when it is cycle collected, so a
++  // WeakMap refused it as a key ("cannot use the given object as a weak map
++  // key"): EaglercraftX 1.8.8 stopped at its launch on that (cavekit-eaglercraft.md
++  // R2, T-666). The addProperty hook Codegen gives such a class (wantsAddProperty:
++  // concrete, wrapper cached, not a global) preserves the wrapper and does nothing
++  // else, so it is called, as later Gecko does (TryPreserveWrapper with the
++  // class's addProperty). A class without the hook keeps no wrapper cache and has
++  // nothing to preserve.
+   const DOMJSClass* domClass = GetDOMClass(obj);
+-  return domClass && !domClass->mParticipant;
++  if (!domClass) {
++    return false;
++  }
++  const js::Class* clasp = js::GetObjectClass(obj);
++  if (!clasp->isNative()) {
++    return false;   // DOM proxies are nsISupports, handled above
++  }
++  JSAddPropertyOp addProperty = clasp->getAddProperty();
++  if (!addProperty) {
++    return true;
++  }
++  MOZ_ASSERT(domClass->mParticipant);
++  JS::Rooted<JSObject*> rootedObj(RootingCx(), obj);
++  JS::Rooted<jsid> dummyId(RootingCx(), JSID_VOID);
++  JS::Rooted<JS::Value> dummyValue(RootingCx());
++  return addProperty(nullptr, rootedObj, dummyId, dummyValue);
+ }
+ 
+ // Can only be called with a DOM JSClass.

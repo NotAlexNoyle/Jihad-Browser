@@ -1,0 +1,8 @@
+WAIT ok 12-text done = [rows 8]
+  probe rows: element: weakmap ok, weakset ok | WebGLBuffer: weakmap ok, weakset ok | WebGLTexture: weakmap ok, weakset ok | WebGLProgram: weakmap ok, weakset ok | WebGLUniformLocation: weakmap ok, weakset ok | AudioParam: weakmap ok, weakset ok | GainNode: weakmap ok, weakset ok | DOMRect: weakmap ok, weakset ok
+CHECK ok 14-probe-lacks: the probe's answer lacks [threw]
+CHECK ok 15-probe-lacks: the probe's answer lacks [lost]
+CHECK ok 16-probe-has: the probe's answer holds [WebGLTexture: weakmap ok, weakset ok]
+CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]
+  frame kept: /media/internal/jihad-finger/rows_.last.raw
+CHECKS 4 FAILS 0

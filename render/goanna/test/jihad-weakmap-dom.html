@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0.
+     DOM objects as WeakMap keys (cavekit-eaglercraft.md R2, T-666; engine patch 0121). The engine refused a cycle-collected
+     WebIDL object that is not nsISupports as a key ("cannot use the given object as a weak map key"), which stopped
+     EaglercraftX 1.8.8 at its launch. Each row: an object, and whether a WeakMap and a WeakSet take it and give it back.
+     #done says the rows are written. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>jihad-weakmap-dom</title>
+<style>body{font:16px monospace;margin:10px;background:#fff;color:#000} div{margin:2px 0;white-space:pre-wrap}</style></head>
+<body>
+<div id="out"></div>
+<div id="done">-</div>
+<script>
+function row(s) { var d = document.createElement("div"); d.textContent = s; document.getElementById("out").appendChild(d); }
+function tryKey(name, make) {
+  var o = null;
+  try { o = make(); } catch (e) { row(name + ": not made (" + e + ")"); return; }
+  if (!o) { row(name + ": not made (null)"); return; }
+  var m = "", s = "";
+  try { var wm = new WeakMap(); wm.set(o, 7); m = wm.get(o) === 7 ? "weakmap ok" : "weakmap lost"; } catch (e) { m = "weakmap threw " + e.message; }
+  try { var ws = new WeakSet(); ws.add(o); s = ws.has(o) ? "weakset ok" : "weakset lost"; } catch (e) { s = "weakset threw " + e.message; }
+  row(name + ": " + m + ", " + s);
+}
+var c = document.createElement("canvas"); c.width = 16; c.height = 16;
+var gl = null; try { gl = c.getContext("webgl") || c.getContext("experimental-webgl"); } catch (e) {}
+var ac = null; try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+tryKey("element", function () { return document.createElement("div"); });
+tryKey("WebGLBuffer", function () { return gl && gl.createBuffer(); });
+tryKey("WebGLTexture", function () { return gl && gl.createTexture(); });
+tryKey("WebGLProgram", function () { return gl && gl.createProgram(); });
+tryKey("WebGLUniformLocation", function () { var p = gl.createProgram(); return gl.getUniformLocation(p, "x") || {}; });
+tryKey("AudioParam", function () { return ac && ac.createGain().gain; });
+tryKey("GainNode", function () { return ac && ac.createGain(); });
+tryKey("DOMRect", function () { return document.body.getBoundingClientRect(); });
+document.getElementById("done").textContent = "rows " + document.getElementById("out").childNodes.length;
+try { if (ac && ac.close) ac.close(); } catch (e) {}
+</script>
+</body></html>

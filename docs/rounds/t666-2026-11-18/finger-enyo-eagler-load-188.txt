@@ -4,12 +4,12 @@ CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-
 CHECK ok 20-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
 WAIT ok 21-rect sel:._eaglercraftX_mobile_launch_client
   frame kept: /media/internal/jihad-finger/launch_.last.raw
-  probe launch-at: launch panel at 182 s; ua tablet true
+  probe launch-at: launch panel at 196 s; ua tablet true
   tap at 384,381 -> clickAt 385 299
 WAIT ok 25-gone sel:._eaglercraftX_mobile_launch_client
 CHECK ok 26-quiet: no line jihad-never-logged for 30 s
   frame kept: /media/internal/jihad-finger/after-launch_.last.raw
 CHECK ok 28-quiet: no line jihad-never-logged for 30 s
   frame kept: /media/internal/jihad-finger/after-launch-60_.last.raw
-  probe title-at: at 260 s, canvases 1 [768x942]
+  probe title-at: at 267 s, canvases 1 [768x942]
 CHECKS 4 FAILS 0

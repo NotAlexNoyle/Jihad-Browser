@@ -1,5 +1,5 @@
 {
- "date": "2026-11-19T00:59:08",
+ "date": "2026-11-19T01:21:03",
  "shells": [
   "enyo",
   "mochi",
@@ -87,11 +87,11 @@
     "kept/enyo-eagler-load-188-after-launch_.jpg",
     "kept/enyo-eagler-load-188-after-launch-60_.jpg"
    ],
-   "seconds": 309,
+   "seconds": 327,
    "note": "",
-   "start": "enyo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +47 s, 37 content frames at +47 s; the GPU path, frames off the main thread (the expr",
-   "restore": "enyo: (96360/576537633) jihad (start) running, process 13017; daemons running: 1",
-   "rerun": "2026-11-19T00:59:08"
+   "start": "enyo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +53 s, 38 content frames at +53 s; the GPU path, frames off the main thread (the expr",
+   "restore": "enyo: (97694/451987449) jihad (start) running, process 27338; daemons running: 1",
+   "rerun": "2026-11-19T01:21:03"
   },
   {
    "shell": "mochi",
@@ -146,9 +146,78 @@
    "start": "mojo card on http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html: connected at +2 s, load done at +32 s, 49 content frames at +32 s; the GPU path, frames off the main thread (the expr",
    "restore": "mojo: (81097/10257034) jihad-mojo (start) running, process 14637; daemons running: 1",
    "rerun": "2026-11-18T20:32:58"
+  },
+  {
+   "shell": "enyo",
+   "id": "weakmap-dom-keys",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "DOM objects (an element, WebGL objects, an AudioParam, a GainNode, a DOMRect) are taken as WeakMap and WeakSet keys",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 12-text done = [rows 8]",
+    "CHECK ok 14-probe-lacks: the probe's answer lacks [threw]",
+    "CHECK ok 15-probe-lacks: the probe's answer lacks [lost]",
+    "CHECK ok 16-probe-has: the probe's answer holds [WebGLTexture: weakmap ok, weakset ok]",
+    "CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]"
+   ],
+   "kept": [
+    "kept/enyo-weakmap-dom-keys-rows_.jpg"
+   ],
+   "seconds": 52,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-weakmap-dom.html: connected at +2 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (97240/697284573) jihad (start) running, process 9409; daemons running: 1",
+   "rerun": "2026-11-19T01:18:04"
+  },
+  {
+   "shell": "mochi",
+   "id": "weakmap-dom-keys",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "DOM objects (an element, WebGL objects, an AudioParam, a GainNode, a DOMRect) are taken as WeakMap and WeakSet keys",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 12-text done = [rows 8]",
+    "CHECK ok 14-probe-lacks: the probe's answer lacks [threw]",
+    "CHECK ok 15-probe-lacks: the probe's answer lacks [lost]",
+    "CHECK ok 16-probe-has: the probe's answer holds [WebGLTexture: weakmap ok, weakset ok]",
+    "CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]"
+   ],
+   "kept": [
+    "kept/mochi-weakmap-dom-keys-rows_.jpg"
+   ],
+   "seconds": 54,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-weakmap-dom.html: connected at +3 s, load done at +8 s, 3 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (97294/660238933) jihad-mochi (start) running, process 12434; daemons running: 1",
+   "rerun": "2026-11-19T01:18:04"
+  },
+  {
+   "shell": "mojo",
+   "id": "weakmap-dom-keys",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "DOM objects (an element, WebGL objects, an AudioParam, a GainNode, a DOMRect) are taken as WeakMap and WeakSet keys",
+   "section": "The engine",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 12-text done = [rows 8]",
+    "CHECK ok 14-probe-lacks: the probe's answer lacks [threw]",
+    "CHECK ok 15-probe-lacks: the probe's answer lacks [lost]",
+    "CHECK ok 16-probe-has: the probe's answer holds [WebGLTexture: weakmap ok, weakset ok]",
+    "CHECK ok 17-probe-has: the probe's answer holds [AudioParam: weakmap ok, weakset ok]"
+   ],
+   "kept": [
+    "kept/mojo-weakmap-dom-keys-rows_.jpg"
+   ],
+   "seconds": 51,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-weakmap-dom.html: connected at +2 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (97346/30444404) jihad-mojo (start) running, process 15530; daemons running: 1",
+   "rerun": "2026-11-19T01:18:04"
   }
  ],
- "end_check": "DEVICE ok job-enyo: (96360/658611410) jihad (start) running, process 13017\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (96364/868251409) jihad-mochi (start) running, process 14681\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (96369/789003704) jihad-mojo (start) running, process 15660\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok volume-subscribers: none without its daemon\nDEVICE ok media-scratch: none\nDEVICE ok overall: 47% of /tmp used",
- "seconds": 2166,
+ "end_check": "DEVICE ok job-enyo: (97694/542521671) jihad (start) running, process 27338\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (97703/665016334) jihad-mochi (start) running, process 12434\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (97712/841805964) jihad-mojo (start) running, process 15530\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok volume-subscribers: none without its daemon\nDEVICE ok media-scratch: none\nDEVICE ok overall: 47% of /tmp used",
+ "seconds": 2702,
  "first_date": "2026-11-18T20:28:34"
 }

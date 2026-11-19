@@ -31,3 +31,9 @@ component {b7a1c3e2-5d94-4f08-8a6b-3e2f9c7d1a54} prefsui/content/jihadAboutReade
 contract @mozilla.org/network/protocol/about;1?what=reader {b7a1c3e2-5d94-4f08-8a6b-3e2f9c7d1a54}
 component {2c9e6f41-7b3a-4d85-9e10-6a4b8d2f5c37} prefsui/content/jihadSiteMode.js
 contract @mozilla.org/network/protocol/about;1?what=desktopsite {2c9e6f41-7b3a-4d85-9e10-6a4b8d2f5c37}
+
+# What stands in a movie's place when Flash is off (cavekit-flash.md R10, 2026-11-18): prefsui/flashoff/, a package of
+# its own because a binding on a web page's element must be loadable by that page (contentaccessible), and nothing of
+# jihad-prefs may be: these three files are a style sheet, a binding with no implementation, and its look.
+content jihad-flashoff prefsui/flashoff/ contentaccessible=yes
+category agent-style-sheets jihad-flash-off chrome://jihad-flashoff/content/flashOffBinding.css

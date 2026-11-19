@@ -1,0 +1,15 @@
+WAIT ok 11-rect sel:embed
+CHECK ok 12-audio: the movie's audio: open running audible
+WAIT ok 13-launch: load done
+CHECK ok 14-audio: the movie's audio: closed
+WAIT ok 15-launch: load done
+WAIT ok 16-rect sel:embed
+CHECK ok 17-audio: the movie's audio: open running audible
+  the plugin's streams marked: 42 42 
+  chrome reload tapped at 596 52
+CHECK ok 20-audio-renewed: the marked streams (42 42 ) are gone within 2 s; open now: none
+CHECK ok 21-audio: the movie's audio: open running audible
+  the card closed (1 process(es))
+CHECK ok 23-audio: the movie's audio: closed
+CHECK ok 24-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+CHECKS 7 FAILS 0

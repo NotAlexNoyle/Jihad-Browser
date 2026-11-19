@@ -1,0 +1,29 @@
+WAIT ok 13-rect user
+  probe top: filled jihad-top
+  tap at 348,388 -> clickAt 349 306
+CHECK ok 16-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+  chrome dialog-ok tapped at 384 541
+CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-top)
+WAIT ok 20-text sent = [sent jihad-top]
+WAIT ok 21-launch: load done
+WAIT ok 22-text framestate = [192.168.1.245:8079 user=(empty) pass=(empty) events=0]
+CHECK ok 23-quiet: no line logins: filled for for 3 s
+WAIT ok 24-launch: load done
+WAIT ok 25-rect user
+  probe own: filled jihad-frame
+  tap at 348,388 -> clickAt 349 306
+CHECK ok 28-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-2.fifo
+  chrome dialog-ok tapped at 384 541
+CHECK ok 30-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 31-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8079 (jihad-frame)
+WAIT ok 32-text sent = [sent jihad-frame]
+WAIT ok 33-launch: load done
+WAIT ok 34-text framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4]
+CHECK ok 35-text-lacks: framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4] lacks [events=0]
+WAIT ok 36-launch: load done
+WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-top••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8079jihad-frame••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+  tap at 672,727 -> clickAt 673 645
+  tap at 660,727 -> clickAt 661 645
+WAIT ok 40-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+CHECKS 6 FAILS 0

@@ -1,0 +1,14 @@
+/* Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+   An agent style sheet (jihad-prefsui.manifest's agent-style-sheets entry): a plugin element the engine has marked
+   disabled (the Flash switch off, or the site's Adobe Flash set to Block) carries flashOff.xml's box in its own
+   rectangle, the same way the toolkit's pluginProblemBinding.css binds its states (cavekit-flash.md R10). */
+@namespace url(http://www.w3.org/1999/xhtml);
+
+embed:-moz-handler-disabled,
+applet:-moz-handler-disabled,
+object:-moz-handler-disabled {
+  display: inline-block;
+  overflow: hidden;
+  opacity: 1 !important;
+  -moz-binding: url('chrome://jihad-flashoff/content/flashOff.xml#off') !important;
+}

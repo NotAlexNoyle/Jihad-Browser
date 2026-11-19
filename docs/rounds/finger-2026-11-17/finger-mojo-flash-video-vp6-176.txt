@@ -1,17 +1,18 @@
 WAIT ok 10-text vmeta = [vmeta codec=4 w=320 h=176 d=151.125]
-WAIT ok 11-text video = [video t=2.69 dropped=10 fps=25.641025641025642]
+WAIT ok 11-text video = [video t=1.384 dropped=4 fps=0]
 WAIT ok 12-content m
 CHECK ok 13-audio: the movie's audio: open running audible
-CHECK ok 14-flash-rate: content 40,114-440,412: 10.0 s, flips 199 (19.9/s), changes 198 (19.8/s), reads 200, distinct 199, spacing median 45 p90 84 max 186 ms (wanted 11.0..40/s)
-CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 8fddcc3c rows 298 uniform 0 light none blue none
-  sample before of m: hash ce94e1fb
+  the audio watched every second from here
+CHECK ok 15-flash-rate: content 40,114-440,412: 10.0 s, flips 196 (19.6/s), changes 195 (19.5/s), reads 197, distinct 196, spacing median 45 p90 78 max 198 ms (wanted 11.0..40/s)
+CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 1b1fd232 rows 298 uniform 0 light none blue none
+  sample before of m: hash 0abdf027
   flash tap on stage 330,260 (showAll) at 370 373
-WAIT ok 18-text vctl = [vctl seek 60 t=28.029]
-WAIT ok 19-differs m
-WAIT ok 20-text video = [video t=65.708 dropped=66 fps=21.459227467811157]
-CHECK ok 21-number: vtime = 67.422 (wanted 58..78)
-CHECK ok 22-audio: the movie's audio: open running audible
-WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.831 dropped=299 fps=17.0261066969353]
-CHECK ok 24-number: vendtime = 150.831 (wanted 148.6..151.6)
-CHECK ok 25-plugin: plugin-container 6256: alive (state S, cpu ticks 2489 to 2500)
+WAIT ok 19-text vctl = [vctl seek 60 t=23.375]
+WAIT ok 20-differs m
+WAIT ok 21-text video = [video t=66.037 dropped=53 fps=21.994134897360702]
+CHECK ok 22-number: vtime = 66.977 (wanted 58..78)
+WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.177 dropped=311 fps=24.50980392156863]
+CHECK ok 24-audio-watched: the audio watched: 98 readings over 108 s, all running, the stream the plugin's
+CHECK ok 25-number: vendtime = 150.177 (wanted 148.6..151.6)
+CHECK ok 26-plugin: plugin-container 3271: alive (state R, cpu ticks 2437 to 2448)
 CHECKS 7 FAILS 0

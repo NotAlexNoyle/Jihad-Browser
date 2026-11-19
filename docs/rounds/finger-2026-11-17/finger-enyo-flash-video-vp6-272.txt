@@ -1,17 +1,18 @@
 WAIT ok 10-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-WAIT ok 11-text video = [video t=3.526 dropped=19 fps=23.84737678855326]
+WAIT ok 11-text video = [video t=1.5 dropped=14 fps=16.357688113413303]
 WAIT ok 12-content m
 CHECK ok 13-audio: the movie's audio: open running audible
-CHECK ok 14-flash-rate: content 40,123-440,421: 10.0 s, flips 207 (20.7/s), changes 206 (20.6/s), reads 211, distinct 207, spacing median 41 p90 70 max 292 ms (wanted 7.1..40/s)
-CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash fa88ead8 rows 298 uniform 0 light none blue 209-269
-  sample before of m: hash 613ddf4b
+  the audio watched every second from here
+CHECK ok 15-flash-rate: content 40,123-440,421: 10.0 s, flips 209 (20.9/s), changes 193 (19.3/s), reads 212, distinct 194, spacing median 42 p90 78 max 219 ms (wanted 7.1..40/s)
+CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 09598633 rows 298 uniform 0 light none blue 123-394
+  sample before of m: hash 2edfed72
   flash tap on stage 330,260 (showAll) at 370 382
-WAIT ok 18-text vctl = [vctl seek 40 t=26.644]
-WAIT ok 19-differs m
-WAIT ok 20-text video = [video t=46.184 dropped=110 fps=23.112480739599384]
-CHECK ok 21-number: vtime = 46.184 (wanted 38..58)
-CHECK ok 22-audio: the movie's audio: open running audible
-WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.413 dropped=306 fps=25.31645569620253]
-CHECK ok 24-number: vendtime = 86.413 (wanted 84.3..87.3)
-CHECK ok 25-plugin: plugin-container 27693: alive (state S, cpu ticks 2417 to 2429)
+WAIT ok 19-text vctl = [vctl seek 40 t=18.834]
+WAIT ok 20-differs m
+WAIT ok 21-text video = [video t=41.09 dropped=55 fps=9.870450339296731]
+CHECK ok 22-number: vtime = 41.09 (wanted 38..58)
+WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.595 dropped=222 fps=19.138755980861244]
+CHECK ok 24-audio-watched: the audio watched: 57 readings over 61 s, all running, the stream the plugin's
+CHECK ok 25-number: vendtime = 86.595 (wanted 84.3..87.3)
+CHECK ok 26-plugin: plugin-container 17667: alive (state S, cpu ticks 2295 to 2307)
 CHECKS 7 FAILS 0

@@ -29,6 +29,7 @@ bool gJihadViewportFollow = true;     // T-499: the layout viewport follows a pa
 #include <dirent.h>                 // bundle fingerprint (stale startup cache)
 #include <vector>                   // the browser's process groups (the memory guard)
 #include <time.h>
+#include <stdio.h>                  // the system clipboard file (JihadWriteSystemClipboard)
 #include <stdint.h>
 #include <unistd.h>                 // access (bundled child-process loader probe)
 #include "JihadCrashReport.h"        // re-arm the fatal-signal dump after engine init
@@ -646,9 +647,9 @@ static void ProbeAppInfo(const char* when)
 // rebuild. The CID is ours: nothing in a headless build claims that contract, so this is a fresh
 // registration, not the kind of override that the app-info work found JS caches defeat.
 //
-// SCOPE, stated honestly: this stores the copied text in-process. webOS clipboard integration is
-// a separate concern with no requirement behind it yet, so nothing here pretends to reach the
-// system clipboard — the point is that chrome which merely *asks for the service* stops dying.
+// SCOPE: at first this only stored the copied text in-process, so that chrome which merely *asks
+// for the service* stops dying. Since 2026-11-18 it also puts the text on the system clipboard
+// (JihadWriteSystemClipboard below).
 // The interface is declared here rather than included: nsIClipboardHelper.idl carries a
 // `%{C++ #include "nsString.h"}` block, and nsString.h is an INTERNAL string header that this
 // frozen-API daemon cannot compile against ("Internal string headers are not available from
@@ -668,16 +669,41 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsIClipboardHelper, JIHAD_NS_ICLIPBOARDHELPER_IID)
 
 static nsCString& JihadClipboardText() { static nsCString s; return s; }
 
+// THE SYSTEM CLIPBOARD (2026-11-18, cavekit-site-data.md R2: about:logins' Copy username / Copy password).
+// On the device the system clipboard is a file, /var/tmp/webkit-clipboard: the card WebKit's
+// SharedClipboardFile, plain UTF-8 text, written at each copy and read at each paste by every card
+// (docs/rounds/t658-2026-11-16; a script writing it straight is read by the card's next Paste). Only
+// chrome reaches this service (about:logins, about:config); a page's own copy goes through the card's
+// long-press menu (jihadPageCommands.js). Written beside the file and renamed over it, as libWebKitLuna
+// does (it imports rename), so a paste never reads half a text. On a desktop build nothing is written.
+static bool JihadWriteSystemClipboard(const nsCString& aText) {
+#if defined(__arm__)
+  static const char kPath[] = "/var/tmp/webkit-clipboard";
+  char tmp[64];
+  snprintf(tmp, sizeof tmp, "%s.jihad-%d", kPath, (int)getpid());
+  FILE* f = fopen(tmp, "w");
+  if (!f) return false;
+  size_t n = aText.Length();
+  bool ok = fwrite(aText.get(), 1, n, f) == n;
+  ok = (fclose(f) == 0) && ok;
+  if (ok) { chmod(tmp, 0644); ok = rename(tmp, kPath) == 0; }
+  if (!ok) unlink(tmp);
+  return ok;
+#else
+  (void)aText;
+  return true;
+#endif
+}
+
 class JihadClipboardHelper final : public nsIClipboardHelper {
 public:
   NS_DECL_ISUPPORTS
   NS_IMETHOD CopyStringToClipboard(const nsAString& aString, int32_t) override {
-    JihadClipboardText() = NS_ConvertUTF16toUTF8(aString);
-    return NS_OK;
+    return CopyString(aString);
   }
   NS_IMETHOD CopyString(const nsAString& aString) override {
     JihadClipboardText() = NS_ConvertUTF16toUTF8(aString);
-    return NS_OK;
+    return JihadWriteSystemClipboard(JihadClipboardText()) ? NS_OK : NS_ERROR_FAILURE;
   }
 private:
   ~JihadClipboardHelper() {}

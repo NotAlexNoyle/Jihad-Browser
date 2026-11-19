@@ -1,0 +1,26 @@
+# Eaglercraft 1.5.2 sp2.01 (cavekit-eaglercraft.md R2, T-666): read from its code to need WebGL 2, which this GPU (OpenGL ES 2.0)
+# and engine do not give (T-665), so expected to stop at its own "WebGL 2.0 is not supported" screen, a limit kept by
+# its picture. The offline build, served from the host's
+# cache (tools/host/eaglercraft/eaglercraft-fetch.py; port 8099), within the bound written in the kit before the round:
+# 180 s from the start of the load to the title screen. The first round reads it by eye from the pictures kept at 30,
+# 60, 120 and 180 s and by what the page and the daemon's log say (its canvas, its own error screen, the engine's
+# console); the title screen's reference picture is taken from that round (kept in the host's cache, never in the
+# repository: it carries Mojang's art) and this script then checks it.
+id: eagler-load-152
+section: Eaglercraft
+item: Eaglercraft 1.5.2 (the offline build, from the host): its title screen within 180 s, or its own WebGL 2 screen recorded as the limit
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true
+page: http://192.168.1.245:8099/eagler-1.5.2/unpacked/Offline_Download_Version.html
+kit: cavekit-eaglercraft.md R2
+wait quiet 'jihad-never-logged' 30
+shoot t30
+wait quiet 'jihad-never-logged' 30
+shoot t60
+probe state '(function(){var c=document.querySelectorAll("canvas"),s=[];for(var i=0;i<c.length;i++){s.push(c[i].width+"x"+c[i].height);}var t=(document.body&&document.body.innerText||"").replace(/\s+/g," ").slice(0,300);return "canvases "+c.length+" ["+s.join(",")+"] opts "+(typeof window.eaglercraftOpts)+" text ["+t+"]";})()'
+wait quiet 'jihad-never-logged' 60
+shoot t120
+wait quiet 'jihad-never-logged' 60
+shoot t180
+probe state2 '(function(){var c=document.querySelectorAll("canvas"),s=[];for(var i=0;i<c.length;i++){s.push(c[i].width+"x"+c[i].height);}var t=(document.body&&document.body.innerText||"").replace(/\s+/g," ").slice(0,300);return "canvases "+c.length+" ["+s.join(",")+"] text ["+t+"]";})()'
+show-log 'rror\|WebGL\|webgl\|memory guard\|OOM'

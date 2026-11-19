@@ -1,0 +1,73 @@
+WAIT ok 17-rect user
+  probe submit: filled jihad-data
+  tap at 348,384 -> clickAt 349 306
+CHECK ok 20-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+  chrome dialog-ok tapped at 612 214
+CHECK ok 22-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 23-text sent = [sent jihad-data]
+WAIT ok 24-launch: load done
+WAIT ok 25-text state = [user=(empty) pass=(empty) events=0]
+WAIT ok 26-launch: load done
+WAIT ok 27-text sites = [Sites192.168.1.2452 cookies · 1 login · 100 KB storedOpenalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes]
+CHECK ok 28-text-lacks: sites = [Sites192.168.1.2452 cookies · 1 login · 100 KB storedOpenalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes] lacks [:8079]
+WAIT ok 29-text sel:.site-row[data-site='192.168.1.245'] .site-counts = [2 cookies · 1 login · 100 KB stored]
+CHECK ok 30-text-has: sel:.site-row[data-site="192.168.1.245"] .site-counts = [2 cookies · 1 login · 100 KB stored] holds [1 login]
+  tap at 189,301 -> clickAt 190 223
+WAIT ok 33-text sites = [SitesNo site matches “zz-no-such-site”.]
+WAIT ok 34-launch: load done
+WAIT ok 35-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes]
+  tap at 692,424 -> clickAt 693 346
+WAIT ok 37-text cookies = [Cookies (2)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemovejihadtest192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies]
+  tap at 560,491 -> clickAt 561 413
+WAIT ok 39-text sel:.cookie-row[data-name='jihadtest'] .cookie-value = [1]
+WAIT ok 40-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+WAIT ok 41-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+CHECK ok 42-text-has: site-logins = [Saved logins1 saved loginSaved logins] holds [1 saved login]
+  tap at 587,350 -> clickAt 588 1266
+WAIT ok 44-text status = [Pop-up windows for http://192.168.1.245:8077: Block]
+WAIT ok 45-launch: load done
+WAIT ok 46-rect sel:.perm-row[data-perm='popup'][data-origin='http://192.168.1.245:8077'][data-value='2']
+  tap at 673,491 -> clickAt 674 413
+WAIT ok 48-text status = [The cookie jihadtest removed]
+CHECK ok 49-text-lacks: cookies = [Cookies (1)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies] lacks [jihadtest]
+  tap at 123,489 -> clickAt 124 411
+WAIT ok 51-text status = [Every cookie of 192.168.1.245 removed]
+CHECK ok 52-text-lacks: cookies = [Cookies (0)None.] lacks [jihadsecond]
+  tap at 666,521 -> clickAt 667 1471
+WAIT ok 54-url: about:logins?filter=192.168.1.245
+WAIT ok 55-text logins = [Logins192.168.1.245:8077jihad-data••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+WAIT ok 56-launch: load done
+WAIT ok 57-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+WAIT ok 58-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+  tap at 684,774 -> clickAt 685 1724
+WAIT ok 60-gone sel:.storage-row[data-kind='local'][data-origin^='http://192.168.1.245:8077']
+CHECK ok 61-text-has: storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clear] holds [databases]
+  tap at 684,644 -> clickAt 685 1594
+WAIT ok 63-gone sel:.storage-row[data-kind='quota'][data-origin^='http://192.168.1.245:8077']
+CHECK ok 64-text-has: storage = [Stored datahttp://192.168.1.245:807948 KB (databases, caches)Clear] holds [192.168.1.245:8079]
+  tap at 687,921 -> clickAt 688 1676
+WAIT ok 66-text forget-row = [Forget this siteForget everything this browser keeps for 192.168.1.245?Forget it]
+  tap at 681,921 -> clickAt 682 1676
+WAIT ok 68-text sites = [Sitesalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookieOpenamazon.com9 cookiesOpenapnews.com6 cookiesOpenbing.com9 cookiesOpenbit.ly1 cookieOpenbritannica.com14 cookiesOpencraigslist.org2 cookiesOpencrazygames.com3 cookiesOpendoubleclick.net1 cookieOpenebay.com12 cookiesOpenenglishclub.com2 cookiesOpenetsy.com10 cookiesOpenfacebook.com1 cookieOpengithub.com2 cookiesOpengitlab.com3 cookiesOpengo]
+CHECK ok 69-quiet: no line jihad-never-logged for 3 s
+CHECK ok 70-text-lacks: sites = [Sitesalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes storedOpencraigslist.org2 cookies · 269 bytes stored] lacks [192.168.1.245]
+WAIT ok 71-launch: load done
+WAIT ok 72-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+CHECK ok 73-text-has: forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-data]
+  tap at 189,301 -> clickAt 190 223
+WAIT ok 76-text forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+CHECK ok 77-text-lacks: forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all] lacks [jihad-data]
+WAIT ok 78-launch: load done
+WAIT ok 79-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+  tap at 189,301 -> clickAt 190 223
+WAIT ok 82-text forms = [Form data (2)No entry matches.Remove all form dataRemove all]
+WAIT ok 83-launch: load done
+WAIT ok 84-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+  tap at 677,485 -> clickAt 678 407
+WAIT ok 86-text status = [Removed]
+CHECK ok 87-text-lacks: forms = [Form data (1)jihad-datauser · used 1 timeRemoveRemove all form dataRemove all] lacks [hello jihad]
+  tap at 676,485 -> clickAt 677 407
+WAIT ok 89-text forms-remove-all-row = [Remove all form dataRemove all 1 entries?Remove them]
+  tap at 665,485 -> clickAt 666 407
+WAIT ok 91-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+CHECKS 14 FAILS 0

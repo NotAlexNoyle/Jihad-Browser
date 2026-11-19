@@ -1,0 +1,10 @@
+WAIT ok 12-rect sel:embed
+CHECK ok 13-audio: the movie's audio: open running audible
+CHECK ok 14-sound: sound at the output sink: peak 31144 rms 21985 frames 45056 hz 440 env 31134,31144,31139,31134,31135,31126, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+  com.palm.app.notes asked to the front (the log marked), the card behind it
+CHECK ok 16-audio: the movie's audio: open running audible
+CHECK ok 17-sound: sound at the output sink: peak 31141 rms 21985 frames 45056 hz 440 env 31137,31141,31139,31136,31138,31130, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+  the other app closed and the card tapped in the card view (the log marked)
+CHECK ok 19-audio: the movie's audio: open running audible
+CHECK ok 20-sound: sound at the output sink: peak 31139 rms 21984 frames 45056 hz 440 env 31134,31132,31139,31130,31134,31125, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+CHECKS 6 FAILS 0

@@ -1,8 +1,8 @@
-# Finger suite report — 2026-11-18T10:30:41
+# Finger suite report — 2026-11-18T19:48:04
 
 First run 2026-11-17T11:47:07; runs marked (rerun) were run again by `--merge`, and the device-check below is the last run's.
 
-Shells: enyo, mochi, mojo. Scripts: 1. 32704 s.
+Shells: enyo, mochi, mojo. Scripts: 1. 59667 s.
 
 | shell | test | verdict | checks | evidence | kit |
 |---|---|---|---|---|---|
@@ -338,57 +338,143 @@ Shells: enyo, mochi, mojo. Scripts: 1. 32704 s.
 | mojo | volume-keys (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 33-sound: sound at the output sink: peak 2955 rms 2059 frames 45056 hz 440 env 2950,2948,2946,2955,2949,2935, the speaker amp on, the media volume 22, the pitch wanted 440 Hz | cavekit-finger-testing.md R7 |
 | enyo | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 7664: alive (state S, cpu ticks 2275 to 2286) | cavekit-flash.md R8 |
 | enyo | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 12829: alive (state S, cpu ticks 814 to 828) | cavekit-flash.md R8 |
-| enyo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 16425: alive (state S, cpu ticks 1044 to 1056) | cavekit-flash.md R8 |
-| enyo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 19939: alive (state S, cpu ticks 953 to 965) | cavekit-flash.md R8 |
-| enyo | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 23340: alive (state S, cpu ticks 1154 to 1166) | cavekit-flash.md R8 |
+| enyo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 27-plugin: plugin-container 15056: alive (state S, cpu ticks 1115 to 1127) | cavekit-flash.md R8 |
+| enyo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 27-plugin: plugin-container 18613: alive (state R, cpu ticks 999 to 1011) | cavekit-flash.md R8 |
+| enyo | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 27-plugin: plugin-container 22049: alive (state S, cpu ticks 1134 to 1145) | cavekit-flash.md R8 |
 | enyo | flash-video-h264-mp4 (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 26932: alive (state S, cpu ticks 563 to 571) | cavekit-flash.md R8 |
 | enyo | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 30265: alive (state S, cpu ticks 617 to 625) | cavekit-flash.md R8 |
 | enyo | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 1020: alive (state S, cpu ticks 707 to 717) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 5378: alive (state S, cpu ticks 585 to 597) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 8871: alive (state S, cpu ticks 681 to 691) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 12326: alive (state S, cpu ticks 821 to 833) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 15681: alive (state S, cpu ticks 325 to 336) | cavekit-flash.md R8 |
-| enyo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 19026: alive (state S, cpu ticks 442 to 453) | cavekit-flash.md R8 |
-| enyo | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 22818: alive (state S, cpu ticks 2829 to 2840) | cavekit-flash.md R8 |
-| enyo | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 27693: alive (state S, cpu ticks 2417 to 2429) | cavekit-flash.md R8 |
-| enyo | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 24-plugin: plugin-container 31973: alive (state S, cpu ticks 575 to 586) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 26-plugin: plugin-container 25528: alive (state S, cpu ticks 590 to 602) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 26-plugin: plugin-container 29134: alive (state R, cpu ticks 703 to 714) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 26-plugin: plugin-container 343: alive (state S, cpu ticks 824 to 836) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 24-plugin: plugin-container 4196: alive (state R, cpu ticks 317 to 328) | cavekit-flash.md R8 |
+| enyo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 24-plugin: plugin-container 7942: alive (state S, cpu ticks 463 to 474) | cavekit-flash.md R8 |
+| enyo | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 12018: alive (state R, cpu ticks 2757 to 2769) | cavekit-flash.md R8 |
+| enyo | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 17667: alive (state S, cpu ticks 2295 to 2307) | cavekit-flash.md R8 |
+| enyo | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 25-plugin: plugin-container 22635: alive (state S, cpu ticks 585 to 597) | cavekit-flash.md R8 |
 | mochi | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 14669: alive (state S, cpu ticks 2172 to 2184) | cavekit-flash.md R8 |
 | mochi | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 19766: alive (state S, cpu ticks 762 to 775) | cavekit-flash.md R8 |
-| mochi | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 23411: alive (state S, cpu ticks 1140 to 1151) | cavekit-flash.md R8 |
-| mochi | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 26890: alive (state S, cpu ticks 1047 to 1059) | cavekit-flash.md R8 |
-| mochi | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 30570: alive (state S, cpu ticks 1152 to 1164) | cavekit-flash.md R8 |
+| mochi | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 27-plugin: plugin-container 26198: alive (state S, cpu ticks 1146 to 1158) | cavekit-flash.md R8 |
+| mochi | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 27-plugin: plugin-container 30133: alive (state R, cpu ticks 992 to 1004) | cavekit-flash.md R8 |
+| mochi | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 27-plugin: plugin-container 1268: alive (state S, cpu ticks 1159 to 1171) | cavekit-flash.md R8 |
 | mochi | flash-video-h264-mp4 (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 1740: alive (state S, cpu ticks 568 to 575) | cavekit-flash.md R8 |
 | mochi | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 4974: alive (state S, cpu ticks 624 to 632) | cavekit-flash.md R8 |
 | mochi | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 8265: alive (state S, cpu ticks 712 to 724) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 12789: alive (state S, cpu ticks 591 to 602) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 16246: alive (state S, cpu ticks 695 to 707) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 19736: alive (state S, cpu ticks 818 to 829) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 23196: alive (state S, cpu ticks 333 to 344) | cavekit-flash.md R8 |
-| mochi | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 26774: alive (state R, cpu ticks 453 to 463) | cavekit-flash.md R8 |
-| mochi | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 30795: alive (state S, cpu ticks 2667 to 2678) | cavekit-flash.md R8 |
-| mochi | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 3833: alive (state R, cpu ticks 2304 to 2315) | cavekit-flash.md R8 |
-| mochi | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 24-plugin: plugin-container 8220: alive (state S, cpu ticks 586 to 597) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 26-plugin: plugin-container 5121: alive (state S, cpu ticks 590 to 601) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 26-plugin: plugin-container 8913: alive (state R, cpu ticks 699 to 711) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 26-plugin: plugin-container 12737: alive (state S, cpu ticks 828 to 838) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 24-plugin: plugin-container 16439: alive (state S, cpu ticks 332 to 344) | cavekit-flash.md R8 |
+| mochi | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 24-plugin: plugin-container 19719: alive (state S, cpu ticks 465 to 476) | cavekit-flash.md R8 |
+| mochi | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 23933: alive (state S, cpu ticks 2665 to 2676) | cavekit-flash.md R8 |
+| mochi | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 29789: alive (state S, cpu ticks 2266 to 2277) | cavekit-flash.md R8 |
+| mochi | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 25-plugin: plugin-container 2494: alive (state S, cpu ticks 587 to 598) | cavekit-flash.md R8 |
 | mojo | flash-video-controls (rerun) | **pass** | 18 ok, 0 failed | CHECK ok 35-plugin: plugin-container 23063: alive (state S, cpu ticks 2090 to 2106) | cavekit-flash.md R8 |
 | mojo | flash-video-flowplayer (rerun) | **pass** | 9 ok, 0 failed | CHECK ok 18-plugin: plugin-container 28336: alive (state S, cpu ticks 804 to 816) | cavekit-flash.md R8 |
-| mojo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 31978: alive (state S, cpu ticks 936 to 946) | cavekit-flash.md R8 |
-| mojo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 3179: alive (state S, cpu ticks 815 to 826) | cavekit-flash.md R8 |
-| mojo | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 6683: alive (state S, cpu ticks 1020 to 1031) | cavekit-flash.md R8 |
+| mojo | flash-video-h264-240 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 27-plugin: plugin-container 6120: alive (state S, cpu ticks 981 to 992) | cavekit-flash.md R8 |
+| mojo | flash-video-h264-360 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 27-plugin: plugin-container 9838: alive (state S, cpu ticks 804 to 814) | cavekit-flash.md R8 |
+| mojo | flash-video-h264-480 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 27-plugin: plugin-container 13612: alive (state S, cpu ticks 1000 to 1012) | cavekit-flash.md R8 |
 | mojo | flash-video-h264-mp4 (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 10288: alive (state S, cpu ticks 428 to 436) | cavekit-flash.md R8 |
 | mojo | flash-video-mediaelement (rerun) | **pass** | 8 ok, 0 failed | CHECK ok 17-plugin: plugin-container 13521: alive (state S, cpu ticks 451 to 458) | cavekit-flash.md R8 |
 | mojo | flash-video-slow (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 27-plugin: plugin-container 16770: alive (state S, cpu ticks 651 to 663) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 20901: alive (state S, cpu ticks 539 to 551) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 24358: alive (state S, cpu ticks 643 to 655) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 25-plugin: plugin-container 27897: alive (state S, cpu ticks 758 to 770) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 31332: alive (state R, cpu ticks 324 to 335) | cavekit-flash.md R8 |
-| mojo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 23-plugin: plugin-container 2536: alive (state S, cpu ticks 427 to 438) | cavekit-flash.md R8 |
-| mojo | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 6256: alive (state S, cpu ticks 2489 to 2500) | cavekit-flash.md R8 |
-| mojo | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 25-plugin: plugin-container 11137: alive (state S, cpu ticks 2158 to 2170) | cavekit-flash.md R8 |
-| mojo | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 24-plugin: plugin-container 15403: alive (state S, cpu ticks 570 to 581) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-240 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 26-plugin: plugin-container 17279: alive (state S, cpu ticks 523 to 536) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-360 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 26-plugin: plugin-container 20783: alive (state S, cpu ticks 632 to 643) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-480 (rerun) | **pass** | 13 ok, 0 failed | CHECK ok 26-plugin: plugin-container 24397: alive (state S, cpu ticks 758 to 772) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-sheep (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 24-plugin: plugin-container 28080: alive (state S, cpu ticks 307 to 318) | cavekit-flash.md R8 |
+| mojo | flash-video-spark-small (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 24-plugin: plugin-container 31612: alive (state S, cpu ticks 445 to 456) | cavekit-flash.md R8 |
+| mojo | flash-video-vp6-176 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 3271: alive (state R, cpu ticks 2437 to 2448) | cavekit-flash.md R8 |
+| mojo | flash-video-vp6-272 (rerun) | **pass** | 14 ok, 0 failed | CHECK ok 26-plugin: plugin-container 9274: alive (state S, cpu ticks 2218 to 2229) | cavekit-flash.md R8 |
+| mojo | flash-video-vp6a (rerun) | **pass** | 12 ok, 0 failed | CHECK ok 25-plugin: plugin-container 14334: alive (state S, cpu ticks 566 to 578) | cavekit-flash.md R8 |
+| enyo | site-logins-save (rerun) | **pass** | 11 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R1 |
+| enyo | flash-background-card (rerun) | **pass** | 8 ok, 0 failed | WAIT ok 25-text down = [down 101 100] | cavekit-flash.md R10 |
+| enyo | flash-hostile-plugins (rerun) | **pass** | 4 ok, 0 failed | hostile plugins: up (enyo) | cavekit-flash.md R10 |
+| enyo | flash-sound-background (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 20-sound: sound at the output sink: peak 31138 rms 21985 frames 45056 hz 440 env 31132,31138,31136,31137,31136,31125, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-flash.md R9 |
+| enyo | flash-sound-close (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 24-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0 | cavekit-flash.md R9 |
+| enyo | flash-switch (rerun) | **pass** | 9 ok, 0 failed | WAIT ok 27-line: [jihad-npapi] cpu boost release: up_threshold=95 sampling_rate=200000; frames: kept/enyo-flash-switch-off_.jpg | cavekit-flash.md R10 |
+| enyo | site-data-page (rerun) | **pass** | 53 ok, 0 failed | site data: up (enyo): second origin: up on :8079 (pid 16322) (enyo) | cavekit-site-data.md R3 |
+| enyo | site-data-reach (rerun) | **pass** | 17 ok, 0 failed | CHECK ok 35-probe-lacks: the probe's answer lacks [Saved logins]; frames: kept/enyo-site-data-reach-logins_.jpg, kept/enyo-site-data-reach-data_.jpg | cavekit-site-data.md R4 |
+| enyo | site-logins-page (rerun) | **pass** | 40 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R2 |
+| enyo | site-logins-refuse-update (rerun) | **pass** | 23 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R1 |
+| enyo | site-logins-switches (rerun) | **pass** | 19 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R1 |
+| mochi | flash-background-card (rerun) | **pass** | 8 ok, 0 failed | WAIT ok 25-text down = [down 101 100] | cavekit-flash.md R10 |
+| mochi | flash-hostile-plugins (rerun) | **pass** | 4 ok, 0 failed | hostile plugins: up (mochi) | cavekit-flash.md R10 |
+| mochi | flash-sound-background (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 20-sound: sound at the output sink: peak 31138 rms 21984 frames 45056 hz 440 env 31135,31137,31138,31131,31133,31137, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-flash.md R9 |
+| mochi | flash-sound-close (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 24-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0 | cavekit-flash.md R9 |
+| mochi | flash-switch (rerun) | **pass** | 9 ok, 0 failed | WAIT ok 27-line: [jihad-npapi] cpu boost release: up_threshold=95 sampling_rate=200000; frames: kept/mochi-flash-switch-off_.jpg | cavekit-flash.md R10 |
+| mochi | site-data-page (rerun) | **pass** | 53 ok, 0 failed | site data: up (mochi): second origin: up on :8079 (pid 13359) (mochi) | cavekit-site-data.md R3 |
+| mochi | site-data-reach (rerun) | **pass** | 17 ok, 0 failed | CHECK ok 35-probe-lacks: the probe's answer lacks [Saved logins]; frames: kept/mochi-site-data-reach-logins_.jpg, kept/mochi-site-data-reach-data_.jpg | cavekit-site-data.md R4 |
+| mochi | site-logins-page (rerun) | **pass** | 40 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R2 |
+| mochi | site-logins-refuse-update (rerun) | **pass** | 23 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R1 |
+| mochi | site-logins-save (rerun) | **pass** | 11 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R1 |
+| mochi | site-logins-switches (rerun) | **pass** | 19 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R1 |
+| mojo | flash-background-card (rerun) | **pass** | 8 ok, 0 failed | WAIT ok 25-text down = [down 101 100] | cavekit-flash.md R10 |
+| mojo | flash-hostile-plugins (rerun) | **pass** | 4 ok, 0 failed | hostile plugins: up (mojo) | cavekit-flash.md R10 |
+| mojo | flash-sound-background (rerun) | **pass** | 7 ok, 0 failed | CHECK ok 20-sound: sound at the output sink: peak 31139 rms 21984 frames 45056 hz 440 env 31134,31132,31139,31130,31134,31125, the speaker amp on, the media volume 23, the pitch wanted 440 Hz | cavekit-flash.md R9 |
+| mojo | flash-sound-close (rerun) | **pass** | 11 ok, 0 failed | CHECK ok 24-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0 | cavekit-flash.md R9 |
+| mojo | flash-switch (rerun) | **pass** | 9 ok, 0 failed | WAIT ok 27-line: [jihad-npapi] cpu boost release: up_threshold=95 sampling_rate=200000; frames: kept/mojo-flash-switch-off_.jpg | cavekit-flash.md R10 |
+| mojo | site-data-page (rerun) | **pass** | 53 ok, 0 failed | site data: up (mojo): second origin: up on :8079 (pid 9669) (mojo) | cavekit-site-data.md R3 |
+| mojo | site-data-reach (rerun) | **pass** | 17 ok, 0 failed | CHECK ok 35-probe-lacks: the probe's answer lacks [Saved logins]; frames: kept/mojo-site-data-reach-logins_.jpg, kept/mojo-site-data-reach-data_.jpg | cavekit-site-data.md R4 |
+| mojo | site-logins-page (rerun) | **pass** | 40 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R2 |
+| mojo | site-logins-refuse-update (rerun) | **pass** | 23 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R1 |
+| mojo | site-logins-save (rerun) | **pass** | 11 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R1 |
+| mojo | site-logins-switches (rerun) | **pass** | 19 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R1 |
+| enyo | site-logins-frame (rerun) | **pass** | 20 ok, 0 failed | site data: up (enyo): second origin: up on :8079 (pid 26378) (enyo) | cavekit-site-data.md R1 |
+| enyo | site-logins-master (rerun) | **pass** | 17 ok, 0 failed | site data: up (enyo): key store: up (enyo): | cavekit-site-data.md R2 |
+| enyo | site-logins-persist (rerun) | **pass** | 12 ok, 0 failed | site data: up (enyo): | cavekit-site-data.md R1 |
+| mochi | site-logins-frame (rerun) | **pass** | 20 ok, 0 failed | site data: up (mochi): second origin: up on :8079 (pid 32723) (mochi) | cavekit-site-data.md R1 |
+| mochi | site-logins-master (rerun) | **pass** | 17 ok, 0 failed | site data: up (mochi): key store: up (mochi): | cavekit-site-data.md R2 |
+| mochi | site-logins-persist (rerun) | **pass** | 12 ok, 0 failed | site data: up (mochi): | cavekit-site-data.md R1 |
+| mojo | site-logins-frame (rerun) | **pass** | 20 ok, 0 failed | site data: up (mojo): second origin: up on :8079 (pid 23424) (mojo) | cavekit-site-data.md R1 |
+| mojo | site-logins-master (rerun) | **pass** | 17 ok, 0 failed | site data: up (mojo): key store: up (mojo): | cavekit-site-data.md R2 |
+| mojo | site-logins-persist (rerun) | **pass** | 12 ok, 0 failed | site data: up (mojo): | cavekit-site-data.md R1 |
+| enyo | site-data-address (rerun) | **pass** | 7 ok, 0 failed | WAIT ok 27-text page-title = [Site data]; frames: kept/enyo-site-data-address-logins_.jpg, kept/enyo-site-data-address-data_.jpg | cavekit-site-data.md R4 |
+| mochi | site-data-address (rerun) | **pass** | 7 ok, 0 failed | WAIT ok 27-text page-title = [Site data]; frames: kept/mochi-site-data-address-logins_.jpg, kept/mochi-site-data-address-data_.jpg | cavekit-site-data.md R4 |
+| mojo | site-data-address (rerun) | **pass** | 7 ok, 0 failed | WAIT ok 27-text page-title = [Site data]; frames: kept/mojo-site-data-address-logins_.jpg, kept/mojo-site-data-address-data_.jpg | cavekit-site-data.md R4 |
 
 ## The device at the end
 
 ```
-(not checked)
+DEVICE ok job-enyo: (78082/35672877) jihad (start) running, process 9984
+DEVICE ok daemons-enyo: one daemon
+DEVICE ok hand-daemon-enyo: none
+DEVICE ok hooks-enyo: none
+DEVICE ok adapter-gates-enyo: none
+DEVICE ok proxy-enyo: network.proxy.type unset
+DEVICE ok history-enyo: browser.sessionhistory.max_entries the default
+DEVICE ok cards-enyo: none
+DEVICE ok audio-lib-enyo: the device's own
+DEVICE ok look-enyo: {"returnValue":true,"theme":null}
+DEVICE ok job-mochi: (78087/17786950) jihad-mochi (start) running, process 18050
+DEVICE ok daemons-mochi: one daemon
+DEVICE ok hand-daemon-mochi: none
+DEVICE ok hooks-mochi: none
+DEVICE ok adapter-gates-mochi: none
+DEVICE ok proxy-mochi: network.proxy.type unset
+DEVICE ok history-mochi: browser.sessionhistory.max_entries the default
+DEVICE ok cards-mochi: none
+DEVICE ok audio-lib-mochi: the device's own
+DEVICE ok look-mochi: {"returnValue":true,"theme":null}
+DEVICE ok job-mojo: (78091/725083838) jihad-mojo (start) running, process 26434
+DEVICE ok daemons-mojo: one daemon
+DEVICE ok hand-daemon-mojo: none
+DEVICE ok hooks-mojo: none
+DEVICE ok adapter-gates-mojo: none
+DEVICE ok proxy-mojo: network.proxy.type unset
+DEVICE ok history-mojo: browser.sessionhistory.max_entries the default
+DEVICE ok cards-mojo: none
+DEVICE ok audio-lib-mojo: the device's own
+DEVICE ok look-mojo: {"returnValue":true,"theme":null}
+DEVICE ok gate-files: none in /tmp
+DEVICE ok device-scripts: none left in /tmp
+DEVICE ok test-pads-enyo: none
+DEVICE ok dialog-pipes-enyo: none
+DEVICE ok test-pads-mochi: none
+DEVICE ok dialog-pipes-mochi: none
+DEVICE ok test-pads-mojo: none
+DEVICE ok dialog-pipes-mojo: none
+DEVICE ok tmp-dumps: none
+DEVICE ok volume-subscribers: none without its daemon
+DEVICE ok media-scratch: none
+DEVICE ok overall: 47% of /tmp used
 ```
 
 ## Every test's lines
@@ -4175,57 +4261,57 @@ Shells: enyo, mochi, mojo. Scripts: 1. 32704 s.
 
 ### enyo / flash-video-h264-240 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +2 s, load done at +7 s, 5 content frames at +7 s; th
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +2 s, load done at +8 s, 9 content frames at +8 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.067 dropped=0 fps=20.775623268698062]
+    WAIT ok 14-text video = [video t=2.691 dropped=15 fps=29.469548133595286]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 81a8ea81 rows 298 uniform 0 light none blue 187-206
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash c9ab99ef rows 298 uniform 0 light none blue none
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3897,3896,3897,3897,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 226 (22.6/s), changes 187 (18.7/s), reads 227, distinct 188, spacing median 38 p90 77 max 191 ms (wanted 11.2..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash e43e58d7 rows 298 uniform 0 light none blue none
-    CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.122 dropped=37 fps=22.624434389140273]
-    CHECK ok 23-number: vendtime = 19.122 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 37 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 63582f90 rows 298 uniform 0 light none blue none
-    CHECK ok 26-plugin: plugin-container 16425: alive (state S, cpu ticks 1044 to 1056)
+    CHECK ok 19-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3896,3896,3897,3895,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 20-flash-rate: content 40,123-440,421: 10.0 s, flips 240 (24.0/s), changes 189 (18.9/s), reads 242, distinct 190, spacing median 34 p90 73 max 302 ms (wanted 11.2..40/s)
+    CHECK ok 21-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 0ccf2ce2 rows 298 uniform 0 light none blue none
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=18.442 dropped=74 fps=31.446540880503143]
+    CHECK ok 23-audio-watched: the audio watched: 14 readings over 14 s, all running, the stream the plugin's
+    CHECK ok 24-number: vendtime = 18.442 (wanted 17.5..20.5)
+    CHECK ok 25-number: venddropped = 74 (wanted 0..288)
+    CHECK ok 26-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 0ccf2ce2 rows 298 uniform 0 light none blue none
+    CHECK ok 27-plugin: plugin-container 15056: alive (state S, cpu ticks 1115 to 1127)
 
 ### enyo / flash-video-h264-360 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +2 s, load done at +8 s, 8 content frames at +8 s; th
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +1 s, load done at +6 s, 5 content frames at +6 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=2.116 dropped=11 fps=10.504201680672269]
+    WAIT ok 14-text video = [video t=2.299 dropped=2 fps=22.52252252252252]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 3782 hash eee45459 rows 298 uniform 0 light none blue 123-420 (TORN)
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 3744 hash b7dd264c rows 298 uniform 0 light none blue 123-420
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3896,3895,3895,3896,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 265 (26.5/s), changes 192 (19.2/s), reads 266, distinct 193, spacing median 29 p90 66 max 197 ms (wanted 13.4..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 3809 hash 7d43f379 rows 298 uniform 0 light none blue 123-420
-    CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.275 dropped=65 fps=26.08695652173913]
-    CHECK ok 23-number: vendtime = 19.275 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 65 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 3867 hash a9c9b9af rows 298 uniform 0 light none blue 123-420
-    CHECK ok 26-plugin: plugin-container 19939: alive (state S, cpu ticks 953 to 965)
+    CHECK ok 19-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3896,3895,3896,3896,3895,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 20-flash-rate: content 40,123-440,421: 10.0 s, flips 245 (24.5/s), changes 180 (18.0/s), reads 246, distinct 181, spacing median 31 p90 79 max 180 ms (wanted 13.4..40/s)
+    CHECK ok 21-flash-drawn: drawn: region 40,123-440,421: colours 3838 hash ce6bb7c2 rows 298 uniform 0 light none blue 123-420
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=55 fps=38.36317135549872]
+    CHECK ok 23-audio-watched: the audio watched: 14 readings over 14 s, all running, the stream the plugin's
+    CHECK ok 24-number: vendtime = 20.01 (wanted 17.5..20.5)
+    CHECK ok 25-number: venddropped = 55 (wanted 0..288)
+    CHECK ok 26-flash-drawn: drawn: region 40,123-440,421: colours 3732 hash 93bdf3bc rows 298 uniform 0 light none blue 123-420
+    CHECK ok 27-plugin: plugin-container 18613: alive (state R, cpu ticks 999 to 1011)
 
 ### enyo / flash-video-h264-480 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +2 s, load done at +8 s, 8 content frames at +8 s; th
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +3 s, load done at +8 s, 9 content frames at +8 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=2.037 dropped=8 fps=14.6484375]
+    WAIT ok 14-text video = [video t=2.691 dropped=18 fps=15.030060120240481]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 3193 hash 4a96b328 rows 298 uniform 0 light none blue 123-420
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 3334 hash c2a19162 rows 298 uniform 0 light none blue 123-420
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3897,3896,3896,3895,3895, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 204 (20.4/s), changes 175 (17.5/s), reads 208, distinct 176, spacing median 38 p90 80 max 254 ms (wanted 9.3..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 3391 hash 0f6afb65 rows 298 uniform 0 light none blue 123-420
-    CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=83 fps=24.077046548956663]
-    CHECK ok 23-number: vendtime = 20.01 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 83 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 3495 hash e242d890 rows 298 uniform 0 light none blue 123-420
-    CHECK ok 26-plugin: plugin-container 23340: alive (state S, cpu ticks 1154 to 1166)
+    CHECK ok 19-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3896,3896,3895,3895,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 20-flash-rate: content 40,123-440,421: 10.0 s, flips 214 (21.4/s), changes 177 (17.7/s), reads 217, distinct 178, spacing median 39 p90 81 max 325 ms (wanted 9.3..40/s)
+    CHECK ok 21-flash-drawn: drawn: region 40,123-440,421: colours 3521 hash 6ff5e7bc rows 298 uniform 0 light none blue 123-420
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=18.286 dropped=102 fps=27.573529411764707]
+    CHECK ok 23-audio-watched: the audio watched: 14 readings over 14 s, all running, the stream the plugin's
+    CHECK ok 24-number: vendtime = 18.286 (wanted 17.5..20.5)
+    CHECK ok 25-number: venddropped = 102 (wanted 0..288)
+    CHECK ok 26-flash-drawn: drawn: region 40,123-440,421: colours 3458 hash 2b95ad31 rows 298 uniform 0 light none blue 123-420
+    CHECK ok 27-plugin: plugin-container 22049: alive (state S, cpu ticks 1134 to 1145)
 
 ### enyo / flash-video-h264-mp4 — pass
 
@@ -4273,136 +4359,136 @@ Shells: enyo, mochi, mojo. Scripts: 1. 32704 s.
 
 ### enyo / flash-video-spark-240 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +2 s, load done at +7 s, 6 content frames at +7 s; t
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +2 s, load done at +7 s, 7 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=3.344 dropped=14 fps=22.058823529411764]
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 4bd60fbc rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=4.18 dropped=18 fps=22.058823529411764]
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 3a5297dd rows 298 uniform 0 light none blue 248-257
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3896,3895,3895,3896,3896,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 200 (20.0/s), changes 195 (19.5/s), reads 202, distinct 196, spacing median 41 p90 83 max 223 ms (wanted 10.3..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 64dfa9ac rows 298 uniform 0 light none blue none
-    CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.304 dropped=52 fps=24.232633279483036]
-    CHECK ok 22-number: vendtime = 19.304 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 52 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 53017963 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 5378: alive (state S, cpu ticks 585 to 597)
+    CHECK ok 18-sound: sound at the output sink: peak 3902 rms 2750 frames 45056 hz 440 env 3895,3902,3894,3898,3897,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 190 (19.0/s), changes 188 (18.8/s), reads 192, distinct 189, spacing median 43 p90 97 max 207 ms (wanted 10.3..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 53017963 rows 298 uniform 0 light none blue none
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=53 fps=22.058823529411764]
+    CHECK ok 22-audio-watched: the audio watched: 13 readings over 12 s, all running, the stream the plugin's
+    CHECK ok 23-number: vendtime = 20.01 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 53 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 53017963 rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 25528: alive (state S, cpu ticks 590 to 602)
 
 ### enyo / flash-video-spark-360 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +2 s, load done at +7 s, 8 content frames at +7 s; t
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +2 s, load done at +8 s, 8 content frames at +8 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=3.526 dropped=27 fps=22.008253094910593]
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7aa9f516 rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=4.624 dropped=19 fps=21.961932650073205]
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash ad4455cb rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3896,3896,3897,3895,3896,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 192 (19.2/s), changes 189 (18.9/s), reads 194, distinct 190, spacing median 43 p90 91 max 227 ms (wanted 12.8..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 70587089 rows 298 uniform 0 light none blue none
-    CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.957 dropped=86 fps=13.250883392226148]
-    CHECK ok 22-number: vendtime = 19.957 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 86 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 8871: alive (state S, cpu ticks 681 to 691)
+    CHECK ok 18-sound: sound at the output sink: peak 3902 rms 2750 frames 45056 hz 440 env 3895,3902,3894,3898,3897,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 179 (17.9/s), changes 176 (17.6/s), reads 181, distinct 177, spacing median 47 p90 95 max 301 ms (wanted 12.8..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 70587089 rows 298 uniform 0 light none blue none
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=73 fps=22.091310751104565]
+    CHECK ok 22-audio-watched: the audio watched: 14 readings over 14 s, all running, the stream the plugin's
+    CHECK ok 23-number: vendtime = 20.01 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 73 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 70587089 rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 29134: alive (state R, cpu ticks 703 to 714)
 
 ### enyo / flash-video-spark-480 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +2 s, load done at +8 s, 11 content frames at +8 s; 
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +1 s, load done at +7 s, 6 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=3.971 dropped=38 fps=17.921146953405017]
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4020 hash 44fccd81 rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=3.892 dropped=37 fps=19.37046004842615]
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4018 hash e1f16bab rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3896,3897,3895,3896,3895,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 192 (19.2/s), changes 187 (18.7/s), reads 194, distinct 188, spacing median 42 p90 90 max 290 ms (wanted 11.5..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash b3689f88 rows 298 uniform 0 light none blue none
-    CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=99 fps=24.72952086553323]
-    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 99 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 3d63abdf rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 12326: alive (state S, cpu ticks 821 to 833)
+    CHECK ok 18-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3896,3896,3897,3895,3896,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,123-440,421: 10.0 s, flips 195 (19.5/s), changes 193 (19.3/s), reads 197, distinct 194, spacing median 44 p90 91 max 220 ms (wanted 11.5..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash b3689f88 rows 298 uniform 0 light none blue none
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=108 fps=24.615384615384617]
+    CHECK ok 22-audio-watched: the audio watched: 13 readings over 13 s, all running, the stream the plugin's
+    CHECK ok 23-number: vendtime = 20.01 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 108 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 3d63abdf rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 343: alive (state S, cpu ticks 824 to 836)
 
 ### enyo / flash-video-spark-sheep — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +2 s, load done at +8 s, 9 content frames at +8 s; the
-    WAIT ok 13-text video = [video t=1.6 dropped=22 fps=7.865757734661773]
-    CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 44b2a20e rows 298 uniform 0 light 123-234 blue none
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +1 s, load done at +7 s, 7 content frames at +7 s; the
+    WAIT ok 13-text video = [video t=1.8 dropped=29 fps=0]
+    CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 81f374cb rows 298 uniform 0 light 123-179 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,123-440,421: 5.0 s, flips 50 (10.0/s), changes 37 (7.4/s), reads 54, distinct 35, spacing median 79 p90 188 max 259 ms (wanted 6.9..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 70252f20 rows 298 uniform 0 light 123-148 blue none
-    CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.725 after video t=8.62 dropped=102 fps=16.556291390728475]
-    CHECK ok 20-number: vendtime = 8.62 (wanted 6.3..9.3)
-    CHECK ok 21-number: venddropped = 102 (wanted 0..154)
-    CHECK ok 22-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7f2a41df rows 298 uniform 0 light 123-148 blue none
-    CHECK ok 23-plugin: plugin-container 15681: alive (state S, cpu ticks 325 to 336)
+    CHECK ok 17-flash-rate: content 40,123-440,421: 5.0 s, flips 58 (11.6/s), changes 44 (8.8/s), reads 61, distinct 44, spacing median 64 p90 175 max 447 ms (wanted 6.9..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7f2a41df rows 298 uniform 0 light 123-148 blue none
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.803 after video t=8.803 dropped=111 fps=17.2972972972973]
+    CHECK ok 20-audio-watched: the audio watched: 7 readings over 6 s, all running, the stream the plugin's
+    CHECK ok 21-number: vendtime = 8.803 (wanted 6.3..9.3)
+    CHECK ok 22-number: venddropped = 111 (wanted 0..154)
+    CHECK ok 23-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7f2a41df rows 298 uniform 0 light 123-148 blue none
+    CHECK ok 24-plugin: plugin-container 4196: alive (state R, cpu ticks 317 to 328)
 
 ### enyo / flash-video-spark-small — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the
-    WAIT ok 13-text video = [video t=2.972 dropped=7 fps=9.931719428926133]
-    CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash c71f8a78 rows 298 uniform 0 light 123-139 blue none
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the
+    WAIT ok 13-text video = [video t=2.879 dropped=7 fps=10.1010101010101]
+    CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 33880ee1 rows 298 uniform 0 light 123-139 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,123-440,421: 10.0 s, flips 125 (12.5/s), changes 125 (12.5/s), reads 128, distinct 126, spacing median 77 p90 100 max 232 ms (wanted 7.7..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 5eeb39d2 rows 298 uniform 0 light none blue none
-    CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.535 dropped=20 fps=12.057877813504824]
-    CHECK ok 20-number: vendtime = 29.535 (wanted 27.2..30.2)
-    CHECK ok 21-number: venddropped = 20 (wanted 0..212)
-    CHECK ok 22-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash b83d2678 rows 298 uniform 0 light 245-420 blue none
-    CHECK ok 23-plugin: plugin-container 19026: alive (state S, cpu ticks 442 to 453)
+    CHECK ok 17-flash-rate: content 40,123-440,421: 10.0 s, flips 127 (12.7/s), changes 125 (12.5/s), reads 130, distinct 126, spacing median 76 p90 112 max 419 ms (wanted 7.7..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 6da93616 rows 298 uniform 0 light 140-174 blue none
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.628 dropped=18 fps=11.45311381531854]
+    CHECK ok 20-audio-watched: the audio watched: 23 readings over 23 s, all running, the stream the plugin's
+    CHECK ok 21-number: vendtime = 29.628 (wanted 27.2..30.2)
+    CHECK ok 22-number: venddropped = 18 (wanted 0..212)
+    CHECK ok 23-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash b83d2678 rows 298 uniform 0 light 245-420 blue none
+    CHECK ok 24-plugin: plugin-container 7942: alive (state S, cpu ticks 463 to 474)
 
 ### enyo / flash-video-vp6-176 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +3 s, load done at +8 s, 6 content frames a
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +2 s, load done at +7 s, 5 content frames a
     WAIT ok 10-text vmeta = [vmeta codec=4 w=320 h=176 d=151.125]
-    WAIT ok 11-text video = [video t=3.709 dropped=10 fps=22.970903522205205]
+    WAIT ok 11-text video = [video t=3.526 dropped=20 fps=25.039123630672925]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,123-440,421: 10.0 s, flips 213 (21.3/s), changes 212 (21.2/s), reads 215, distinct 213, spacing median 42 p90 75 max 212 ms (wanted 11.0..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 0feb6558 rows 298 uniform 0 light none blue none
-    WAIT ok 18-text vctl = [vctl seek 60 t=27.951]
-    WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=67.343 dropped=38 fps=23.65930599369085]
-    CHECK ok 21-number: vtime = 68.362 (wanted 58..78)
-    CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.831 dropped=123 fps=25.078369905956112]
-    CHECK ok 24-number: vendtime = 150.831 (wanted 148.6..151.6)
-    CHECK ok 25-plugin: plugin-container 22818: alive (state S, cpu ticks 2829 to 2840)
+    CHECK ok 15-flash-rate: content 40,123-440,421: 10.0 s, flips 205 (20.5/s), changes 205 (20.5/s), reads 209, distinct 206, spacing median 42 p90 74 max 233 ms (wanted 11.0..40/s)
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash f569bb4c rows 298 uniform 0 light none blue none
+    WAIT ok 19-text vctl = [vctl seek 60 t=29.048]
+    WAIT ok 20-differs m
+    WAIT ok 21-text video = [video t=67.54 dropped=71 fps=21.77068214804064]
+    CHECK ok 22-number: vtime = 69.381 (wanted 58..78)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.648 dropped=204 fps=23.547880690737834]
+    CHECK ok 24-audio-watched: the audio watched: 101 readings over 110 s, all running, the stream the plugin's
+    CHECK ok 25-number: vendtime = 150.648 (wanted 148.6..151.6)
+    CHECK ok 26-plugin: plugin-container 12018: alive (state R, cpu ticks 2757 to 2769)
 
 ### enyo / flash-video-vp6-272 — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +2 s, load done at +7 s, 6 content frame
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +2 s, load done at +8 s, 7 content frame
     WAIT ok 10-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 11-text video = [video t=3.526 dropped=19 fps=23.84737678855326]
+    WAIT ok 11-text video = [video t=1.5 dropped=14 fps=16.357688113413303]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,123-440,421: 10.0 s, flips 207 (20.7/s), changes 206 (20.6/s), reads 211, distinct 207, spacing median 41 p90 70 max 292 ms (wanted 7.1..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash fa88ead8 rows 298 uniform 0 light none blue 209-269
-    WAIT ok 18-text vctl = [vctl seek 40 t=26.644]
-    WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=46.184 dropped=110 fps=23.112480739599384]
-    CHECK ok 21-number: vtime = 46.184 (wanted 38..58)
-    CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.413 dropped=306 fps=25.31645569620253]
-    CHECK ok 24-number: vendtime = 86.413 (wanted 84.3..87.3)
-    CHECK ok 25-plugin: plugin-container 27693: alive (state S, cpu ticks 2417 to 2429)
+    CHECK ok 15-flash-rate: content 40,123-440,421: 10.0 s, flips 209 (20.9/s), changes 193 (19.3/s), reads 212, distinct 194, spacing median 42 p90 78 max 219 ms (wanted 7.1..40/s)
+    CHECK ok 16-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 09598633 rows 298 uniform 0 light none blue 123-394
+    WAIT ok 19-text vctl = [vctl seek 40 t=18.834]
+    WAIT ok 20-differs m
+    WAIT ok 21-text video = [video t=41.09 dropped=55 fps=9.870450339296731]
+    CHECK ok 22-number: vtime = 41.09 (wanted 38..58)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.595 dropped=222 fps=19.138755980861244]
+    CHECK ok 24-audio-watched: the audio watched: 57 readings over 61 s, all running, the stream the plugin's
+    CHECK ok 25-number: vendtime = 86.595 (wanted 84.3..87.3)
+    CHECK ok 26-plugin: plugin-container 17667: alive (state S, cpu ticks 2295 to 2307)
 
 ### enyo / flash-video-vp6a — pass
 
-    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +1 s, load done at +7 s, 5 content frames at +7 s; the G
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the G
     WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-    WAIT ok 14-text video = [video t=1.533 dropped=9 fps=0]
-    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 2588 hash f5ca77cb rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=1.097 dropped=2 fps=0]
+    CHECK ok 15-flash-drawn: drawn: region 40,123-440,421: colours 2502 hash c5e0d33c rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-flash-rate: content 40,123-440,421: 10.0 s, flips 139 (13.9/s), changes 133 (13.3/s), reads 143, distinct 134, spacing median 58 p90 136 max 251 ms (wanted 9.8..40/s)
-    CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
-    CHECK ok 19-audio: the movie's audio: open running audible
-    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.975 dropped=30 fps=11.569052783803325]
-    CHECK ok 21-number: vendtime = 13.975 (wanted 11.5..14.5)
-    CHECK ok 22-number: venddropped = 30 (wanted 0..125)
-    CHECK ok 23-flash-drawn: drawn: region 40,123-440,421: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
-    CHECK ok 24-plugin: plugin-container 31973: alive (state S, cpu ticks 575 to 586)
+    CHECK ok 18-flash-rate: content 40,123-440,421: 10.0 s, flips 146 (14.6/s), changes 137 (13.7/s), reads 151, distinct 138, spacing median 61 p90 110 max 257 ms (wanted 9.8..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,123-440,421: colours 1629 hash 54c7fdf4 rows 298 uniform 0 light none blue none
+    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.933 after video t=13.635 dropped=24 fps=14.591439688715953]
+    CHECK ok 21-audio-watched: the audio watched: 10 readings over 9 s, all running, the stream the plugin's
+    CHECK ok 22-number: vendtime = 13.635 (wanted 11.5..14.5)
+    CHECK ok 23-number: venddropped = 24 (wanted 0..125)
+    CHECK ok 24-flash-drawn: drawn: region 40,123-440,421: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
+    CHECK ok 25-plugin: plugin-container 22635: alive (state S, cpu ticks 585 to 597)
 
 ### mochi / flash-video-controls — pass
 
@@ -4441,57 +4527,57 @@ Shells: enyo, mochi, mojo. Scripts: 1. 32704 s.
 
 ### mochi / flash-video-h264-240 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +2 s, load done at +8 s, 11 content frames at +8 s; 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +2 s, load done at +8 s, 8 content frames at +8 s; t
     WAIT ok 13-text vmeta = [vmeta codec=7 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.202 dropped=0 fps=0]
+    WAIT ok 14-text video = [video t=1.28 dropped=0 fps=22.058823529411764]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 7b847995 rows 298 uniform 0 light none blue 218-237
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 6df3736f rows 298 uniform 0 light none blue 376-395
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3896,3897,3896,3897, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 207 (20.7/s), changes 175 (17.5/s), reads 209, distinct 176, spacing median 41 p90 88 max 215 ms (wanted 11.2..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash f178f5f6 rows 298 uniform 0 light none blue none
-    CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.317 dropped=72 fps=24.154589371980677]
-    CHECK ok 23-number: vendtime = 19.317 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 72 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 481a5d0c rows 298 uniform 0 light none blue none
-    CHECK ok 26-plugin: plugin-container 23411: alive (state S, cpu ticks 1140 to 1151)
+    CHECK ok 19-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3895,3895,3896,3896,3894,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 20-flash-rate: content 40,119-440,417: 10.0 s, flips 203 (20.3/s), changes 165 (16.5/s), reads 206, distinct 166, spacing median 38 p90 84 max 281 ms (wanted 11.2..40/s)
+    CHECK ok 21-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 0de046eb rows 298 uniform 0 light none blue 123-142
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.122 dropped=81 fps=35.046728971962615]
+    CHECK ok 23-audio-watched: the audio watched: 16 readings over 16 s, all running, the stream the plugin's
+    CHECK ok 24-number: vendtime = 19.122 (wanted 17.5..20.5)
+    CHECK ok 25-number: venddropped = 81 (wanted 0..288)
+    CHECK ok 26-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash bd1f2483 rows 298 uniform 0 light none blue none
+    CHECK ok 27-plugin: plugin-container 26198: alive (state S, cpu ticks 1146 to 1158)
 
 ### mochi / flash-video-h264-360 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +1 s, load done at +7 s, 10 content frames at +7 s; 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +2 s, load done at +7 s, 8 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=7 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.28 dropped=0 fps=0]
+    WAIT ok 14-text video = [video t=1.28 dropped=0 fps=41.20879120879121]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3766 hash 95739b3f rows 298 uniform 0 light none blue 119-416
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3753 hash 4e833bb5 rows 298 uniform 0 light none blue 119-416
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3897,3896,3897,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 244 (24.4/s), changes 182 (18.2/s), reads 247, distinct 183, spacing median 28 p90 79 max 221 ms (wanted 13.4..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 3717 hash 556e94fc rows 298 uniform 0 light none blue 119-416
-    CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=40 fps=25.59726962457338]
-    CHECK ok 23-number: vendtime = 20.01 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 40 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 3799 hash fd39121a rows 298 uniform 0 light none blue 119-416
-    CHECK ok 26-plugin: plugin-container 26890: alive (state S, cpu ticks 1047 to 1059)
+    CHECK ok 19-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3896,3895,3898,3896, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 20-flash-rate: content 40,119-440,417: 10.0 s, flips 219 (21.9/s), changes 174 (17.4/s), reads 221, distinct 175, spacing median 37 p90 97 max 212 ms (wanted 13.4..40/s)
+    CHECK ok 21-flash-drawn: drawn: region 40,119-440,417: colours 3838 hash 3673f0ae rows 298 uniform 0 light none blue 119-416
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=60 fps=31.57894736842105]
+    CHECK ok 23-audio-watched: the audio watched: 15 readings over 15 s, all running, the stream the plugin's
+    CHECK ok 24-number: vendtime = 20.01 (wanted 17.5..20.5)
+    CHECK ok 25-number: venddropped = 60 (wanted 0..288)
+    CHECK ok 26-flash-drawn: drawn: region 40,119-440,417: colours 3823 hash f4956464 rows 298 uniform 0 light none blue 119-416
+    CHECK ok 27-plugin: plugin-container 30133: alive (state R, cpu ticks 992 to 1004)
 
 ### mochi / flash-video-h264-480 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +1 s, load done at +7 s, 9 content frames at +7 s; t
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +1 s, load done at +7 s, 4 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=7 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=1.097 dropped=0 fps=0]
+    WAIT ok 14-text video = [video t=1.202 dropped=0 fps=0]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3400 hash 7d38aef2 rows 298 uniform 0 light none blue 119-416
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 3128 hash d7e352c4 rows 298 uniform 0 light none blue 119-416
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3895,3898,3895,3897,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 200 (20.0/s), changes 167 (16.7/s), reads 202, distinct 168, spacing median 32 p90 106 max 222 ms (wanted 9.3..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 3429 hash 2833c789 rows 298 uniform 0 light none blue 119-416
-    CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.67 dropped=84 fps=25.848142164781905]
-    CHECK ok 23-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 84 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 3547 hash 5e60f899 rows 298 uniform 0 light none blue 119-416
-    CHECK ok 26-plugin: plugin-container 30570: alive (state S, cpu ticks 1152 to 1164)
+    CHECK ok 19-sound: sound at the output sink: peak 3896 rms 2750 frames 45056 hz 440 env 3895,3896,3896,3894,3895,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 20-flash-rate: content 40,119-440,417: 10.0 s, flips 202 (20.2/s), changes 169 (16.9/s), reads 203, distinct 170, spacing median 40 p90 94 max 196 ms (wanted 9.3..40/s)
+    CHECK ok 21-flash-drawn: drawn: region 40,119-440,417: colours 3390 hash a7e8ef2f rows 298 uniform 0 light none blue 119-416
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=20.01 dropped=109 fps=24.429967426710096]
+    CHECK ok 23-audio-watched: the audio watched: 15 readings over 15 s, all running, the stream the plugin's
+    CHECK ok 24-number: vendtime = 20.01 (wanted 17.5..20.5)
+    CHECK ok 25-number: venddropped = 109 (wanted 0..288)
+    CHECK ok 26-flash-drawn: drawn: region 40,119-440,417: colours 3521 hash ede5a831 rows 298 uniform 0 light none blue 119-416
+    CHECK ok 27-plugin: plugin-container 1268: alive (state S, cpu ticks 1159 to 1171)
 
 ### mochi / flash-video-h264-mp4 — pass
 
@@ -4539,136 +4625,136 @@ Shells: enyo, mochi, mojo. Scripts: 1. 32704 s.
 
 ### mochi / flash-video-spark-240 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +1 s, load done at +7 s, 11 content frames at +7 s;
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +1 s, load done at +7 s, 8 content frames at +7 s; 
     WAIT ok 13-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.692 dropped=4 fps=26.229508196721312]
+    WAIT ok 14-text video = [video t=1.28 dropped=3 fps=0]
     CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash b8240be1 rows 298 uniform 0 light none blue 219-238
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3894,3895,3898,3896,3897,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 199 (19.9/s), changes 195 (19.5/s), reads 203, distinct 196, spacing median 42 p90 81 max 294 ms (wanted 10.3..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash fac34401 rows 298 uniform 0 light none blue none
-    CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.853 dropped=47 fps=23.916292974588938]
-    CHECK ok 22-number: vendtime = 19.853 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 47 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash c2e9e7b1 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 12789: alive (state S, cpu ticks 591 to 602)
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3894,3895,3898,3896,3897,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 204 (20.4/s), changes 202 (20.2/s), reads 205, distinct 203, spacing median 42 p90 81 max 182 ms (wanted 10.3..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash edcf1baa rows 298 uniform 0 light none blue none
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.733 dropped=63 fps=15.67398119122257]
+    CHECK ok 22-audio-watched: the audio watched: 16 readings over 16 s, all running, the stream the plugin's
+    CHECK ok 23-number: vendtime = 19.733 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 63 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash c2e9e7b1 rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 5121: alive (state S, cpu ticks 590 to 601)
 
 ### mochi / flash-video-spark-360 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +7 s, 9 content frames at +7 s; 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +7 s, 11 content frames at +7 s;
     WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.202 dropped=2 fps=0]
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 2a567d50 rows 298 uniform 0 light none blue 249-261
+    WAIT ok 14-text video = [video t=1.202 dropped=0 fps=21.220159151193634]
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 7d4a2a0b rows 298 uniform 0 light none blue 295-308
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3894,3895,3898,3896,3897,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 201 (20.1/s), changes 201 (20.1/s), reads 205, distinct 202, spacing median 41 p90 82 max 487 ms (wanted 12.8..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 255defb6 rows 298 uniform 0 light none blue none
-    CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.67 dropped=72 fps=23.32814930015552]
-    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 72 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 16246: alive (state S, cpu ticks 695 to 707)
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3896,3895,3898,3891, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 210 (21.0/s), changes 206 (20.6/s), reads 211, distinct 207, spacing median 41 p90 72 max 170 ms (wanted 12.8..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 9e6c6f91 rows 298 uniform 0 light none blue none
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.733 dropped=73 fps=20.408163265306122]
+    CHECK ok 22-audio-watched: the audio watched: 15 readings over 15 s, all running, the stream the plugin's
+    CHECK ok 23-number: vendtime = 19.733 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 73 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 8913: alive (state R, cpu ticks 699 to 711)
 
 ### mochi / flash-video-spark-480 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +1 s, load done at +7 s, 12 content frames at +7 s;
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +1 s, load done at +7 s, 10 content frames at +7 s;
     WAIT ok 13-text vmeta = [vmeta codec=2 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=1.019 dropped=7 fps=10.438413361169102]
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 39e2e961 rows 298 uniform 0 light none blue 231-240
+    WAIT ok 14-text video = [video t=1.15 dropped=11 fps=12.830793905372895]
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 60eda7fc rows 298 uniform 0 light none blue 244-253
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3895,3897,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 197 (19.7/s), changes 194 (19.4/s), reads 200, distinct 195, spacing median 43 p90 84 max 272 ms (wanted 11.5..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 3587 hash f64ae01d rows 298 uniform 0 light none blue none
-    CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=100 fps=24.50980392156863]
-    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 100 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 3d63abdf rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 19736: alive (state S, cpu ticks 818 to 829)
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3894,3895,3898,3897,3897, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 199 (19.9/s), changes 193 (19.3/s), reads 201, distinct 194, spacing median 43 p90 79 max 234 ms (wanted 11.5..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 4ec07bd7 rows 298 uniform 0 light none blue 156-156
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.226 dropped=96 fps=25.210084033613445]
+    CHECK ok 22-audio-watched: the audio watched: 16 readings over 16 s, all running, the stream the plugin's
+    CHECK ok 23-number: vendtime = 19.226 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 96 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash b3689f88 rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 12737: alive (state S, cpu ticks 828 to 838)
 
 ### mochi / flash-video-spark-sheep — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +1 s, load done at +7 s, 5 content frames at +7 s; th
-    WAIT ok 13-text video = [video t=1.202 dropped=2 fps=0]
-    CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash e5af2f52 rows 298 uniform 0 light 119-162 blue none
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +1 s, load done at +7 s, 6 content frames at +7 s; th
+    WAIT ok 13-text video = [video t=1.202 dropped=3 fps=0]
+    CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash d579265b rows 298 uniform 0 light 119-166 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,119-440,417: 5.0 s, flips 67 (13.4/s), changes 62 (12.4/s), reads 70, distinct 63, spacing median 61 p90 141 max 412 ms (wanted 6.9..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 7f2a41df rows 298 uniform 0 light 119-144 blue none
-    CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.803 after video t=8.803 dropped=96 fps=15.429122468659594]
-    CHECK ok 20-number: vendtime = 8.803 (wanted 6.3..9.3)
-    CHECK ok 21-number: venddropped = 96 (wanted 0..154)
-    CHECK ok 22-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70252f20 rows 298 uniform 0 light 119-144 blue none
-    CHECK ok 23-plugin: plugin-container 23196: alive (state S, cpu ticks 333 to 344)
+    CHECK ok 17-flash-rate: content 40,119-440,417: 5.0 s, flips 72 (14.4/s), changes 70 (14.0/s), reads 75, distinct 71, spacing median 57 p90 124 max 302 ms (wanted 6.9..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70252f20 rows 298 uniform 0 light 119-144 blue none
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.725 after video t=8.725 dropped=83 fps=17.54385964912281]
+    CHECK ok 20-audio-watched: the audio watched: 5 readings over 4 s, all running, the stream the plugin's
+    CHECK ok 21-number: vendtime = 8.725 (wanted 6.3..9.3)
+    CHECK ok 22-number: venddropped = 83 (wanted 0..154)
+    CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70252f20 rows 298 uniform 0 light 119-144 blue none
+    CHECK ok 24-plugin: plugin-container 16439: alive (state S, cpu ticks 332 to 344)
 
 ### mochi / flash-video-spark-small — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +2 s, load done at +8 s, 12 content frames at +8 s; t
-    WAIT ok 13-text video = [video t=1.393 dropped=1 fps=0]
-    CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash f5141148 rows 298 uniform 0 light none blue none
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +1 s, load done at +6 s, 5 content frames at +6 s; th
+    WAIT ok 13-text video = [video t=1.3 dropped=0 fps=0]
+    CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash e98b1ea8 rows 298 uniform 0 light 159-183 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,119-440,417: 10.0 s, flips 108 (10.8/s), changes 106 (10.6/s), reads 119, distinct 107, spacing median 77 p90 108 max 1406 ms (wanted 7.7..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash ab97a2e1 rows 298 uniform 0 light 119-193 blue none
-    CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.442 dropped=7 fps=12.028869286287089]
-    CHECK ok 20-number: vendtime = 29.442 (wanted 27.2..30.2)
-    CHECK ok 21-number: venddropped = 7 (wanted 0..212)
-    CHECK ok 22-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash b83d2678 rows 298 uniform 0 light 241-416 blue none
-    CHECK ok 23-plugin: plugin-container 26774: alive (state R, cpu ticks 453 to 463)
+    CHECK ok 17-flash-rate: content 40,119-440,417: 10.0 s, flips 122 (12.2/s), changes 118 (11.8/s), reads 127, distinct 119, spacing median 78 p90 122 max 311 ms (wanted 7.7..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 5d4b5ba1 rows 298 uniform 0 light 181-363 blue none
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.442 dropped=7 fps=12.148823082763858]
+    CHECK ok 20-audio-watched: the audio watched: 25 readings over 26 s, all running, the stream the plugin's
+    CHECK ok 21-number: vendtime = 29.442 (wanted 27.2..30.2)
+    CHECK ok 22-number: venddropped = 7 (wanted 0..212)
+    CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 5f4a777a rows 298 uniform 0 light 241-416 blue none
+    CHECK ok 24-plugin: plugin-container 19719: alive (state S, cpu ticks 465 to 476)
 
 ### mochi / flash-video-vp6-176 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +2 s, load done at +7 s, 8 content frames 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +3 s, load done at +9 s, 12 content frames
     WAIT ok 10-text vmeta = [vmeta codec=4 w=320 h=176 d=151.125]
-    WAIT ok 11-text video = [video t=1.791 dropped=3 fps=28.089887640449437]
+    WAIT ok 11-text video = [video t=1.384 dropped=3 fps=0]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,119-440,417: 10.0 s, flips 227 (22.7/s), changes 218 (21.8/s), reads 228, distinct 219, spacing median 41 p90 70 max 103 ms (wanted 11.0..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash d11c701d rows 298 uniform 0 light none blue none
-    WAIT ok 18-text vctl = [vctl seek 60 t=21.446]
-    WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=65.018 dropped=13 fps=21.306818181818183]
-    CHECK ok 21-number: vtime = 65.018 (wanted 58..78)
-    CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=151.013 dropped=143 fps=24.72952086553323]
-    CHECK ok 24-number: vendtime = 151.013 (wanted 148.6..151.6)
-    CHECK ok 25-plugin: plugin-container 30795: alive (state S, cpu ticks 2667 to 2678)
+    CHECK ok 15-flash-rate: content 40,119-440,417: 10.0 s, flips 211 (21.1/s), changes 191 (19.1/s), reads 213, distinct 192, spacing median 42 p90 77 max 252 ms (wanted 11.0..40/s)
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash d2602770 rows 298 uniform 0 light none blue none
+    WAIT ok 19-text vctl = [vctl seek 60 t=19.774]
+    WAIT ok 20-differs m
+    WAIT ok 21-text video = [video t=63.916 dropped=19 fps=22.624434389140273]
+    CHECK ok 22-number: vtime = 63.916 (wanted 58..78)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.752 dropped=119 fps=23.84737678855326]
+    CHECK ok 24-audio-watched: the audio watched: 95 readings over 103 s, all running, the stream the plugin's
+    CHECK ok 25-number: vendtime = 150.752 (wanted 148.6..151.6)
+    CHECK ok 26-plugin: plugin-container 23933: alive (state S, cpu ticks 2665 to 2676)
 
 ### mochi / flash-video-vp6-272 — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +1 s, load done at +7 s, 11 content fra
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +1 s, load done at +7 s, 8 content fram
     WAIT ok 10-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 11-text video = [video t=1.279 dropped=0 fps=0]
+    WAIT ok 11-text video = [video t=1.279 dropped=12 fps=10.972933430870519]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,119-440,417: 10.0 s, flips 213 (21.3/s), changes 210 (21.0/s), reads 214, distinct 211, spacing median 42 p90 66 max 198 ms (wanted 7.1..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 5bfef869 rows 298 uniform 0 light none blue none
-    WAIT ok 18-text vctl = [vctl seek 40 t=20.793]
-    WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=42.84 dropped=50 fps=20.915032679738562]
-    CHECK ok 21-number: vtime = 43.964 (wanted 38..58)
-    CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.413 dropped=224 fps=25.93192868719611]
-    CHECK ok 24-number: vendtime = 86.413 (wanted 84.3..87.3)
-    CHECK ok 25-plugin: plugin-container 3833: alive (state R, cpu ticks 2304 to 2315)
+    CHECK ok 15-flash-rate: content 40,119-440,417: 10.0 s, flips 214 (21.4/s), changes 213 (21.3/s), reads 216, distinct 214, spacing median 42 p90 72 max 276 ms (wanted 7.1..40/s)
+    CHECK ok 16-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 129bc066 rows 298 uniform 0 light none blue none
+    WAIT ok 19-text vctl = [vctl seek 40 t=20.427]
+    WAIT ok 20-differs m
+    WAIT ok 21-text video = [video t=42.292 dropped=58 fps=15.060240963855422]
+    CHECK ok 22-number: vtime = 42.292 (wanted 38..58)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.674 dropped=286 fps=25.764895330112722]
+    CHECK ok 24-audio-watched: the audio watched: 58 readings over 62 s, all running, the stream the plugin's
+    CHECK ok 25-number: vendtime = 86.674 (wanted 84.3..87.3)
+    CHECK ok 26-plugin: plugin-container 29789: alive (state S, cpu ticks 2266 to 2277)
 
 ### mochi / flash-video-vp6a — pass
 
-    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the 
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the 
     WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-    WAIT ok 14-text video = [video t=1.097 dropped=1 fps=0]
-    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2431 hash 1ac840d2 rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=1.279 dropped=0 fps=0]
+    CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2624 hash 94beed20 rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-flash-rate: content 40,119-440,417: 10.0 s, flips 144 (14.4/s), changes 140 (14.0/s), reads 146, distinct 141, spacing median 60 p90 118 max 216 ms (wanted 9.8..40/s)
-    CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
-    CHECK ok 19-audio: the movie's audio: open running audible
-    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.818 dropped=20 fps=15.873015873015873]
-    CHECK ok 21-number: vendtime = 13.818 (wanted 11.5..14.5)
-    CHECK ok 22-number: venddropped = 20 (wanted 0..125)
-    CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
-    CHECK ok 24-plugin: plugin-container 8220: alive (state S, cpu ticks 586 to 597)
+    CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 139 (13.9/s), changes 130 (13.0/s), reads 142, distinct 131, spacing median 61 p90 124 max 285 ms (wanted 9.8..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
+    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.74 dropped=25 fps=15.717092337917485]
+    CHECK ok 21-audio-watched: the audio watched: 10 readings over 9 s, all running, the stream the plugin's
+    CHECK ok 22-number: vendtime = 13.74 (wanted 11.5..14.5)
+    CHECK ok 23-number: venddropped = 25 (wanted 0..125)
+    CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
+    CHECK ok 25-plugin: plugin-container 2494: alive (state S, cpu ticks 587 to 598)
 
 ### mojo / flash-video-controls — pass
 
@@ -4707,57 +4793,57 @@ Shells: enyo, mochi, mojo. Scripts: 1. 32704 s.
 
 ### mojo / flash-video-h264-240 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +1 s, load done at +7 s, 11 content frames at +7 s; t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-240.flv: connected at +1 s, load done at +6 s, 6 content frames at +6 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.985 dropped=6 fps=11.867088607594937]
+    WAIT ok 14-text video = [video t=1.672 dropped=1 fps=15.67398119122257]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash b5a579d2 rows 298 uniform 0 light none blue 126-145
+    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 9d3a4cba rows 298 uniform 0 light none blue 266-285
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3897,3898,3896,3897,3896,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 191 (19.1/s), changes 166 (16.6/s), reads 193, distinct 167, spacing median 39 p90 94 max 259 ms (wanted 11.2..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash dcfb29a5 rows 298 uniform 0 light none blue none
-    CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.122 dropped=108 fps=16.025641025641026]
-    CHECK ok 23-number: vendtime = 19.122 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 108 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 179c1c49 rows 298 uniform 0 light none blue none
-    CHECK ok 26-plugin: plugin-container 31978: alive (state S, cpu ticks 936 to 946)
+    CHECK ok 19-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3895,3898,3895,3897,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 20-flash-rate: content 40,114-440,412: 10.0 s, flips 166 (16.6/s), changes 148 (14.8/s), reads 167, distinct 149, spacing median 47 p90 109 max 213 ms (wanted 11.2..40/s)
+    CHECK ok 21-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 8fefc5b2 rows 298 uniform 0 light none blue none
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.983 dropped=146 fps=14.245014245014245]
+    CHECK ok 23-audio-watched: the audio watched: 15 readings over 15 s, all running, the stream the plugin's
+    CHECK ok 24-number: vendtime = 19.983 (wanted 17.5..20.5)
+    CHECK ok 25-number: venddropped = 146 (wanted 0..288)
+    CHECK ok 26-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 6fb152ab rows 298 uniform 0 light none blue none
+    CHECK ok 27-plugin: plugin-container 6120: alive (state S, cpu ticks 981 to 992)
 
 ### mojo / flash-video-h264-360 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +1 s, load done at +6 s, 6 content frames at +6 s; th
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-360.flv: connected at +1 s, load done at +6 s, 7 content frames at +6 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=1.28 dropped=0 fps=23.771790808240887]
+    WAIT ok 14-text video = [video t=1.202 dropped=0 fps=23.29192546583851]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 3477 hash b2ccf5e4 rows 298 uniform 0 light none blue 114-411
+    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 3451 hash 36a97d80 rows 298 uniform 0 light none blue 114-411
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3895,3897,3896,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 180 (18.0/s), changes 154 (15.4/s), reads 182, distinct 155, spacing median 42 p90 95 max 227 ms (wanted 13.4..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 3299 hash 5be8c381 rows 298 uniform 0 light none blue 114-411
-    CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.775 dropped=66 fps=22.76176024279211]
-    CHECK ok 23-number: vendtime = 19.775 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 66 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 3658 hash 25efb4ec rows 298 uniform 0 light none blue 114-411
-    CHECK ok 26-plugin: plugin-container 3179: alive (state S, cpu ticks 815 to 826)
+    CHECK ok 19-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3896,3897,3896,3897, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 20-flash-rate: content 40,114-440,412: 10.0 s, flips 181 (18.1/s), changes 152 (15.2/s), reads 182, distinct 153, spacing median 42 p90 93 max 191 ms (wanted 13.4..40/s)
+    CHECK ok 21-flash-drawn: drawn: region 40,114-440,412: colours 3308 hash 8f08243b rows 298 uniform 0 light none blue 114-411
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=18.15 dropped=75 fps=20.92050209205021]
+    CHECK ok 23-audio-watched: the audio watched: 15 readings over 15 s, all running, the stream the plugin's
+    CHECK ok 24-number: vendtime = 18.15 (wanted 17.5..20.5)
+    CHECK ok 25-number: venddropped = 75 (wanted 0..288)
+    CHECK ok 26-flash-drawn: drawn: region 40,114-440,412: colours 3415 hash 01a6a6ae rows 298 uniform 0 light none blue 114-411
+    CHECK ok 27-plugin: plugin-container 9838: alive (state S, cpu ticks 804 to 814)
 
 ### mojo / flash-video-h264-480 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +1 s, load done at +7 s, 9 content frames at +7 s; th
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-h264-480.flv: connected at +1 s, load done at +7 s, 8 content frames at +7 s; th
     WAIT ok 13-text vmeta = [vmeta codec=7 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=1.75 dropped=4 fps=0]
+    WAIT ok 14-text video = [video t=1.097 dropped=0 fps=0]
     CHECK ok 15-decoder: the kernel's video decoder: no arena fault in the last two minutes
-    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 3044 hash 3715cbf5 rows 298 uniform 0 light none blue 114-411
+    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 2993 hash 088f1b61 rows 298 uniform 0 light none blue 114-411
     CHECK ok 17-audio: the movie's audio: open running audible
-    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3897,3896,3897,3897,3898, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 172 (17.2/s), changes 155 (15.5/s), reads 174, distinct 156, spacing median 46 p90 106 max 213 ms (wanted 9.3..40/s)
-    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 2898 hash a1e4763f rows 298 uniform 0 light none blue 114-411
-    CHECK ok 21-audio: the movie's audio: open running audible
-    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.957 dropped=150 fps=13.525698827772768]
-    CHECK ok 23-number: vendtime = 19.957 (wanted 17.5..20.5)
-    CHECK ok 24-number: venddropped = 150 (wanted 0..288)
-    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 3094 hash 1d326baa rows 298 uniform 0 light none blue 114-411
-    CHECK ok 26-plugin: plugin-container 6683: alive (state S, cpu ticks 1020 to 1031)
+    CHECK ok 19-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3895,3898,3894,3897,3896,3896, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 20-flash-rate: content 40,114-440,412: 10.0 s, flips 158 (15.8/s), changes 143 (14.3/s), reads 161, distinct 144, spacing median 51 p90 111 max 216 ms (wanted 9.3..40/s)
+    CHECK ok 21-flash-drawn: drawn: region 40,114-440,412: colours 3042 hash c7722d3b rows 298 uniform 0 light none blue 114-411
+    WAIT ok 22-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.775 dropped=142 fps=23.510971786833856]
+    CHECK ok 23-audio-watched: the audio watched: 15 readings over 15 s, all running, the stream the plugin's
+    CHECK ok 24-number: vendtime = 19.775 (wanted 17.5..20.5)
+    CHECK ok 25-number: venddropped = 142 (wanted 0..288)
+    CHECK ok 26-flash-drawn: drawn: region 40,114-440,412: colours 3087 hash 4422e87b rows 298 uniform 0 light none blue 114-411
+    CHECK ok 27-plugin: plugin-container 13612: alive (state S, cpu ticks 1000 to 1012)
 
 ### mojo / flash-video-h264-mp4 — pass
 
@@ -4805,134 +4891,1091 @@ Shells: enyo, mochi, mojo. Scripts: 1. 32704 s.
 
 ### mojo / flash-video-spark-240 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +1 s, load done at +7 s, 3 content frames at +7 s; t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240.flv: connected at +2 s, load done at +7 s, 9 content frames at +7 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=426 h=240 d=20.025]
-    WAIT ok 14-text video = [video t=1.28 dropped=1 fps=0]
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash cebc915c rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=1.019 dropped=5 fps=13.392857142857142]
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 84f8fbcd rows 298 uniform 0 light none blue 204-223
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3897,3896,3896,3895,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 176 (17.6/s), changes 173 (17.3/s), reads 179, distinct 174, spacing median 48 p90 94 max 279 ms (wanted 10.3..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash a8384ce8 rows 298 uniform 0 light none blue none
-    CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.67 dropped=66 fps=24.50980392156863]
-    CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 66 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash ea789dc8 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 20901: alive (state S, cpu ticks 539 to 551)
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3898,3896,3897,3896,3897,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 172 (17.2/s), changes 170 (17.0/s), reads 174, distinct 171, spacing median 46 p90 93 max 305 ms (wanted 10.3..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash bdd348ee rows 298 uniform 0 light none blue none
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.409 dropped=75 fps=21.459227467811157]
+    CHECK ok 22-audio-watched: the audio watched: 15 readings over 15 s, all running, the stream the plugin's
+    CHECK ok 23-number: vendtime = 19.409 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 75 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash ea789dc8 rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 17279: alive (state S, cpu ticks 523 to 536)
 
 ### mojo / flash-video-spark-360 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +6 s, 7 content frames at +6 s; t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-360.flv: connected at +1 s, load done at +7 s, 10 content frames at +7 s; 
     WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-    WAIT ok 14-text video = [video t=2.358 dropped=16 fps=21.09704641350211]
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash f47e760b rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=2.873 dropped=15 fps=24.077046548956663]
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 3666 hash e780e4df rows 298 uniform 0 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3897,3896,3895,3895,3896,3891, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 183 (18.3/s), changes 177 (17.7/s), reads 185, distinct 178, spacing median 44 p90 90 max 219 ms (wanted 12.8..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 1577af17 rows 298 uniform 0 light none blue none
-    CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.525 dropped=91 fps=20.804438280166437]
-    CHECK ok 22-number: vendtime = 19.525 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 91 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash eb1248d8 rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 24358: alive (state S, cpu ticks 643 to 655)
+    CHECK ok 18-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3897,3896,3896,3895,3895,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 173 (17.3/s), changes 171 (17.1/s), reads 177, distinct 172, spacing median 47 p90 102 max 280 ms (wanted 12.8..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash bbf86e32 rows 298 uniform 0 light none blue none
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=18.775 dropped=102 fps=17.942583732057415]
+    CHECK ok 22-audio-watched: the audio watched: 13 readings over 13 s, all running, the stream the plugin's
+    CHECK ok 23-number: vendtime = 18.775 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 102 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash eb1248d8 rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 20783: alive (state S, cpu ticks 632 to 643)
 
 ### mojo / flash-video-spark-480 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +1 s, load done at +6 s, 5 content frames at +6 s; t
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-480.flv: connected at +1 s, load done at +6 s, 8 content frames at +6 s; t
     WAIT ok 13-text vmeta = [vmeta codec=2 w=854 h=480 d=20.025]
-    WAIT ok 14-text video = [video t=3.971 dropped=32 fps=16.7973124300112]
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 3676 hash 93f0d4d1 rows 298 uniform 0 light none blue none
+    WAIT ok 14-text video = [video t=1.28 dropped=12 fps=0]
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 3325 hash ecc7b1e5 rows 298 uniform 0 light none blue 184-193
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-sound: sound at the output sink: peak 3897 rms 2750 frames 45056 hz 440 env 3895,3895,3896,3896,3897,3894, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 174 (17.4/s), changes 172 (17.2/s), reads 175, distinct 173, spacing median 45 p90 103 max 174 ms (wanted 11.5..40/s)
-    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 4077 hash b377425f rows 298 uniform 0 light none blue none
-    CHECK ok 20-audio: the movie's audio: open running audible
-    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=18.939 dropped=120 fps=23.357664233576642]
-    CHECK ok 22-number: vendtime = 18.939 (wanted 17.5..20.5)
-    CHECK ok 23-number: venddropped = 120 (wanted 0..288)
-    CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 4077 hash b377425f rows 298 uniform 0 light none blue none
-    CHECK ok 25-plugin: plugin-container 27897: alive (state S, cpu ticks 758 to 770)
+    CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3897,3896,3897,3898,3892, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-flash-rate: content 40,114-440,412: 10.0 s, flips 170 (17.0/s), changes 167 (16.7/s), reads 174, distinct 168, spacing median 46 p90 103 max 300 ms (wanted 11.5..40/s)
+    CHECK ok 20-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash bd4e94ee rows 298 uniform 0 light none blue none
+    WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.775 dropped=126 fps=23.400936037441497]
+    CHECK ok 22-audio-watched: the audio watched: 14 readings over 14 s, all running, the stream the plugin's
+    CHECK ok 23-number: vendtime = 19.775 (wanted 17.5..20.5)
+    CHECK ok 24-number: venddropped = 126 (wanted 0..288)
+    CHECK ok 25-flash-drawn: drawn: region 40,114-440,412: colours 3759 hash 01cf1db3 rows 298 uniform 0 light none blue none
+    CHECK ok 26-plugin: plugin-container 24397: alive (state S, cpu ticks 758 to 772)
 
 ### mojo / flash-video-spark-sheep — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the
-    WAIT ok 13-text video = [video t=2.873 dropped=27 fps=18.12004530011325]
-    CHECK ok 14-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 8500bfac rows 298 uniform 35 light 114-246 blue none
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/sheep-spark.flv: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the
+    WAIT ok 13-text video = [video t=1.28 dropped=3 fps=0]
+    CHECK ok 14-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 1f0fcf71 rows 298 uniform 33 light 114-157 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,114-440,412: 5.0 s, flips 57 (11.4/s), changes 45 (9.0/s), reads 61, distinct 44, spacing median 72 p90 189 max 278 ms (wanted 6.9..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash da0e1ad8 rows 298 uniform 5 light 114-139 blue none
-    CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.725 after video t=8.725 dropped=110 fps=16.276703967446593]
-    CHECK ok 20-number: vendtime = 8.725 (wanted 6.3..9.3)
-    CHECK ok 21-number: venddropped = 110 (wanted 0..154)
-    CHECK ok 22-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash da0e1ad8 rows 298 uniform 5 light 114-139 blue none
-    CHECK ok 23-plugin: plugin-container 31332: alive (state R, cpu ticks 324 to 335)
+    CHECK ok 17-flash-rate: content 40,114-440,412: 5.0 s, flips 67 (13.4/s), changes 62 (12.4/s), reads 70, distinct 63, spacing median 68 p90 112 max 249 ms (wanted 6.9..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 7043f561 rows 298 uniform 5 light 114-139 blue none
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.803 after video t=8.803 dropped=101 fps=17.25997842502697]
+    CHECK ok 20-audio-watched: the audio watched: 6 readings over 5 s, all running, the stream the plugin's
+    CHECK ok 21-number: vendtime = 8.803 (wanted 6.3..9.3)
+    CHECK ok 22-number: venddropped = 101 (wanted 0..154)
+    CHECK ok 23-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash da0e1ad8 rows 298 uniform 5 light 114-139 blue none
+    CHECK ok 24-plugin: plugin-container 28080: alive (state S, cpu ticks 307 to 318)
 
 ### mojo / flash-video-spark-small — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +1 s, load done at +6 s, 8 content frames at +6 s; the
-    WAIT ok 13-text video = [video t=1.207 dropped=0 fps=0]
-    CHECK ok 14-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 35eb43f7 rows 298 uniform 0 light 114-130 blue none
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/zelda-spark.flv: connected at +1 s, load done at +6 s, 3 content frames at +6 s; the
+    WAIT ok 13-text video = [video t=1.671 dropped=0 fps=0]
+    CHECK ok 14-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 9503c9f1 rows 298 uniform 0 light 114-275 blue none
     CHECK ok 15-audio: the movie's audio: open running audible
-    CHECK ok 16-flash-rate: content 40,114-440,412: 10.0 s, flips 124 (12.4/s), changes 124 (12.4/s), reads 125, distinct 125, spacing median 77 p90 106 max 180 ms (wanted 7.7..40/s)
-    CHECK ok 17-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 9ca254b1 rows 298 uniform 0 light 194-273 blue none
-    CHECK ok 18-audio: the movie's audio: open running audible
-    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.628 dropped=17 fps=12.279355333844974]
-    CHECK ok 20-number: vendtime = 29.628 (wanted 27.2..30.2)
-    CHECK ok 21-number: venddropped = 17 (wanted 0..212)
-    CHECK ok 22-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 465020e8 rows 298 uniform 0 light 236-411 blue none
-    CHECK ok 23-plugin: plugin-container 2536: alive (state S, cpu ticks 427 to 438)
+    CHECK ok 17-flash-rate: content 40,114-440,412: 10.0 s, flips 121 (12.1/s), changes 121 (12.1/s), reads 124, distinct 122, spacing median 78 p90 134 max 290 ms (wanted 7.7..40/s)
+    CHECK ok 18-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash adb2439d rows 298 uniform 0 light 174-315 blue none
+    WAIT ok 19-text vend = [vend NetStream.Play.Stop t=29.75 after video t=29.628 dropped=15 fps=12.24177505738332]
+    CHECK ok 20-audio-watched: the audio watched: 24 readings over 25 s, all running, the stream the plugin's
+    CHECK ok 21-number: vendtime = 29.628 (wanted 27.2..30.2)
+    CHECK ok 22-number: venddropped = 15 (wanted 0..212)
+    CHECK ok 23-flash-drawn: drawn: region 40,114-440,412: colours 3717 hash 5348d36b rows 298 uniform 0 light 236-411 blue none
+    CHECK ok 24-plugin: plugin-container 31612: alive (state S, cpu ticks 445 to 456)
 
 ### mojo / flash-video-vp6-176 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +1 s, load done at +6 s, 5 content frames a
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/mrandmrs-vp6.flv%26seek=60: connected at +1 s, load done at +6 s, 7 content frames a
     WAIT ok 10-text vmeta = [vmeta codec=4 w=320 h=176 d=151.125]
-    WAIT ok 11-text video = [video t=2.69 dropped=10 fps=25.641025641025642]
+    WAIT ok 11-text video = [video t=1.384 dropped=4 fps=0]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,114-440,412: 10.0 s, flips 199 (19.9/s), changes 198 (19.8/s), reads 200, distinct 199, spacing median 45 p90 84 max 186 ms (wanted 11.0..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 8fddcc3c rows 298 uniform 0 light none blue none
-    WAIT ok 18-text vctl = [vctl seek 60 t=28.029]
-    WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=65.708 dropped=66 fps=21.459227467811157]
-    CHECK ok 21-number: vtime = 67.422 (wanted 58..78)
-    CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.831 dropped=299 fps=17.0261066969353]
-    CHECK ok 24-number: vendtime = 150.831 (wanted 148.6..151.6)
-    CHECK ok 25-plugin: plugin-container 6256: alive (state S, cpu ticks 2489 to 2500)
+    CHECK ok 15-flash-rate: content 40,114-440,412: 10.0 s, flips 196 (19.6/s), changes 195 (19.5/s), reads 197, distinct 196, spacing median 45 p90 78 max 198 ms (wanted 11.0..40/s)
+    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 1b1fd232 rows 298 uniform 0 light none blue none
+    WAIT ok 19-text vctl = [vctl seek 60 t=23.375]
+    WAIT ok 20-differs m
+    WAIT ok 21-text video = [video t=66.037 dropped=53 fps=21.994134897360702]
+    CHECK ok 22-number: vtime = 66.977 (wanted 58..78)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=151.125 after video t=150.177 dropped=311 fps=24.50980392156863]
+    CHECK ok 24-audio-watched: the audio watched: 98 readings over 108 s, all running, the stream the plugin's
+    CHECK ok 25-number: vendtime = 150.177 (wanted 148.6..151.6)
+    CHECK ok 26-plugin: plugin-container 3271: alive (state R, cpu ticks 2437 to 2448)
 
 ### mojo / flash-video-vp6-272 — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +0 s, load done at +6 s, 8 content frame
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/harrypotter-vp6.flv%26seek=40: connected at +2 s, load done at +6 s, 5 content frame
     WAIT ok 10-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-    WAIT ok 11-text video = [video t=2.625 dropped=17 fps=19.71090670170828]
+    WAIT ok 11-text video = [video t=2.507 dropped=9 fps=22.63083451202263]
     WAIT ok 12-content m
     CHECK ok 13-audio: the movie's audio: open running audible
-    CHECK ok 14-flash-rate: content 40,114-440,412: 10.0 s, flips 190 (19.0/s), changes 190 (19.0/s), reads 193, distinct 191, spacing median 43 p90 79 max 310 ms (wanted 7.1..40/s)
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash c22d94ac rows 298 uniform 0 light none blue 202-288
-    WAIT ok 18-text vctl = [vctl seek 40 t=24.708]
-    WAIT ok 19-differs m
-    WAIT ok 20-text video = [video t=44.146 dropped=154 fps=15.706806282722512]
-    CHECK ok 21-number: vtime = 44.146 (wanted 38..58)
-    CHECK ok 22-audio: the movie's audio: open running audible
-    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.041 dropped=494 fps=17.8359096313912]
-    CHECK ok 24-number: vendtime = 86.041 (wanted 84.3..87.3)
-    CHECK ok 25-plugin: plugin-container 11137: alive (state S, cpu ticks 2158 to 2170)
+    CHECK ok 15-flash-rate: content 40,114-440,412: 10.0 s, flips 186 (18.6/s), changes 185 (18.5/s), reads 187, distinct 186, spacing median 46 p90 81 max 197 ms (wanted 7.1..40/s)
+    CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 6c7571f3 rows 298 uniform 0 light none blue 200-260
+    WAIT ok 19-text vctl = [vctl seek 40 t=25.291]
+    WAIT ok 20-differs m
+    WAIT ok 21-text video = [video t=42.292 dropped=127 fps=21.994134897360702]
+    CHECK ok 22-number: vtime = 43.958 (wanted 38..58)
+    WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.674 dropped=468 fps=19.536019536019538]
+    CHECK ok 24-audio-watched: the audio watched: 60 readings over 65 s, all running, the stream the plugin's
+    CHECK ok 25-number: vendtime = 86.674 (wanted 84.3..87.3)
+    CHECK ok 26-plugin: plugin-container 9274: alive (state S, cpu ticks 2218 to 2229)
 
 ### mojo / flash-video-vp6a — pass
 
-    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the G
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/i004-vp6a.flv: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the G
     WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-    WAIT ok 14-text video = [video t=2.298 dropped=9 fps=7.012622720897616]
-    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 2553 hash d6b0f728 rows 298 uniform 67 light none blue none
+    WAIT ok 14-text video = [video t=1.279 dropped=6 fps=0]
+    CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 2473 hash c614e5ef rows 298 uniform 67 light none blue none
     CHECK ok 16-audio: the movie's audio: open running audible
-    CHECK ok 17-flash-rate: content 40,114-440,412: 10.0 s, flips 119 (11.9/s), changes 110 (11.0/s), reads 125, distinct 110, spacing median 63 p90 164 max 304 ms (wanted 9.8..40/s)
-    CHECK ok 18-flash-drawn: drawn: region 40,114-440,412: colours 1495 hash 9ca6657e rows 298 uniform 67 light none blue none
+    CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 124 (12.4/s), changes 112 (11.2/s), reads 128, distinct 111, spacing median 65 p90 132 max 238 ms (wanted 9.8..40/s)
+    CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 1594 hash 0a1f6c6b rows 298 uniform 66 light none blue none
+    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.975 dropped=38 fps=13.736263736263735]
+    CHECK ok 21-audio-watched: the audio watched: 11 readings over 10 s, all running, the stream the plugin's
+    CHECK ok 22-number: vendtime = 13.975 (wanted 11.5..14.5)
+    CHECK ok 23-number: venddropped = 38 (wanted 0..125)
+    CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 1495 hash 9ca6657e rows 298 uniform 67 light none blue none
+    CHECK ok 25-plugin: plugin-container 14334: alive (state S, cpu ticks 566 to 578)
+
+### enyo / site-logins-save — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +3 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-tester)
+    WAIT ok 19-text sent = [sent jihad-tester]
+    WAIT ok 20-launch: load done
+    WAIT ok 21-text state = [user=jihad-tester pass=s3cret-41 events=4]
+    CHECK ok 22-text-lacks: state = [user=jihad-tester pass=s3cret-41 events=4] lacks [events=0]
+    WAIT ok 23-launch: load done
+    WAIT ok 24-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 27-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / flash-background-card — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240-120s.flv: connected at +3 s, load done at +10 s, 10 content frames at 
+    WAIT ok 14-rect sel:embed
+    CHECK ok 15-flash-rate: content 40,123-440,421: 3.0 s, flips 29 (9.7/s), changes 29 (9.7/s), reads 37, distinct 30, spacing median 43 p90 122 max 1425 ms (wanted 5..100/s)
+    WAIT ok 17-line: [jihad-npapi] cpu boost release (every card in the background): up_threshold=95 sampling_rate=200000
+    CHECK ok 19-quiet: no line painted shmid for 4 s
+    WAIT ok 21-changed m
+    CHECK ok 22-flash-rate: content 40,123-440,421: 2.0 s, flips 48 (24.0/s), changes 48 (24.0/s), reads 49, distinct 49, spacing median 39 p90 56 max 201 ms (wanted 5..100/s)
+    WAIT ok 23-line: [jihad-npapi] cpu boost acquire (a card in front again): up_threshold 95->40 sampling_rate 200000->50000
+    WAIT ok 25-text down = [down 101 100]
+
+### enyo / flash-hostile-plugins — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +19 s, 25 content frames at +20 s; the GPU path, frames off the main thread (the express lane) (the job's 
+    WAIT ok 15-rect sel:embed
+    CHECK ok 16-audio: the movie's audio: open running audible
+    CHECK ok 19-probe-has: the probe's answer holds [clean]
+    CHECK ok 20-probe-has: the probe's answer holds [libflashplayer.so]
+
+### enyo / flash-sound-background — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +9 s, 23 content frames at +9 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 12-rect sel:embed
+    CHECK ok 13-audio: the movie's audio: open running audible
+    CHECK ok 14-sound: sound at the output sink: peak 31141 rms 21987 frames 45056 hz 440 env 31141,31134,31136,31138,31133,31131, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 16-audio: the movie's audio: open running audible
+    CHECK ok 17-sound: sound at the output sink: peak 31138 rms 21985 frames 45056 hz 440 env 31134,31137,31132,31138,31136,31125, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
     CHECK ok 19-audio: the movie's audio: open running audible
-    WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.635 dropped=32 fps=16.580310880829014]
-    CHECK ok 21-number: vendtime = 13.635 (wanted 11.5..14.5)
-    CHECK ok 22-number: venddropped = 32 (wanted 0..125)
-    CHECK ok 23-flash-drawn: drawn: region 40,114-440,412: colours 1495 hash 9ca6657e rows 298 uniform 67 light none blue none
-    CHECK ok 24-plugin: plugin-container 15403: alive (state S, cpu ticks 570 to 581)
+    CHECK ok 20-sound: sound at the output sink: peak 31138 rms 21985 frames 45056 hz 440 env 31132,31138,31136,31137,31136,31125, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+
+### enyo / flash-sound-close — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +8 s, 9 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIH
+    WAIT ok 11-rect sel:embed
+    CHECK ok 12-audio: the movie's audio: open running audible
+    WAIT ok 13-launch: load done
+    CHECK ok 14-audio: the movie's audio: closed
+    WAIT ok 15-launch: load done
+    WAIT ok 16-rect sel:embed
+    CHECK ok 17-audio: the movie's audio: open running audible
+    CHECK ok 20-audio-renewed: the marked streams (65 65 ) are gone within 2 s; open now: none
+    CHECK ok 21-audio: the movie's audio: open running audible
+    CHECK ok 23-audio: the movie's audio: closed
+    CHECK ok 24-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+
+### enyo / flash-switch — pass
+
+    enyo card on http://192.168.1.245:8097/title/bloxorz: connected at +3 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_C
+    CHECK ok 15-quiet: no line InstantiatePluginInstance rv=0x0 for 6 s
+    WAIT ok 16-content m
+    CHECK ok 19-probe-has: the probe's answer holds [noflash]
+    WAIT ok 22-rect m
+    WAIT ok 23-content m
+    WAIT ok 24-changed m
+    WAIT ok 25-content m
+    WAIT ok 26-launch: load done
+    WAIT ok 27-line: [jihad-npapi] cpu boost release: up_threshold=95 sampling_rate=200000
+
+### enyo / site-data-page — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 17-rect user
+    CHECK ok 20-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 22-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 23-text sent = [sent jihad-data]
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text state = [user=(empty) pass=(empty) events=0]
+    WAIT ok 26-launch: load done
+    WAIT ok 27-text sites = [Sites192.168.1.2452 cookies · 1 login · 100 KB storedOpenalbinoblacksheep.com2 cookiesOpenamazon.com9 cookies · 944 bytes storedOpenapple.com2 cookies · 673 bytes storedOpenarchive.org9 cookies · 9 bytes storedOpenbbc.com14 cookies · 6.2 KB storedOpenbing.com2 cookiesOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencloudflare.com163 bytes storedOpe]
+    CHECK ok 28-text-lacks: sites = [Sites192.168.1.2452 cookies · 1 login · 100 KB storedOpenalbinoblacksheep.com2 cookiesOpenamazon.com9 cookies · 944 bytes storedOpenapple.com2 cookies · 673 bytes storedOpenarchive.org9 cookies · 9 bytes storedOpenbbc.com14 cookies · 6.2 KB storedOpenbing.com2 cookiesOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencloudflare.com163 bytes storedOpe] lacks [:8079]
+    WAIT ok 29-text sel:.site-row[data-site='192.168.1.245'] .site-counts = [2 cookies · 1 login · 100 KB stored]
+    CHECK ok 30-text-has: sel:.site-row[data-site="192.168.1.245"] .site-counts = [2 cookies · 1 login · 100 KB stored] holds [1 login]
+    WAIT ok 33-text sites = [SitesNo site matches “zz-no-such-site”.]
+    WAIT ok 34-launch: load done
+    WAIT ok 35-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com2 cookiesOpenamazon.com9 cookies · 944 bytes storedOpenapple.com2 cookies · 673 bytes storedOpenarchive.org9 cookies · 9 bytes storedOpenbbc.com14 cookies · 6.2 KB storedOpenbing.com2 cookiesOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencloudflare.com163 bytes storedOpe]
+    WAIT ok 37-text cookies = [Cookies (2)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemovejihadtest192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies]
+    WAIT ok 39-text sel:.cookie-row[data-name='jihadtest'] .cookie-value = [1]
+    WAIT ok 40-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 41-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    CHECK ok 42-text-has: site-logins = [Saved logins1 saved loginSaved logins] holds [1 saved login]
+    WAIT ok 44-text status = [Pop-up windows for http://192.168.1.245:8077: Block]
+    WAIT ok 45-launch: load done
+    WAIT ok 46-rect sel:.perm-row[data-perm='popup'][data-origin='http://192.168.1.245:8077'][data-value='2']
+    WAIT ok 48-text status = [The cookie jihadtest removed]
+    CHECK ok 49-text-lacks: cookies = [Cookies (1)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies] lacks [jihadtest]
+    WAIT ok 51-text status = [Every cookie of 192.168.1.245 removed]
+    CHECK ok 52-text-lacks: cookies = [Cookies (0)None.] lacks [jihadsecond]
+    WAIT ok 54-url: about:logins?filter=192.168.1.245
+    WAIT ok 55-text logins = [Logins192.168.1.245:8077jihad-data••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 56-launch: load done
+    WAIT ok 57-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 58-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 60-gone sel:.storage-row[data-kind='local'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 61-text-has: storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clear] holds [databases]
+    WAIT ok 63-gone sel:.storage-row[data-kind='quota'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 64-text-has: storage = [Stored datahttp://192.168.1.245:807948 KB (databases, caches)Clear] holds [192.168.1.245:8079]
+    WAIT ok 66-text forget-row = [Forget this siteForget everything this browser keeps for 192.168.1.245?Forget it]
+    WAIT ok 68-text sites = [Sitesalbinoblacksheep.com2 cookiesOpenamazon.com9 cookies · 944 bytes storedOpenapple.com2 cookies · 673 bytes storedOpenarchive.org9 cookies · 9 bytes storedOpenbbc.com14 cookies · 6.2 KB storedOpenbing.com2 cookiesOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencloudflare.com163 bytes storedOpencodepen.io3 cookiesOpencrazygames.com4 cookies · 77 ]
+    CHECK ok 69-quiet: no line jihad-never-logged for 3 s
+    CHECK ok 70-text-lacks: sites = [Sitesalbinoblacksheep.com2 cookiesOpenamazon.com9 cookies · 944 bytes storedOpenapple.com2 cookies · 673 bytes storedOpenarchive.org9 cookies · 9 bytes storedOpenbbc.com14 cookies · 6.2 KB storedOpenbing.com2 cookiesOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencloudflare.com163 bytes storedOpencodepen.io3 cookiesOpencrazygames.com4 cookies · 77 ] lacks [192.168.1.245]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 73-text-has: forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-data]
+    WAIT ok 76-text forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 77-text-lacks: forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all] lacks [jihad-data]
+    WAIT ok 78-launch: load done
+    WAIT ok 79-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 82-text forms = [Form data (2)No entry matches.Remove all form dataRemove all]
+    WAIT ok 83-launch: load done
+    WAIT ok 84-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 86-text status = [Removed]
+    CHECK ok 87-text-lacks: forms = [Form data (1)jihad-datauser · used 1 timeRemoveRemove all form dataRemove all] lacks [hello jihad]
+    WAIT ok 89-text forms-remove-all-row = [Remove all form dataRemove all 1 entries?Remove them]
+    WAIT ok 91-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+
+### enyo / site-data-reach — pass
+
+    enyo card on about:settings: connected at +2 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+    WAIT ok 11-rect page-title
+    WAIT ok 13-rect sel:.row[data-label='Saved logins'] button
+    WAIT ok 15-text page-title = [Saved logins]
+    WAIT ok 16-url: about:logins
+    CHECK ok 18-min-height: search is 44 px tall (at least 44)
+    CHECK ok 19-min-height: sel:.never-add-btn is 45 px tall (at least 44)
+    WAIT ok 20-launch: load done
+    WAIT ok 21-rect page-title
+    WAIT ok 23-rect sel:.row[data-label='Site data'] button
+    WAIT ok 25-text page-title = [Site data]
+    WAIT ok 26-url: about:data
+    CHECK ok 28-min-height: search is 44 px tall (at least 44)
+    CHECK ok 29-min-height: sel:button.pane-tab is 44 px tall (at least 44)
+    WAIT ok 30-launch: load done
+    CHECK ok 32-quiet: no line jihad-never-logged for 4 s
+    CHECK ok 34-probe-has: the probe's answer holds [framed]
+    CHECK ok 35-probe-lacks: the probe's answer lacks [Saved logins]
+
+### enyo / site-logins-page — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-text sent = [sent jihad-alpha]
+    WAIT ok 21-launch: load done
+    CHECK ok 25-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-2.fifo
+    CHECK ok 27-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 28-text sent = [sent jihad-beta]
+    WAIT ok 29-launch: load done
+    WAIT ok 30-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 31-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] holds [jihad-beta]
+    CHECK ok 32-text-lacks: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [alpha-pass-5]
+    CHECK ok 33-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] holds [Last used]
+    WAIT ok 36-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 37-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 38-launch: load done
+    WAIT ok 39-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 40-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 42-text logins = [Logins192.168.1.245:8077jihad-betabeta-pass-6Last used 2026-11-18HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 45-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [beta-pass-6]
+    WAIT ok 47-text status = [The password copied]
+    CHECK ok 48-clipboard: the system clipboard holds [beta-pass-6]
+    WAIT ok 50-text status = [The username copied]
+    CHECK ok 51-clipboard: the system clipboard holds [jihad-beta]
+    WAIT ok 53-rect sel:.edit-pass
+    WAIT ok 59-text status = [The login for 192.168.1.245:8077 saved]
+    WAIT ok 61-text logins = [Logins192.168.1.245:8077jihad-beta-twoedited-pass-7Last used 2026-11-18HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 63-url: http://192.168.1.245:8077/
+    WAIT ok 64-launch: load done
+    WAIT ok 65-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 67-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18Remove this login?ShowCopy usernameCopy passwordEditRemove it192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 69-text status = [The login for 192.168.1.245:8077 removed]
+    CHECK ok 70-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text state = [user=jihad-beta-two pass=edited-pass-7 events=4]
+    WAIT ok 73-launch: load done
+    WAIT ok 74-text logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 76-text remove-all-row = [Remove all saved loginsRemove all 1 logins? This cannot be undone.Remove them]
+    WAIT ok 78-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-refuse-update — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 3 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 11-rect user
+    CHECK ok 14-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 16-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+    WAIT ok 17-line: [jihad-bs] js-console (no source):0:0 logins: not remembered for http://192.168.1.245:8077
+    WAIT ok 18-text sent = [sent jihad-refused]
+    WAIT ok 19-launch: load done
+    WAIT ok 20-text state = [user=(empty) pass=(empty) events=0]
+    CHECK ok 23-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-2.fifo
+    CHECK ok 25-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 26-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-tester)
+    WAIT ok 27-text sent = [sent jihad-tester]
+    WAIT ok 28-launch: load done
+    WAIT ok 29-text state = [user=jihad-tester pass=old-pass-1 events=4]
+    CHECK ok 32-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-3.fifo
+    CHECK ok 34-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 logins: updated for http://192.168.1.245:8077 (jihad-tester)
+    WAIT ok 36-text sent = [sent jihad-tester]
+    WAIT ok 37-launch: load done
+    WAIT ok 38-text state = [user=jihad-tester pass=new-pass-2 events=4]
+    WAIT ok 39-launch: load done
+    WAIT ok 40-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 41-text-lacks: logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-refused]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-switches — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    WAIT ok 15-text sent = [sent jihad-off]
+    CHECK ok 16-dialog: no dialog within 5 s
+    WAIT ok 18-launch: load done
+    CHECK ok 21-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 23-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 24-text sent = [sent jihad-tester]
+    WAIT ok 26-launch: load done
+    WAIT ok 27-text state = [user=(empty) pass=(empty) events=0]
+    WAIT ok 29-launch: load done
+    WAIT ok 30-rect sel:.never-add
+    WAIT ok 34-text never = [Never save logins for192.168.1.245:8077RemoveAdd]
+    WAIT ok 35-launch: load done
+    WAIT ok 38-text sent = [sent jihad-other]
+    CHECK ok 39-dialog: no dialog within 5 s
+    WAIT ok 40-launch: load done
+    WAIT ok 41-text never = [Never save logins for192.168.1.245:8077RemoveAdd]
+    WAIT ok 43-text never = [Never save logins forNo site. A site added here is never asked about.Add]
+    WAIT ok 46-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / flash-background-card — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240-120s.flv: connected at +2 s, load done at +9 s, 9 content frames at +
+    WAIT ok 14-rect sel:embed
+    CHECK ok 15-flash-rate: content 40,119-440,417: 3.0 s, flips 64 (21.3/s), changes 62 (20.7/s), reads 66, distinct 63, spacing median 40 p90 63 max 243 ms (wanted 5..100/s)
+    WAIT ok 17-line: [jihad-npapi] cpu boost release (every card in the background): up_threshold=95 sampling_rate=200000
+    CHECK ok 19-quiet: no line painted shmid for 4 s
+    WAIT ok 21-changed m
+    CHECK ok 22-flash-rate: content 40,119-440,417: 2.0 s, flips 44 (22.0/s), changes 44 (22.0/s), reads 46, distinct 45, spacing median 40 p90 51 max 253 ms (wanted 5..100/s)
+    WAIT ok 23-line: [jihad-npapi] cpu boost acquire (a card in front again): up_threshold 95->40 sampling_rate 200000->50000
+    WAIT ok 25-text down = [down 101 100]
+
+### mochi / flash-hostile-plugins — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +3 s, load done at +20 s, 13 content frames at +20 s; the GPU path, frames off the main thread (the express lane) (the job's
+    WAIT ok 15-rect sel:embed
+    CHECK ok 16-audio: the movie's audio: open running audible
+    CHECK ok 19-probe-has: the probe's answer holds [clean]
+    CHECK ok 20-probe-has: the probe's answer holds [libflashplayer.so]
+
+### mochi / flash-sound-background — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +8 s, 8 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 12-rect sel:embed
+    CHECK ok 13-audio: the movie's audio: open running audible
+    CHECK ok 14-sound: sound at the output sink: peak 31139 rms 21984 frames 45056 hz 440 env 31138,31134,31135,31139,31130,31127, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 16-audio: the movie's audio: open running audible
+    CHECK ok 17-sound: sound at the output sink: peak 31136 rms 21985 frames 45056 hz 440 env 31136,31135,31133,31136,31135,31133, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-audio: the movie's audio: open running audible
+    CHECK ok 20-sound: sound at the output sink: peak 31138 rms 21984 frames 45056 hz 440 env 31135,31137,31138,31131,31133,31137, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+
+### mochi / flash-sound-close — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +8 s, 6 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 11-rect sel:embed
+    CHECK ok 12-audio: the movie's audio: open running audible
+    WAIT ok 13-launch: load done
+    CHECK ok 14-audio: the movie's audio: closed
+    WAIT ok 15-launch: load done
+    WAIT ok 16-rect sel:embed
+    CHECK ok 17-audio: the movie's audio: open running audible
+    CHECK ok 20-audio-renewed: the marked streams (42 42 ) are gone within 2 s; open now: none
+    CHECK ok 21-audio: the movie's audio: open running audible
+    CHECK ok 23-audio: the movie's audio: closed
+    CHECK ok 24-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+
+### mochi / flash-switch — pass
+
+    mochi card on http://192.168.1.245:8097/title/bloxorz: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_
+    CHECK ok 15-quiet: no line InstantiatePluginInstance rv=0x0 for 6 s
+    WAIT ok 16-content m
+    CHECK ok 19-probe-has: the probe's answer holds [noflash]
+    WAIT ok 22-rect m
+    WAIT ok 23-content m
+    WAIT ok 24-changed m
+    WAIT ok 25-content m
+    WAIT ok 26-launch: load done
+    WAIT ok 27-line: [jihad-npapi] cpu boost release: up_threshold=95 sampling_rate=200000
+
+### mochi / site-data-page — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 17-rect user
+    CHECK ok 20-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 22-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 23-text sent = [sent jihad-data]
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text state = [user=(empty) pass=(empty) events=0]
+    WAIT ok 26-launch: load done
+    WAIT ok 27-text sites = [Sites192.168.1.2452 cookies · 1 login · 100 KB storedOpenalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes]
+    CHECK ok 28-text-lacks: sites = [Sites192.168.1.2452 cookies · 1 login · 100 KB storedOpenalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes] lacks [:8079]
+    WAIT ok 29-text sel:.site-row[data-site='192.168.1.245'] .site-counts = [2 cookies · 1 login · 100 KB stored]
+    CHECK ok 30-text-has: sel:.site-row[data-site="192.168.1.245"] .site-counts = [2 cookies · 1 login · 100 KB stored] holds [1 login]
+    WAIT ok 33-text sites = [SitesNo site matches “zz-no-such-site”.]
+    WAIT ok 34-launch: load done
+    WAIT ok 35-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes]
+    WAIT ok 37-text cookies = [Cookies (2)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemovejihadtest192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies]
+    WAIT ok 39-text sel:.cookie-row[data-name='jihadtest'] .cookie-value = [1]
+    WAIT ok 40-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 41-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    CHECK ok 42-text-has: site-logins = [Saved logins1 saved loginSaved logins] holds [1 saved login]
+    WAIT ok 44-text status = [Pop-up windows for http://192.168.1.245:8077: Block]
+    WAIT ok 45-launch: load done
+    WAIT ok 46-rect sel:.perm-row[data-perm='popup'][data-origin='http://192.168.1.245:8077'][data-value='2']
+    WAIT ok 48-text status = [The cookie jihadtest removed]
+    CHECK ok 49-text-lacks: cookies = [Cookies (1)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies] lacks [jihadtest]
+    WAIT ok 51-text status = [Every cookie of 192.168.1.245 removed]
+    CHECK ok 52-text-lacks: cookies = [Cookies (0)None.] lacks [jihadsecond]
+    WAIT ok 54-url: about:logins?filter=192.168.1.245
+    WAIT ok 55-text logins = [Logins192.168.1.245:8077jihad-data••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 56-launch: load done
+    WAIT ok 57-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 58-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 60-gone sel:.storage-row[data-kind='local'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 61-text-has: storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clear] holds [databases]
+    WAIT ok 63-gone sel:.storage-row[data-kind='quota'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 64-text-has: storage = [Stored datahttp://192.168.1.245:807948 KB (databases, caches)Clear] holds [192.168.1.245:8079]
+    WAIT ok 66-text forget-row = [Forget this siteForget everything this browser keeps for 192.168.1.245?Forget it]
+    WAIT ok 68-text sites = [Sitesalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookieOpenamazon.com9 cookiesOpenapnews.com6 cookiesOpenbing.com9 cookiesOpenbit.ly1 cookieOpenbritannica.com14 cookiesOpencraigslist.org2 cookiesOpencrazygames.com3 cookiesOpendoubleclick.net1 cookieOpenebay.com12 cookiesOpenenglishclub.com2 cookiesOpenetsy.com10 cookiesOpenfacebook.com1 cookieOpengithub.com2 cookiesOpengitlab.com3 cookiesOpengo]
+    CHECK ok 69-quiet: no line jihad-never-logged for 3 s
+    CHECK ok 70-text-lacks: sites = [Sitesalbinoblacksheep.com1 cookieOpenaljazeera.com1 cookie · 49 KB storedOpenamazon.com9 cookies · 753 bytes storedOpenapnews.com6 cookies · 107 bytes storedOpenbing.com9 cookies · 52 KB storedOpenbit.ly1 cookieOpenbritannica.com14 cookies · 227 bytes storedOpenbsky.app96 KB storedOpenbubblebox.com25 bytes storedOpencloudflare.com163 bytes storedOpencraigslist.org2 cookies · 269 bytes stored] lacks [192.168.1.245]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 73-text-has: forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-data]
+    WAIT ok 76-text forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 77-text-lacks: forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all] lacks [jihad-data]
+    WAIT ok 78-launch: load done
+    WAIT ok 79-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 82-text forms = [Form data (2)No entry matches.Remove all form dataRemove all]
+    WAIT ok 83-launch: load done
+    WAIT ok 84-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 86-text status = [Removed]
+    CHECK ok 87-text-lacks: forms = [Form data (1)jihad-datauser · used 1 timeRemoveRemove all form dataRemove all] lacks [hello jihad]
+    WAIT ok 89-text forms-remove-all-row = [Remove all form dataRemove all 1 entries?Remove them]
+    WAIT ok 91-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+
+### mochi / site-data-reach — pass
+
+    mochi card on about:settings: connected at +2 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+    WAIT ok 11-rect page-title
+    WAIT ok 13-rect sel:.row[data-label='Saved logins'] button
+    WAIT ok 15-text page-title = [Saved logins]
+    WAIT ok 16-url: about:logins
+    CHECK ok 18-min-height: search is 44 px tall (at least 44)
+    CHECK ok 19-min-height: sel:.never-add-btn is 44 px tall (at least 44)
+    WAIT ok 20-launch: load done
+    WAIT ok 21-rect page-title
+    WAIT ok 23-rect sel:.row[data-label='Site data'] button
+    WAIT ok 25-text page-title = [Site data]
+    WAIT ok 26-url: about:data
+    CHECK ok 28-min-height: search is 44 px tall (at least 44)
+    CHECK ok 29-min-height: sel:button.pane-tab is 44 px tall (at least 44)
+    WAIT ok 30-launch: load done
+    CHECK ok 32-quiet: no line jihad-never-logged for 4 s
+    CHECK ok 34-probe-has: the probe's answer holds [framed]
+    CHECK ok 35-probe-lacks: the probe's answer lacks [Saved logins]
+
+### mochi / site-logins-page — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 3 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-text sent = [sent jihad-alpha]
+    WAIT ok 21-launch: load done
+    CHECK ok 25-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-2.fifo
+    CHECK ok 27-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 28-text sent = [sent jihad-beta]
+    WAIT ok 29-launch: load done
+    WAIT ok 30-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 31-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] holds [jihad-beta]
+    CHECK ok 32-text-lacks: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [alpha-pass-5]
+    CHECK ok 33-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] holds [Last used]
+    WAIT ok 36-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 37-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 38-launch: load done
+    WAIT ok 39-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 40-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 42-text logins = [Logins192.168.1.245:8077jihad-betabeta-pass-6Last used 2026-11-18HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 45-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [beta-pass-6]
+    WAIT ok 47-text status = [The password copied]
+    CHECK ok 48-clipboard: the system clipboard holds [beta-pass-6]
+    WAIT ok 50-text status = [The username copied]
+    CHECK ok 51-clipboard: the system clipboard holds [jihad-beta]
+    WAIT ok 53-rect sel:.edit-pass
+    WAIT ok 59-text status = [The login for 192.168.1.245:8077 saved]
+    WAIT ok 61-text logins = [Logins192.168.1.245:8077jihad-beta-twoedited-pass-7Last used 2026-11-18HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 63-url: http://192.168.1.245:8077/
+    WAIT ok 64-launch: load done
+    WAIT ok 65-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 67-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18Remove this login?ShowCopy usernameCopy passwordEditRemove it192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 69-text status = [The login for 192.168.1.245:8077 removed]
+    CHECK ok 70-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text state = [user=jihad-beta-two pass=edited-pass-7 events=4]
+    WAIT ok 73-launch: load done
+    WAIT ok 74-text logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 76-text remove-all-row = [Remove all saved loginsRemove all 1 logins? This cannot be undone.Remove them]
+    WAIT ok 78-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-refuse-update — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 7 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 11-rect user
+    CHECK ok 14-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 16-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+    WAIT ok 17-line: [jihad-bs] js-console (no source):0:0 logins: not remembered for http://192.168.1.245:8077
+    WAIT ok 18-text sent = [sent jihad-refused]
+    WAIT ok 19-launch: load done
+    WAIT ok 20-text state = [user=(empty) pass=(empty) events=0]
+    CHECK ok 23-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-2.fifo
+    CHECK ok 25-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 26-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-tester)
+    WAIT ok 27-text sent = [sent jihad-tester]
+    WAIT ok 28-launch: load done
+    WAIT ok 29-text state = [user=jihad-tester pass=old-pass-1 events=4]
+    CHECK ok 32-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-3.fifo
+    CHECK ok 34-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 logins: updated for http://192.168.1.245:8077 (jihad-tester)
+    WAIT ok 36-text sent = [sent jihad-tester]
+    WAIT ok 37-launch: load done
+    WAIT ok 38-text state = [user=jihad-tester pass=new-pass-2 events=4]
+    WAIT ok 39-launch: load done
+    WAIT ok 40-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 41-text-lacks: logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-refused]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-save — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +7 s, 6 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-tester)
+    WAIT ok 19-text sent = [sent jihad-tester]
+    WAIT ok 20-launch: load done
+    WAIT ok 21-text state = [user=jihad-tester pass=s3cret-41 events=4]
+    CHECK ok 22-text-lacks: state = [user=jihad-tester pass=s3cret-41 events=4] lacks [events=0]
+    WAIT ok 23-launch: load done
+    WAIT ok 24-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 27-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-switches — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +3 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 12-rect user
+    WAIT ok 15-text sent = [sent jihad-off]
+    CHECK ok 16-dialog: no dialog within 5 s
+    WAIT ok 18-launch: load done
+    CHECK ok 21-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 23-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 24-text sent = [sent jihad-tester]
+    WAIT ok 26-launch: load done
+    WAIT ok 27-text state = [user=(empty) pass=(empty) events=0]
+    WAIT ok 29-launch: load done
+    WAIT ok 30-rect sel:.never-add
+    WAIT ok 34-text never = [Never save logins for192.168.1.245:8077RemoveAdd]
+    WAIT ok 35-launch: load done
+    WAIT ok 38-text sent = [sent jihad-other]
+    CHECK ok 39-dialog: no dialog within 5 s
+    WAIT ok 40-launch: load done
+    WAIT ok 41-text never = [Never save logins for192.168.1.245:8077RemoveAdd]
+    WAIT ok 43-text never = [Never save logins forNo site. A site added here is never asked about.Add]
+    WAIT ok 46-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / flash-background-card — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-flash-instr.html?movie=avm2&vars=video=http://192.168.1.245:8097/video/gen-spark-240-120s.flv: connected at +1 s, load done at +7 s, 8 content frames at +7
+    WAIT ok 14-rect sel:embed
+    CHECK ok 15-flash-rate: content 40,114-440,412: 3.0 s, flips 57 (19.0/s), changes 57 (19.0/s), reads 59, distinct 58, spacing median 42 p90 72 max 214 ms (wanted 5..100/s)
+    WAIT ok 17-line: [jihad-npapi] cpu boost release (every card in the background): up_threshold=95 sampling_rate=200000
+    CHECK ok 19-quiet: no line painted shmid for 4 s
+    WAIT ok 21-changed m
+    CHECK ok 22-flash-rate: content 40,114-440,412: 2.0 s, flips 40 (20.0/s), changes 40 (20.0/s), reads 41, distinct 41, spacing median 41 p90 84 max 145 ms (wanted 5..100/s)
+    WAIT ok 23-line: [jihad-npapi] cpu boost acquire (a card in front again): up_threshold 95->40 sampling_rate 200000->50000
+    WAIT ok 25-text down = [down 101 100]
+
+### mojo / flash-hostile-plugins — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +2 s, load done at +19 s, 23 content frames at +19 s; the GPU path, frames off the main thread (the express lane) (the job's 
+    WAIT ok 15-rect sel:embed
+    CHECK ok 16-audio: the movie's audio: open running audible
+    CHECK ok 19-probe-has: the probe's answer holds [clean]
+    CHECK ok 20-probe-has: the probe's answer holds [libflashplayer.so]
+
+### mojo / flash-sound-background — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +8 s, 14 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 12-rect sel:embed
+    CHECK ok 13-audio: the movie's audio: open running audible
+    CHECK ok 14-sound: sound at the output sink: peak 31144 rms 21985 frames 45056 hz 440 env 31134,31144,31139,31134,31135,31126, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 16-audio: the movie's audio: open running audible
+    CHECK ok 17-sound: sound at the output sink: peak 31141 rms 21985 frames 45056 hz 440 env 31137,31141,31139,31136,31138,31130, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+    CHECK ok 19-audio: the movie's audio: open running audible
+    CHECK ok 20-sound: sound at the output sink: peak 31139 rms 21984 frames 45056 hz 440 env 31134,31132,31139,31130,31134,31125, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+
+### mojo / flash-sound-close — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-flash-tone.html: connected at +1 s, load done at +7 s, 19 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    WAIT ok 11-rect sel:embed
+    CHECK ok 12-audio: the movie's audio: open running audible
+    WAIT ok 13-launch: load done
+    CHECK ok 14-audio: the movie's audio: closed
+    WAIT ok 15-launch: load done
+    WAIT ok 16-rect sel:embed
+    CHECK ok 17-audio: the movie's audio: open running audible
+    CHECK ok 20-audio-renewed: the marked streams (49 49 ) are gone within 2 s; open now: none
+    CHECK ok 21-audio: the movie's audio: open running audible
+    CHECK ok 23-audio: the movie's audio: closed
+    CHECK ok 24-sound: no sound at the output sink: peak 0 rms 0 frames 45056 hz 0 env 0,0,0,0,0,0
+
+### mojo / flash-switch — pass
+
+    mojo card on http://192.168.1.245:8097/title/bloxorz: connected at +1 s, load done at +5 s, 5 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_C
+    CHECK ok 15-quiet: no line InstantiatePluginInstance rv=0x0 for 6 s
+    WAIT ok 16-content m
+    CHECK ok 19-probe-has: the probe's answer holds [noflash]
+    WAIT ok 22-rect m
+    WAIT ok 23-content m
+    WAIT ok 24-changed m
+    WAIT ok 25-content m
+    WAIT ok 26-launch: load done
+    WAIT ok 27-line: [jihad-npapi] cpu boost release: up_threshold=95 sampling_rate=200000
+
+### mojo / site-data-page — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 17-rect user
+    CHECK ok 20-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 22-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 23-text sent = [sent jihad-data]
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text state = [user=(empty) pass=(empty) events=0]
+    WAIT ok 26-launch: load done
+    WAIT ok 27-text sites = [Sites192.168.1.2452 cookies · 1 login · 100 KB storedOpenalbinoblacksheep.com1 cookieOpenarchive.org2 cookies · 48 KB storedOpenbbc.com1 cookie · 1.1 KB storedOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencrazygames.com3 cookies · 48 KB storedOpenduckduckgo.com28 bytes storedOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookies]
+    CHECK ok 28-text-lacks: sites = [Sites192.168.1.2452 cookies · 1 login · 100 KB storedOpenalbinoblacksheep.com1 cookieOpenarchive.org2 cookies · 48 KB storedOpenbbc.com1 cookie · 1.1 KB storedOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencrazygames.com3 cookies · 48 KB storedOpenduckduckgo.com28 bytes storedOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookies] lacks [:8079]
+    WAIT ok 29-text sel:.site-row[data-site='192.168.1.245'] .site-counts = [2 cookies · 1 login · 100 KB stored]
+    CHECK ok 30-text-has: sel:.site-row[data-site="192.168.1.245"] .site-counts = [2 cookies · 1 login · 100 KB stored] holds [1 login]
+    WAIT ok 33-text sites = [SitesNo site matches “zz-no-such-site”.]
+    WAIT ok 34-launch: load done
+    WAIT ok 35-text sites = [Sites192.168.1.2452 cookies · 1 login · 104 KB storedOpenalbinoblacksheep.com1 cookieOpenarchive.org2 cookies · 48 KB storedOpenbbc.com1 cookie · 1.1 KB storedOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencrazygames.com3 cookies · 48 KB storedOpenduckduckgo.com28 bytes storedOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookies]
+    WAIT ok 37-text cookies = [Cookies (2)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemovejihadtest192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies]
+    WAIT ok 39-text sel:.cookie-row[data-name='jihadtest'] .cookie-value = [1]
+    WAIT ok 40-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 41-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    CHECK ok 42-text-has: site-logins = [Saved logins1 saved loginSaved logins] holds [1 saved login]
+    WAIT ok 44-text status = [Pop-up windows for http://192.168.1.245:8077: Block]
+    WAIT ok 45-launch: load done
+    WAIT ok 46-rect sel:.perm-row[data-perm='popup'][data-origin='http://192.168.1.245:8077'][data-value='2']
+    WAIT ok 48-text status = [The cookie jihadtest removed]
+    CHECK ok 49-text-lacks: cookies = [Cookies (1)jihadsecond192.168.1.245/ · until 2026-11-20ValueRemoveRemove all cookies] lacks [jihadtest]
+    WAIT ok 51-text status = [Every cookie of 192.168.1.245 removed]
+    CHECK ok 52-text-lacks: cookies = [Cookies (0)None.] lacks [jihadsecond]
+    WAIT ok 54-url: about:logins?filter=192.168.1.245
+    WAIT ok 55-text logins = [Logins192.168.1.245:8077jihad-data••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 56-launch: load done
+    WAIT ok 57-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 58-text storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clearhttp://192.168.1.245:80774.0 KB (local storage)Clearhttp://192.168.1.245:80794.0 KB (local storage)Clear]
+    WAIT ok 60-gone sel:.storage-row[data-kind='local'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 61-text-has: storage = [Stored datahttp://192.168.1.245:807748 KB (databases, caches)Clearhttp://192.168.1.245:807948 KB (databases, caches)Clear] holds [databases]
+    WAIT ok 63-gone sel:.storage-row[data-kind='quota'][data-origin^='http://192.168.1.245:8077']
+    CHECK ok 64-text-has: storage = [Stored datahttp://192.168.1.245:807948 KB (databases, caches)Clear] holds [192.168.1.245:8079]
+    WAIT ok 66-text forget-row = [Forget this siteForget everything this browser keeps for 192.168.1.245?Forget it]
+    WAIT ok 68-text sites = [Sitesalbinoblacksheep.com1 cookieOpenarchive.org2 cookies · 48 KB storedOpenbbc.com1 cookie · 1.1 KB storedOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencrazygames.com3 cookies · 48 KB storedOpenduckduckgo.com28 bytes storedOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookiesOpenhowsmyssl.com4 cookiesOpenkbhgames.com1 cookie · ]
+    CHECK ok 69-quiet: no line jihad-never-logged for 3 s
+    CHECK ok 70-text-lacks: sites = [Sitesalbinoblacksheep.com1 cookieOpenarchive.org2 cookies · 48 KB storedOpenbbc.com1 cookie · 1.1 KB storedOpenbit.ly1 cookieOpenbubblebox.com25 bytes storedOpencaptcha-delivery.com71 bytes storedOpencrazygames.com3 cookies · 48 KB storedOpenduckduckgo.com28 bytes storedOpenenglishclub.com2 cookiesOpenetsy.com9 cookiesOpengithub.com2 cookiesOpenhowsmyssl.com4 cookiesOpenkbhgames.com1 cookie · ] lacks [192.168.1.245]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 73-text-has: forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all] holds [jihad-data]
+    WAIT ok 76-text forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    CHECK ok 77-text-lacks: forms = [Form data (2)hello jihadnote · used 1 timeRemoveRemove all form dataRemove all] lacks [jihad-data]
+    WAIT ok 78-launch: load done
+    WAIT ok 79-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 82-text forms = [Form data (2)No entry matches.Remove all form dataRemove all]
+    WAIT ok 83-launch: load done
+    WAIT ok 84-text forms = [Form data (2)jihad-datauser · used 1 timeRemovehello jihadnote · used 1 timeRemoveRemove all form dataRemove all]
+    WAIT ok 86-text status = [Removed]
+    CHECK ok 87-text-lacks: forms = [Form data (1)jihad-datauser · used 1 timeRemoveRemove all form dataRemove all] lacks [hello jihad]
+    WAIT ok 89-text forms-remove-all-row = [Remove all form dataRemove all 1 entries?Remove them]
+    WAIT ok 91-text forms = [Form data (0)Nothing typed into a page's fields is kept.]
+
+### mojo / site-data-reach — pass
+
+    mojo card on about:settings: connected at +1 s, load done at +5 s, 5 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GPU_COMPOSITOR)
+    WAIT ok 11-rect page-title
+    WAIT ok 13-rect sel:.row[data-label='Saved logins'] button
+    WAIT ok 15-text page-title = [Saved logins]
+    WAIT ok 16-url: about:logins
+    CHECK ok 18-min-height: search is 44 px tall (at least 44)
+    CHECK ok 19-min-height: sel:.never-add-btn is 46 px tall (at least 44)
+    WAIT ok 20-launch: load done
+    WAIT ok 21-rect page-title
+    WAIT ok 23-rect sel:.row[data-label='Site data'] button
+    WAIT ok 25-text page-title = [Site data]
+    WAIT ok 26-url: about:data
+    CHECK ok 28-min-height: search is 44 px tall (at least 44)
+    CHECK ok 29-min-height: sel:button.pane-tab is 44 px tall (at least 44)
+    WAIT ok 30-launch: load done
+    CHECK ok 32-quiet: no line jihad-never-logged for 4 s
+    CHECK ok 34-probe-has: the probe's answer holds [framed]
+    CHECK ok 35-probe-lacks: the probe's answer lacks [Saved logins]
+
+### mojo / site-logins-page — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-text sent = [sent jihad-alpha]
+    WAIT ok 21-launch: load done
+    CHECK ok 25-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-2.fifo
+    CHECK ok 27-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 28-text sent = [sent jihad-beta]
+    WAIT ok 29-launch: load done
+    WAIT ok 30-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 31-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] holds [jihad-beta]
+    CHECK ok 32-text-lacks: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [alpha-pass-5]
+    CHECK ok 33-text-has: logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] holds [Last used]
+    WAIT ok 36-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 37-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 38-launch: load done
+    WAIT ok 39-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 40-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 42-text logins = [Logins192.168.1.245:8077jihad-betabeta-pass-6Last used 2026-11-18HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 45-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [beta-pass-6]
+    WAIT ok 47-text status = [The password copied]
+    CHECK ok 48-clipboard: the system clipboard holds [beta-pass-6]
+    WAIT ok 50-text status = [The username copied]
+    CHECK ok 51-clipboard: the system clipboard holds [jihad-beta]
+    WAIT ok 53-rect sel:.edit-pass
+    WAIT ok 59-text status = [The login for 192.168.1.245:8077 saved]
+    WAIT ok 61-text logins = [Logins192.168.1.245:8077jihad-beta-twoedited-pass-7Last used 2026-11-18HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 63-url: http://192.168.1.245:8077/
+    WAIT ok 64-launch: load done
+    WAIT ok 65-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 67-text logins = [Logins192.168.1.245:8077jihad-alpha••••••••Last used 2026-11-18Remove this login?ShowCopy usernameCopy passwordEditRemove it192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 69-text status = [The login for 192.168.1.245:8077 removed]
+    CHECK ok 70-text-lacks: logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-alpha]
+    WAIT ok 71-launch: load done
+    WAIT ok 72-text state = [user=jihad-beta-two pass=edited-pass-7 events=4]
+    WAIT ok 73-launch: load done
+    WAIT ok 74-text logins = [Logins192.168.1.245:8077jihad-beta-two••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 76-text remove-all-row = [Remove all saved loginsRemove all 1 logins? This cannot be undone.Remove them]
+    WAIT ok 78-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-refuse-update — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 11-rect user
+    CHECK ok 14-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 16-dialog: [jihad-bs] dialog confirm -> cancel (answer=0)
+    WAIT ok 17-line: [jihad-bs] js-console (no source):0:0 logins: not remembered for http://192.168.1.245:8077
+    WAIT ok 18-text sent = [sent jihad-refused]
+    WAIT ok 19-launch: load done
+    WAIT ok 20-text state = [user=(empty) pass=(empty) events=0]
+    CHECK ok 23-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-2.fifo
+    CHECK ok 25-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 26-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-tester)
+    WAIT ok 27-text sent = [sent jihad-tester]
+    WAIT ok 28-launch: load done
+    WAIT ok 29-text state = [user=jihad-tester pass=old-pass-1 events=4]
+    CHECK ok 32-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-3.fifo
+    CHECK ok 34-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 35-line: [jihad-bs] js-console (no source):0:0 logins: updated for http://192.168.1.245:8077 (jihad-tester)
+    WAIT ok 36-text sent = [sent jihad-tester]
+    WAIT ok 37-launch: load done
+    WAIT ok 38-text state = [user=jihad-tester pass=new-pass-2 events=4]
+    WAIT ok 39-launch: load done
+    WAIT ok 40-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    CHECK ok 41-text-lacks: logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove] lacks [jihad-refused]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-save — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-tester)
+    WAIT ok 19-text sent = [sent jihad-tester]
+    WAIT ok 20-launch: load done
+    WAIT ok 21-text state = [user=jihad-tester pass=s3cret-41 events=4]
+    CHECK ok 22-text-lacks: state = [user=jihad-tester pass=s3cret-41 events=4] lacks [events=0]
+    WAIT ok 23-launch: load done
+    WAIT ok 24-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 27-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-switches — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    WAIT ok 15-text sent = [sent jihad-off]
+    CHECK ok 16-dialog: no dialog within 5 s
+    WAIT ok 18-launch: load done
+    CHECK ok 21-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 23-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 24-text sent = [sent jihad-tester]
+    WAIT ok 26-launch: load done
+    WAIT ok 27-text state = [user=(empty) pass=(empty) events=0]
+    WAIT ok 29-launch: load done
+    WAIT ok 30-rect sel:.never-add
+    WAIT ok 34-text never = [Never save logins for192.168.1.245:8077RemoveAdd]
+    WAIT ok 35-launch: load done
+    WAIT ok 38-text sent = [sent jihad-other]
+    CHECK ok 39-dialog: no dialog within 5 s
+    WAIT ok 40-launch: load done
+    WAIT ok 41-text never = [Never save logins for192.168.1.245:8077RemoveAdd]
+    WAIT ok 43-text never = [Never save logins forNo site. A site added here is never asked about.Add]
+    WAIT ok 46-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-frame — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 3 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 13-rect user
+    CHECK ok 16-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-top)
+    WAIT ok 20-text sent = [sent jihad-top]
+    WAIT ok 21-launch: load done
+    WAIT ok 22-text framestate = [192.168.1.245:8079 user=(empty) pass=(empty) events=0]
+    CHECK ok 23-quiet: no line logins: filled for for 3 s
+    WAIT ok 24-launch: load done
+    WAIT ok 25-rect user
+    CHECK ok 28-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-2.fifo
+    CHECK ok 30-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 31-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8079 (jihad-frame)
+    WAIT ok 32-text sent = [sent jihad-frame]
+    WAIT ok 33-launch: load done
+    WAIT ok 34-text framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4]
+    CHECK ok 35-text-lacks: framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4] lacks [events=0]
+    WAIT ok 36-launch: load done
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-top••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8079jihad-frame••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 40-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-master — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-lock)
+    WAIT ok 21-text sent = [sent jihad-lock]
+    WAIT ok 23-line: [jihad-bs] js-console (no source):0:0 logins: test: master password set, the store locked: true
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text page-sub = [Locked by the master password]
+    CHECK ok 26-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 30-text status = [That is not the master password]
+    CHECK ok 31-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 35-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-locklock-pass-3Last used 2026-11-18HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 39-line: [jihad-bs] js-console (no source):0:0 logins: test: master password taken off: true
+    WAIT ok 40-launch: load done
+    WAIT ok 41-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-logins-persist — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-login.html: connected at +3 s, load done at +8 s, 4 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-keep)
+    WAIT ok 19-text sent = [sent jihad-keep]
+    WAIT ok 21-text state = [user=jihad-keep pass=keep-pass-9 events=4]
+    CHECK ok 22-file: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/profile/logins.json (582 bytes) holds [encryptedPassword]
+    CHECK ok 23-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/profile/logins.json (582 bytes) lacks [keep-pass-9]
+    CHECK ok 24-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser/profile/logins.json (582 bytes) lacks [jihad-keep]
+    WAIT ok 25-launch: load done
+    WAIT ok 26-text logins = [Logins192.168.1.245:8077jihad-keep••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 29-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-frame — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 13-rect user
+    CHECK ok 16-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-top)
+    WAIT ok 20-text sent = [sent jihad-top]
+    WAIT ok 21-launch: load done
+    WAIT ok 22-text framestate = [192.168.1.245:8079 user=(empty) pass=(empty) events=0]
+    CHECK ok 23-quiet: no line logins: filled for for 3 s
+    WAIT ok 24-launch: load done
+    WAIT ok 25-rect user
+    CHECK ok 28-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-2.fifo
+    CHECK ok 30-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 31-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8079 (jihad-frame)
+    WAIT ok 32-text sent = [sent jihad-frame]
+    WAIT ok 33-launch: load done
+    WAIT ok 34-text framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4]
+    CHECK ok 35-text-lacks: framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4] lacks [events=0]
+    WAIT ok 36-launch: load done
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-top••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8079jihad-frame••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 40-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-master — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +3 s, load done at +7 s, 5 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-lock)
+    WAIT ok 21-text sent = [sent jihad-lock]
+    WAIT ok 23-line: [jihad-bs] js-console (no source):0:0 logins: test: master password set, the store locked: true
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text page-sub = [Locked by the master password]
+    CHECK ok 26-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 30-text status = [That is not the master password]
+    CHECK ok 31-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 35-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-locklock-pass-3Last used 2026-11-18HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 39-line: [jihad-bs] js-console (no source):0:0 logins: test: master password taken off: true
+    WAIT ok 40-launch: load done
+    WAIT ok 41-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mochi / site-logins-persist — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-login.html: connected at +2 s, load done at +7 s, 4 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_G
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mochi/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-keep)
+    WAIT ok 19-text sent = [sent jihad-keep]
+    WAIT ok 21-text state = [user=jihad-keep pass=keep-pass-9 events=4]
+    CHECK ok 22-file: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/profile/logins.json (582 bytes) holds [encryptedPassword]
+    CHECK ok 23-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/profile/logins.json (582 bytes) lacks [keep-pass-9]
+    CHECK ok 24-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mochi/profile/logins.json (582 bytes) lacks [jihad-keep]
+    WAIT ok 25-launch: load done
+    WAIT ok 26-text logins = [Logins192.168.1.245:8077jihad-keep••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 29-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-frame — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 6 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 13-rect user
+    CHECK ok 16-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 18-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 19-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-top)
+    WAIT ok 20-text sent = [sent jihad-top]
+    WAIT ok 21-launch: load done
+    WAIT ok 22-text framestate = [192.168.1.245:8079 user=(empty) pass=(empty) events=0]
+    CHECK ok 23-quiet: no line logins: filled for for 3 s
+    WAIT ok 24-launch: load done
+    WAIT ok 25-rect user
+    CHECK ok 28-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-2.fifo
+    CHECK ok 30-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 31-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8079 (jihad-frame)
+    WAIT ok 32-text sent = [sent jihad-frame]
+    WAIT ok 33-launch: load done
+    WAIT ok 34-text framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4]
+    CHECK ok 35-text-lacks: framestate = [192.168.1.245:8079 user=jihad-frame pass=frame-pass-2 events=4] lacks [events=0]
+    WAIT ok 36-launch: load done
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-top••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove192.168.1.245:8079jihad-frame••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 40-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-master — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +6 s, 5 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 14-rect user
+    CHECK ok 17-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 19-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 20-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-lock)
+    WAIT ok 21-text sent = [sent jihad-lock]
+    WAIT ok 23-line: [jihad-bs] js-console (no source):0:0 logins: test: master password set, the store locked: true
+    WAIT ok 24-launch: load done
+    WAIT ok 25-text page-sub = [Locked by the master password]
+    CHECK ok 26-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 30-text status = [That is not the master password]
+    CHECK ok 31-text-lacks: content = [Master passwordUnlockThe saved logins are encrypted with the master password set for this browser. Enter it to see them.] lacks [jihad-lock]
+    WAIT ok 35-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 37-text logins = [Logins192.168.1.245:8077jihad-locklock-pass-3Last used 2026-11-18HideCopy usernameCopy passwordEditRemove]
+    WAIT ok 39-line: [jihad-bs] js-console (no source):0:0 logins: test: master password taken off: true
+    WAIT ok 40-launch: load done
+    WAIT ok 41-text logins = [Logins192.168.1.245:8077jihad-lock••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 44-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### mojo / site-logins-persist — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-login.html: connected at +1 s, load done at +5 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JIHAD_GP
+    WAIT ok 12-rect user
+    CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+    CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+    WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-keep)
+    WAIT ok 19-text sent = [sent jihad-keep]
+    WAIT ok 21-text state = [user=jihad-keep pass=keep-pass-9 events=4]
+    CHECK ok 22-file: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/profile/logins.json (582 bytes) holds [encryptedPassword]
+    CHECK ok 23-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/profile/logins.json (582 bytes) lacks [keep-pass-9]
+    CHECK ok 24-file-lacks: /media/cryptofs/apps/usr/palm/applications/net.riverstonerelay.jihad-browser-mojo/profile/logins.json (582 bytes) lacks [jihad-keep]
+    WAIT ok 25-launch: load done
+    WAIT ok 26-text logins = [Logins192.168.1.245:8077jihad-keep••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+    WAIT ok 29-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+
+### enyo / site-data-address — pass
+
+    enyo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +2 s, load done at +6 s, 3 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 113 landed on document y 31)
+    CHECK ok 15-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    WAIT ok 18-url: about:logins
+    WAIT ok 19-text page-title = [Saved logins]
+    CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+    WAIT ok 26-url: about:data
+    WAIT ok 27-text page-title = [Site data]
+
+### mochi / site-data-address — pass
+
+    mochi card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +7 s, 7 content frames at +7 s; the GPU path, frames off the main thread (the express lane) (the job's J
+    calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 109 landed on document y 31)
+    CHECK ok 15-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    WAIT ok 18-url: about:logins
+    WAIT ok 19-text page-title = [Saved logins]
+    CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+    WAIT ok 26-url: about:data
+    WAIT ok 27-text page-title = [Site data]
+
+### mojo / site-data-address — pass
+
+    mojo card on http://192.168.1.245:8077/jihad-card-events.html: connected at +1 s, load done at +5 s, 5 content frames at +5 s; the GPU path, frames off the main thread (the express lane) (the job's JI
+    calibrated (mojo): the page's top on the screen 73 (the table said 73, the tap at y 104 landed on document y 31)
+    CHECK ok 15-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 18-url: about:logins
+    WAIT ok 19-text page-title = [Saved logins]
+    CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mojo, or the daemon's editorFocused)
+    WAIT ok 26-url: about:data
+    WAIT ok 27-text page-title = [Site data]
 

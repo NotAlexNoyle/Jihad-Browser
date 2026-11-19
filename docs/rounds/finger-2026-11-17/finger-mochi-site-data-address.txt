@@ -1,0 +1,17 @@
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 109 landed on document y 31)
+  chrome address tapped at 385 52
+CHECK ok 15-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+  typed [about:logins] on the keyboard
+  chrome kb-enter tapped at 715 873
+WAIT ok 18-url: about:logins
+WAIT ok 19-text page-title = [Saved logins]
+CHECK ok 20-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+  frame kept: /media/internal/jihad-finger/logins_.last.raw
+  chrome address tapped at 385 52
+CHECK ok 23-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+  typed [about:data] on the keyboard
+  chrome kb-enter tapped at 715 873
+WAIT ok 26-url: about:data
+WAIT ok 27-text page-title = [Site data]
+  frame kept: /media/internal/jihad-finger/data_.last.raw
+CHECKS 3 FAILS 0

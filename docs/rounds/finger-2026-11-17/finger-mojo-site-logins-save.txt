@@ -1,0 +1,17 @@
+WAIT ok 12-rect user
+  probe submit: filled jihad-tester
+  tap at 348,379 -> clickAt 349 306
+CHECK ok 15-dialog: the dialog's reply pipe stands: /var/palm/jihad/mojo/dialog-1.fifo
+  chrome dialog-ok tapped at 384 935
+CHECK ok 17-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 18-line: [jihad-bs] js-console (no source):0:0 logins: remembered for http://192.168.1.245:8077 (jihad-tester)
+WAIT ok 19-text sent = [sent jihad-tester]
+WAIT ok 20-launch: load done
+WAIT ok 21-text state = [user=jihad-tester pass=s3cret-41 events=4]
+CHECK ok 22-text-lacks: state = [user=jihad-tester pass=s3cret-41 events=4] lacks [events=0]
+WAIT ok 23-launch: load done
+WAIT ok 24-text logins = [Logins192.168.1.245:8077jihad-tester••••••••Last used 2026-11-18ShowCopy usernameCopy passwordEditRemove]
+  tap at 618,456 -> clickAt 619 383
+  tap at 626,474 -> clickAt 627 401
+WAIT ok 27-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+CHECKS 3 FAILS 0

@@ -1,0 +1,13 @@
+WAIT ok 14-rect sel:embed
+CHECK ok 15-flash-rate: content 40,119-440,417: 3.0 s, flips 64 (21.3/s), changes 62 (20.7/s), reads 66, distinct 63, spacing median 40 p90 63 max 243 ms (wanted 5..100/s)
+  com.palm.app.notes asked to the front (the log marked), the card behind it
+WAIT ok 17-line: [jihad-npapi] cpu boost release (every card in the background): up_threshold=95 sampling_rate=200000
+  the log marked
+CHECK ok 19-quiet: no line painted shmid for 4 s
+  the other app closed and the card tapped in the card view (the log marked)
+WAIT ok 21-changed m
+CHECK ok 22-flash-rate: content 40,119-440,417: 2.0 s, flips 44 (22.0/s), changes 44 (22.0/s), reads 46, distinct 45, spacing median 40 p90 51 max 253 ms (wanted 5..100/s)
+WAIT ok 23-line: [jihad-npapi] cpu boost acquire (a card in front again): up_threshold 95->40 sampling_rate 200000->50000
+  flash tap on stage 100,100 (showAll) at 140 218
+WAIT ok 25-text down = [down 101 100]
+CHECKS 3 FAILS 0

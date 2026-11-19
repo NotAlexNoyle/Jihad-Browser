@@ -137,7 +137,7 @@ ABOUT_JS=/jihad/render/goanna/components/jihadAboutPreferences.js
 if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ] && [ -d "$DISTBIN/components" ]; then
   rm -rf "$DISTBIN/prefsui"
   mkdir -p "$DISTBIN/prefsui"
-  cp -R "$PREFSUI/content" "$DISTBIN/prefsui/"
+  cp -R "$PREFSUI/content" "$PREFSUI/flashoff" "$DISTBIN/prefsui/"
   cp -L "$PREFSUI/jihad-prefsui.manifest" "$DISTBIN/"
   if ! grep -q '^manifest jihad-prefsui.manifest$' "$DISTBIN/chrome.manifest" 2>/dev/null; then
     echo 'manifest jihad-prefsui.manifest' >> "$DISTBIN/chrome.manifest"

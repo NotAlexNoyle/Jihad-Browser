@@ -53,6 +53,9 @@ repository holds the script and the manifest, never the files.
 **Acceptance Criteria:**
 - [ ] Each declared client, served from the host, reaches its title screen in Enyo, Mochi and Mojo within a bound
   written here before the round (by a reference picture of the title screen, R7's check)
+  **The bound (written 2026-11-18, before the first device round):** 180 s from the start of the page's load to the
+  title screen's reference picture, for each JavaScript client in each shell (the pages are 23.5 to 43 MB of HTML with
+  the assets inside; the WASM-GC build is outside R2, R1's third criterion)
 - [ ] Its menus (Options, Video settings, Language, Singleplayer, Multiplayer) open and close by touch
 - [ ] What fails to load is recorded with the engine's own error (the console, a missing API, the WebGL context's
   refusal) and either fixed in the engine or recorded as a limit with that evidence

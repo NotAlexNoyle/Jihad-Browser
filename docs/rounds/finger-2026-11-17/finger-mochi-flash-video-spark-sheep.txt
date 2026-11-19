@@ -1,12 +1,13 @@
-WAIT ok 13-text video = [video t=1.202 dropped=2 fps=0]
-CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash e5af2f52 rows 298 uniform 0 light 119-162 blue none
+WAIT ok 13-text video = [video t=1.202 dropped=3 fps=0]
+CHECK ok 14-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash d579265b rows 298 uniform 0 light 119-166 blue none
 CHECK ok 15-audio: the movie's audio: open running audible
-CHECK ok 16-flash-rate: content 40,119-440,417: 5.0 s, flips 67 (13.4/s), changes 62 (12.4/s), reads 70, distinct 63, spacing median 61 p90 141 max 412 ms (wanted 6.9..40/s)
-CHECK ok 17-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 7f2a41df rows 298 uniform 0 light 119-144 blue none
-CHECK ok 18-audio: the movie's audio: open running audible
-WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.803 after video t=8.803 dropped=96 fps=15.429122468659594]
-CHECK ok 20-number: vendtime = 8.803 (wanted 6.3..9.3)
-CHECK ok 21-number: venddropped = 96 (wanted 0..154)
-CHECK ok 22-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70252f20 rows 298 uniform 0 light 119-144 blue none
-CHECK ok 23-plugin: plugin-container 23196: alive (state S, cpu ticks 333 to 344)
+  the audio watched every second from here
+CHECK ok 17-flash-rate: content 40,119-440,417: 5.0 s, flips 72 (14.4/s), changes 70 (14.0/s), reads 75, distinct 71, spacing median 57 p90 124 max 302 ms (wanted 6.9..40/s)
+CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70252f20 rows 298 uniform 0 light 119-144 blue none
+WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.725 after video t=8.725 dropped=83 fps=17.54385964912281]
+CHECK ok 20-audio-watched: the audio watched: 5 readings over 4 s, all running, the stream the plugin's
+CHECK ok 21-number: vendtime = 8.725 (wanted 6.3..9.3)
+CHECK ok 22-number: venddropped = 83 (wanted 0..154)
+CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 70252f20 rows 298 uniform 0 light 119-144 blue none
+CHECK ok 24-plugin: plugin-container 16439: alive (state S, cpu ticks 332 to 344)
 CHECKS 9 FAILS 0

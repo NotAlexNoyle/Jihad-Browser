@@ -1,12 +1,13 @@
-WAIT ok 13-text video = [video t=1.6 dropped=22 fps=7.865757734661773]
-CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 44b2a20e rows 298 uniform 0 light 123-234 blue none
+WAIT ok 13-text video = [video t=1.8 dropped=29 fps=0]
+CHECK ok 14-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 81f374cb rows 298 uniform 0 light 123-179 blue none
 CHECK ok 15-audio: the movie's audio: open running audible
-CHECK ok 16-flash-rate: content 40,123-440,421: 5.0 s, flips 50 (10.0/s), changes 37 (7.4/s), reads 54, distinct 35, spacing median 79 p90 188 max 259 ms (wanted 6.9..40/s)
-CHECK ok 17-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 70252f20 rows 298 uniform 0 light 123-148 blue none
-CHECK ok 18-audio: the movie's audio: open running audible
-WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.725 after video t=8.62 dropped=102 fps=16.556291390728475]
-CHECK ok 20-number: vendtime = 8.62 (wanted 6.3..9.3)
-CHECK ok 21-number: venddropped = 102 (wanted 0..154)
-CHECK ok 22-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7f2a41df rows 298 uniform 0 light 123-148 blue none
-CHECK ok 23-plugin: plugin-container 15681: alive (state S, cpu ticks 325 to 336)
+  the audio watched every second from here
+CHECK ok 17-flash-rate: content 40,123-440,421: 5.0 s, flips 58 (11.6/s), changes 44 (8.8/s), reads 61, distinct 44, spacing median 64 p90 175 max 447 ms (wanted 6.9..40/s)
+CHECK ok 18-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7f2a41df rows 298 uniform 0 light 123-148 blue none
+WAIT ok 19-text vend = [vend NetStream.Play.Stop t=8.803 after video t=8.803 dropped=111 fps=17.2972972972973]
+CHECK ok 20-audio-watched: the audio watched: 7 readings over 6 s, all running, the stream the plugin's
+CHECK ok 21-number: vendtime = 8.803 (wanted 6.3..9.3)
+CHECK ok 22-number: venddropped = 111 (wanted 0..154)
+CHECK ok 23-flash-drawn: drawn: region 40,123-440,421: colours 4096 hash 7f2a41df rows 298 uniform 0 light 123-148 blue none
+CHECK ok 24-plugin: plugin-container 4196: alive (state R, cpu ticks 317 to 328)
 CHECKS 9 FAILS 0

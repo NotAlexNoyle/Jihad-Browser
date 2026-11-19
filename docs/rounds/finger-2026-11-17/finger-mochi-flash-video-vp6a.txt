@@ -1,13 +1,14 @@
 WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-WAIT ok 14-text video = [video t=1.097 dropped=1 fps=0]
-CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2431 hash 1ac840d2 rows 298 uniform 0 light none blue none
+WAIT ok 14-text video = [video t=1.279 dropped=0 fps=0]
+CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 2624 hash 94beed20 rows 298 uniform 0 light none blue none
 CHECK ok 16-audio: the movie's audio: open running audible
-CHECK ok 17-flash-rate: content 40,119-440,417: 10.0 s, flips 144 (14.4/s), changes 140 (14.0/s), reads 146, distinct 141, spacing median 60 p90 118 max 216 ms (wanted 9.8..40/s)
-CHECK ok 18-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
-CHECK ok 19-audio: the movie's audio: open running audible
-WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.818 dropped=20 fps=15.873015873015873]
-CHECK ok 21-number: vendtime = 13.818 (wanted 11.5..14.5)
-CHECK ok 22-number: venddropped = 20 (wanted 0..125)
-CHECK ok 23-flash-drawn: drawn: region 40,119-440,417: colours 1605 hash df749eb5 rows 298 uniform 0 light none blue none
-CHECK ok 24-plugin: plugin-container 8220: alive (state S, cpu ticks 586 to 597)
+  the audio watched every second from here
+CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 139 (13.9/s), changes 130 (13.0/s), reads 142, distinct 131, spacing median 61 p90 124 max 285 ms (wanted 9.8..40/s)
+CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
+WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.74 dropped=25 fps=15.717092337917485]
+CHECK ok 21-audio-watched: the audio watched: 10 readings over 9 s, all running, the stream the plugin's
+CHECK ok 22-number: vendtime = 13.74 (wanted 11.5..14.5)
+CHECK ok 23-number: venddropped = 25 (wanted 0..125)
+CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 1644 hash dfd24d6c rows 298 uniform 0 light none blue none
+CHECK ok 25-plugin: plugin-container 2494: alive (state S, cpu ticks 587 to 598)
 CHECKS 9 FAILS 0

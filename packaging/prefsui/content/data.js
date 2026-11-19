@@ -13,7 +13,7 @@
  */
 "use strict";
 
-const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
+const { classes: Cc, interfaces: Ci, utils: Cu, results: Cr } = Components;
 Cu.import("resource://gre/modules/Services.jsm");
 let FormHistory = null;
 try { FormHistory = Cu.import("resource://gre/modules/FormHistory.jsm", {}).FormHistory; } catch (e) {}
@@ -270,7 +270,7 @@ function renderSite(domain) {
 		}));
 		cg.appendChild(r);
 	});
-	if (s.cookies.length > 1) {
+	if (s.cookies.length) {
 		let r = el("div", "row");
 		r.appendChild(button("Remove all cookies", "cookies-remove-all", function () {
 			s.cookies.forEach(function (c) { try { Services.cookies.remove(c.host, c.name, c.path, false, c.originAttributes); } catch (e) {} });
@@ -349,12 +349,16 @@ function renderSite(domain) {
 				clearLocal(h, function () { say("The local storage of " + h + " cleared"); again(); });
 				return;
 			}
+			// the list is read again once the quota manager says the clearing is done (it runs on its own thread)
 			try {
 				let qms = Cc["@mozilla.org/dom/quota-manager-service;1"].getService(Ci.nsIQuotaManagerService);
-				qms.clearStoragesForPrincipal(principalOf(x.origin.replace(/\^.*$/, "")));
-				say("The stored data of " + x.origin + " cleared");
-			} catch (e) { say("Not cleared: " + e); }
-			again();
+				let req = qms.clearStoragesForPrincipal(principalOf(x.origin.replace(/\^.*$/, "")));
+				say("Clearing the stored data of " + x.origin + "…");
+				req.callback = function () {
+					say(req.resultCode === Cr.NS_OK ? "The stored data of " + x.origin + " cleared" : "Not cleared: " + req.resultCode);
+					again();
+				};
+			} catch (e) { say("Not cleared: " + e); again(); }
 		}));
 		dg.appendChild(r);
 	});
@@ -429,6 +433,7 @@ function renderForms() {
 		let f = search.value.trim().toLowerCase();
 		let shown = entries.filter(e => !f || e.fieldname.toLowerCase().indexOf(f) >= 0 || e.value.toLowerCase().indexOf(f) >= 0);
 		if (!entries.length) { lg.appendChild(el("div", "row row-help empty", "Nothing typed into a page's fields is kept.")); return; }
+		if (!shown.length) { lg.appendChild(el("div", "row row-help empty", "No entry matches.")); }
 		shown.forEach(function (e) {
 			let r = el("div", "row form-row");
 			r.setAttribute("data-field", e.fieldname);

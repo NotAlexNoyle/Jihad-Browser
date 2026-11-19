@@ -1,0 +1,14 @@
+CHECK ok 15-quiet: no line InstantiatePluginInstance rv=0x0 for 6 s
+WAIT ok 16-content m
+  frame kept: /media/internal/jihad-finger/off_.last.raw
+  probe off: noflash embed 550x300 typeof-PercentLoaded undefined
+CHECK ok 19-probe-has: the probe's answer holds [noflash]
+  the pref plugin.state.flash set to 2
+  chrome reload tapped at 740 51
+WAIT ok 22-rect m
+WAIT ok 23-content m
+WAIT ok 24-changed m
+WAIT ok 25-content m
+WAIT ok 26-launch: load done
+WAIT ok 27-line: [jihad-npapi] cpu boost release: up_threshold=95 sampling_rate=200000
+CHECKS 2 FAILS 0

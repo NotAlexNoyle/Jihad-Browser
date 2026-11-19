@@ -419,7 +419,7 @@ fl_kb_key() { # CHAR -> "X Y"
   done
   echo "fl_kb_key: no key for '$c'" >&2; return 1
 }
-# TEXT typed on the system keyboard, a tap a character (letters, a capital by the shift key, digits, space . , - / ', '<' for Backspace), 130 ms apart;
+# TEXT typed on the system keyboard, a tap a character (letters, a capital by the shift key, digits, space . , - / ' :, '<' for Backspace), 130 ms apart;
 # the caller reads the field afterwards (the page's readout, a pref) — the keys themselves have no mark
 fl_type() {
   local s c p
@@ -430,6 +430,9 @@ fl_type() {
     # a capital: the shift key, then its letter (the shift is for one letter); '<' is Backspace
     case "$c" in
       "<") /tmp/finger tap $(fl_chrome kb-backspace); usleep 130000; continue;;
+      # ':' is on the symbols layer (its key, the bottom row's second, opens it and ABC in the same place closes it;
+      # the layer stays until then: read on the device 2026-11-18)
+      :) /tmp/finger tap 104 993; usleep 300000; /tmp/finger tap 628 873; usleep 200000; /tmp/finger tap 104 993; usleep 300000; continue;;
       [A-Z]) /tmp/finger tap $(fl_chrome kb-shift); usleep 200000; c=$(echo "$c" | tr 'A-Z' 'a-z');;
     esac
     p=$(fl_kb_key "$c") || return 1; /tmp/finger tap $p; usleep 130000
@@ -571,6 +574,12 @@ fl_check_file() { # NAME GLOB TEXT: the newest file the glob names on the device
   f=$(ls -t $(fl_path "$2") 2>/dev/null | head -1)
   [ -n "$f" ] || { fl_check FAIL "$1" "no file $2 on the device"; return 1; }
   if grep -q -- "$3" "$f" 2>/dev/null; then fl_check ok "$1" "$f ($(wc -c < "$f") bytes) holds [$3]"; else fl_check FAIL "$1" "$f lacks [$3]"; fi
+}
+fl_check_min_height() { # NAME SEL MIN: the element is at least MIN CSS px tall (a finger's control: 44)
+  local r h
+  r=$(fl_rect "$2") || { fl_check FAIL "$1" "no element $2"; return 1; }
+  h=$(echo "$r" | awk '{print $4}')
+  if [ "${h:-0}" -ge "$3" ]; then fl_check ok "$1" "$2 is $h px tall (at least $3)"; else fl_check FAIL "$1" "$2 is $h px tall, under $3"; fi
 }
 fl_check_file_lacks() { # NAME GLOB TEXT: the newest file the glob names is there and does not hold the text (a secret kept
   # encrypted: logins.json)

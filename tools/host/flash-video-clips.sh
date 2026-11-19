@@ -21,6 +21,12 @@ for size in 426x240:400k 640x360:700k 854x480:1200k; do
     echo "gen-$c-$h.flv $k $wh $n frames $(stat -c %s "$f") bytes"
   done
 done
+# R10's card behind and back (suite/flash-background-card): the same 240-line Spark clip, 120 s long, so the movie is still
+# playing when the card comes back (the 20 s clip had ended by then: round finger-2026-11-17)
+ff -f lavfi -i "testsrc2=size=426x240:rate=24:duration=120" -f lavfi -i "sine=frequency=440:duration=120" -c:v flv -b:v 400k -g 24 -c:a libmp3lame -ar 44100 -b:a 64k -flvflags add_keyframe_index "$OUT/gen-spark-240-120s.flv"
+n=$(ffprobe -v error -select_streams v:0 -count_packets -show_entries stream=nb_read_packets -of csv=p=0 "$OUT/gen-spark-240-120s.flv")
+[ "$n" = 2880 ] || { echo "FAIL gen-spark-240-120s.flv: $n frames, 2880 wanted"; exit 1; }
+echo "gen-spark-240-120s.flv flv1 426x240 $n frames $(stat -c %s "$OUT/gen-spark-240-120s.flv") bytes"
 # R9's ten-minute music player (suite/flash-app-music-10min): a 630 s track for mp3-player-multi (flash-serve.py's title page
 # takes ?mp3=/asset/tone-630s.mp3), a 440 Hz tone that a fifth of a second of silence breaks every 5 s, so a dropout of the
 # player's own reads as a longer gap than the track holds

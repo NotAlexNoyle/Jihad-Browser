@@ -1,16 +1,19 @@
-# about:data (cavekit-site-data.md R3, T-663): the test form's site sets a cookie, keeps 4 KB in localStorage, and a login
-# and a note are submitted (the note goes into the form history). about:data lists the site with its counts; its page
-# shows the cookie (its value on demand), the stored data and its size, the login's count; Pop-up windows set to Block
-# for the site is what the engine then holds; the cookie removed; Forget this site, after its confirm, empties the
-# site and it leaves the list. The form history holds the note, which is removed.
+# about:data (cavekit-site-data.md R3, T-663): the test form's site sets two cookies, keeps 4 KB in localStorage and 8 KB
+# in IndexedDB, and a login and a note are submitted (the note goes into the form history); the same page on a second
+# origin of the host (:8079, fixture second-origin) keeps its own. about:data lists one site for the host, with its
+# counts, and its search narrows the list; the site's page lists both origins' stored data, shows a cookie (its value on
+# demand), removes it and then every cookie; Pop-up windows set to Block is what the engine then holds; the logins' link
+# opens about:logins narrowed to the site; :8077's local storage and databases each cleared, :8079's left; Forget this
+# site, after its confirm, empties the site (both origins) and it leaves the list. The form history holds the note and
+# the username, its search narrows it (and says when nothing matches); the note removed alone, then all removed.
 id: site-data-page
 section: Privacy and site data
-item: about:data lists the site with its cookies, stored data and logins; its page shows and removes a cookie, changes a permission, shows the stored data; Forget this site clears it all; the form history lists and removes a typed note
+item: about:data lists the site with its cookies, stored data and logins, and its search narrows the list; its page shows and removes a cookie and all the site's cookies, changes a permission, links the site's logins, shows and clears the stored data; Forget this site clears it all; the form history lists, removes a typed note and removes all
 shells: enyo mochi mojo
 prefs: jihad.compat.trace=true signon.rememberSignons=true browser.formfill.enable=true
 page: http://192.168.1.245:8077/jihad-login.html
 kit: cavekit-site-data.md R3
-fixture: site-data-clean
+fixture: site-data-clean second-origin
 wait rect user 30
 probe submit '(function(u,p){document.getElementById("user").value=u;document.getElementById("pass").value=p;document.getElementById("note").value="hello jihad";return "filled "+u;})("jihad-data","data-pass-8")'
 tap go
@@ -18,15 +21,24 @@ expect dialog present 8
 chrome dialog-ok
 expect dialog answered 8
 wait text sent "sent jihad-data" 15
+launch http://192.168.1.245:8079/jihad-login.html
+wait text state "user=" 10
 launch about:data
 wait text sites "192.168.1.245" 10
+expect text-lacks sites ":8079"
 wait text 'sel:.site-row[data-site="192.168.1.245"] .site-counts' "stored" 10
 expect text-has 'sel:.site-row[data-site="192.168.1.245"] .site-counts' "1 login"
+tap 'sel:#search'
+type zz-no-such-site
+wait text sites "No site matches" 4
+launch about:data
+wait text sites "192.168.1.245" 10
 tap 'sel:.site-row[data-site="192.168.1.245"] .site-open'
 wait text cookies "jihadtest" 10
 tap 'sel:.cookie-row[data-name="jihadtest"] .cookie-show'
 wait text 'sel:.cookie-row[data-name="jihadtest"] .cookie-value' "1" 4
 wait text storage "KB" 10
+wait text storage "192.168.1.245:8079" 10
 expect text-has site-logins "1 saved login"
 pick 'sel:.perm-row[data-perm="popup"][data-origin="http://192.168.1.245:8077"] select' 2 3
 wait text status "Pop-up windows for http://192.168.1.245:8077: Block" 6
@@ -35,6 +47,21 @@ wait rect 'sel:.perm-row[data-perm="popup"][data-origin="http://192.168.1.245:80
 tap 'sel:.cookie-row[data-name="jihadtest"] .cookie-remove'
 wait text status "removed" 6
 expect text-lacks cookies "jihadtest"
+tap 'sel:.cookies-remove-all'
+wait text status "Every cookie" 6
+expect text-lacks cookies "jihadsecond"
+tap 'sel:.site-logins-open'
+wait url about:logins?filter=192.168.1.245 10
+wait text logins "jihad-data" 10
+launch about:data?site=192.168.1.245
+wait text storage "local storage" 10
+wait text storage "databases" 10
+tap 'sel:.storage-row[data-kind="local"][data-origin^="http://192.168.1.245:8077"] .storage-clear'
+wait gone 'sel:.storage-row[data-kind="local"][data-origin^="http://192.168.1.245:8077"]' 12
+expect text-has storage "databases"
+tap 'sel:.storage-row[data-kind="quota"][data-origin^="http://192.168.1.245:8077"] .storage-clear'
+wait gone 'sel:.storage-row[data-kind="quota"][data-origin^="http://192.168.1.245:8077"]' 12
+expect text-has storage "192.168.1.245:8079"
 tap 'sel:#forget'
 wait text forget-row "Forget everything" 4
 tap 'sel:#forget'
@@ -43,6 +70,22 @@ wait quiet 'jihad-never-logged' 3
 expect text-lacks sites "192.168.1.245"
 launch about:data?pane=forms
 wait text forms "hello jihad" 10
+expect text-has forms "jihad-data"
+tap 'sel:#search'
+type hello
+wait text forms "Form data" 4
+expect text-lacks forms "jihad-data"
+launch about:data?pane=forms
+wait text forms "hello jihad" 10
+tap 'sel:#search'
+type zzq
+wait text forms "No entry matches" 4
+launch about:data?pane=forms
+wait text forms "hello jihad" 10
 tap 'sel:.form-row[data-value="hello jihad"] .form-remove'
 wait text status "Removed" 6
 expect text-lacks forms "hello jihad"
+tap 'sel:.forms-remove-all'
+wait text forms-remove-all-row "entries?" 4
+tap 'sel:.forms-remove-all'
+wait text forms "Nothing typed" 6

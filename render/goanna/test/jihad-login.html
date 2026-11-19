@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- Copyright 2026 NotAlexNoyle. Apache-2.0.
      A site's login form for cavekit-site-data.md (T-661..T-664): a username, a password and a note field, submitted to
-     this same page (GET, so the static test server answers it). The page also sets a cookie (jihadtest) and keeps 4 KB in
-     localStorage, so about:data has something of this site's to show. #state says what the fields hold and how many
+     this same page (GET, so the static test server answers it). The page also sets two cookies (jihadtest, jihadsecond) and keeps 4 KB in
+     localStorage and 8 KB in IndexedDB, so about:data has something of this site's to show. #state says what the fields hold and how many
      input events reached the page, which is what a filled login must look like to a page's own scripts; framed, it tells
      the page around it the same (jihad-login-frame.html). -->
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>jihad-login</title>
@@ -20,7 +20,14 @@
 <script>
 var events = 0;
 document.cookie = "jihadtest=1; max-age=86400; path=/";
+document.cookie = "jihadsecond=2; max-age=86400; path=/";
 try { localStorage.setItem("jihad-login", new Array(4097).join("x")); } catch (e) {}
+// and 8 KB in an IndexedDB database, which the quota manager counts (about:data's "databases, caches" row)
+try {
+  var rq = indexedDB.open("jihad-login", 1);
+  rq.onupgradeneeded = function () { rq.result.createObjectStore("kept"); };
+  rq.onsuccess = function () { var db = rq.result, tx = db.transaction("kept", "readwrite"); tx.objectStore("kept").put(new Array(8193).join("y"), "k"); tx.oncomplete = function () { db.close(); }; };
+} catch (e) {}
 function rep() {
   var u = document.getElementById("user").value, p = document.getElementById("pass").value;
   var s = "user=" + (u || "(empty)") + " pass=" + (p ? p : "(empty)") + " events=" + events;

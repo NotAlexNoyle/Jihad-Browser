@@ -1,14 +1,15 @@
 WAIT ok 13-text vmeta = [vmeta codec=2 w=640 h=360 d=20.025]
-WAIT ok 14-text video = [video t=1.202 dropped=2 fps=0]
-CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 2a567d50 rows 298 uniform 0 light none blue 249-261
+WAIT ok 14-text video = [video t=1.202 dropped=0 fps=21.220159151193634]
+CHECK ok 15-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 7d4a2a0b rows 298 uniform 0 light none blue 295-308
 CHECK ok 16-audio: the movie's audio: open running audible
-CHECK ok 17-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3894,3895,3898,3896,3897,3893, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
-CHECK ok 18-flash-rate: content 40,119-440,417: 10.0 s, flips 201 (20.1/s), changes 201 (20.1/s), reads 205, distinct 202, spacing median 41 p90 82 max 487 ms (wanted 12.8..40/s)
-CHECK ok 19-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 255defb6 rows 298 uniform 0 light none blue none
-CHECK ok 20-audio: the movie's audio: open running audible
-WAIT ok 21-text vend = [vend NetStream.Play.Stop t=20.01 after video t=19.67 dropped=72 fps=23.32814930015552]
-CHECK ok 22-number: vendtime = 19.67 (wanted 17.5..20.5)
-CHECK ok 23-number: venddropped = 72 (wanted 0..288)
-CHECK ok 24-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
-CHECK ok 25-plugin: plugin-container 16246: alive (state S, cpu ticks 695 to 707)
+  the audio watched every second from here
+CHECK ok 18-sound: sound at the output sink: peak 3898 rms 2750 frames 45056 hz 440 env 3896,3896,3896,3895,3898,3891, the speaker amp on, the media volume 23, the pitch wanted 440 Hz
+CHECK ok 19-flash-rate: content 40,119-440,417: 10.0 s, flips 210 (21.0/s), changes 206 (20.6/s), reads 211, distinct 207, spacing median 41 p90 72 max 170 ms (wanted 12.8..40/s)
+CHECK ok 20-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 9e6c6f91 rows 298 uniform 0 light none blue none
+WAIT ok 21-text vend = [vend NetStream.Play.Stop t=19.983 after video t=19.733 dropped=73 fps=20.408163265306122]
+CHECK ok 22-audio-watched: the audio watched: 15 readings over 15 s, all running, the stream the plugin's
+CHECK ok 23-number: vendtime = 19.733 (wanted 17.5..20.5)
+CHECK ok 24-number: venddropped = 73 (wanted 0..288)
+CHECK ok 25-flash-drawn: drawn: region 40,119-440,417: colours 4096 hash 59fc9a0b rows 298 uniform 0 light none blue none
+CHECK ok 26-plugin: plugin-container 8913: alive (state R, cpu ticks 699 to 711)
 CHECKS 10 FAILS 0

@@ -264,7 +264,7 @@ ABOUT_JS="$REPO/render/goanna/components/jihadAboutPreferences.js"
 if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ]; then
 	rm -rf "$OUT/prefsui"
 	mkdir -p "$OUT/prefsui" "$OUT/components"
-	cp -R "$PREFSUI/content" "$OUT/prefsui/"
+	cp -R "$PREFSUI/content" "$PREFSUI/flashoff" "$OUT/prefsui/"
 	cp -L "$PREFSUI/jihad-prefsui.manifest" "$OUT/"
 	# Idempotent, same reason as the branding line above.
 	if ! grep -q '^manifest jihad-prefsui.manifest$' "$OUT/chrome.manifest" 2>/dev/null; then
@@ -277,6 +277,7 @@ if [ -d "$PREFSUI" ] && [ -f "$ABOUT_JS" ]; then
 	         prefsui/content/shell.js prefsui/content/shell.css prefsui/content/addons.css prefsui/content/discover-dark.css \
 	         prefsui/content/jihadAboutReader.js prefsui/content/reader.html prefsui/content/jihadSiteMode.js \
 	         prefsui/content/logins.html prefsui/content/logins.js prefsui/content/data.html prefsui/content/data.js prefsui/content/sitedata.css components/jihadLogins.js \
+	         prefsui/flashoff/flashOff.xml prefsui/flashoff/flashOffContent.css prefsui/flashoff/flashOffBinding.css \
 	         components/jihadAboutPreferences.js components/jihad-about-preferences.manifest; do
 		[ -s "$OUT/$f" ] || { echo "ERROR: prefs-ui file missing/empty in bundle: $f" >&2; exit 1; }
 	done
@@ -568,7 +569,7 @@ for r in "${REQUIRED[@]}"; do [ -e "$OUT/$r" ] || _missing="$_missing $r"; done
 . "$HERE/../engine/engine-version.env"
 WATCH=$(python3 "$HERE/../engine/engine-loose-files.py" --objdir "$(dirname "$DIST")" --uxp "$REPO/third_party/uxp" \
           --base "$UXP_TAG" --head "$UXP_PIN" --bundle "$OUT" 2>/dev/null) || WATCH=""
-{ echo "$WATCH"; (cd "$OUT" && ls -d prefsui/content/* modules/Jihad*.jsm chrome.manifest jihad-prefsui.manifest 2>/dev/null); } |
+{ echo "$WATCH"; (cd "$OUT" && ls -d prefsui/content/* prefsui/flashoff/* modules/Jihad*.jsm chrome.manifest jihad-prefsui.manifest 2>/dev/null); } |
   { grep -v '^$' || true; } | LC_ALL=C sort -u > "$OUT/jihad-watch.list"
 echo "  startup-cache watch list: $(wc -l < "$OUT/jihad-watch.list") files"
 rm -f "$OUT/jihad-bundle.id"

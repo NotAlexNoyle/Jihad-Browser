@@ -1,13 +1,14 @@
 WAIT ok 13-text vmeta = [vmeta codec=5 w=478 h=430 d=14]
-WAIT ok 14-text video = [video t=2.298 dropped=9 fps=7.012622720897616]
-CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 2553 hash d6b0f728 rows 298 uniform 67 light none blue none
+WAIT ok 14-text video = [video t=1.279 dropped=6 fps=0]
+CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 2473 hash c614e5ef rows 298 uniform 67 light none blue none
 CHECK ok 16-audio: the movie's audio: open running audible
-CHECK ok 17-flash-rate: content 40,114-440,412: 10.0 s, flips 119 (11.9/s), changes 110 (11.0/s), reads 125, distinct 110, spacing median 63 p90 164 max 304 ms (wanted 9.8..40/s)
-CHECK ok 18-flash-drawn: drawn: region 40,114-440,412: colours 1495 hash 9ca6657e rows 298 uniform 67 light none blue none
-CHECK ok 19-audio: the movie's audio: open running audible
-WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.635 dropped=32 fps=16.580310880829014]
-CHECK ok 21-number: vendtime = 13.635 (wanted 11.5..14.5)
-CHECK ok 22-number: venddropped = 32 (wanted 0..125)
-CHECK ok 23-flash-drawn: drawn: region 40,114-440,412: colours 1495 hash 9ca6657e rows 298 uniform 67 light none blue none
-CHECK ok 24-plugin: plugin-container 15403: alive (state S, cpu ticks 570 to 581)
+  the audio watched every second from here
+CHECK ok 18-flash-rate: content 40,114-440,412: 10.0 s, flips 124 (12.4/s), changes 112 (11.2/s), reads 128, distinct 111, spacing median 65 p90 132 max 238 ms (wanted 9.8..40/s)
+CHECK ok 19-flash-drawn: drawn: region 40,114-440,412: colours 1594 hash 0a1f6c6b rows 298 uniform 66 light none blue none
+WAIT ok 20-text vend = [vend NetStream.Play.Stop t=13.975 after video t=13.975 dropped=38 fps=13.736263736263735]
+CHECK ok 21-audio-watched: the audio watched: 11 readings over 10 s, all running, the stream the plugin's
+CHECK ok 22-number: vendtime = 13.975 (wanted 11.5..14.5)
+CHECK ok 23-number: venddropped = 38 (wanted 0..125)
+CHECK ok 24-flash-drawn: drawn: region 40,114-440,412: colours 1495 hash 9ca6657e rows 298 uniform 67 light none blue none
+CHECK ok 25-plugin: plugin-container 14334: alive (state S, cpu ticks 566 to 578)
 CHECKS 9 FAILS 0

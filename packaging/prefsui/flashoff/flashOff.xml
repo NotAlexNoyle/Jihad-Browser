@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0 (matches the GRE this is registered into).
+     What stands in a movie's place when Flash is off (cavekit-flash.md R10): the Flash switch in Settings, or a site's
+     own Adobe Flash permission set to Block in about:data. The engine marks such an element :-moz-handler-disabled; the
+     toolkit's plugin binding (pluginProblem.xml) covers blocked, crashed, click-to-play and vulnerable plugins but not
+     disabled ones, so the page showed nothing there at all. No implementation: nothing here runs, nothing reads the
+     page. The element's own children (an <object>'s fallback) stay hidden, as in the toolkit's binding. -->
+<bindings id="jihadFlashOffBindings"
+          xmlns="http://www.mozilla.org/xbl"
+          xmlns:html="http://www.w3.org/1999/xhtml">
+<binding id="off" inheritstyle="false" chromeOnlyContent="true" bindToUntrustedContent="true">
+  <resources>
+    <stylesheet src="chrome://jihad-flashoff/content/flashOffContent.css"/>
+  </resources>
+  <content>
+    <html:div class="jihad-flash-off">
+      <html:div class="jihad-flash-off-title">Adobe Flash is off</html:div>
+      <html:div class="jihad-flash-off-how">Settings → Adobe Flash, or this site's own setting in Site data</html:div>
+    </html:div>
+    <html:div style="display:none;"><children/></html:div>
+  </content>
+</binding>
+</bindings>

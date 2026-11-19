@@ -1,0 +1,26 @@
+WAIT ok 11-rect page-title
+  tap at 435,190 -> clickAt 436 117
+WAIT ok 13-rect sel:.row[data-label='Saved logins'] button
+  tap at 654,784 -> clickAt 655 711
+WAIT ok 15-text page-title = [Saved logins]
+WAIT ok 16-url: about:logins
+  frame kept: /media/internal/jihad-finger/logins_.last.raw
+CHECK ok 18-min-height: search is 44 px tall (at least 44)
+CHECK ok 19-min-height: sel:.never-add-btn is 46 px tall (at least 44)
+WAIT ok 20-launch: load done
+WAIT ok 21-rect page-title
+  tap at 343,190 -> clickAt 344 117
+WAIT ok 23-rect sel:.row[data-label='Site data'] button
+  tap at 670,838 -> clickAt 671 1916
+WAIT ok 25-text page-title = [Site data]
+WAIT ok 26-url: about:data
+  frame kept: /media/internal/jihad-finger/data_.last.raw
+CHECK ok 28-min-height: search is 44 px tall (at least 44)
+CHECK ok 29-min-height: sel:button.pane-tab is 44 px tall (at least 44)
+WAIT ok 30-launch: load done
+  probe frame: framed and opened
+CHECK ok 32-quiet: no line jihad-never-logged for 4 s
+  probe read: framed title [] opened nothing
+CHECK ok 34-probe-has: the probe's answer holds [framed]
+CHECK ok 35-probe-lacks: the probe's answer lacks [Saved logins]
+CHECKS 7 FAILS 0

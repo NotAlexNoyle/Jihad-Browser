@@ -1,0 +1,16 @@
+# WebGL context creation as EaglercraftX asks for it (cavekit-eaglercraft.md R2, T-666): render/goanna/test/
+# jihad-webgl-attrs.html tries the client's attributes in its order and one at a time, and writes each answer with the
+# engine's own reason (the webglcontextcreationerror event). The first round read why "webgl" answered null where
+# "experimental-webgl" answered a context; the checks are that the client's own order gets a "webgl" context.
+id: eagler-webgl-attrs
+section: Eaglercraft
+item: WebGL with EaglercraftX's context attributes: "webgl" gives a context in the client's own order (webgl2, webgl, experimental-webgl), each attempt's reason recorded
+shells: enyo mochi mojo
+prefs: jihad.compat.trace=true
+page: http://192.168.1.245:8077/jihad-webgl-attrs.html
+kit: cavekit-eaglercraft.md R2
+wait text done "rows" 30
+probe rows '(function(){return document.getElementById("out").innerText.replace(/\n/g," | ");})()'
+expect probe-has "a2 same canvas: webgl -> context"
+expect probe-has "b1 fresh: webgl -> context"
+shoot rows

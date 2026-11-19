@@ -32,7 +32,7 @@ and touches nothing else.
 <!-- progress:start -->
 ## Status
 
-**`█████████████████░░░` 87 % done** (everything but tabs, which are on hold).
+**`██████████████████░░` 90 % done** (everything but tabs, which are on hold).
 
 | Area | Progress | What it covers |
 |---|---|---|
@@ -44,9 +44,9 @@ and touches nothing else.
 | Touch and keyboard | `████████████████████` 100 % | taps, gestures, the on-screen keyboard |
 | Settings and services | `███████████████████░` 96 % | the settings panes, downloads, history, printing |
 | Add-ons and Personas | `███████████████████░` 96 % | XPI add-ons, plugins, Personas, the add-on site |
-| Flash, finished | `█████████░░░░░░░░░░░` 45 % | the device's own Flash Player proven on real games, apps and videos in every shell |
+| Flash, finished | `██████████░░░░░░░░░░` 52 % | the device's own Flash Player proven on real games, apps and videos in every shell |
 | Eaglercraft | `██░░░░░░░░░░░░░░░░░░` 14 % | Minecraft's web port: loads, plays by touch, keeps a world, joins a server |
-| Privacy and security | `██████████████░░░░░░` 70 % | the ad and tracker blocker, proxies, certificates, saved logins and site data |
+| Privacy and security | `███████████████████░` 96 % | the ad and tracker blocker, proxies, certificates, saved logins and site data |
 | Building and updating | `███████████████████░` 95 % | one repository builds every package; engine updates; the SDK; licences |
 | Tabs | `░░░░░░░░░░░░░░░░░░░░` held | groundwork only, held by the owner's decision |
 

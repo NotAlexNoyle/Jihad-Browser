@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 NotAlexNoyle. Apache-2.0.
+     WebGL context creation as EaglercraftX 1.8.8 asks for it (cavekit-eaglercraft.md R2, T-666): its game canvas is made
+     with getContext("webgl2", A), then "webgl", then "experimental-webgl", A being the attributes below; on the device
+     "webgl" answered null and "experimental-webgl" a context, and the client then warned that WebGL is "experimental".
+     Each row is one attempt on a fresh canvas (or, where it says so, the same canvas again): the context's answer and
+     the engine's own reason, from the webglcontextcreationerror event's statusMessage. #done says the rows are written. -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>jihad-webgl-attrs</title>
+<style>body{font:16px monospace;margin:10px;background:#fff;color:#000} div{margin:2px 0;white-space:pre-wrap}</style></head>
+<body>
+<div id="out"></div>
+<div id="done">-</div>
+<script>
+var A = {antialias:false, depth:false, powerPreference:"high-performance", desynchronized:true, preserveDrawingBuffer:false, premultipliedAlpha:false, alpha:false};
+function without(k) { var o = {}; for (var n in A) { if (n !== k) o[n] = A[n]; } return o; }
+function row(s) { var d = document.createElement("div"); d.textContent = s; document.getElementById("out").appendChild(d); }
+function attempt(label, c, type, attrs) {
+  var why = "";
+  var h = function (e) { why = e.statusMessage || "(no message)"; };
+  c.addEventListener("webglcontextcreationerror", h, false);
+  var g = null, thrown = "";
+  try { g = attrs ? c.getContext(type, attrs) : c.getContext(type); } catch (e) { thrown = String(e); }
+  c.removeEventListener("webglcontextcreationerror", h, false);
+  row(label + ": " + type + " -> " + (g ? "context" : "null") + (why ? " [" + why + "]" : "") + (thrown ? " threw " + thrown : ""));
+  return g;
+}
+function fresh() { var c = document.createElement("canvas"); c.width = 64; c.height = 64; return c; }
+try {
+  var c1 = fresh();
+  attempt("a1 eagler order", c1, "webgl2", A);
+  attempt("a2 same canvas", c1, "webgl", A);
+  attempt("a3 same canvas", c1, "experimental-webgl", A);
+  attempt("b1 fresh", fresh(), "webgl", A);
+  attempt("b2 fresh", fresh(), "experimental-webgl", A);
+  attempt("c1 fresh, no attributes", fresh(), "webgl", null);
+  ["desynchronized", "powerPreference", "depth", "alpha", "premultipliedAlpha", "antialias", "preserveDrawingBuffer"].forEach(function (k) {
+    attempt("d fresh, without " + k, fresh(), "webgl", without(k));
+  });
+  var c2 = fresh();
+  attempt("e1 webgl2 then webgl, no attributes", c2, "webgl2", null);
+  attempt("e2 same canvas", c2, "webgl", null);
+} catch (e) { row("threw " + e); }
+document.getElementById("done").textContent = "rows " + document.getElementById("out").childNodes.length;
+</script>
+</body></html>

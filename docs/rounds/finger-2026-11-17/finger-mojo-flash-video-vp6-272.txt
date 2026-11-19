@@ -1,17 +1,18 @@
 WAIT ok 10-text vmeta = [vmeta codec=4 w=480 h=272 d=86.833]
-WAIT ok 11-text video = [video t=2.625 dropped=17 fps=19.71090670170828]
+WAIT ok 11-text video = [video t=2.507 dropped=9 fps=22.63083451202263]
 WAIT ok 12-content m
 CHECK ok 13-audio: the movie's audio: open running audible
-CHECK ok 14-flash-rate: content 40,114-440,412: 10.0 s, flips 190 (19.0/s), changes 190 (19.0/s), reads 193, distinct 191, spacing median 43 p90 79 max 310 ms (wanted 7.1..40/s)
-CHECK ok 15-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash c22d94ac rows 298 uniform 0 light none blue 202-288
-  sample before of m: hash d504c3ea
+  the audio watched every second from here
+CHECK ok 15-flash-rate: content 40,114-440,412: 10.0 s, flips 186 (18.6/s), changes 185 (18.5/s), reads 187, distinct 186, spacing median 46 p90 81 max 197 ms (wanted 7.1..40/s)
+CHECK ok 16-flash-drawn: drawn: region 40,114-440,412: colours 4096 hash 6c7571f3 rows 298 uniform 0 light none blue 200-260
+  sample before of m: hash daeccf9d
   flash tap on stage 330,260 (showAll) at 370 373
-WAIT ok 18-text vctl = [vctl seek 40 t=24.708]
-WAIT ok 19-differs m
-WAIT ok 20-text video = [video t=44.146 dropped=154 fps=15.706806282722512]
-CHECK ok 21-number: vtime = 44.146 (wanted 38..58)
-CHECK ok 22-audio: the movie's audio: open running audible
-WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.041 dropped=494 fps=17.8359096313912]
-CHECK ok 24-number: vendtime = 86.041 (wanted 84.3..87.3)
-CHECK ok 25-plugin: plugin-container 11137: alive (state S, cpu ticks 2158 to 2170)
+WAIT ok 19-text vctl = [vctl seek 40 t=25.291]
+WAIT ok 20-differs m
+WAIT ok 21-text video = [video t=42.292 dropped=127 fps=21.994134897360702]
+CHECK ok 22-number: vtime = 43.958 (wanted 38..58)
+WAIT ok 23-text vend = [vend NetStream.Play.Stop t=86.833 after video t=86.674 dropped=468 fps=19.536019536019538]
+CHECK ok 24-audio-watched: the audio watched: 60 readings over 65 s, all running, the stream the plugin's
+CHECK ok 25-number: vendtime = 86.674 (wanted 84.3..87.3)
+CHECK ok 26-plugin: plugin-container 9274: alive (state S, cpu ticks 2218 to 2229)
 CHECKS 7 FAILS 0

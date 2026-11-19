@@ -1,0 +1,35 @@
+WAIT ok 12-rect user
+  probe off: filled jihad-off
+  tap at 348,388 -> clickAt 349 306
+WAIT ok 15-text sent = [sent jihad-off]
+CHECK ok 16-dialog: no dialog within 5 s
+  the pref signon.rememberSignons set to true
+WAIT ok 18-launch: load done
+  probe on: filled jihad-tester
+  tap at 348,388 -> clickAt 349 306
+CHECK ok 21-dialog: the dialog's reply pipe stands: /var/palm/jihad/enyo/dialog-1.fifo
+  chrome dialog-ok tapped at 384 541
+CHECK ok 23-dialog: [jihad-bs] dialog confirm -> ACCEPT (answer=1)
+WAIT ok 24-text sent = [sent jihad-tester]
+  the pref signon.autofillForms set to false
+WAIT ok 26-launch: load done
+WAIT ok 27-text state = [user=(empty) pass=(empty) events=0]
+  the pref signon.autofillForms set to true
+WAIT ok 29-launch: load done
+WAIT ok 30-rect sel:.never-add
+  tap at 200,725 -> clickAt 201 643
+  tap at 420,621 -> clickAt 421 643
+WAIT ok 34-text never = [Never save logins for192.168.1.245:8077RemoveAdd]
+WAIT ok 35-launch: load done
+  probe never: filled jihad-other
+  tap at 348,388 -> clickAt 349 306
+WAIT ok 38-text sent = [sent jihad-other]
+CHECK ok 39-dialog: no dialog within 5 s
+WAIT ok 40-launch: load done
+WAIT ok 41-text never = [Never save logins for192.168.1.245:8077RemoveAdd]
+  tap at 674,673 -> clickAt 675 591
+WAIT ok 43-text never = [Never save logins forNo site. A site added here is never asked about.Add]
+  tap at 672,554 -> clickAt 673 472
+  tap at 660,554 -> clickAt 661 472
+WAIT ok 46-text logins = [LoginsNo logins are saved. When you sign in to a site, the browser asks whether to remember the login (Settings → Security → Passwords).]
+CHECKS 4 FAILS 0

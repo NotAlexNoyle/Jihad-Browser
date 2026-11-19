@@ -1,0 +1,28 @@
+# The two pages from the address bar (cavekit-site-data.md R4, T-664): on a web page, the address typed on the system
+# keyboard (its ':' from the symbols layer) and Enter: about:logins opens, then about:data, each kept as a picture of
+# the shell's look. The other scripts open them through the inject channel, which is not the address bar. The second
+# address is typed once the keyboard of the first has gone: until then the field keeps its focus (its clear button
+# shows), and a tap on a focused field places the caret instead of selecting the address (Enyo, round
+# finger-2026-11-17: "about:loginsabout:data").
+id: site-data-address
+section: Privacy and site data
+item: about:logins and about:data typed into the address bar on the system keyboard open the two pages
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-card-events.html
+kit: cavekit-site-data.md R4
+calibrate bar
+chrome address
+expect keyboard up 8
+type-keys about:logins
+chrome kb-enter
+wait url about:logins 15
+wait text page-title "Saved logins" 10
+expect keyboard down 8
+shoot logins
+chrome address
+expect keyboard up 8
+type-keys about:data
+chrome kb-enter
+wait url about:data 15
+wait text page-title "Site data" 10
+shoot data

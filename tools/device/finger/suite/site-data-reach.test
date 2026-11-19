@@ -15,6 +15,8 @@ tap 'sel:.row[data-label="Saved logins"] button'
 wait text page-title "Saved logins" 10
 wait url about:logins 10
 shoot logins
+expect min-height search 44
+expect min-height 'sel:.never-add-btn' 44
 launch about:settings
 wait rect page-title 20
 tap 'sel:button.pane-tab[data-pane="privacy"]'
@@ -23,6 +25,8 @@ tap 'sel:.row[data-label="Site data"] button'
 wait text page-title "Site data" 10
 wait url about:data 10
 shoot data
+expect min-height search 44
+expect min-height 'sel:button.pane-tab' 44
 launch http://192.168.1.245:8077/jihad-login.html
 probe frame '(function(){var f=document.createElement("iframe");f.id="jf";f.src="about:logins";document.body.appendChild(f);var w=null;try{w=window.open("about:data");}catch(e){}window.jihadOpened=w?"a window":"nothing";return "framed and opened";})()'
 wait quiet 'jihad-never-logged' 4

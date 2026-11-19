@@ -1,0 +1,6 @@
+WAIT ok 15-rect sel:embed
+CHECK ok 16-audio: the movie's audio: open running audible
+  probe plugins: clean libflashplayer.so
+CHECK ok 19-probe-has: the probe's answer holds [clean]
+CHECK ok 20-probe-has: the probe's answer holds [libflashplayer.so]
+CHECKS 3 FAILS 0

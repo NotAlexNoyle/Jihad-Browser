@@ -99,7 +99,7 @@ ENGINE_LOOSE=$(python3 "$HERE/../engine/engine-loose-files.py" --objdir "$(dirna
                --base "$UXP_TAG" --head "$UXP_PIN" --bundle "$BUNDLE") || die "could not derive the engine's loose files (engine-loose-files.py)"
 ENGINE_LOOSE=$(echo "$ENGINE_LOOSE" | { grep -v '^goanna\.js$' || true; } | tr '\n' ' ')
 say "the engine's loose files this branch changes: ${ENGINE_LOOSE:-none}"
-OWN="chrome.manifest jihad-bundle.id jihad-watch.list jihad-prefsui.manifest modules/JihadEngine.jsm $ENGINE_LOOSE $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* bundled-addons/* personas/* certs/* 2>/dev/null || true; } | tr '\n' ' ')"
+OWN="chrome.manifest jihad-bundle.id jihad-watch.list jihad-prefsui.manifest modules/JihadEngine.jsm $ENGINE_LOOSE $(cd "$BUNDLE" && { ls components/jihad* prefsui/content/* prefsui/flashoff/* bundled-addons/* personas/* certs/* 2>/dev/null || true; } | tr '\n' ' ')"
 [ -f "$BUNDLE/chrome.manifest" ] || die "no chrome.manifest in $BUNDLE — run make-device-bundle.sh"
 [ -f "$BUNDLE/jihad-bundle.id" ] || die "no jihad-bundle.id in $BUNDLE — run make-device-bundle.sh"
 # The add-on manager's provider (modules/addons/*) belongs to the engine it was staged with.
@@ -166,7 +166,7 @@ for v in $VARIANTS; do
   say "[$v] pushing this project's chrome scripts ($(echo $OWN | wc -w) files)"
   # (a variant installed before 2026-10-05 has no bundled-addons/ directory yet, nor one
   # installed before 2026-10-08 a personas/ one)
-  novacom run file://bin/mkdir -- -p "$HL/bundled-addons" "$HL/personas" "$HL/gconv" >/dev/null 2>&1 || true
+  novacom run file://bin/mkdir -- -p "$HL/bundled-addons" "$HL/personas" "$HL/gconv" "$HL/prefsui/flashoff" >/dev/null 2>&1 || true
   # T-576: iconv's modules for the bundled glibc; a device installed before them has none
   HAVE_GCONV=" $(sleep 2 | novacom run file://bin/ls -- "$HL/gconv" 2>/dev/null | tr '\n' ' ' || true) "
   for g in "$BUNDLE"/gconv/*; do

@@ -1,0 +1,6 @@
+WAIT ok 12-text done = [rows 15]
+  probe rows: a1 eagler order: webgl2 -> null [WebGL creation failed:  | * Error during EGL OpenGL init. | * Exhausted GL driver caps.] | a2 same canvas: webgl -> context | a3 same canvas: experimental-webgl -> context | b1 fresh: webgl -> context | b2 fresh: experimental-webgl -> context | c1 fresh, no attribute
+CHECK ok 14-probe-has: the probe's answer holds [a2 same canvas: webgl -> context]
+CHECK ok 15-probe-has: the probe's answer holds [b1 fresh: webgl -> context]
+  frame kept: /media/internal/jihad-finger/rows_.last.raw
+CHECKS 2 FAILS 0

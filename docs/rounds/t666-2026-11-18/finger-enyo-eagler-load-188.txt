@@ -1,0 +1,14 @@
+CHECK ok 14-quiet: no line jihad-never-logged for 30 s
+  frame kept: /media/internal/jihad-finger/t30_.last.raw
+CHECK ok 16-quiet: no line jihad-never-logged for 30 s
+  frame kept: /media/internal/jihad-finger/t60_.last.raw
+  probe state: canvases 0 [] opts object text []
+CHECK ok 19-quiet: no line jihad-never-logged for 60 s
+  frame kept: /media/internal/jihad-finger/t120_.last.raw
+CHECK ok 21-quiet: no line jihad-never-logged for 60 s
+  frame kept: /media/internal/jihad-finger/t180_.last.raw
+  probe state2: canvases 1 [768x942] text []
+CHECK FAIL 23-probe: no answer to the probe state2 within 30 s
+  frame kept: /media/internal/jihad-finger/23-probe_.last.raw
+CHECKS 5 FAILS 1
+novacom: unexpected EOF from server

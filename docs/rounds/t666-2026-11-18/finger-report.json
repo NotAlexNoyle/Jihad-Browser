@@ -1,0 +1,72 @@
+{
+ "date": "2026-11-18T20:28:34",
+ "shells": [
+  "enyo",
+  "mochi",
+  "mojo"
+ ],
+ "tests": [
+  {
+   "shell": "enyo",
+   "id": "eagler-webgl-attrs",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "WebGL with EaglercraftX's context attributes: \"webgl\" gives a context in the client's own order (webgl2, webgl, experimental-webgl), each attempt's reason recorded",
+   "section": "Eaglercraft",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 12-text done = [rows 15]",
+    "CHECK ok 14-probe-has: the probe's answer holds [a2 same canvas: webgl -> context]",
+    "CHECK ok 15-probe-has: the probe's answer holds [b1 fresh: webgl -> context]"
+   ],
+   "kept": [
+    "kept/enyo-eagler-webgl-attrs-rows_.jpg"
+   ],
+   "seconds": 53,
+   "note": "",
+   "start": "enyo card on http://192.168.1.245:8077/jihad-webgl-attrs.html: connected at +2 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "enyo: (79872/129761566) jihad (start) running, process 11400; daemons running: 1"
+  },
+  {
+   "shell": "mochi",
+   "id": "eagler-webgl-attrs",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "WebGL with EaglercraftX's context attributes: \"webgl\" gives a context in the client's own order (webgl2, webgl, experimental-webgl), each attempt's reason recorded",
+   "section": "Eaglercraft",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 12-text done = [rows 15]",
+    "CHECK ok 14-probe-has: the probe's answer holds [a2 same canvas: webgl -> context]",
+    "CHECK ok 15-probe-has: the probe's answer holds [b1 fresh: webgl -> context]"
+   ],
+   "kept": [
+    "kept/mochi-eagler-webgl-attrs-rows_.jpg"
+   ],
+   "seconds": 55,
+   "note": "",
+   "start": "mochi card on http://192.168.1.245:8077/jihad-webgl-attrs.html: connected at +3 s, load done at +8 s, 3 content frames at +8 s; the GPU path, frames off the main thread (the express lane) (the job's J",
+   "restore": "mochi: (79927/227685852) jihad-mochi (start) running, process 14401; daemons running: 1"
+  },
+  {
+   "shell": "mojo",
+   "id": "eagler-webgl-attrs",
+   "kit": "cavekit-eaglercraft.md R2",
+   "item": "WebGL with EaglercraftX's context attributes: \"webgl\" gives a context in the client's own order (webgl2, webgl, experimental-webgl), each attempt's reason recorded",
+   "section": "Eaglercraft",
+   "verdict": "pass",
+   "checks": [
+    "WAIT ok 12-text done = [rows 15]",
+    "CHECK ok 14-probe-has: the probe's answer holds [a2 same canvas: webgl -> context]",
+    "CHECK ok 15-probe-has: the probe's answer holds [b1 fresh: webgl -> context]"
+   ],
+   "kept": [
+    "kept/mojo-eagler-webgl-attrs-rows_.jpg"
+   ],
+   "seconds": 51,
+   "note": "",
+   "start": "mojo card on http://192.168.1.245:8077/jihad-webgl-attrs.html: connected at +1 s, load done at +6 s, 4 content frames at +6 s; the GPU path, frames off the main thread (the express lane) (the job's JI",
+   "restore": "mojo: (79978/331505695) jihad-mojo (start) running, process 17447; daemons running: 1"
+  }
+ ],
+ "end_check": "DEVICE ok job-enyo: (79978/492169251) jihad (start) running, process 11400\nDEVICE ok daemons-enyo: one daemon\nDEVICE ok hand-daemon-enyo: none\nDEVICE ok hooks-enyo: none\nDEVICE ok adapter-gates-enyo: none\nDEVICE ok proxy-enyo: network.proxy.type unset\nDEVICE ok history-enyo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-enyo: none\nDEVICE ok audio-lib-enyo: the device's own\nDEVICE ok look-enyo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mochi: (79984/612646879) jihad-mochi (start) running, process 14401\nDEVICE ok daemons-mochi: one daemon\nDEVICE ok hand-daemon-mochi: none\nDEVICE ok hooks-mochi: none\nDEVICE ok adapter-gates-mochi: none\nDEVICE ok proxy-mochi: network.proxy.type unset\nDEVICE ok history-mochi: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mochi: none\nDEVICE ok audio-lib-mochi: the device's own\nDEVICE ok look-mochi: {\"returnValue\":true,\"theme\":null}\nDEVICE ok job-mojo: (79990/998783469) jihad-mojo (start) running, process 17447\nDEVICE ok daemons-mojo: one daemon\nDEVICE ok hand-daemon-mojo: none\nDEVICE ok hooks-mojo: none\nDEVICE ok adapter-gates-mojo: none\nDEVICE ok proxy-mojo: network.proxy.type unset\nDEVICE ok history-mojo: browser.sessionhistory.max_entries the default\nDEVICE ok cards-mojo: none\nDEVICE ok audio-lib-mojo: the device's own\nDEVICE ok look-mojo: {\"returnValue\":true,\"theme\":null}\nDEVICE ok gate-files: none in /tmp\nDEVICE ok device-scripts: none left in /tmp\nDEVICE ok test-pads-enyo: none\nDEVICE ok dialog-pipes-enyo: none\nDEVICE ok test-pads-mochi: none\nDEVICE ok dialog-pipes-mochi: none\nDEVICE ok test-pads-mojo: none\nDEVICE ok dialog-pipes-mojo: none\nDEVICE ok tmp-dumps: none\nDEVICE ok volume-subscribers: none without its daemon\nDEVICE ok media-scratch: none\nDEVICE ok overall: 47% of /tmp used",
+ "seconds": 180
+}

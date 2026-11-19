@@ -94,7 +94,47 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
-## 2026-11-18 (later) — the owner's three new kits; a card behind is frozen (READ FIRST)
+## 2026-11-18 (evening) — site data done; "Adobe Flash is off"; Eaglercraft's first load and "webgl" (READ FIRST)
+
+**State:** commits `dd02867e` and the engine's 0120 after it (unpushed, the owner's). **The device runs engine 0120**
+(queue 0001-0120, engine branch head `1c5e46a716`, PGO use build; `"webgl"` is the alias of `"experimental-webgl"`), the
+daemon with the clipboard fix and the bundle's chrome of these commits (`make-device-bundle.sh`, `push-engine-update.sh
+enyo mochi mojo`, then `--daemon-only`). The gitlink is the owner's to bump (check-engine-pins.sh says so and nothing
+else). Eaglercraft's kept pictures go to `~/.cache/jihad-eaglercraft/rounds/` (`docs/rounds/.gitignore`).
+
+**Done:**
+- **cavekit-site-data.md: all 26 criteria met** (T-661..T-664 DONE), each a script passing in the three shells
+  (`docs/rounds/finger-2026-11-17`). Found and fixed: Copy username/password reached no clipboard (the engine's clipboard
+  helper kept the text in the daemon; it now writes `/var/tmp/webkit-clipboard`, which every card's Paste reads); the
+  databases' Clear re-read before the quota manager had cleared.
+- **cavekit-flash.md:** R9 sound closing with the movie and sound behind another app; R10 hostile libraries, background
+  card, the Flash switch. With Flash off the movie's place was an empty box (the toolkit binds no placeholder for
+  `:-moz-handler-disabled`): `packaging/prefsui/flashoff/` says "Adobe Flash is off" (also for a site set to Block).
+  Its second line draws the "t" of "this" broken at the same spot in two shells: the engine's text, to look at.
+- **Eaglercraft (T-666, first round `docs/rounds/t666-2026-11-18`):** 1.8.8 reaches "Extracting Assets…" and, in Mojo,
+  "press any key to enable sound" in 180 s; then the slow-script dialog (a script over `dom.max_script_run_time` 60 s)
+  in Mochi and Mojo, and in Enyo the client's alert that WebGL is "experimental". Cause of the alert:
+  `getContext("webgl")` answered null in this engine whatever the attributes (`jihad-webgl-attrs.html`,
+  `eagler-webgl-attrs`): the name was compiled in only with `MOZ_WEBGL_CONFORMANT`. Patch 0120, on the device:
+  `eagler-webgl-attrs` passes in the three shells (`docs/rounds/t666-2026-11-18/README.md`).
+
+**Traps met:**
+- The Fable model's limit was reached (resets 2026-11-21): the ck:inspector review of the site-data and freeze work
+  stopped at its start; resume it then (the agent's brief is in this session's history: the two pieces of work, the
+  questions on privileged reach, passwords at rest, Forget's scope, freeze/thaw).
+- `launch` opens a page through the inject channel, not the address bar; `chrome address` + `type-keys` is the address
+  bar. A tap on the address field while it still has focus (its clear button showing, just after Enter) places the
+  caret: wait for `expect keyboard down`.
+- An Enyo tap once reached a button without a click (Copy username); a rerun passed. Watch for it.
+
+**Next, in order:**
+1. `eagler-load-188` again on engine 0120: answer the slow-script dialog (a person presses OK: Continue) or measure what runs past 60 s;
+   the "press any key" screen wants a key (the system keyboard) or a tap; then the title screen's reference picture
+   (in `~/.cache/jihad-flash/refs` style, host cache only: Mojang's art), menus by touch; 1.12.2 and 1.5.2.
+2. The ck:inspector review when Fable is back (2026-11-21).
+3. Flash: R9's 10-minute player and "games heard again", R10's twenty cycles, crashes, two cards; the real sites.
+
+## 2026-11-18 (later) — the owner's three new kits; a card behind is frozen
 
 The owner, 2026-11-18: **"new kit: ensure about:data works (all variants)"**, **"new kit: ensure about:logins works
 (all variants)"**, **"new kit: eaglercraft support"**. Kits `cavekit-site-data.md` (R1-R4) and `cavekit-eaglercraft.md`

@@ -24,7 +24,8 @@
 	<p id="where"></p>
 	<script>
 		(function () {
-			var m = /[?&]url=([^&#]*)/.exec(location.search), u = "";
+			// the whole address: an about: URL has no location.search here (2026-11-19: the link and the address never showed)
+			var m = /[?&]url=([^&#]*)/.exec(location.href), u = "";
 			try { u = m ? decodeURIComponent(m[1]) : ""; } catch (e) { u = ""; }
 			if (/^https?:\/\//i.test(u)) {
 				document.getElementById("link").setAttribute("href", u);

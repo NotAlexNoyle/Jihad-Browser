@@ -1,0 +1,21 @@
+# EaglercraftX 1.8.8 cannot hang the device (cavekit-eaglercraft.md R6, T-672): its start, taken as a person takes it
+# (Continue on each slow-script dialog, Launch on its tablet panel), grew the daemon past 600 MB with the device's free
+# memory at 30-40 MB and hung the Adreno 220 until a reboot, three times (round t666-2026-11-18). With the memory guard's
+# thread (engine patch 0124) the page is stopped instead, wherever in its start it gets there (in its extraction or after
+# its atlas): the card ends on about:stopped, the kernel logs no GPU fault, and the card loads a page again. Until the
+# game's start is fast and small enough to finish (T-673, deferred), this is the outcome the script asks for. The rect and the
+# tap take the launch panel's button or, when the guard stopped the page first, about:stopped (its link to wait on, its
+# address's text to tap: harmless).
+id: eagler-guard-188
+section: Eaglercraft
+item: EaglercraftX 1.8.8's start, Continue and Launch tapped as they come, is stopped by the memory guard before it can hang the GPU: about:stopped, no GPU fault, the card usable after
+shells: enyo
+page: http://192.168.1.245:8099/eaglerx-1.8.8/unpacked/eaglercraft1-8.html
+kit: cavekit-eaglercraft.md R6
+mark
+wait rect-ok 'sel:._eaglercraftX_mobile_launch_client, #link' 420
+tap 'sel:._eaglercraftX_mobile_launch_client, #where'
+wait dialogs-ok 1500
+wait url about:stopped 60
+expect gpu-calm
+launch http://192.168.1.245:8077/jihad-colors.html

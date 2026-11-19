@@ -1697,14 +1697,13 @@ EngineHost::CheckMemoryPressure()
   mSwapHot = dIn > swapPages ? mSwapHot + 1 : 0;
   bool critical = (avail >= 0 && avail < floorKb) || mSwapHot >= 2;
   if (!critical && avail >= 0 && avail < 2 * lowKb && jihadRssKb("/proc/self/status") + jihadOwnPlayers(false) > budgetKb) critical = true;
-  // the free floor (T-672), and what the guard's thread found while the main thread was in a task: that stays critical
-  // until the page is shed or the daemon is back under the budget (the flush that follows the stopped script frees
-  // enough for MemFree to climb over the floor for a while, and the page holding the memory was then left running:
-  // device 2026-11-19, the shed 25 s later on the thread's second call)
-  if (sJihadGuardThreadCritical) {
-    if (jihadRssKb("/proc/self/status") + jihadOwnPlayers(false) > budgetKb) critical = true;
-    else sJihadGuardThreadCritical = false;
-  }
+  // the free floor (T-672), and what the guard's thread found while the main thread was in a task. A page whose script
+  // the thread stopped stays critical until it is shed, even when the flush that follows brings MemFree back over the
+  // floor or the daemon back under the budget: the memhog page, left holding its memory, was shed only on the thread's
+  // second call 25 s later, and EaglercraftX, its extraction's temporaries freed, was left a dead screen with no word of
+  // why (device 2026-11-19); about:stopped says what happened and offers the page again.
+  const bool threadStopped = sJihadGuardThreadCritical;
+  if (threadStopped) critical = true;
   if (!critical) {
     const long freeKb = jihadMemFreeKb();
     if (freeKb >= 0 && freeKb < sJihadGuardFreeFloorKb && jihadRssKb("/proc/self/status") + jihadOwnPlayers(false) > budgetKb) critical = true;
@@ -1715,7 +1714,7 @@ EngineHost::CheckMemoryPressure()
     const long own = jihadRssKb("/proc/self/status"), players = jihadOwnPlayers(false);
     pid_t largest = 0; const long all = jihadBrowserTotalKb(&largest);
     const bool mine = own + players >= shareKb, whole = all >= shareKb && largest == getpid();
-    if ((mine || whole) && !mShedSpent) {
+    if ((mine || whole || threadStopped) && !mShedSpent) {
       mShedMs = now;
       fprintf(stderr, "[jihad-bs] memory shed: %ld kB available (floor %ld), %ld pages swapped in or out over the last 5 s (%d polls running); "
               "this daemon %ld kB, its players %ld kB; the browser's processes together %ld kB%s\n", avail, floorKb, dIn, mSwapHot, own, players,

@@ -4,7 +4,8 @@
      (cavekit-device-headroom.md R1: the guard's test, a page that grows like the YouTube visit of 2026-11-07 but on
      purpose and to a known size). Each megabyte is an ArrayBuffer written through, so its pages are really resident.
      #held says how much it holds; #state "growing", then "holding". &swf=URL embeds a Flash movie above the counter, so the
-     guard's first step (its Flash players ended before a page is stopped) can be exercised in one card (T-591). -->
+     guard's first step (its Flash players ended before a page is stopped) can be exercised in one card (T-591). &task=1
+     takes it all in one task (T-672). -->
 <html>
 <head>
 	<meta charset="UTF-8"/>
@@ -23,6 +24,22 @@
 			e.src = q.swf; e.type = "application/x-shockwave-flash"; e.width = 400; e.height = 300;
 			document.getElementById("movie").appendChild(e);
 		}
+		// &task=1 (T-672): all of it in one task, paced by the clock, as EaglercraftX's start takes its memory: the page
+		// shows nothing until the task ends, and the guard has to stop it from outside (its thread, engine patch 0124)
+		if (q.task === "1") {
+			document.getElementById("state").textContent = "one task";
+			setTimeout(function () {
+				var t0 = Date.now();
+				while (held.length < target) {
+					while (held.length >= (Date.now() - t0) / 1000 * rate) {}
+					var b = new Uint8Array(1 << 20);
+					for (var j = 0; j < b.length; j += 4096) b[j] = (held.length + j) & 255;
+					held.push(b);
+				}
+				document.getElementById("held").textContent = held.length;
+				document.getElementById("state").textContent = "holding";
+			}, 500);
+		} else
 		var t = setInterval(function () {
 			for (var i = 0; i < rate * tick / 1000 && held.length < target; i++) {
 				var b = new Uint8Array(1 << 20);

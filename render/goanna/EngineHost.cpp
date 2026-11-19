@@ -62,6 +62,8 @@ bool gJihadViewportFollow = true;     // T-499: the layout viewport follows a pa
 #include <cstdlib>                   // getenv/atol (JIHAD_MEM_LOW_KB, profile dir)
 #include <ctime>                     // clock_gettime (watcher rate-limit)
 #include <signal.h>                  // kill (the memory shedding's players)
+#include <pthread.h>                 // the memory guard's thread (T-672)
+#include <atomic>                    // its critical flag
 #include <malloc.h>                  // malloc_trim (what glibc's arena still holds: dlopen's own, little else)
 
 // jemalloc (T-493, 2026-10-16): the allocator is linked INTO this program (MOZ_GLUE_IN_PROGRAM —
@@ -1571,6 +1573,51 @@ static long jihadBrowserTotalKb(pid_t* largest) {
 static bool (*sJihadShedPageHook)() = nullptr;
 void EngineHost::SetShedPageHook(bool (*hook)()) { sJihadShedPageHook = hook; }
 
+// ── the guard's thread (T-672, cavekit-eaglercraft.md R6, cavekit-device-headroom.md R1) ─────────────────────────────
+// The guard above runs from the pump, between tasks. EaglercraftX 1.8.8's start is tasks of minutes: it grew this
+// daemon from 340 to 621 MB while the device's free memory fell to 30-40 MB, and the Adreno 220, whose kernel driver
+// allocates from that free memory, hung for good (round t666-2026-11-18: every card and the system UI stuck until a
+// reboot). "Available" (free plus the page cache) stayed over 98 MB, so the budget rule never fired either. This thread
+// reads the same /proc numbers every 2 s whatever the main thread is doing: this daemon and its players past the budget
+// (half the RAM) while MemFree itself is under the free floor stops the running content script (engine patch 0124's
+// jihad_js_stop_scripts, the slow-script dialog's "Stop script") and marks the state critical, so the pump's guard,
+// running again, stops the page (sJihadShedPageHook) after its flush, as it does for any shed.
+extern "C" void jihad_js_stop_scripts() __attribute__((weak));
+static std::atomic<bool> sJihadGuardThreadCritical(false);
+static long sJihadGuardBudgetKb = 0, sJihadGuardFreeFloorKb = 0;
+
+static long jihadMemFreeKb() {
+  FILE* f = fopen("/proc/meminfo", "r");
+  if (!f) return -1;
+  char line[128]; long v = -1;
+  while (fgets(line, sizeof(line), f)) if (sscanf(line, "MemFree: %ld", &v) == 1) break;
+  fclose(f);
+  return v;
+}
+
+static void* jihadGuardThreadMain(void*) {
+  int64_t lastStopMs = -100000;
+  for (;;) {
+    sleep(2);
+    const long own = jihadRssKb("/proc/self/status");
+    if (own < sJihadGuardBudgetKb / 2) continue;           // far below: no /proc scan for the players
+    const long freeKb = jihadMemFreeKb();
+    if (freeKb < 0 || freeKb >= sJihadGuardFreeFloorKb) continue;
+    const long players = jihadOwnPlayers(false);
+    if (own + players <= sJihadGuardBudgetKb) continue;
+    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+    const int64_t now = (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    if (now - lastStopMs < 10000) continue;
+    lastStopMs = now;
+    fprintf(stderr, "[jihad-bs] memory guard (thread): this daemon %ld kB, its players %ld kB (budget %ld), %ld kB free "
+            "(floor %ld): stopping the running content script, the page to be stopped\n",
+            own, players, sJihadGuardBudgetKb, freeKb, sJihadGuardFreeFloorKb);
+    sJihadGuardThreadCritical = true;
+    if (jihad_js_stop_scripts) jihad_js_stop_scripts();
+  }
+  return nullptr;
+}
+
 // A guard threshold: the environment word (a test run's) first, else the device pref (cavekit-device-headroom.md R1:
 // "the floor and order are in the device prefs", packaging/prefs/jihad-platform-prefs.js), else the default; a value
 // outside lo..hi, or 0 where the default is computed, is the default. Resolved once, at the first poll (the pref
@@ -1633,9 +1680,16 @@ EngineHost::CheckMemoryPressure()
     budgetKb = jihadGuardKb("JIHAD_MEM_BUDGET_KB", "jihad.memory.budgetKb", totalKb / 2 > 131072 ? totalKb / 2 : 131072, 0, 4194304);
     // oom_adj and the CPU priority are set at the daemon's start (Main.cpp), not here: this runs at the first page's
     // tick, and an idle daemon read oom_adj 0 (2026-11-07)
+    // The free floor (T-672): MemFree itself, which the GPU's driver draws on. 64 MB: the hang came with it at 30-40 MB.
+    sJihadGuardFreeFloorKb = jihadGuardKb("JIHAD_MEM_FREE_FLOOR_KB", "jihad.memory.freeFloorKb", 65536, 4096, 1048576);
+    sJihadGuardBudgetKb = budgetKb;
     fprintf(stderr, "[jihad-bs] memory guard: flush under %ld kB, shed past %ld kB of this daemon and its players when under %ld kB, "
-            "swapping in or out over %ld pages per 5 s twice running, or past %ld kB with under %ld kB left\n",
-            lowKb, shareKb, floorKb, swapPages, budgetKb, 2 * lowKb);
+            "swapping in or out over %ld pages per 5 s twice running, past %ld kB with under %ld kB left, or past %ld kB with "
+            "under %ld kB free (also from a thread of its own, every 2 s)\n",
+            lowKb, shareKb, floorKb, swapPages, budgetKb, 2 * lowKb, budgetKb, sJihadGuardFreeFloorKb);
+    pthread_t t;
+    if (pthread_create(&t, nullptr, jihadGuardThreadMain, nullptr) == 0) pthread_detach(t);
+    else fprintf(stderr, "[jihad-bs] memory guard: its thread did not start\n");
   }
   long swapIn = jihadSwapInPages(), dIn = 0;
   if (swapIn >= 0 && mSwapIn0 >= 0 && swapIn >= mSwapIn0) dIn = swapIn - mSwapIn0;
@@ -1643,6 +1697,18 @@ EngineHost::CheckMemoryPressure()
   mSwapHot = dIn > swapPages ? mSwapHot + 1 : 0;
   bool critical = (avail >= 0 && avail < floorKb) || mSwapHot >= 2;
   if (!critical && avail >= 0 && avail < 2 * lowKb && jihadRssKb("/proc/self/status") + jihadOwnPlayers(false) > budgetKb) critical = true;
+  // the free floor (T-672), and what the guard's thread found while the main thread was in a task: that stays critical
+  // until the page is shed or the daemon is back under the budget (the flush that follows the stopped script frees
+  // enough for MemFree to climb over the floor for a while, and the page holding the memory was then left running:
+  // device 2026-11-19, the shed 25 s later on the thread's second call)
+  if (sJihadGuardThreadCritical) {
+    if (jihadRssKb("/proc/self/status") + jihadOwnPlayers(false) > budgetKb) critical = true;
+    else sJihadGuardThreadCritical = false;
+  }
+  if (!critical) {
+    const long freeKb = jihadMemFreeKb();
+    if (freeKb >= 0 && freeKb < sJihadGuardFreeFloorKb && jihadRssKb("/proc/self/status") + jihadOwnPlayers(false) > budgetKb) critical = true;
+  }
   if (!critical) { mShedStep = 0; mShedSpent = false; }
   // the flush has had its chance (at least 5 s ago, below), and the last step 10 s
   else if (mMemNotifyMs && now - mMemNotifyMs >= 5000 && now - mShedMs >= 10000) {
@@ -1656,12 +1722,13 @@ EngineHost::CheckMemoryPressure()
               all, whole && !mine ? " (this daemon the largest of them)" : "");
       long ended = (mShedStep == 0 && players > 0) ? jihadOwnPlayers(true) : 0;
       if (ended > 0) fprintf(stderr, "[jihad-bs] memory shed: ended %ld Flash player(s)\n", ended);
-      else if (sJihadShedPageHook && sJihadShedPageHook()) fprintf(stderr, "[jihad-bs] memory shed: a page stopped\n");
+      else if (sJihadShedPageHook && sJihadShedPageHook()) { fprintf(stderr, "[jihad-bs] memory shed: a page stopped\n"); sJihadGuardThreadCritical = false; }
       else {
         // nothing of this daemon's left to stop: another collection would only stall the system again (11 s of the
         // application manager's, 2026-11-07); the stopped page's own collections are the component's (below)
         fprintf(stderr, "[jihad-bs] memory shed: nothing left of this daemon's to stop\n");
         mShedSpent = true;
+        sJihadGuardThreadCritical = false;
         jihadPurgeHeap("memory shed");
         return;
       }

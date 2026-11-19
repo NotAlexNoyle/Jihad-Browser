@@ -127,7 +127,24 @@ pre-expansion (one MacroExpander nested in another per level), at 256 levels, as
 15-20 minutes; no title screen within 45 minutes; and, untraced, a GPU hang that only a reboot clears. The 180 s bound is
 far out of reach without making BigInt (or the code that uses it) much faster.
 
+## The GPU hang is memory (T-672)
+
+- **The owner, 2026-11-19: "GPU hang now, speed later"** (T-672 now; T-673, BigInt, DEFERRED).
+- A traced run that did not break the game (arguments formatted in try/catch, extensions wrapped, the console beaconed
+  too) ended in `uncaught exception: out of memory` 63 s after the atlas (`out of memory: 0x200 bytes requested`: a
+  512-byte malloc failed; overcommit is on).
+- An untraced run with the daemons' memory each minute (`fl_dialogs_ok`): the Enyo daemon went from 340 MB to **621 MB
+  resident (1.37 GB virtual)** on the 940 MB device, its free memory fell to **30-40 MB**, the client logged "Reloading
+  custom textures" and stopped there, and the GPU hung (kgsl "spun too long"): **the third hang, the third reboot**. The
+  Adreno's kernel driver draws on that free memory. The memory guard never acted: its "available" (free plus the page
+  cache) stayed over 98 MB, and it runs from the pump, between tasks of minutes.
+- **The guard, made for this:** past the budget (half the RAM) with MemFree itself under 64 MB is critical
+  (`jihad.memory.freeFloorKb`), and a thread of the guard's own reads it every 2 s whatever the main thread does: it stops
+  the running content script (engine patch **0124**, `jihad_js_stop_scripts`, the slow-script dialog's "Stop script" from
+  outside) and the pump's guard then stops the page. Its test: `memory-guard-task` (`jihad-memhog.html?task=1`: 750 MB
+  at 12 MB/s in one task) with `expect gpu-calm` (no new kgsl fault since the script's start).
+
 ## Next
 
-The owner's call (asked 2026-11-19): BigInt in the engine now, or Eaglercraft's speed parked; and the GPU hang (a WebGL trace beaconed to the host); then 1.8.8 to its title screen; the title screen's reference
-picture; the menus by touch; 1.12.2 and 1.5.2.
+`memory-guard-task` on the device (0124 and the guard's thread); then EaglercraftX again: stopped by the guard instead of
+hanging the GPU. Its speed is T-673 (deferred); the title screen, the menus, 1.12.2 and 1.5.2 wait for it.

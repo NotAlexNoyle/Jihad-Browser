@@ -325,6 +325,11 @@ pref("jihad.memory.floorKb", 24576);
 pref("jihad.memory.swapinPages", 1024);   // 2026-11-08: at 256 a feed page alone shed (the kernel swapping idle daemons out is not a storm); the storms ran 1000-7000
 pref("jihad.memory.shareKb", 0);
 pref("jihad.memory.budgetKb", 0);
+// T-672 (2026-11-19): past budgetKb with MemFree itself under freeFloorKb is critical too, checked also by a thread of
+// the guard's own every 2 s, which first stops the running content script (engine patch 0124): EaglercraftX's start, one
+// task of minutes, grew the daemon to 621 MB with 30-40 MB free and the GPU, whose driver draws on that free memory, hung
+// until a reboot while "available" (with the page cache) stayed over 98 MB. JIHAD_MEM_FREE_FLOOR_KB wins for a test run.
+pref("jihad.memory.freeFloorKb", 65536);
 
 // --- jemalloc (T-493, 2026-10-16): the allocator is in the daemon now; every memory-pressure
 // notification (the last card's, the low-memory guardrail's, the lists' unload) also returns

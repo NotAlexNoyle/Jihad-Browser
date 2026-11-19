@@ -69,7 +69,10 @@ FL_FAILS=0; FL_CHECKS=0; FL_HIT=""; FL_TX=""; FL_TY=""
 # whether it is hidden now; the geometry subtracts FL_HEADER while it is. Measured on the long page, 2026-11-04.
 FL_HDR=0
 
+# the kernel's GPU complaints so far (kgsl postmortems, a ring that never idles), for `expect gpu-calm` (T-672)
+fl_kgsl_count() { dmesg | grep -c 'kgsl_postmortem_dump\|spun too long waiting'; }
 fl_init() {
+  fl_kgsl_count > /tmp/fl-kgsl0
   FL_V=$1
   case $FL_V in
     enyo)  FL_ID=net.riverstonerelay.jihad-browser;       FL_JOB=jihad;       FL_TOP0=82; FL_HEADER=0;;
@@ -580,6 +583,11 @@ fl_check_min_height() { # NAME SEL MIN: the element is at least MIN CSS px tall 
   r=$(fl_rect "$2") || { fl_check FAIL "$1" "no element $2"; return 1; }
   h=$(echo "$r" | awk '{print $4}')
   if [ "${h:-0}" -ge "$3" ]; then fl_check ok "$1" "$2 is $h px tall (at least $3)"; else fl_check FAIL "$1" "$2 is $h px tall, under $3"; fi
+}
+fl_check_gpu_calm() { # NAME: no new GPU fault in the kernel's log since the script started (T-672)
+  local a b
+  a=$(cat /tmp/fl-kgsl0 2>/dev/null || echo 0); b=$(fl_kgsl_count)
+  [ "$b" -le "$a" ] && fl_check ok "$1" "no new GPU fault in the kernel's log ($b lines, $a at the start)" || fl_check FAIL "$1" "the kernel logged $((b - a)) GPU fault line(s) since the start: $(dmesg | grep 'kgsl_postmortem_dump\|spun too long' | tail -1)"
 }
 fl_check_file_lacks() { # NAME GLOB TEXT: the newest file the glob names is there and does not hold the text (a secret kept
   # encrypted: logins.json)

@@ -1,0 +1,19 @@
+# The memory guard against one long task (cavekit-device-headroom.md R1, cavekit-eaglercraft.md R6, T-672):
+# jihad-memhog.html takes 750 MB at 12 MB a second in ONE task, as EaglercraftX's start took 621 MB with the device's
+# free memory at 30-40 MB and the GPU hung until a reboot. The guard's thread (every 2 s, whatever the main thread does)
+# sees this daemon past half the RAM with MemFree under 64 MB, stops the running script (engine patch 0124), and the
+# pump's guard then stops the page (about:stopped). The device stays itself: no GPU fault in the kernel's log, and the
+# card loads a page again.
+id: memory-guard-task
+section: The engine
+item: A page that takes memory in one long task is stopped by the memory guard before the device runs out: its script ended, the page stopped, no GPU fault, the card usable after
+shells: enyo
+page: http://192.168.1.245:8077/jihad-memhog.html?mb=750&rate=12&task=1
+kit: cavekit-device-headroom.md R1
+mark
+wait line 'memory guard .thread.: this daemon' 120
+wait line 'the running content script stopped' 10
+wait line 'memory shed: a page stopped' 30
+wait url about:stopped 20
+expect gpu-calm
+launch http://192.168.1.245:8077/jihad-colors.html

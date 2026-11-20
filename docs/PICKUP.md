@@ -94,6 +94,78 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## HANDOFF 2026-11-19 — START HERE
+
+The start prompt is `.cavekit/handoff-2026-11-19/next-agent-prompt.md` (local, not in git). This section is the state
+it points to; the dated sections below it are the record, newest first.
+
+**Repository.** `main` at the handoff commit after `60f6fc46`; 44+ commits from `c27cc32a` on are unpushed and the
+owner's to push (Gitea only: `bash .cavekit/handoff-2026-11-08/push.sh`; the `github` remote is a mirror and has no push
+URL). **Engine:** `third_party/uxp` on branch `jihad/uxp-RB_20261027` at `734eeedac4`, patch queue 0001-0125, and
+`build/engine/patch-queue.sh --check` reproduces it exactly. The gitlink bump (`fac2b0f814` → `734eeedac4`) is in the
+working tree, uncommitted: it is the owner's.
+
+**The device** (TouchPad, webOS CE 3.1.0, on USB via novacom) runs engine 0125. The daemon and its chrome come from
+the find commit (`make-device-bundle.sh`, then `push-engine-update.sh --daemon-only enyo mochi mojo`); the PDK
+adapters carry `findInPage(text, backwards)`. The three cards carry the find files pushed by `push-card-js.sh`: the
+installed .ipks are older. A package rebuild (`build/webos-oe/build-all-device.sh`) is what puts it all in packages.
+No fixture is up, no emulated keyboard is attached, and the USB alert is closed.
+
+**The kits** (counted 2026-11-19, `context/kits/cavekit-overview.md`). Complete: 16 of 38, among them site data and
+saved logins, find on page, finger testing, input bridging, and the Enyo and Mochi shells (Mojo's has two partial). Open:
+- **Flash, finished** 38 of 73: T-576 games and T-578 videos in progress; T-579..T-584 pending.
+- **Eaglercraft** 3 of 21: T-666..T-671 pending; T-673 (BigInt's speed, which 1.8.8 waits on) DEFERRED by the owner.
+- **Device headroom** 10 of 18: T-594 hardware H.264 (in progress), T-611 (Atlas's recipe, the owner's "5"), T-651
+  (Atlas's leak, outside this repo), T-592 deferred.
+- **Tabs** 0 of 27: held by the owner. **Global Jihad** 0 of 11: begins after the browser.
+- Smaller remainders: chrome look (4 partial), GRE widgets (5 partial), modern web, GPU rendering, offscreen
+  rendering, persona formats, preferences, proxies, the engine's update and release kits (one or a few each).
+- In progress besides: T-655 (a daemon segfault on Etsy's search, once in six loads, not reproduced since), T-605 and
+  T-606 (verify-frame correctness on desktop Wikipedia).
+- **DEFERRED until the browser is done** (the owner, 2026-11-13: finish, then optimise): T-505, T-592, T-604, T-628,
+  T-629, T-652, T-656, T-673, and any PGO retrain.
+
+**Next, in order.**
+1. The Tablet UA scoreboard: running at the handoff into `docs/rounds/tablet-ua-2026-11-19`
+   (`RUNS=1 BROWSERS="jihad" bash tools/device/scoreboard.sh`). Read its report and compare the pictures with
+   `docs/rounds/scoreboard-2026-11-12`; rerun it if it did not finish.
+2. Flash: T-576, T-578, then T-579..T-584 (`cavekit-flash.md` R6 onward, the build site's Tier 93).
+3. Eaglercraft T-666..T-671, as far as they go without T-673.
+4. T-655, T-605/T-606, T-594/T-611.
+5. A review of the newest work by ck:inspector on Fable (back 2026-11-21) or Codex (`codex exec -s read-only -C <repo>
+   --skip-git-repo-check -o review.md "$(cat PROMPT.md)" < /dev/null`): the site-data and freeze work, the guard.
+6. Enyo's launch error (the evening section's item 3).
+
+**Standing rules (the owner's).**
+- **Device:**
+  - one novacom session at a time;
+  - heavy device tests detached (`run_in_background`), never a long foreground session;
+  - `tools/device/close-usb-alert.sh` after any USB drop or restart, and as the last device step of every turn;
+  - never write cpufreq's `scaling_governor`; never kill sensord.
+- **Product:** the Relay is never a default; No Persona by default.
+- **Testing:**
+  - verify frames by eye;
+  - no finger test is the owner's: the agent's tools run them all;
+  - finish, then optimise.
+- **Commits and pushes:**
+  - commits unsigned, on main (the engine on its branch);
+  - never commit a gitlink;
+  - pushes are the owner's, Gitea only;
+  - the repository holds no binaries (a round's kept frames are the exception, as every round has them).
+- **Bookkeeping:**
+  - after a build-site edit, run `python3 -I tools/host/cavekit-sync.py --write`;
+  - after a kit edit, run `python3 -I tools/readme-progress.py`;
+  - after a round, run `python3 -I tools/device/finger/finger-list.py --write`;
+  - leave this section current when you stop.
+- **Working with the owner:**
+  - decisions that are the owner's go as multiple-choice questions;
+  - no "say go" between tasks;
+  - pause and ask before root commands on the host (the admin password only ever in the pkexec dialog);
+  - never touch backup drives or `~/Downloads`; never print tokens;
+  - stay in `~/eclipse-workspace`;
+  - new subagents use model "fable".
+- **Logging:** never log what a person types (F-163): not keys, not a search's text.
+
 ## 2026-11-19 (evening) — Find on Page in each interface; the Codex review's fixes; Ctrl is 0x40 (READ FIRST)
 
 **State:** commits `af3531de` (the Codex review of the guard and the logins: engine patch 0125, the macro budget) and
@@ -134,7 +206,8 @@ commit (`make-device-bundle.sh`, then `push-engine-update.sh --daemon-only enyo 
 2. The ck:inspector review when Fable is back (2026-11-21), or Codex: the site-data and freeze work and the guard's
    thread (the review of 2026-11-19 covered the guard, logins and find).
 3. Every Enyo launch logs "Uncaught SyntaxError: Unexpected end of input, index.html:0" beside an XHR NETWORK_ERR in
-   `BrowserApp.create`; the card works. Read it.
+   `BrowserApp.create`; the card works. The app makes no XHR of its own there, and `app/` has no `resources/` (nor had
+   isis-browser): most likely Enyo's `$L` asking for a locale's strings file that is not there. Unverified; read it.
 4. Flash's remaining R9/R10 and the real sites; Eaglercraft waits for T-673 (deferred).
 
 ## 2026-11-19 — Eaglercraft 1.8.8 past four engine defects; the Tablet UA; the CPU count (READ FIRST)

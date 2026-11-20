@@ -89,6 +89,10 @@ all three; each keeps its own profile, add-ons, Personas, history and bookmarks.
 - **HTTPS that works**: the engine's own NSS and Mozilla's root list, not the device's 2009
   OpenSSL. TLS 1.3 on a stock 3.0.5 device.
 - **Ads and trackers blocked** from EasyList and EasyPrivacy, built in, refreshed every four days.
+- **Saved logins and site data**: passwords saved and filled, behind an optional master password, in
+  `about:logins`; each site's cookies, storage and form history in `about:data`.
+- **Find on Page** in every interface: found as you type, "3 of 12", Next and Previous going round,
+  and Ctrl+F on a Bluetooth keyboard.
 - **Bot checks**: a site that turns Firefox 52 away is retried once as a current Firefox and
   remembered.
 - **A memory guard**: a page that pushes the 1 GB tablet into swapping is stopped, with a notice

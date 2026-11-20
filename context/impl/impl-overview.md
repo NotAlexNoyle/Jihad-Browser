@@ -1,14 +1,16 @@
 ---
 created: "2026-06-30"
-last_edited: "2026-10-25"
+last_edited: "2026-11-19"
 ---
 
 # Implementation Overview
 
-> **State as of 2026-10-25.** The per-domain status lives in `context/kits/cavekit-overview.md` (the Status column,
-> counted from each kit's criteria) and the day-by-day record in `docs/PICKUP.md`; this file's domain sections below
-> are the history up to 2026-08-15 and are not updated per task any more. The build site's tiers 84–90 and the
-> registry (`.cavekit/task-status.json`) hold the task state; `tools/host/cavekit-sync.py` keeps them aligned.
+> **State as of 2026-11-19.** The per-domain status lives in `context/kits/cavekit-overview.md` (the Status column,
+> counted from each kit's criteria, recounted 2026-11-19) and the day-by-day record in `docs/PICKUP.md` (its
+> "HANDOFF 2026-11-19" section is the current state); this file's domain sections below are the history up to
+> 2026-08-15 and are not updated per task any more. The build site (`context/plans/build-site.md`) and the registry
+> (`.cavekit/task-status.json`) hold the task state; `tools/host/cavekit-sync.py` keeps them aligned. Each round's
+> evidence is a directory of `docs/rounds/` with its README.
 
 > **STALE AS A STATUS DOCUMENT — read `docs/PICKUP.md` and `context/kits/` first (2026-08-10).**
 > This file stops at 2026-08-03 and therefore predates all of the Flash work: NPAPI windowless,

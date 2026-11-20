@@ -53,3 +53,11 @@ Site-by-site details, with causes and what was tried, are in `docs/MODERN-WEB.md
   with them.
 - **A Flash movie in a card behind another one can go quiet** while the front card plays sound.
   Being looked at.
+- **Eaglercraft doesn't play yet.** EaglercraftX 1.8.8 gets past its launch, but its start takes
+  15-20 minutes: its Java longs run as JavaScript BigInts, which this engine runs about sixty times
+  slower than numbers. On the way it can run the tablet out of memory, and then the memory guard
+  stops the page (`docs/rounds/t666-2026-11-18`, `docs/rounds/t672-2026-11-19`). Making BigInt fast
+  is planned for after the rest of the browser.
+- **Mojo with a hardware keyboard: Ctrl acts as Sym.** Mojo reads the Ctrl key as the phones' Sym
+  key, so Ctrl over one of the Mojo interface's own text fields can open its accent picker (Ctrl+F's
+  release over the find bar no longer does). Enyo and Mochi don't do this.

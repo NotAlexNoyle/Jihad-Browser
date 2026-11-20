@@ -153,7 +153,8 @@ strips the run's prefs). Its header lists every function; the shape:
   down, higher with it up — so measured where it is: `fbstream -Q` reports the span of light rows at the region's
   centre column (the white popup over the dimmed page) and the rows are counted from its top; the daemon never counts
   that popup open. `fl_bring` scrolls the card so an element sits mid-view before a tap, above the keyboard while it
-  is up (`fl_kb`: the window server's last IME line).
+  is up (`fl_kb`: the window server's last IME line, i.e. a field has the focus; `fl_vkb`: the system keyboard is on the
+  screen, i.e. a field has it and no hardware keyboard keeps it down, for chrome targets that sit on the keyboard).
 - **Verdicts.** A check prints `CHECK ok NAME: evidence` or `CHECK FAIL NAME: evidence`; a failure keeps the shown
   page under `/media/internal/jihad-finger/NAME.last.raw` (the host wrapper pulls it), a pass keeps nothing;
   `fl_summary` prints `CHECKS n FAILS m` and exits 1 on a failure.
@@ -194,11 +195,13 @@ the `shoot`s only. `suite/self/` holds the suite's own scripts (a deliberate fai
 with `--self`.
 
 Since T-565 the suite is every reachable item of the finger list. More of the form: `item:` and `section:` (the entry in
-`docs/FINGER-TESTS.md`, which `finger-list.py --write` regenerates from the suite and its last report; the hand-run record
+`docs/FINGER-TESTS.md`, which `finger-list.py --write` regenerates from the suite and its last whole-suite report, a script
+that report lacks taken from its newest run in a round of its own; the hand-run record
 is `docs/FINGER-TESTS-2026-10.md`), `fixture: NAME` (`suite/fixtures/NAME.sh up|down SHELL` around the daemon: `pads`, twelve
 sideloaded test extensions; `xpi`, the test extension served for an install by the page and removed from the profile after;
 `persona-file`, a Persona in the downloads folder; `auth-proxy`, the login proxy on the host; `kernel-kbd`, the emulated
-hardware keyboard),
+hardware keyboard, which keeps the system keyboard down while it stands: the fixture ends any it finds before and
+after, for one a failed teardown left hid the system keyboard from every later script (2026-11-19)),
 `needs: internet` (run with `--with internet`), `tool:` and `skip:` with their reason, and `known: T-NNN WORD` (failures all
 holding WORD are that open defect's: the verdict reads `known`, not `fail`). `touch SEL` taps an element's centre and awaits no clickAt (a control the daemon reports as interactive takes the pen pair itself; the wait after it is its mark). A step for ONE shell carries its name:
 `mojo: wait content 10,90,400,300 5` runs on Mojo only (its Downloads panel lies full-width at the left where the

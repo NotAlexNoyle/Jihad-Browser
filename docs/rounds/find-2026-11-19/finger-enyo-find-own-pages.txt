@@ -1,0 +1,31 @@
+WAIT ok 9-rect page-title
+  sample before-menu of 0,30,300,180: hash d2dd0717
+  chrome appmenu tapped at 50 14
+WAIT ok 12-differs 0,30,300,180
+WAIT ok 13-still 0,30,300,180
+  the log marked
+  chrome appmenu-find tapped at 70 57
+CHECK ok 16-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  typed [personas] on the keyboard
+WAIT ok 18-line: [jihad-bs] find (8 bytes) -> 1
+WAIT ok 19-line: [jihad-bs] notify: find-result: {"index":1,"total":3,"more":false,"wrapped":false} (pushed)
+  the log marked
+  chrome find-done tapped at 726 700
+WAIT ok 22-line: [jihad-bs] js-console (no source):0:0 page: find: cleared
+WAIT ok 23-launch: load done
+WAIT ok 24-rect page-title
+  sample before-menu2 of 0,30,300,180: hash 4d658d1f
+  chrome appmenu tapped at 50 14
+WAIT ok 27-differs 0,30,300,180
+WAIT ok 28-still 0,30,300,180
+  the log marked
+  chrome appmenu-find tapped at 70 57
+CHECK ok 31-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  typed [site data] on the keyboard
+WAIT ok 33-line: [jihad-bs] find (9 bytes) -> 1
+WAIT ok 34-line: [jihad-bs] notify: find-result: {"index":1,"total":1,"more":false,"wrapped":false} (pushed)
+  frame kept: /media/internal/jihad-finger/own-page_.last.raw
+  the log marked
+  chrome find-done tapped at 726 700
+WAIT ok 38-line: [jihad-bs] js-console (no source):0:0 page: find: cleared
+CHECKS 2 FAILS 0

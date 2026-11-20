@@ -285,39 +285,138 @@ MainAssistant.prototype.setupCommandMenu = function () {
 	// ── find-in-page ────────────────────────────────────────────────────────────────────────
 	// Opened from the command row (see findItem above), which scrolls horizontally now.
 	this.controller.setupWidget("jihad-find-input",
-		{hintText: "Find in page", multiline: false, enterSubmits: true,
-		 changeOnKeyPress: true, focusMode: Mojo.Widget.focusSelectMode},
+		// requiresEnterKey marks the field as taking Enter (x-mojo-consumes-enter): without it Mojo stops Enter's keydown
+		// at the document and turns its keyup into a Tab (gesture.js), and the keyboard's Enter never reached the field
+		// (find round 2026-11-19)
+		{hintText: "Find in page", multiline: false, enterSubmits: true, requiresEnterKey: true,
+		 textCase: Mojo.Widget.steModeLowerCase, autoReplace: false, changeOnKeyPress: true,
+		 focusMode: Mojo.Widget.focusSelectMode},
 		{});
+	this.controller.setupWidget("jihad-find-prev", {type: Mojo.Widget.defaultButton}, {label: "Prev"});
 	this.controller.setupWidget("jihad-find-next", {type: Mojo.Widget.defaultButton}, {label: "Next"});
 	this.controller.setupWidget("jihad-find-done", {type: Mojo.Widget.defaultButton}, {label: "Done"});
 };
 
-//* Show the find bar and put the cursor in it.
+//* Find on page (cavekit-find-on-page.md, T-677). Show the find bar and put the cursor in it; the last word is offered
+//* again, selected (the field's focusSelectMode), so typing replaces it.
 MainAssistant.prototype.showFind = function () {
 	var bar = this.controller.get("jihad-find");
 	if (!bar) { return; }
+	var wasShown = bar.style.display !== "none";
 	bar.style.display = "";
-	this.applyHeaderHeight();
+	if (!wasShown) {
+		this._findSent = "";
+		this._findOut = 0;
+		this.setFindResult(null);
+		this.applyHeaderHeight();
+		this.onPageScrolled(this._pageY);   // a strip slid away with the page comes back with the bar in it
+	}
 	var input = this.controller.get("jihad-find-input");
 	if (input && input.mojo && input.mojo.focus) { input.mojo.focus(); }
 };
 
-MainAssistant.prototype.hideFind = function () {
+MainAssistant.prototype.findShown = function () {
 	var bar = this.controller.get("jihad-find");
-	if (bar) { bar.style.display = "none"; }
-	this.applyHeaderHeight();
+	return !!(bar && bar.style.display !== "none");
 };
 
-//* Issue the search. The engine's finder continues from the current match, so pressing Next
-//* with the same text is what "find again" means — there is no separate command, and the
-//* frozen findInPage(string) carries no direction (backwards is not reachable from the app,
-//* see cavekit-ui-shell.md R4).
-MainAssistant.prototype.runFind = function () {
+//* Done: the bar goes, the keyboard with it, and the page's match is cleared (an empty word); the page stays where the
+//* match put it.
+MainAssistant.prototype.hideFind = function () {
+	var bar = this.controller.get("jihad-find");
+	if (!bar || bar.style.display === "none") { return; }
 	var input = this.controller.get("jihad-find-input");
-	var text = input && input.mojo && input.mojo.getValue ? input.mojo.getValue() : "";
-	if (text && text.length >= 2) {
-		this.callBrowserAdapter("findInPage", [text]);
+	if (input && input.mojo && input.mojo.blur) { input.mojo.blur(); }
+	bar.style.display = "none";
+	this.applyHeaderHeight();
+	this.onPageScrolled(this._pageY);   // the strip follows the page again
+	this._findSent = "";
+	this._findOut = 0;
+	this.callBrowserAdapter("findInPage", [""]);
+};
+
+MainAssistant.prototype.findValue = function () {
+	var input = this.controller.get("jihad-find-input");
+	return (input && input.mojo && input.mojo.getValue ? input.mojo.getValue() : "") || "";
+};
+
+//* A search: from the first letter, as the word is typed (the field's changeOnKeyPress). The same word again is
+//* "next" to the engine's finder, which goes on from its match; backwards since T-674 (the adapter's findInPage takes
+//* a direction, sent in the IPC's existing FindString field). The engine's answer is broadcast to every card, with no text
+//* in it (Codex review 2026-11-19: the notification channel is a public bus): this card takes one while it is in front
+//* with one of its searches out (handleFindResult). A clear (an empty word) has no answer.
+MainAssistant.prototype.findAsk = function (text, backwards) {
+	if (text) { this._findOut = (this._findOut || 0) + 1; }
+	this.callBrowserAdapter("findInPage", backwards ? [text, true] : [text]);
+};
+
+MainAssistant.prototype.findTyped = function () {
+	var text = this.findValue();
+	if (text === this._findSent) { return; }   // a change on blur or Enter: the same word again would be "next"
+	this._findSent = text;
+	this._findDir = 1;
+	this.setFindResult(null);
+	this.findAsk(text, false);   // an empty word clears the page's match
+};
+
+//* A step; a word in the field not searched yet (the last one offered again, R5) is searched instead, once: a step on top
+//* of it skipped its first match (Codex review 2026-11-19).
+MainAssistant.prototype.findStep = function (backwards) {
+	var v = this.findValue();
+	if (!v || this._findOff) { return; }
+	if (v !== this._findSent) { this.findTyped(); return; }
+	this._findDir = backwards ? -1 : 1;
+	this.findAsk(this._findSent, backwards);
+};
+
+//* Enter in the field is Next, on its keydown (the field takes Enter: requiresEnterKey in setup).
+MainAssistant.prototype.findKeyDown = function (event) {
+	if (event && event.keyCode === Mojo.Char.enter) {
+		this.findStep(false);
 	}
+};
+
+MainAssistant.prototype.handleFindResult = function (text) {
+	if (!this._findOut || this.cardInFront === false || !this.findShown()) { return; }
+	this._findOut--;   // the daemon answers in order: the last answer is the last search's
+	var r = null;
+	try { r = JSON.parse(text); } catch (e) { r = null; }
+	if (r) { this.setFindResult(r); }
+};
+
+//* What the engine said of the last search: {index, total, more, wrapped}, or null while none is in.
+MainAssistant.prototype.setFindResult = function (r) {
+	var bar = this.controller.get("jihad-find"), count = this.controller.get("jihad-find-count");
+	var none = false, label = "", note = "";
+	if (r && this._findSent) {
+		if (!r.total) {
+			none = true;
+			label = $L("No matches");
+		} else {
+			var of = r.total + (r.more ? "+" : "");
+			label = r.index ? r.index + " " + $L("of") + " " + of : of + " " + $L("found");
+			if (r.wrapped) { note = this._findDir < 0 ? $L("from the bottom") : $L("from the top"); }
+		}
+	}
+	if (count) {
+		count.textContent = label;
+		if (note) {   // going round: a second line, inside the count's fixed width (the buttons never move)
+			var n = this.controller.document.createElement("span");
+			n.className = "jihad-find-note";
+			n.textContent = note;
+			count.appendChild(n);
+		}
+	}
+	if (bar) {
+		if (none) { bar.addClassName("jihad-find-none"); } else { bar.removeClassName("jihad-find-none"); }
+	}
+	// Prev and Next work from the first letter: only an empty field or a "No matches" turns them off, never a result not
+	// in yet (a Mochi run lost one: Next stayed off and its tap did nothing, find round 2026-11-19)
+	this._findOff = !(this._findSent || this.findValue()) || none;
+	["jihad-find-prev", "jihad-find-next"].forEach(function (id) {
+		var b = this.controller.get(id);
+		if (b) { if (this._findOff) { b.addClassName("jihad-find-off"); } else { b.removeClassName("jihad-find-off"); } }
+	}, this);
 };
 
 //* One-shot geometry probe for the command row, in the spirit of the Mochi address-bar fix:
@@ -350,15 +449,55 @@ MainAssistant.prototype.logCommandRowGeometry = function () {
 };
 
 MainAssistant.prototype.bindFindHandlers = function () {
+	var prev = this.controller.get("jihad-find-prev");
 	var next = this.controller.get("jihad-find-next");
 	var done = this.controller.get("jihad-find-done");
 	var input = this.controller.get("jihad-find-input");
-	this.handleFindNext = this.runFind.bind(this);
+	this.handleFindPrev = this.findStep.bind(this, true);
+	this.handleFindNext = this.findStep.bind(this, false);
 	this.handleFindDone = this.hideFind.bind(this);
-	if (next)  { next.addEventListener(Mojo.Event.tap, this.handleFindNext); }
+	this.handleFindTyped = this.findTyped.bind(this);
+	this.handleFindKeyDown = this.findKeyDown.bind(this);
+	// Prev and Next keep the field's focus (Enyo's NoFocusButton): the keyboard stays up and the card keeps its size,
+	// for a resize while the match scrolls put the page back where the card last had it (find round 2026-11-19)
+	this.handleFindKeepFocus = function (e) { if (e && e.preventDefault) { e.preventDefault(); } };
+	if (prev)  { prev.addEventListener(Mojo.Event.tap, this.handleFindPrev); prev.addEventListener("mousedown", this.handleFindKeepFocus, false); }
+	if (next)  { next.addEventListener(Mojo.Event.tap, this.handleFindNext); next.addEventListener("mousedown", this.handleFindKeepFocus, false); }
 	if (done)  { done.addEventListener(Mojo.Event.tap, this.handleFindDone); }
-	// enterSubmits on the field means Enter fires propertyChange with the committed value.
-	if (input) { input.addEventListener(Mojo.Event.propertyChange, this.handleFindNext); }
+	// changeOnKeyPress: a propertyChange for every letter (and on blur and Enter, which findTyped drops)
+	if (input) {
+		input.addEventListener(Mojo.Event.propertyChange, this.handleFindTyped);
+		input.addEventListener("keydown", this.handleFindKeyDown, true);
+		// Enter's keyup goes no further than the widget: the field's own handler blurs on it (enterSubmits), and the keyboard
+		// would go down at each Next; Enyo's and Mochi's fields keep it
+		this.handleFindKeyUp = function (e) { if (e && e.keyCode === Mojo.Char.enter) { e.stopPropagation(); } };
+		input.addEventListener("keyup", this.handleFindKeyUp, true);
+	}
+	// cavekit-find-on-page.md R1: Ctrl+F on a hardware keyboard while its keys come to the card (a card just opened: no
+	// field has them, nor the page). Keys aimed at the page's plugin are the daemon's to judge: its keyDown sends
+	// "find-open", or the page keeps the key. Ctrl's own keydown/keyup (17) is followed for its release (below).
+	var self = this;
+	this.handleCtrlF = function (e) {
+		if (!e) { return; }
+		if (e.keyCode === 17) {
+			self._ctrlHeld = e.type === "keydown";
+			// Mojo's stage reads key 17 as the phones' Sym key: its release over a focused field opens the accent picker
+			// (controller_stage.js _keyHandler), and the find field had just taken the focus. That release goes no further.
+			if (e.type === "keyup" && self._eatCtrlUp) { self._eatCtrlUp = false; e.stopPropagation(); e.preventDefault(); }
+			return;
+		}
+		// ctrlKey, not a Ctrl seen going down: a release made in another card left that held (Codex review 2026-11-19)
+		if (e.type === "keydown" && !e.ctrlKey) { self._ctrlHeld = false; }
+		if (e.type !== "keydown" || !e.ctrlKey || e.altKey || e.metaKey) { return; }
+		if (e.keyCode !== 70 && e.charCode !== 6) { return; }
+		var t = e.target && e.target.tagName;
+		if (t === "OBJECT" || t === "EMBED") { return; }
+		e.preventDefault();
+		self._eatCtrlUp = true;
+		self.showFind();
+	};
+	this.controller.document.addEventListener("keydown", this.handleCtrlF, true);
+	this.controller.document.addEventListener("keyup", this.handleCtrlF, true);
 };
 
 MainAssistant.prototype.bindHandlers = function () {
@@ -788,7 +927,11 @@ MainAssistant.prototype.onPageScrolled = function (y) {
 	if (!bar) {
 		return;
 	}
+	this._pageY = y || 0;
 	var h = this._headerHeight || bar.offsetHeight, off = Math.max(0, Math.min(h, y || 0));
+	// The find bar is in the strip: it stays while the bar shows, or a match scrolled to slid it away and the next
+	// tap on Next fell on the page (find round 2026-11-19, cavekit-find-on-page.md R3). hideFind puts it back.
+	if (this.findShown()) { off = 0; }
 	if (off === this._topbarOff) {
 		return;
 	}
@@ -1067,6 +1210,16 @@ MainAssistant.prototype.handleNotification = function (response) {
 		var theme = null;
 		try { theme = JSON.parse(response.text); } catch (e) { theme = null; }
 		this.applyTheme(theme);
+		return;
+	}
+	// cavekit-find-on-page.md: the count of a search, and Ctrl+F on a keyboard (to the card in front)
+	if (response.category === "find-result") {
+		this.handleFindResult(response.text);
+		return;
+	}
+	if (response.category === "find-open") {
+		// Ctrl is still held: its release must not open Mojo's accent picker on the find field (handleCtrlF)
+		if (this.cardInFront !== false) { this._eatCtrlUp = !!this._ctrlHeld; this.showFind(); }
 		return;
 	}
 	if (response.category === "page-hold") {
@@ -1495,6 +1648,10 @@ MainAssistant.prototype.cleanup = function () {
 	if (this._fitOnResize) {
 		this.controller.window.removeEventListener("resize", this._fitOnResize, false);
 		this._fitOnResize = null;
+	}
+	if (this.handleCtrlF) {
+		this.controller.document.removeEventListener("keydown", this.handleCtrlF, true);
+		this.controller.document.removeEventListener("keyup", this.handleCtrlF, true);
 	}
 	var view = this.controller.get(this.WEB_VIEW_ID);
 	var events = this.webViewEvents();
@@ -1935,6 +2092,7 @@ MainAssistant.prototype.handleCreatePage = function (event) {
 // --- load state -------------------------------------------------------------
 
 MainAssistant.prototype.handleLoadStarted = function () {
+	this.hideFind();   // R5: a new page is not searched with the old word
 	this._serverSeen = true;   // a load event comes from a daemon: an engine is up (handleServerDisconnect's wording)
 	this.loadFailed = false;
 	this.updateLock();

@@ -1,0 +1,25 @@
+# cavekit-find-on-page.md R5 (T-678): a page loaded while the bar is open closes it (its match cleared, the keyboard
+# away): the new page is not searched with the old word.
+id: find-navigate
+section: Find on page
+item: Find on Page open with a word found, then another page loaded: the bar closes, the keyboard goes, the word is not searched on the new page
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-find.html
+kit: cavekit-find-on-page.md R5
+calibrate top
+sample before-menu 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu 5
+wait still 0,30,300,180 3
+mark
+chrome appmenu-find
+expect keyboard up 8
+type-keys zebra
+wait line 'find .5 bytes. -> 1' 10
+wait line 'find-result: {"index":1,"total":6' 10
+inject url http://192.168.1.245:8077/jihad-card-events.html
+wait load 15
+wait line 'find: cleared' 8
+expect keyboard down 8
+expect url jihad-card-events
+shoot new-page

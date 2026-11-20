@@ -363,10 +363,9 @@ input.jihad-address {
 }
 .jihad-prefs-btn:active { background: #4d4d4d; }
 
-/* Find-in-page bar: overlay strip below the toolbar. */
+/* Find-in-page bar: a row of the layout below the toolbar (the page shrinks under it; T-676). */
 .jihad-findbar {
-	position: absolute;
-	top: 50px; left: 0; right: 0;
+	position: relative;
 	-webkit-box-sizing: border-box; box-sizing: border-box;
 	width: 100%;
 	padding: 6px 8px;
@@ -378,8 +377,8 @@ input.jihad-address {
 .jihad-findbar-input { width: 100%; -webkit-box-sizing: border-box; box-sizing: border-box; }
 .jihad-findbar-btn {
 	min-width: 54px;
-	height: 38px;
-	line-height: 38px;
+	height: 44px;   /* cavekit-find-on-page.md R1: a finger's size */
+	line-height: 44px;
 	margin-left: 6px;
 	padding: 0 10px;
 	text-align: center;
@@ -394,6 +393,16 @@ input.jihad-address {
 }
 .jihad-findbar-btn:active { background: #4d4d4d; }
 .jihad-findbar-btn.disabled { opacity: 0.35; }
+/* the engine's count ("n of m"), and "No matches" (T-676) */
+/* a fixed width, so the buttons never move under a finger as the count grows (FittableColumns does not reflow) */
+.jihad-findbar-count {
+	width: 104px; height: 44px; overflow: hidden;
+	line-height: 44px; font-size: 15px; color: #bbb; white-space: nowrap; text-align: center;
+}
+.jihad-findbar-count.jihad-findbar-twoline { line-height: 18px; padding-top: 4px; }
+.jihad-findbar-note { display: block; font-size: 12px; color: #999; }
+.jihad-findbar-none .jihad-findbar-input { color: #ff8a8a; }
+.jihad-findbar-none .jihad-findbar-count { color: #ff8a8a; }
 
 /* PNG toolbar icon (reload) — centred in the button. A persona may recolour via
    `filter` (e.g. invert for a light theme) or override the img src. */

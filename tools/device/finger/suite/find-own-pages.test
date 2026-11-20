@@ -1,0 +1,38 @@
+# cavekit-find-on-page.md R1 (T-678): Find on Page works on the browser's own pages as on a web page: about:settings
+# ("personas": its Browser tab's first section and row) and about:data ("site data", its heading), found and counted.
+id: find-own-pages
+section: Find on page
+item: Find on Page on the browser's own pages: "personas" on about:settings and "site data" on about:data are found and counted
+shells: enyo mochi mojo
+page: about:settings
+kit: cavekit-find-on-page.md R1
+wait rect page-title 20
+sample before-menu 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu 5
+wait still 0,30,300,180 3
+mark
+chrome appmenu-find
+expect keyboard up 8
+type-keys personas
+wait line 'find .8 bytes. -> 1' 10
+wait line 'find-result: {"index":[1-9][0-9]*,"total":[1-9]' 10
+mark
+chrome find-done
+wait line 'find: cleared' 8
+launch about:data
+wait rect page-title 20
+sample before-menu2 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu2 5
+wait still 0,30,300,180 3
+mark
+chrome appmenu-find
+expect keyboard up 8
+type-keys site data
+wait line 'find .9 bytes. -> 1' 10
+wait line 'find-result: {"index":[1-9][0-9]*,"total":[1-9]' 10
+shoot own-page
+mark
+chrome find-done
+wait line 'find: cleared' 8

@@ -95,6 +95,9 @@ enyo.kind({
 		]},
 		// Load progress; shown only during navigation.
 		{kind: "mochi.ProgressBar", name: "progress", classes: "jihad-progress", progress: 0, showing: false},
+		// Find on page: a row of its own below the toolbar, the page beneath it shrinking while it shows, so no match it
+		// reports is under it (cavekit-find-on-page.md R1; it was an overlay on the page's top until T-676).
+		{kind: "JihadFindBar", name: "findBar", onFind: "findRequested", onClose: "findClosed"},
 		// Rendered web content: the NPAPI-bound Enyo 2 WebView (JihadWebView.js).
 		{kind: "JihadWebView", name: "view", fit: true, classes: "jihad-view",
 			onLoadStarted:     "loadStarted",
@@ -122,8 +125,6 @@ enyo.kind({
 			onPageHold:           "pageHoldPending",
 			onPageTap:            "pageTapped"
 		},
-		// Find-in-page bar (overlay below the toolbar); forwards to findInPage.
-		{kind: "JihadFindBar", name: "findBar", onFind: "findRequested", onClose: "findClosed"},
 		// T-602 (from the Atlas app's 0.9.6): the screen lock while a video plays — the button at the view's top right;
 		// locked, the shield over the view takes every tap, a tap shows "Screen locked", a tap on that asks
 		// "Unlock controls?", a second tap unlocks. Gone 3 s after the video stops or when the card leaves the front.
@@ -434,7 +435,12 @@ enyo.kind({
 	//* Find-in-page: the frozen adapter method. The FindBar UI that calls this
 	//* is the T-053 parity port; the method is present now so the app's
 	//* callBrowserAdapter set matches the Enyo 1.0 app exactly.
-	find:       function(str) { this.$.view.callBrowserAdapter("findInPage", [str]); },
+	//* T-674: a second argument, backwards (the IPC's FindString always carried the direction). The engine's answer is
+	//* broadcast to every card: this one takes it only while one of its searches is out (findResult).
+	find:       function(str, backwards) {
+		if (str) { this._findOut = (this._findOut || 0) + 1; }   // a clear (an empty word) has no answer
+		this.$.view.callBrowserAdapter("findInPage", backwards ? [str, true] : [str]);
+	},
 	//* Luna services the Enyo 1.0 app invokes from Preferences (Browser.js). The
 	//* Preferences UI is the T-053 port; these are present now so the
 	//* This variant's OWN Luna service, matching the Enyo app's method-name set but not its
@@ -502,6 +508,9 @@ enyo.kind({
 				if (resp.category === "media-playing") { this.mediaPlaying(resp.text === "1"); return; }
 				// T-602: a <video> plays (with sound or without): the screen lock's button, and the hold too
 				if (resp.category === "video-playing") { this.videoPlaying(resp.text === "1"); return; }
+				// cavekit-find-on-page.md: the count of a search, and Ctrl+F on a keyboard (to the card in front)
+				if (resp.category === "find-result") { this.findResult(resp.text); return; }
+				if (resp.category === "find-open") { if (this._cardInFront !== false) { this.showFindBar(); } return; }
 				if (resp.category === "page-hold") { this.pageHold(resp.text); return; }
 				if (resp.category === "page-copied") { this.pageCopied(resp.text); return; }
 				// What the engine says about a copy or a cut is broadcast to every card;
@@ -727,6 +736,8 @@ enyo.kind({
 		new PalmServiceBridge().call("palm://com.palm.applicationManager/launch", JSON.stringify({id: this._leSettingsApp}));
 	},
 	loadStarted: function() {
+		// R5: a new page is not searched with the old word
+		if (this.$.findBar.showing) { this.$.findBar.close(); }
 		this._loadFailed = false;
 		this.updateLock();
 		this.hideStartPage();
@@ -928,6 +939,25 @@ enyo.kind({
 	rendered: function() {
 		this.inherited(arguments);
 		if (this._pendingTheme !== undefined) { var t = this._pendingTheme; delete this._pendingTheme; this.applyTheme(t); }
+		this.listenCtrlF();
+	},
+	//* cavekit-find-on-page.md R1: Ctrl+F on a hardware keyboard while its keys come to the card (a card just opened: no
+	//* field has them, nor the page). Keys aimed at the page's plugin are the daemon's to judge: its keyDown sends
+	//* "find-open", or the page keeps the key.
+	listenCtrlF: function() {
+		if (this._ctrlF) { return; }
+		var self = this;
+		this._ctrlF = function(e) {
+			if (!e) { return; }
+			// ctrlKey, not a Ctrl seen going down: a release made in another card left that held (Codex review 2026-11-19)
+			if (e.type !== "keydown" || !e.ctrlKey || e.altKey || e.metaKey) { return; }
+			if (e.keyCode !== 70 && e.charCode !== 6) { return; }
+			var t = e.target && e.target.tagName;
+			if (t === "OBJECT" || t === "EMBED") { return; }
+			e.preventDefault();
+			self.showFindBar();
+		};
+		document.addEventListener("keydown", this._ctrlF, true);
 	},
 	//* The padlock was tapped: ask this browser's own daemon whose certificate the page was
 	//* served with (it answers this variant's own card only). markActive first — the
@@ -1224,7 +1254,7 @@ enyo.kind({
 		if (this._canGoForward) { items.push({label: "Forward", action: "goForward"}); }
 		items.push({label: "Reload",       action: "pageReload"});
 		items.push({label: "Add Bookmark", action: "addCurrentBookmark"});
-		items.push({label: "Find in Page", action: "pageFind"});
+		items.push({label: "Find on Page", action: "pageFind"});
 		this.openSheet(this._title || "Page", this.url || "", items, {});
 	},
 	pageSelectAll: function() { this.$.view.callBrowserAdapter("selectAll"); },
@@ -1235,7 +1265,7 @@ enyo.kind({
 	pageCopy:      function() { this._copyAsked = {at: Date.now(), cut: false}; this.$.view.callBrowserAdapter("copy"); },
 	pageCut:       function() { this._copyAsked = {at: Date.now(), cut: true};  this.$.view.callBrowserAdapter("copy"); },
 	pageReload:    function() { this.$.view.callBrowserAdapter("reloadPage"); },
-	pageFind:      function() { this.$.findBar.show(); },
+	pageFind:      function() { this.showFindBar(); },
 	//* The copy this card asked for within the last five seconds, once.
 	takeCopyAsked: function() {
 		var a = this._copyAsked;
@@ -1384,7 +1414,7 @@ enyo.kind({
 	menuBookmarks:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.bookmarkList.open(); },
 	menuHistory:     function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.historyList.open(); },
 	menuDownloads:   function() { this.$.menuPopup.hide(); this.hidePanels(); this.$.downloadList.open(); this.refreshDownloads(); },
-	menuFind:        function() { this.$.menuPopup.hide(); this.$.findBar.show(); },
+	menuFind:        function() { this.$.menuPopup.hide(); this.showFindBar(); },
 
 	// --- Reader View and Desktop Site (T-642 / T-645; Browser.js parity) ------
 	// Both are asked of the engine by opening an address — about:reader and
@@ -1478,7 +1508,7 @@ enyo.kind({
 		this.$.bookmarkList.hide();
 		this.$.historyList.hide();
 		this.$.downloadList.hide();
-		this.$.findBar.hide();
+		if (this.$.findBar.showing) { this.$.findBar.close(); }   // as Done: the page's match cleared
 	},
 	//* A list view selected an item (bookmark/history) — navigate to it.
 	//* Start-page shortcuts.
@@ -1516,9 +1546,29 @@ enyo.kind({
 	// --- find-in-page -------------------------------------------------------
 	//* FindBar query -> the frozen findInPage adapter method (via this.find).
 	findRequested: function(inSender, inEvent) {
-		if (inEvent && inEvent.value) { this.find(inEvent.value); }
+		if (inEvent) { this.find(inEvent.value || "", !!inEvent.backwards); }
 	},
-	findClosed: function() { /* bar hid itself. */ },
+	//* Done: the page's match is cleared (an empty word); the page stays where the match put it.
+	findClosed: function() {
+		// the page takes the bar's row back (`resize()` is this Enyo's name; `resized()` threw here, and the
+		// page's match was never cleared: find round 2026-11-19)
+		this.resize();
+		this._findOut = 0;
+		this.$.view.callBrowserAdapter("findInPage", [""]);
+	},
+	//* The answer carries no text (Codex review 2026-11-19: the notification channel is a public bus): this card takes one
+	//* while it is in front with one of its searches out. The daemon answers in order: the last is the last search's.
+	findResult: function(inText) {
+		if (!this._findOut || this._cardInFront === false || !this.$.findBar.showing) { return; }
+		this._findOut--;
+		var r = null;
+		try { r = JSON.parse(inText); } catch (e) { r = null; }
+		if (r) { this.$.findBar.setResult(r); }
+	},
+	//* The menus and Ctrl+F: again while it shows, its word selected and the field focused.
+	showFindBar: function() {
+		if (this.$.findBar.showing) { this.$.findBar.refocus(); } else { this._findOut = 0; this.$.findBar.show(); this.resize(); }
+	},
 
 	// --- engine <select> popup ----------------------------------------------
 	//* Present the daemon's option list (JihadWebView.onOpenSelect). One row per

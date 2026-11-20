@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- Copyright 2026 NotAlexNoyle. MPL-2.0. -->
+<!-- cavekit-find-on-page.md (T-678): a long page with "zebra" six times in three cases (five in the page, one in a frame
+     after them, as the engine's finder goes: the page, then its frames), one on a dark band, accented and non-Latin text,
+     a word only in a text field ("okapi"), and "the last" once at the end. -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>Jihad find</title>
+<style>
+  body { font: 20px sans-serif; margin: 16px; color: #222; background: #fff; }
+  .gap { height: 760px; border-left: 4px solid #ddd; margin: 8px 0; }
+  .dark { background: #111; color: #eee; padding: 14px; }
+  #where { position: fixed; right: 8px; top: 8px; font: 14px monospace; background: #ffd; padding: 2px 6px; }
+</style>
+</head>
+<body>
+<div id="where">y=0</div>
+<h1 id="top">Find on page</h1>
+<p id="p1">The first zebra is near the top.</p>
+<div class="gap"></div>
+<p id="p2">A Zebra in the middle, with a capital.</p>
+<div class="gap"></div>
+<p id="p3">ZEBRA, shouted, far down.</p>
+<div class="dark" id="dark"><p>A zebra on a dark band.</p></div>
+<div class="gap"></div>
+<p id="intl">café crème · Straße · Привет мир · Καλημέρα κόσμε</p>
+<p><textarea id="field" rows="2" cols="30">an okapi in a text field</textarea></p>
+<p id="end">The end: the last zebra.</p>
+<iframe id="frame" srcdoc="<p style='font:20px sans-serif'>a zebra in a frame</p>" style="width:320px;height:70px;border:1px solid #999"></iframe>
+<script>
+  // where the page stands, for the eye and for a probe: Done leaves it at the last match (R5)
+  var w = document.getElementById("where");
+  window.addEventListener("scroll", function () { w.textContent = "y=" + Math.round(window.scrollY); });
+</script>
+</body>
+</html>

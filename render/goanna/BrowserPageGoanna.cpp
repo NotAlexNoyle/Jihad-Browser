@@ -1451,8 +1451,27 @@ void BrowserPageGoanna::setDisplayOn(bool on) {
   mNeedsPaint = true;
 }
 
+// A JSON string literal of UTF-8 text: quotes, backslashes and control characters escaped, the rest as it is.
+static std::string jihadJsonString(const char* t) {
+  std::string out = "\"";
+  for (const unsigned char* p = (const unsigned char*)t; p && *p; ++p) {
+    if (*p == '"' || *p == '\\') { out += '\\'; out += (char)*p; }
+    else if (*p < 0x20) { char b[8]; snprintf(b, sizeof b, "\\u%04x", *p); out += b; }
+    else out += (char)*p;
+  }
+  return out + "\"";
+}
+
+// The engine finds; then the page-commands component counts the matches and says which one is selected, and whether the
+// search went round, to the card ("find-result": cavekit-find-on-page.md R3, R4, T-674).
 bool BrowserPageGoanna::findString(const char* text, bool forward) {
-  return mPage && text && mPage->Find(text, forward);
+  if (!mPage || !text) return false;
+  // an empty text is the find bar's Done: the match's selection goes, and the next search starts afresh (R5)
+  if (!*text) { mPage->ForgetFind(); runPageCommand("findClear", ""); return false; }
+  const bool found = mPage->Find(text, forward);
+  runPageCommand("findCount", std::string("\"text\":") + jihadJsonString(text) + ",\"forward\":" + (forward ? "true" : "false") +
+                 ",\"found\":" + (found ? "true" : "false"));
+  return found;
 }
 
 void BrowserPageGoanna::returnBuffer(int sharedBufferKey) {
@@ -3088,6 +3107,15 @@ void BrowserPageGoanna::keyDown(int key, int modifiers, int chr) {
   modifiers = palmModifiers(modifiers);
   flushKeyUps(key);   // T-576: a held-back release of this key goes before its next press
   mKeyDownMs[key] = jihadNowMs();
+  // cavekit-find-on-page.md R1 (T-675..T-677): Ctrl+F on a hardware keyboard opens the find bar of the card in front
+  // ("find-open"). A page that takes the key for itself (preventDefault on its keydown) keeps it, as on a desktop; in a
+  // text field it is never typed. With Ctrl held the device sends the letter, or its control code (6).
+  if ((modifiers & 1) && (key == 'f' || key == 'F' || chr == 'f' || chr == 'F' || chr == 6)) {
+    const bool open = mPage->HasFocusedEditable() || mPage->KeyEvent("keydown", key, chr, modifiers);
+    if (open) jihad::PostNotification("find-open", "1");
+    mNeedsPaint = true;
+    return;
+  }
   // T-131 instrument (cavekit-preferences-ui.md R6), same JIHAD_LOG_INSERT gate as InsertText's.
   // WARRANTED because of an asymmetry that would otherwise void the run: a VKB keystroke arriving
   // with no focused editable never reaches InsertText at all — it falls through to engine dispatch
@@ -3270,11 +3298,15 @@ void BrowserPageGoanna::keyUp(int key, int modifiers, int chr) {
   if (mPage) { mPage->KeyEvent("keyup", key, chr, modifiers, kGreKeys); mNeedsPaint = true; }
 }
 // T-658: the modifier mask of a key as the device sends it, into npPalm's (Ctrl 1, Alt 2, Shift 4, Meta 8). A hardware
-// keyboard's key pressed with Ctrl held arrived with the mask 0x20 and with Shift held 0x80 (measured 2026-11-16 on
-// the emulated kernel keyboard; Alt's 0x40 by the same layout), none of which is an npPalm bit: Ctrl+V reached a
-// movie with mods 0, and the engine read 0x20 and 0x80 as CapsLock and FnLock. Nothing else passes.
+// keyboard's key pressed with Shift held arrives with the mask 0x80 (measured 2026-11-16 on the emulated kernel
+// keyboard), none of which is an npPalm bit: Ctrl+V reached a movie with mods 0, and the engine read 0x20 and 0x80 as
+// CapsLock and FnLock. Nothing else passes.
+// Ctrl is 0x40 (measured 2026-11-19, cavekit-find-on-page.md R1: Ctrl with F, G and H, left and right Ctrl; Ctrl+H comes
+// as key 8, its control code); 0x20 is Ctrl+V's alone, the paste the window server makes of that chord (T-658's own
+// reading). Alt sets no bit at all (Alt+F and Alt+G arrive bare). 0x40 had been taken for Alt "by the same layout": every
+// Ctrl+letter reached the page as Alt+letter, and Ctrl+F never opened the find bar.
 int BrowserPageGoanna::palmModifiers(int modifiers) {
-  const int out = (modifiers & 0xF) | ((modifiers & 0x20) ? 1 : 0) | ((modifiers & 0x40) ? 2 : 0) | ((modifiers & 0x80) ? 4 : 0);
+  const int out = (modifiers & 0xF) | ((modifiers & 0x60) ? 1 : 0) | ((modifiers & 0x80) ? 4 : 0);
   if (out != modifiers && mModsLogged < 8) {
     ++mModsLogged;
     fprintf(stderr, "[jihad-bs] key: the modifier mask 0x%x read as 0x%x\n", modifiers, out);

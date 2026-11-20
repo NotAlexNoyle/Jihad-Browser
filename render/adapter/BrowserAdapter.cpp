@@ -4343,15 +4343,19 @@ const char* BrowserAdapter::js_skipPaintHack(AdapterBase *adapter, const NPVaria
 
 const char* BrowserAdapter::js_findInPage(AdapterBase *adapter, const NPVariant *args, uint32_t argCount, NPVariant *result)
 {
-    if ((argCount != 1) || NPVARIANT_IS_STRING(args[0]) == false) {
-        return "BrowserAdapter::findInPage(string): Bad arguments.";
+    // findInPage(string[, backwards]) (cavekit-find-on-page.md R3, T-674): the IPC's FindString has always carried a
+    // direction; the card could not ask for the other one. A second argument true searches backwards.
+    if ((argCount < 1) || (argCount > 2) || NPVARIANT_IS_STRING(args[0]) == false ||
+        (argCount == 2 && !IsBooleanVariant(args[1]))) {
+        return "BrowserAdapter::findInPage(string[, backwards]): Bad arguments.";
     }
+    const bool backwards = argCount == 2 && VariantToBoolean(args[1]);
 
     BrowserAdapter *a = GetAndInitAdapter(adapter);
     if (a->mBrowserServerConnected) {
         char *str = NPStringToString(NPVARIANT_TO_STRING(args[0]));
-        TRACEF("%s\n", str);
-        a->asyncCmdFindString(str, true);
+        TRACEF("%s%s\n", str, backwards ? " (backwards)" : "");
+        a->asyncCmdFindString(str, !backwards);
         ::free(str);
 
         return NULL;

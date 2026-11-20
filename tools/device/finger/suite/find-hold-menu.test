@@ -1,0 +1,23 @@
+# cavekit-find-on-page.md R1 (T-678): the long-press menu's Find on Page opens the find bar with its field focused and
+# the keyboard up, in each shell.
+id: find-hold-menu
+section: Find on page
+item: A hold on a page's text, then the menu's Find on Page: the find bar opens with the keyboard up, and "zebra" typed is found 1 of 6
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-find.html
+kit: cavekit-find-on-page.md R1
+calibrate top
+sample before-hold 0,100,500,500
+hold-on p1
+wait line 'notify: page-hold' 8
+wait differs 0,100,500,500 before-hold 5
+wait still 0,100,500,500 3
+chrome hold-find
+expect keyboard up 8
+type-keys zebra
+wait line 'find .5 bytes. -> 1' 10
+wait line 'find-result: {"index":1,"total":6' 10
+mark
+chrome find-done
+wait line 'find: cleared' 8
+expect keyboard down 8

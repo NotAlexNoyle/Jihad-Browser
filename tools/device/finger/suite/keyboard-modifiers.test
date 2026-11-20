@@ -3,7 +3,7 @@
 # as U+0080-U+0083; Shift+Tab never went backward (the mask's Shift is 0x80, not npPalm's 4).
 id: keyboard-modifiers
 section: Keyboard and text
-item: A hardware keyboard's Shift, Ctrl and Alt pressed alone put nothing in a page's field, Shift+b types B, and Shift+Tab moves the focus back to the field before
+item: A hardware keyboard's Shift, Ctrl and Alt pressed alone put nothing in a page's field, Ctrl's mask (0x40) is read as Ctrl, Shift+b types B, and Shift+Tab moves the focus back to the field before
 shells: enyo mochi mojo
 page: http://192.168.1.245:8077/jihad-input-echo.html
 kit: cavekit-input-bridging.md R2
@@ -15,6 +15,8 @@ expect keyboard up
 pause 1500
 kernel-key 42
 kernel-key 29
+# Ctrl's own mask is 0x40 (2026-11-19): read as npPalm's Ctrl, 1, not Alt
+wait line 'modifier mask 0x40 read as 0x1' 4
 kernel-key 56
 kernel-chord 42 48
 wait text echo 'plain n=1 c=0 last=[B] value=[B]' 5

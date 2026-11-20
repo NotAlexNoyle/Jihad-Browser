@@ -1,0 +1,58 @@
+# cavekit-find-on-page.md R1-R5 (T-678): the app menu's Find on Page, a word typed by finger on the system keyboard and
+# found from its first letter; Enter and Next forward, Prev back, round both ways, the engine's count each time; the
+# match above the keyboard and clear of the bar; Done clears the match, puts the keyboard away and leaves the page there.
+# jihad-find.html has "zebra" six times: five in the page (three cases, one on a dark band), the sixth in a frame after
+# them, the order the engine's finder goes (the page, then its frames). `mark` before each chrome step: a chrome tap
+# sets no mark, and an earlier "2 of 6" would answer a later wait.
+id: find-steps
+section: Find on page
+item: Find on Page from the app menu (jihad-find.html): "zebra" typed is 1 of 6, Enter and Next go on, Prev goes back, before the first it goes round to 6 of 6 (the frame's) and past the last to 1 of 6, the bar saying so; the match stands above the keyboard; Done clears it, the keyboard goes and the page stays where the match put it
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-find.html
+kit: cavekit-find-on-page.md R1, R2, R3, R4, R5
+prefs: jihad.compat.trace=true
+calibrate top
+sample before-menu 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu 5
+wait still 0,30,300,180 3
+mark
+chrome appmenu-find
+expect keyboard up 8
+type-keys zebra
+wait line 'find .5 bytes. -> 1' 10
+wait line 'find-result: {"index":1,"total":6' 10
+mark
+chrome kb-enter
+wait line 'find: 2 of 6' 8
+expect above-keyboard p2
+expect visible p2
+mark
+chrome find-next
+wait line 'find: 3 of 6' 8
+probe sel 'String(getSelection())'
+expect probe-has ZEBRA
+mark
+chrome find-prev
+wait line 'find: 2 of 6' 8
+mark
+chrome find-prev
+wait line 'find: 1 of 6' 8
+mark
+chrome find-prev
+wait line 'find: 6 of 6, went round' 8
+shoot went-round-back
+mark
+chrome find-next
+wait line 'find: 1 of 6, went round' 8
+mark
+chrome find-next
+wait line 'find: 2 of 6' 8
+mark
+chrome find-done
+wait line 'find: cleared' 8
+expect keyboard down 8
+probe sel 'String(getSelection()) + "|y=" + Math.round(scrollY) + "|"'
+expect probe-lacks Zebra
+expect probe-lacks |y=0|
+shoot after-done

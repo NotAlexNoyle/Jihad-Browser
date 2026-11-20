@@ -1,0 +1,61 @@
+# cavekit-find-on-page.md R2, R5 (T-678): the match on the dark band is drawn so it is seen; the bar opened again on
+# the same page offers the last word selected, so the next word typed replaces it.
+id: find-reopen
+section: Find on page
+item: Find on Page's match on a dark band is seen (the shot), and the bar opened again offers the last word selected: "last" typed replaces it and is found 1 of 1; opened a third time, Next searches the offered "last" once (1 of 1)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-find.html
+kit: cavekit-find-on-page.md R2, R5
+calibrate top
+sample before-menu 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu 5
+wait still 0,30,300,180 3
+mark
+chrome appmenu-find
+expect keyboard up 8
+type-keys zebra
+wait line 'find .5 bytes. -> 1' 10
+wait line 'find-result: {"index":1,"total":6' 10
+mark
+chrome find-next
+wait line 'find: 2 of 6' 8
+mark
+chrome find-next
+wait line 'find: 3 of 6' 8
+mark
+chrome find-next
+wait line 'find: 4 of 6' 8
+shoot dark-band
+mark
+chrome find-done
+wait line 'find: cleared' 8
+expect keyboard down 8
+sample before-menu2 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu2 5
+wait still 0,30,300,180 3
+chrome appmenu-find
+expect keyboard up 8
+shoot reopened
+type-keys last
+wait line 'find .4 bytes. -> 1' 10
+wait line 'find-result: {"index":1,"total":1' 10
+mark
+chrome find-done
+wait line 'find: cleared' 8
+# opened a third time, "last" offered: Next searches it, once, and finds its one match (Codex review 2026-11-19: a step
+# on top of the search skipped it). A tap on Next may take the focus from Mojo's field, so this comes after the typing.
+sample before-menu3 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu3 5
+wait still 0,30,300,180 3
+chrome appmenu-find
+expect keyboard up 8
+mark
+chrome find-next
+wait line 'find .4 bytes. -> 1' 8
+wait line 'find-result: {"index":1,"total":1' 8
+mark
+chrome find-done
+wait line 'find: cleared' 8

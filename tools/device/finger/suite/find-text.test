@@ -1,0 +1,32 @@
+# cavekit-find-on-page.md R2 (T-678): what the engine finds, through the daemon's own find (the same path the cards'
+# findInPage takes): any case, accented and non-Latin words as typed, a word in a text field, a word in a frame; and the
+# count is the one at the last search, a page that adds the word counted again at the next (R4).
+id: find-text
+section: Find on page
+item: The engine finds any case (zebra, Zebra, ZEBRA as one word), accented and non-Latin words as typed (Straße, café, привет, καλημέρα), a word only in a text field (okapi) and a word in a frame, and counts them; a zebra the page adds is in the count of the next search (7)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-find.html
+kit: cavekit-find-on-page.md R2, R4
+prefs: jihad.compat.trace=true
+calibrate top
+inject find ZEBRA
+wait line 'find-result: {"index":1,"total":6' 8
+inject find Straße
+wait line 'find-result: {"index":1,"total":1' 8
+inject find café
+wait line 'find-result: {"index":1,"total":1' 8
+inject find привет
+wait line 'find-result: {"index":1,"total":1' 8
+inject find καλημέρα
+wait line 'find-result: {"index":1,"total":1' 8
+inject find in a frame
+wait line 'find-result: {"index":1,"total":1' 8
+inject find okapi
+wait line 'inject find "okapi" -> 1' 8
+wait line 'find-result: {"index":[01],"total":1' 8
+inject find zebra
+wait line 'find-result: {"index":[1-9],"total":6' 8
+probe add 'var p = document.createElement("p"); p.textContent = "a zebra the page added"; document.body.insertBefore(p, document.getElementById("p2")); "added"'
+expect probe-has added
+inject find zebra
+wait line 'find-result: {"index":[1-9],"total":7' 8

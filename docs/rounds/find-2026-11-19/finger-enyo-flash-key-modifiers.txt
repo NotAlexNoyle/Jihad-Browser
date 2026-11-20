@@ -1,0 +1,19 @@
+WAIT ok 15-text ready = [ready text ver=WEB 10,3,185,65 stage=400x300]
+  the system clipboard set to [jihad-prime-42]
+  flash tap on stage 200,85 (showAll) at 240 207
+  pause 1500 ms (the slow human)
+  kernel key 30
+WAIT ok 20-text text = [text a]
+  kernel key 42
+  kernel chord 42+48
+WAIT ok 23-text text = [text aB]
+WAIT ok 24-line: [jihad-bs] key: the modifier mask 0x80 read as 0x4
+  kernel key 29
+WAIT ok 26-text keydown = [keydown 17 17]
+  kernel chord 29+47
+WAIT ok 28-text keydown = [keydown 86 118]
+WAIT ok 29-line: [jihad-bs] key: the modifier mask 0x20 read as 0x1
+CHECK ok 30-text-has: text = [text aBv] holds [v]
+CHECK ok 31-text-lacks: text = [text aBv] lacks [prime]
+CHECK ok 32-clipboard: the system clipboard holds [jihad-prime-42]
+CHECKS 3 FAILS 0

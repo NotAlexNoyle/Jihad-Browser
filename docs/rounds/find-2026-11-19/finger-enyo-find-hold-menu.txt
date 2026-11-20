@@ -1,0 +1,16 @@
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 133 landed on document y 51)
+  sample before-hold of 0,100,500,500: hash 04cbc6c8
+  hold on p1 at 382 196
+WAIT ok 12-line: [jihad-bs] notify: page-hold: {"editable":false,"readOnly":false,"selected":false} (pushed)
+WAIT ok 13-differs 0,100,500,500
+WAIT ok 14-still 0,100,500,500
+  chrome hold-find tapped at 452 312
+CHECK ok 16-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  typed [zebra] on the keyboard
+WAIT ok 18-line: [jihad-bs] find (5 bytes) -> 1
+WAIT ok 19-line: [jihad-bs] notify: find-result: {"index":1,"total":6,"more":false,"wrapped":false} (pushed)
+  the log marked
+  chrome find-done tapped at 726 700
+WAIT ok 22-line: [jihad-bs] js-console (no source):0:0 page: find: cleared
+CHECK ok 23-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+CHECKS 2 FAILS 0

@@ -94,6 +94,49 @@ target line (both webOS 3.0.5 and CE 3.1.0).
 - **The end goal stands** (2026-11-13): better than the stock browser AND Atlas in speed AND memory. Scoreboard
   2026-11-12: ahead of Atlas on both; ahead of stock on speed, behind on memory by 1.3-2.7x (T-652's target, later).
 
+## 2026-11-19 (evening) — Find on Page in each interface; the Codex review's fixes; Ctrl is 0x40 (READ FIRST)
+
+**State:** commits `af3531de` (the Codex review of the guard and the logins: engine patch 0125, the macro budget) and
+the Find on Page commit after it (unpushed, the owner's; the gitlink is the owner's to bump: `third_party/uxp` at
+`734eeedac4` holds 0125). **The device runs engine 0125** (queue 0001-0125), the daemon and components of the find
+commit (`make-device-bundle.sh`, then `push-engine-update.sh --daemon-only enyo mochi mojo`), the PDK adapters with
+`findInPage(text, backwards)` (`push-adapter.sh enyo mochi mojo`), and the three shells' find files (`push-card-js.sh`).
+
+**Done:**
+- **cavekit-find-on-page.md: all 19 criteria met** (T-674..T-678 DONE). Eight `find-*` scripts and the two modifier
+  scripts, 30 runs passing in the three shells: `docs/rounds/find-2026-11-19/README.md`, which lists what each
+  interface had wrong (Enyo searched on Enter only, Mochi's buttons slid under the finger, Mojo never saw Enter, and
+  more) and the Codex review's ten findings with what was done.
+- **The answer carries no text.** `find-result` is `{index,total,more,wrapped}` on the notification channel (a public
+  bus: any app may subscribe), and the daemon logs a search's length, never its text (F-163). A card takes an answer
+  while it is in front with one of its searches out; the daemon answers in order.
+- **Ctrl is the mask 0x40** (Ctrl+F, G, H, both Ctrl keys). Since T-658 the daemon read 0x40 as Alt: every Ctrl+letter
+  reached pages as Alt+letter. 0x20 is the window server's own Ctrl+V; Alt sets no bit. `cavekit-input-bridging.md` R2
+  was corrected; `keyboard-modifiers` reads it.
+- **Review fixes (`af3531de`)**: 30 runs passing, `docs/rounds/review-2026-11-19`.
+- **finger:** `fl_vkb` (the system keyboard on the screen) beside `fl_kb` (a field focused); the `kernel-kbd` fixture
+  ends a keyboard a failed teardown left; `finger-list.py` takes a script the whole-suite round lacks from its newest
+  run in a round of its own (no merge run needed for a new kit's scripts).
+
+**Traps (new):**
+- A `kernel-kbd` teardown that fails leaves "Jihad Test Keyboard" attached (`/proc/bus/input/devices`, process
+  `uinput_kbd`): the system keyboard then stays down for every later script, and its taps fall on the page. The fixture
+  now ends it; if a run's keyboard checks go strange, look there first.
+- Mojo: Enter in a text field becomes a Tab unless the field takes Enter (`requiresEnterKey`); key 17 (Ctrl) is the
+  phones' Sym key, and its release over a focused field opens the accent picker.
+- Enyo's web view keeps the px height it measured at its start; a bar shown without a window resize is painted over.
+- Mojo's `Mojo.Log.error` reaches the syslog; Enyo's `console.error` did not, here.
+- An inline count that grows moves the buttons after it: a tap aimed at Next lands on Prev (Mochi, then Mojo).
+
+**Next, in order:**
+1. The Tablet UA scoreboard rerun (`RUNS=1 BROWSERS="jihad" ROUND_DIR=docs/rounds/tablet-ua-2026-11-19 bash
+   tools/device/scoreboard.sh`; `scoreboard.sh` now makes its device directory), then compare the pictures.
+2. The ck:inspector review when Fable is back (2026-11-21), or Codex: the site-data and freeze work and the guard's
+   thread (the review of 2026-11-19 covered the guard, logins and find).
+3. Every Enyo launch logs "Uncaught SyntaxError: Unexpected end of input, index.html:0" beside an XHR NETWORK_ERR in
+   `BrowserApp.create`; the card works. Read it.
+4. Flash's remaining R9/R10 and the real sites; Eaglercraft waits for T-673 (deferred).
+
 ## 2026-11-19 — Eaglercraft 1.8.8 past four engine defects; the Tablet UA; the CPU count (READ FIRST)
 
 **State:** commits up to engine 0123 (unpushed, the owner's; the gitlink is the owner's to bump). **The device runs

@@ -305,6 +305,9 @@ enyo.kind({
 		if (inResponse.category === "media-playing") { this.mediaPlaying(inResponse.text === "1"); return; }
 		// T-602: a <video> plays (with sound or without): the screen lock's button over the view, and the hold too
 		if (inResponse.category === "video-playing") { this.videoPlaying(inResponse.text === "1"); return; }
+		// cavekit-find-on-page.md: the count of a search, and Ctrl+F on a keyboard (to the card in front)
+		if (inResponse.category === "find-result") { if (this._cardInFront !== false) { this.$.browser.findResult(inResponse.text); } return; }
+		if (inResponse.category === "find-open") { if (this._cardInFront !== false) { this.showFindOnPage(); } return; }
 		if (inResponse.category === "page-hold") { this.$.browser.pageHold(inResponse.text); return; }
 		if (inResponse.category === "page-copied") { this.$.browser.pageCopied(inResponse.text); return; }
 		// What the engine says about a copy or a cut is broadcast to every card; it is
@@ -349,8 +352,27 @@ enyo.kind({
 			this.$.pane.selectViewByName("startPage");
 		}
 		this.showBookmarks();
+		this.listenCtrlF();
 		//this.showAppMenu();
 		//this.resize();
+	},
+	//* cavekit-find-on-page.md R1: Ctrl+F on a hardware keyboard while its keys come to the card (a card just opened: no
+	//* field has them, nor the page). Keys aimed at the page's plugin are the daemon's to judge: its keyDown sends
+	//* "find-open", or the page keeps the key.
+	listenCtrlF: function() {
+		if (this._ctrlF) { return; }
+		var self = this;
+		this._ctrlF = function(e) {
+			if (!e) { return; }
+			// ctrlKey, not a Ctrl seen going down: a release made in another card left that held (Codex review 2026-11-19)
+			if (e.type !== "keydown" || !e.ctrlKey || e.altKey || e.metaKey) { return; }
+			if (e.keyCode !== 70 && e.charCode !== 6) { return; }
+			var t = e.target && e.target.tagName;
+			if (t === "OBJECT" || t === "EMBED") { return; }
+			e.preventDefault();
+			self.showFindOnPage();
+		};
+		document.addEventListener("keydown", this._ctrlF, true);
 	},
 	processQueryString: function() {
 		var q = location.search.slice(1), queryArgs = {};

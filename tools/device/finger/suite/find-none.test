@@ -1,0 +1,23 @@
+# cavekit-find-on-page.md R4 (T-678): a word that is not on the page is said at once ("No matches", the field marked),
+# and Next and Prev ask nothing then.
+id: find-none
+section: Find on page
+item: Find on Page with a word not on the page (jihad-find.html, "qqxz"): the bar says No matches at once, its field marked and Next and Prev dimmed (the shot)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-find.html
+kit: cavekit-find-on-page.md R4
+calibrate top
+sample before-menu 0,30,300,180
+chrome appmenu
+wait differs 0,30,300,180 before-menu 5
+wait still 0,30,300,180 3
+mark
+chrome appmenu-find
+expect keyboard up 8
+type-keys qqxz
+wait line 'find .4 bytes. -> 0' 10
+wait line 'find-result: {"index":0,"total":0' 10
+shoot no-matches
+mark
+chrome find-done
+wait line 'find: cleared' 8

@@ -350,6 +350,7 @@ public:
   bool HasFocusedEditable() const;                 // true when a tapped editable is the type target
   void BlurFocusedEditable();                      // the field typed into gives up the focus
   bool Find(const char* text, bool forward);       // find in page (YAP: findString)
+  void ForgetFind();                               // the find bar's Done: the next search is a new word
   // Resolve what sits at CONTENT (x,y) into the isis HitTest.schema JSON (isNull/isLink/
   // isImage/linkUrl/linkText/imageUrl/altText/editable). The adapter GATES the long-press
   // gesture on this round-trip (asyncCmdHitTest -> msgHitTestResponse -> card eventFired ->

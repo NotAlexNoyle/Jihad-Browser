@@ -1,0 +1,50 @@
+# cavekit-find-on-page.md R1 (T-678): Ctrl+F on a hardware keyboard (the emulated kernel keyboard: KEY_LEFTCTRL 29,
+# KEY_F 33) opens the find bar of the card in front, its field focused, both ways a key comes: to the card itself (a
+# card just opened, nothing focused: the shell's own listener) and to the page (a field of the page focused: the
+# daemon's keyDown, which lets the page's keydown see Ctrl+F first and sends "find-open" when it did not take it).
+id: find-ctrl-f
+section: Find on page
+item: Ctrl+F on a hardware keyboard opens Find on Page with its field focused, on a card just opened and with a page's field focused: a word typed on the same keyboard is found ("zebra" 1 of 6, "insert" 1 of 1)
+shells: enyo mochi mojo
+page: http://192.168.1.245:8077/jihad-find.html
+kit: cavekit-find-on-page.md R1
+fixture: kernel-kbd
+# no tap first: nothing in the card has the keys, so Ctrl+F is the shell's own (a tap on the page would give them to it)
+mark
+kernel-chord 29 33
+pause 1500
+# typed on the same keyboard (z e b r a): it reaches the field only if the bar took the focus; with a hardware
+# keyboard the system one may stay down
+kernel-key 44
+kernel-key 18
+kernel-key 48
+kernel-key 19
+kernel-key 30
+wait line 'find .5 bytes. -> 1' 10
+wait line 'find-result: {"index":1,"total":6' 10
+shoot ctrl-f
+mark
+chrome find-done
+wait line 'find: cleared' 8
+# the page has the keys: its field tapped
+launch http://192.168.1.245:8077/jihad-input-echo.html
+wait rect plain 20
+calibrate 'sel:#plain'
+tap plain
+mark
+pause 1500
+kernel-chord 29 33
+wait line 'notify: find-open' 8
+# i n s e r t: "a programmatic text insert", once on the page
+kernel-key 23
+kernel-key 49
+kernel-key 31
+kernel-key 18
+kernel-key 19
+kernel-key 20
+wait line 'find .6 bytes. -> 1' 10
+wait line 'find-result: {"index":1,"total":1' 10
+shoot ctrl-f-page
+mark
+chrome find-done
+wait line 'find: cleared' 8

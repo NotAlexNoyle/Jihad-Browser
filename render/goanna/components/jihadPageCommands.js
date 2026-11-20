@@ -404,6 +404,75 @@ function docShellOf(win) {
             .QueryInterface(Ci.nsIDocShell);
 }
 
+// --- find on page: how many, which one, and whether it went round (cavekit-find-on-page.md R3, R4; T-674) ---------------
+// The engine's finder (nsWebBrowserFind, GoannaRenderPage::Find) has just selected a match, or found none. Every match of
+// the text in the page and its frames is counted in document order with the engine's range finder, case-insensitive as
+// the finder is, and the one that starts where a document's selection starts is the current one. A match the finder
+// selected inside a text field (its own selection, not the document's) is placed by the field's position among the
+// document's matches and its offset in the field's value. Capped at 1000 matches and 300 ms: past either the count says
+// "more". The time is read after every search of the range finder and every frame, matched or not (Codex review
+// 2026-11-19: it was read only after a match); one search over a very long text with no match is still one search.
+const FIND_MAX = 1000, FIND_MS = 300;
+function fieldMatch(win, text) {
+  // the field the finder selected in: the focused text control with a selection that is the text
+  let el = null;
+  try { el = win.document.activeElement; } catch (e) { return null; }
+  if (!el || !(el.localName === "textarea" || el.localName === "input")) { return null; }
+  let a = 0, b = 0, v = "";
+  try { a = el.selectionStart; b = el.selectionEnd; v = String(el.value || ""); } catch (e) { return null; }
+  if (b <= a || v.slice(a, b).toLowerCase() !== text.toLowerCase()) { return null; }
+  // its matches before the selected one, within its value
+  let k = 0, i = 0;
+  const lv = v.toLowerCase(), lt = text.toLowerCase();
+  while ((i = lv.indexOf(lt, i)) >= 0 && i < a) { k++; i += Math.max(1, lt.length); }
+  return { el: el, before: k };
+}
+function findCount(top, text) {
+  let total = 0, index = 0, more = false;
+  const t0 = Date.now();
+  const late = function () { return total >= FIND_MAX || Date.now() - t0 > FIND_MS; };
+  const walk = function (win) {
+    if (more) { return; }
+    if (late()) { more = true; return; }
+    let doc = null;
+    try { doc = win.document; } catch (e) { return; }
+    const body = doc && (doc.body || doc.documentElement);
+    if (body) {
+      let selStart = null;
+      try {
+        const sel = win.getSelection();
+        if (sel && sel.rangeCount && !sel.isCollapsed) { selStart = sel.getRangeAt(0); }
+      } catch (e) {}
+      const field = selStart ? null : fieldMatch(win, text);
+      const finder = Cc["@mozilla.org/embedcomp/rangefind;1"].createInstance(Ci.nsIFind);
+      finder.caseSensitive = false;
+      const all = doc.createRange(); all.selectNodeContents(body);
+      let start = doc.createRange(); start.selectNodeContents(body); start.collapse(true);
+      const end = doc.createRange(); end.selectNodeContents(body); end.collapse(false);
+      let r, inField = 0;
+      while ((r = finder.Find(text, all, start, end))) {
+        total++;
+        if (!index && selStart) {
+          try { if (r.compareBoundaryPoints(r.START_TO_START, selStart) === 0) { index = total; } } catch (e) {}
+        } else if (!index && field) {
+          // a match in the selected field's value: the one the finder selected is its (before + 1)th
+          // the field's text is its anonymous content: up from the match's node, a few parents at most, is the field
+          let inside = false;
+          try { for (let n = r.startContainer, k = 0; n && k < 5 && !inside; n = n.parentNode, k++) { inside = n === field.el; } } catch (e) {}
+          if (inside && inField++ === field.before) { index = total; }
+        }
+        if (late()) { more = true; return; }
+        start = r.cloneRange(); start.collapse(false);
+      }
+      // a document searched to its end is counted whole, however long that took ("6+" for six, find round 2026-11-19);
+      // the frames after it are judged when they come (the walk's own check)
+    }
+    for (let i = 0; i < win.frames.length; i++) { walk(win.frames[i]); }
+  };
+  walk(top);
+  return { index: index, total: total, more: more };
+}
+
 // --- the clip directory -------------------------------------------------------------------
 function randomName() {
   let hex = "";
@@ -591,6 +660,34 @@ JihadPageCommands.prototype = {
         let readOnly = editable && !!req.readOnly;
         notify("page-hold", JSON.stringify({editable: editable, readOnly: readOnly, selected: selected}));
         log("hold: editable=" + editable + " readOnly=" + readOnly + " selected=" + selected);
+      } else if (req.cmd === "findCount") {
+        const st = pageState(win, true), text = String(req.text || "");
+        const c = req.found ? findCount(win, text) : { index: 0, total: 0, more: false };
+        // the same text again in the same direction, and the match no further on: it went round (one match: back to it)
+        const last = st.findLast;
+        const wrapped = !!(last && last.text === text && c.index && last.index &&
+          (req.forward ? c.index <= last.index : c.index >= last.index));
+        st.findLast = { text: text, index: c.index };
+        // No text in the answer: the notification channel is a public bus, and the daemon's log keeps it (Codex review
+        // 2026-11-19). A card takes the answer while it is in front with a search out; the daemon answers in order.
+        notify("find-result", JSON.stringify({ index: c.index, total: c.total, more: c.more, wrapped: wrapped }));
+        log("find: " + c.index + " of " + c.total + (c.more ? "+" : "") + (wrapped ? ", went round" : ""));
+      } else if (req.cmd === "findClear") {
+        // the find bar's Done: no match left selected in the page, its frames or a text field of theirs (a match the
+        // finder selected in a field is the field's own selection), and the next search counts afresh
+        const clear = function (w) {
+          try { const sel = w.getSelection(); if (sel) { sel.removeAllRanges(); } } catch (e) {}
+          try {
+            const el = w.document.activeElement;
+            if (el && (el.localName === "textarea" || el.localName === "input") && el.selectionEnd > el.selectionStart) {
+              el.setSelectionRange(el.selectionEnd, el.selectionEnd);
+            }
+          } catch (e) {}
+          for (let i = 0; i < w.frames.length; i++) { clear(w.frames[i]); }
+        };
+        clear(win);
+        pageState(win, true).findLast = null;
+        log("find: cleared");
       } else if (req.cmd === "selectAll") {
         selectAll(target(pageState(win, false), win));
       } else if (req.cmd === "copy") {

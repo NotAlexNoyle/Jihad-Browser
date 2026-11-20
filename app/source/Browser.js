@@ -104,7 +104,7 @@ enyo.kind({
 			// to emit the isis JSON shape (items[].text/isEnabled + selectedIdx).
 			minFontSize: 2,
 		},
-		{kind: "FindBar", showing: false, onFind: "find", onGoToPrevious: "goToPrevious", onGoToNext: "goToNext"},
+		{kind: "FindBar", showing: false, onFind: "find", onGoToPrevious: "goToPrevious", onGoToNext: "goToNext", onClose: "findClosed"},
 		{name: "context", kind: "BrowserContextMenu", onItemClick: "contextItemClick"},
 		{name: "dialog", kind: "VerticalAcceptCancelPopup", cancelCaption: "", components: [
 			{name: "dialogTitle", className: "enyo-dialog-prompt-title"},
@@ -176,29 +176,66 @@ enyo.kind({
 		this.viewCall("printFrame", ["", inJobID, inPrintParams.width, inPrintParams.height, inPrintParams.pixelUnits, false, inPrintParams.renderInReverseOrder]);
 	},
 	showFind: function() {
-		this.$.findBar.show();
+		// The find bar stands at the card's foot, where the keyboard comes: while it shows, the keyboard resizes the
+		// window, so the bar stands on it (the page view keeps the window's size otherwise: BrowserApp.browserShown).
+		// Seen 2026-11-19: with the keyboard up the bar, its field and its count were under it.
+		enyo.keyboard.setResizesWindow(true);
+		// again while it shows (Ctrl+F, the menu): its word selected and the field focused
+		if (this.$.findBar.showing) { this.$.findBar.refocus(); } else { this._findOut = 0; this.$.findBar.show(); this.refitView(); }
+	},
+	//* The page view's height follows the find bar. The engine's view keeps the px size it measured when it started
+	//* (BasicWebView.cacheBoxSize) and tells the adapter a smaller one only when the window shrinks, for the system
+	//* keyboard: with a hardware keyboard nothing shrank, and the page was drawn over the bar (find round 2026-11-19).
+	refitView: function() {
+		enyo.asyncMethod(this, function() {
+			var outer = this.$.view, inner = outer && outer.$ && outer.$.view;
+			var n = outer && outer.hasNode();
+			if (!inner || !n || !inner.hasNode()) { return; }
+			var h = n.offsetHeight;   // the flex box's share: the bar's row taken off, or given back
+			if (h > 0) {
+				inner.applyStyle("height", h + "px");
+				if (inner._boxSize) { inner._boxSize = enyo.fetchControlSize(inner); }
+				if (inner.updateViewportSize) { inner.updateViewportSize(); } else if (inner.resize) { inner.resize(); }
+			}
+		});
 	},
 	//* @protected
 	find: function(inSender, inString) {
-		this.log(inString);
-		//* Remembered so "next" can re-issue the same query — see goToNext.
+		//* Remembered so Next and Previous can re-issue the same word; the engine's finder goes on from its match.
 		this._findString = inString;
-		this.$.view.callBrowserAdapter("findInPage", [inString]);
+		this.findAsk([inString]);
 	},
-	//* The engine's finder continues from the current match, so re-issuing the SAME query is
-	//* what "next" means. That is the whole of it — there is no separate find-again command.
 	goToNext: function() {
-		if (this._findString) {
-			this.$.view.callBrowserAdapter("findInPage", [this._findString]);
-		}
+		if (this._findString) { this.findAsk([this._findString]); }
 	},
-	//* Backwards search is NOT reachable from here. The frozen scriptable surface exposes
-	//* `findInPage(string)` with no direction argument, and the adapter hardcodes forward
-	//* (`asyncCmdFindString(str, true)`, BrowserAdapter.cpp). The daemon and the YAP command
-	//* both carry the flag, so the capability exists — only the app-facing call cannot express
-	//* it, and widening that call set is exactly what cavekit-ui-shell.md R2 forbids. The
-	//* FindBar's prev button therefore stays disabled rather than silently searching forward.
+	//* T-674: the adapter's findInPage takes a second argument, backwards; the IPC's FindString always carried it.
 	goToPrevious: function() {
+		if (this._findString) { this.findAsk([this._findString, true]); }
+	},
+	//* The engine's answer is broadcast to every card, with no text in it (Codex review 2026-11-19: the notification
+	//* channel is a public bus): this card takes one while it is in front (BrowserApp) with one of its searches out. The
+	//* daemon answers in order, so the last answer is the last search's. A clear (an empty word) has no answer.
+	findAsk: function(inArgs) {
+		if (inArgs[0]) { this._findOut = (this._findOut || 0) + 1; }
+		this.$.view.callBrowserAdapter("findInPage", inArgs);
+	},
+	findResult: function(inText) {
+		if (!this._findOut || !this.$.findBar.showing) { return; }
+		this._findOut--;
+		var r = null;
+		try { r = enyo.json.parse(inText); } catch (e) { r = null; }
+		if (r) { this.$.findBar.setResult(r); }
+	},
+	//* Done: the page's match is cleared (an empty word), the page stays where the match put it.
+	findClosed: function() {
+		this._findString = "";
+		this._findOut = 0;
+		this.$.view.callBrowserAdapter("findInPage", [""]);
+		this.refitView();   // the page takes the bar's row back
+		// the window back to the page's way once the keyboard has gone (it grows back while resizing is still allowed)
+		setTimeout(enyo.bind(this, function() {
+			if (!this.$.findBar.showing) { enyo.keyboard.setResizesWindow(false); }
+		}), 1500);
 	},
 	setEnableJavascript: function(inEnable) {
 		this.viewCall("setEnableJavascript", [inEnable]);
@@ -718,6 +755,8 @@ enyo.kind({
 	engineDownloadFinished: function(inSender, inUrl, inMimeType, inPath) { this.doEngineDownloadFinished(inUrl, inMimeType, inPath); },
 	engineDownloadError: function(inSender, inUrl, inMessage) { this.doEngineDownloadError(inUrl, inMessage); },
 	loadStarted: function() {
+	   // R5: a new page is not searched with the old word
+	   if (this.$.findBar.showing) { this.$.findBar.close(); }
 	   this._lastProgress = 0;
 	   if (this._timeoutHandle != null) {
 		   clearTimeout(this._timeoutHandle);

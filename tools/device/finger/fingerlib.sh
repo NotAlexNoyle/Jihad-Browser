@@ -162,6 +162,18 @@ fl_chrome() {
     # (T-642/T-645 added the two on 2026-11-11, moving Settings and Print down two rows)
     *:appmenu) echo 50 14;; *:appmenu-find) echo 70 57;; *:appmenu-reader) echo 70 105;; *:appmenu-desktop) echo 70 153;;
     *:appmenu-settings) echo 51 201;; *:appmenu-print) echo 36 249;;
+    # the find bar (cavekit-find-on-page.md; measured 2026-11-19 on luna screenshots, jihad-find.html): Enyo's at the
+    # card's foot, standing on the keyboard while it is up (the window resizes while the bar shows); Mochi's a row under
+    # the toolbar; Mojo's in its header
+    enyo:find-prev) if [ "$(fl_vkb)" = 1 ]; then echo 600 700; else echo 600 990; fi;;
+    enyo:find-next) if [ "$(fl_vkb)" = 1 ]; then echo 662 700; else echo 662 990; fi;;
+    enyo:find-done) if [ "$(fl_vkb)" = 1 ]; then echo 726 700; else echo 726 990; fi;;
+    mochi:find-prev) echo 608 98;; mochi:find-next) echo 666 98;; mochi:find-done) echo 732 98;;
+    mojo:find-prev) echo 490 110;; mojo:find-next) echo 574 110;; mojo:find-done) echo 662 110;;
+    # the hold menu's Find on Page on a page with no history (Select All, Reload, Add Bookmark, Find on Page; Mojo has no
+    # Add Bookmark): Enyo's popup beside the held point, Mochi's sheet under the toolbar, Mojo's popup at the screen's
+    # middle (measured 2026-11-19, a hold at 382,200)
+    enyo:hold-find) echo $((FL_TX + 70)) $((FL_TY + 116));; mochi:hold-find) echo 384 364;; mojo:hold-find) echo 384 582;;
     # T-602's screen lock while a video plays: the button at the view's top right and the notice beside it (placed by
     # each shell's CSS, 2026-11-09; checked on the screen-lock script's shots)
     enyo:lock-button|mochi:lock-button) echo 732 116;; mojo:lock-button) echo 732 124;;
@@ -275,6 +287,9 @@ fl_kb() {
   [ -n "$v" ] || v=$(grep -a 'editorFocused=' $FL_LOG | tail -1 | sed -n 's/.*editorFocused=\([01]\).*/\1/p')   # the syslog rotates
   echo "${v:-0}"
 }
+# the system keyboard on the screen: a field focused (fl_kb) and no hardware keyboard, which keeps it down (the emulated
+# one of kernel-kbd: Enyo's find bar stood at the card's foot, not on a keyboard, find round 2026-11-19)
+fl_vkb() { [ "$(fl_kb)" = 1 ] && ! grep -q 'Jihad Test Keyboard' /proc/bus/input/devices 2>/dev/null && echo 1 || echo 0; }
 # the last clickAt since the mark: "x y" (document px)
 fl_last_hit() { fl_since | grep -a 'clickAt x=' | tail -1 | sed -n 's/.*clickAt x=\(-*[0-9]*\) y=\(-*[0-9]*\).*/\1 \2/p'; }
 

@@ -1,0 +1,16 @@
+calibrated (mochi): the page's top on the screen 78 (the table said 78, the tap at y 129 landed on document y 51)
+  sample before-menu of 0,30,300,180: hash a83fa482
+  chrome appmenu tapped at 50 14
+WAIT ok 12-differs 0,30,300,180
+WAIT ok 13-still 0,30,300,180
+  the log marked
+  chrome appmenu-find tapped at 70 57
+CHECK ok 16-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser-mochi, or the daemon's editorFocused)
+  typed [qqxz] on the keyboard
+WAIT ok 18-line: [jihad-bs] find (4 bytes) -> 0
+WAIT ok 19-line: [jihad-bs] notify: find-result: {"index":0,"total":0,"more":false,"wrapped":false} (pushed)
+  frame kept: /media/internal/jihad-finger/no-matches_.last.raw
+  the log marked
+  chrome find-done tapped at 732 98
+WAIT ok 23-line: [jihad-bs] js-console (no source):0:0 page: find: cleared
+CHECKS 1 FAILS 0

@@ -227,6 +227,8 @@ public:
   nsCOMPtr<nsIPrincipal> mLinkTrigger;
   nsCOMPtr<nsIPrincipal> mClickTrigger;   // the same for a tapped link: its own document's
   nsCOMPtr<nsIPrincipal> mNextTrigger;    // the one the next page-initiated LoadUrl uses
+  // the window of the last Find's match (a frame or the page): the next step goes on from there, whatever the focus
+  nsWeakPtr mLastFindFrame;
   // A script's history.back()/go() is a TRAVERSAL into an entry this session already loaded —
   // possibly a file:, data: or privileged about: one the page itself could never load. Docshell
   // does not check a traversal against the calling page, so neither may the re-drive: it keeps
@@ -1394,6 +1396,11 @@ void GoannaRenderPage::ScrollTo(int x, int y) {
   engine_calls::LoadURIPlain(nav, u.get(), nsIWebNavigation::LOAD_FLAGS_NONE);
 }
 
+void GoannaRenderPage::ForgetFind() {
+  mLastFind.clear();
+  if (mChrome) mChrome->mLastFindFrame = nullptr;
+}
+
 bool GoannaRenderPage::Find(const char* text, bool forward) {
   if (!mChrome || !text) return false;
   nsCOMPtr<nsIInterfaceRequestor> ir = do_QueryInterface(mChrome->mBrowser);
@@ -1440,11 +1447,25 @@ bool GoannaRenderPage::Find(const char* text, bool forward) {
       if (forward) sel->CollapseToStart(); else sel->CollapseToEnd();
     }
   }
+  // A step, and a word grown by a letter, go on from the window of the last match. The docshell hands its finder out
+  // set to the focused window
+  // (nsDocShell::EnsureFind), and a card's focus could be back on the page by then while the match stood in a frame:
+  // the step searched the page from a selection left there, and its count read that one (Mojo, find round
+  // 2026-11-19: Next from the frame's match said 5 of 6).
+  nsCOMPtr<nsIWebBrowserFindInFrames> stepFrames = do_QueryInterface(finder);
+  if (stepFrames && mChrome->mLastFindFrame && mLastFind == text) {
+    nsCOMPtr<mozIDOMWindowProxy> last = do_QueryReferent(mChrome->mLastFindFrame);
+    if (last) stepFrames->SetCurrentSearchFrame(last);
+  }
   NS_ConvertUTF8toUTF16 s(text);
   finder->SetSearchString(s.get());
   finder->SetFindBackwards(!forward);
   finder->SetSearchFrames(true);
   finder->SetWrapFind(true);
+  // the page's own window.find() sets these on this same finder (nsGlobalWindow::Find): the browser's search is
+  // always any case and any part of a word, as its count is (Codex review 2026-11-19)
+  finder->SetMatchCase(false);
+  finder->SetEntireWord(false);
   // WHY THIS USED TO CRASH, since the note it replaces was wrong for two weeks. FindNext was
   // recorded as faulting on "a frame-selection controller the offscreen browser doesn't set
   // up". It is not the selection machinery: `nsWebBrowserFind::SearchInFrame` does a
@@ -1458,7 +1479,35 @@ bool GoannaRenderPage::Find(const char* text, bool forward) {
   // embedding code, already inside libxul's own process holding this docShell's finder.
   bool found = false;
   finder->FindNext(&found);
-  fprintf(stderr, "[jihad-bs] find '%s' -> %d\n", text, (int)found);
+  if (found && stepFrames) {
+    // One selection on the page: the match's. The engine's own finder clears only the window that had the focus
+    // (nsWebBrowserFind::OnFind), and a selection left in another frame was taken for the current match.
+    nsCOMPtr<mozIDOMWindowProxy> at;
+    stepFrames->GetCurrentSearchFrame(getter_AddRefs(at));
+    mChrome->mLastFindFrame = do_GetWeakReference(at);
+    nsCOMPtr<nsIDocShell> rootDs = GetDocShell(mChrome->mBrowser);
+    nsCOMPtr<nsISimpleEnumerator> en;
+    if (rootDs) rootDs->GetDocShellEnumerator(nsIDocShellTreeItem::typeAll, nsIDocShell::ENUMERATE_FORWARDS,
+                                              getter_AddRefs(en));
+    bool more = false;
+    while (en && NS_SUCCEEDED(en->HasMoreElements(&more)) && more) {
+      nsCOMPtr<nsISupports> item;
+      if (NS_FAILED(en->GetNext(getter_AddRefs(item)))) break;
+      nsCOMPtr<nsIDocShell> ds = do_QueryInterface(item);
+      nsCOMPtr<nsIDocShellTreeItem> ti = do_QueryInterface(item);
+      nsCOMPtr<mozIDOMWindowProxy> w = ti ? ti->GetWindow() : nullptr;
+      if (!ds || !w || w == at) continue;
+      nsCOMPtr<nsIInterfaceRequestor> dr = do_QueryInterface(ds);
+      nsCOMPtr<nsISelectionDisplay> d;
+      if (dr) dr->GetInterface(NS_GET_IID(nsISelectionDisplay), getter_AddRefs(d));
+      nsCOMPtr<nsISelectionController> c = do_QueryInterface(d);
+      nsCOMPtr<nsISelection> other;
+      if (c) c->GetSelection(nsISelectionController::SELECTION_NORMAL, getter_AddRefs(other));
+      if (other) other->RemoveAllRanges();
+    }
+  }
+  // never the text: it is what the person typed (F-163); its length tells one search from the next
+  fprintf(stderr, "[jihad-bs] find (%u bytes) -> %d\n", (unsigned)strlen(text), (int)found);
   return found;
 }
 

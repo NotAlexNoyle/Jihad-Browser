@@ -1,0 +1,46 @@
+calibrated (enyo): the page's top on the screen 82 (the table said 82, the tap at y 133 landed on document y 51)
+  sample before-menu of 0,30,300,180: hash 7823618c
+  chrome appmenu tapped at 50 14
+WAIT ok 17-differs 0,30,300,180
+WAIT ok 18-still 0,30,300,180
+  the log marked
+  chrome appmenu-find tapped at 70 57
+CHECK ok 21-keyboard: the keyboard is up (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  typed [zebra] on the keyboard
+WAIT ok 23-line: [jihad-bs] find (5 bytes) -> 1
+WAIT ok 24-line: [jihad-bs] notify: find-result: {"index":1,"total":6,"more":false,"wrapped":false} (pushed)
+  the log marked
+  chrome kb-enter tapped at 715 873
+WAIT ok 27-line: [jihad-bs] js-console (no source):0:0 page: find: 2 of 6
+CHECK ok 28-above-keyboard: p2 on the screen at 16,363-748,387, above the keyboard
+CHECK ok 29-visible: p2 on the screen at 16,363-748,387 (the reach ends at 600, keyboard 1)
+  the log marked
+  chrome find-next tapped at 662 700
+WAIT ok 32-line: [jihad-bs] js-console (no source):0:0 page: find: 3 of 6
+  probe sel: ZEBRA
+CHECK ok 34-probe-has: the probe's answer holds [ZEBRA]
+  the log marked
+  chrome find-prev tapped at 600 700
+WAIT ok 37-line: [jihad-bs] js-console (no source):0:0 page: find: 2 of 6
+  the log marked
+  chrome find-prev tapped at 600 700
+WAIT ok 40-line: [jihad-bs] js-console (no source):0:0 page: find: 1 of 6
+  the log marked
+  chrome find-prev tapped at 600 700
+WAIT ok 43-line: [jihad-bs] js-console (no source):0:0 page: find: 6 of 6, went round
+  frame kept: /media/internal/jihad-finger/went-round-back_.last.raw
+  the log marked
+  chrome find-next tapped at 662 700
+WAIT ok 47-line: [jihad-bs] js-console (no source):0:0 page: find: 1 of 6, went round
+  the log marked
+  chrome find-next tapped at 662 700
+WAIT ok 50-line: [jihad-bs] js-console (no source):0:0 page: find: 2 of 6
+  the log marked
+  chrome find-done tapped at 726 700
+WAIT ok 53-line: [jihad-bs] js-console (no source):0:0 page: find: cleared
+CHECK ok 54-keyboard: the keyboard is down (the window server's last IME line for net.riverstonerelay.jihad-browser, or the daemon's editorFocused)
+  probe sel: |y=645|
+CHECK ok 56-probe-lacks: the probe's answer lacks [Zebra]
+CHECK ok 57-probe-lacks: the probe's answer lacks [|y=0|]
+  frame kept: /media/internal/jihad-finger/after-done_.last.raw
+CHECKS 7 FAILS 0

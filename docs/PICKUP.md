@@ -126,15 +126,14 @@ saved logins, find on page, finger testing, input bridging, and the Enyo and Moc
   T-629, T-652, T-656, T-673, and any PGO retrain.
 
 **Next, in order.**
-1. The Tablet UA scoreboard: running at the handoff into `docs/rounds/tablet-ua-2026-11-19`
-   (`RUNS=1 BROWSERS="jihad" bash tools/device/scoreboard.sh`). Read its report and compare the pictures with
-   `docs/rounds/scoreboard-2026-11-12`; rerun it if it did not finish.
-2. Flash: T-576, T-578, then T-579..T-584 (`cavekit-flash.md` R6 onward, the build site's Tier 93).
-3. Eaglercraft T-666..T-671, as far as they go without T-673.
-4. T-655, T-605/T-606, T-594/T-611.
-5. A review of the newest work by ck:inspector on Fable (back 2026-11-21) or Codex (`codex exec -s read-only -C <repo>
+1. Flash: T-576, T-578, then T-579..T-584 (`cavekit-flash.md` R6 onward, the build site's Tier 93). (The Tablet UA
+   scoreboard is done, `docs/rounds/tablet-ua-2026-11-19/README.md`: the same pages as before, no site serves a tablet
+   layout; numbers within the baseline's spread but Wikipedia's memory growth, 298 MB in one run, worth three runs.)
+2. Eaglercraft T-666..T-671, as far as they go without T-673.
+3. T-655, T-605/T-606, T-594/T-611.
+4. A review of the newest work by ck:inspector on Fable (back 2026-11-21) or Codex (`codex exec -s read-only -C <repo>
    --skip-git-repo-check -o review.md "$(cat PROMPT.md)" < /dev/null`): the site-data and freeze work, the guard.
-6. Enyo's launch error (the evening section's item 3).
+5. Enyo's launch error (the evening section's item 3).
 
 **Standing rules (the owner's).**
 - **Device:**
@@ -201,8 +200,7 @@ commit (`make-device-bundle.sh`, then `push-engine-update.sh --daemon-only enyo 
 - An inline count that grows moves the buttons after it: a tap aimed at Next lands on Prev (Mochi, then Mojo).
 
 **Next, in order:**
-1. The Tablet UA scoreboard rerun (`RUNS=1 BROWSERS="jihad" ROUND_DIR=docs/rounds/tablet-ua-2026-11-19 bash
-   tools/device/scoreboard.sh`; `scoreboard.sh` now makes its device directory), then compare the pictures.
+1. ~~The Tablet UA scoreboard rerun~~ done: `docs/rounds/tablet-ua-2026-11-19/README.md`.
 2. The ck:inspector review when Fable is back (2026-11-21), or Codex: the site-data and freeze work and the guard's
    thread (the review of 2026-11-19 covered the guard, logins and find).
 3. Every Enyo launch logs "Uncaught SyntaxError: Unexpected end of input, index.html:0" beside an XHR NETWORK_ERR in
